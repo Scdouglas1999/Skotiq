@@ -477,6 +477,11 @@ class GeolocationService {
     // Service availability and permission calls can stall on a missing DBus
     // service too; the plugin's position timeLimit does not cover them.
     final deadline = PositioningDeadline(const Duration(seconds: 3));
+    // A phone's GPS takes seconds to tens of seconds to a first fix from cold,
+    // and its permission prompt waits for the user. Neither fits a budget
+    // sized for a desktop location service that may never answer.
+    final onPhone = Platform.isAndroid || Platform.isIOS;
+    PositioningDeadline? fixDeadline;
     try {
       if (!await deadline.run(Geolocator.isLocationServiceEnabled)) {
         return (
@@ -487,7 +492,9 @@ class GeolocationService {
 
       var permission = await deadline.run(Geolocator.checkPermission);
       if (permission == LocationPermission.denied) {
-        permission = await deadline.run(Geolocator.requestPermission);
+        permission = onPhone
+            ? await Geolocator.requestPermission()
+            : await deadline.run(Geolocator.requestPermission);
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
@@ -500,11 +507,14 @@ class GeolocationService {
         );
       }
 
-      final position = await deadline.run(
+      fixDeadline = onPhone
+          ? PositioningDeadline(const Duration(seconds: 35))
+          : deadline;
+      final position = await fixDeadline.run(
         () => Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
+          locationSettings: LocationSettings(
             accuracy: LocationAccuracy.best,
-            timeLimit: Duration(seconds: 3),
+            timeLimit: Duration(seconds: onPhone ? 30 : 3),
           ),
         ),
       );
@@ -543,6 +553,7 @@ class GeolocationService {
       return (null, failed('This machine has no working location service.'));
     } finally {
       deadline.dispose();
+      fixDeadline?.dispose();
     }
   }
 }

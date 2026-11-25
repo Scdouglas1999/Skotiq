@@ -202,6 +202,11 @@ class EditableFragment extends SummaryFragment {
 /// and the row reports what will actually run. This function stays pure: the
 /// widget layer reads the setting and hands it over. [sensitivity] words the
 /// gain the way the connected camera takes it ("gain 100", "ISO 800").
+/// An exposure length as the chip shows it: seconds to one decimal, and
+/// milliseconds below a tenth of a second, where seconds would read "0s".
+String exposureDurationLabel(double seconds) =>
+    QuantityFormat.exposure(seconds, space: false);
+
 List<SummaryFragment> nodeSummary(
   SequenceNode node, {
   String? globalAutofocusMethod,
@@ -227,7 +232,7 @@ List<SummaryFragment> nodeSummary(
         const StaticFragment('× '),
         EditableFragment(
           InlineEditKind.exposureDuration,
-          '${QuantityFormat.trimmed(dur)}s',
+          exposureDurationLabel(dur),
         ),
         if (filter != null && filter.isNotEmpty)
           EditableFragment(

@@ -52,7 +52,12 @@ class _Probe extends StatelessWidget {
   }
 }
 
-Future<NightControlDensity> _pump(WidgetTester tester, Size size) async {
+Future<NightControlDensity> _pump(
+  WidgetTester tester,
+  Size size, {
+  bool planFirst = false,
+  Widget? notices,
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -64,6 +69,8 @@ Future<NightControlDensity> _pump(WidgetTester tester, Size size) async {
       supportedLocales: SkotiqLocalizations.supportedLocales,
       home: Scaffold(
         body: NightControlLayout(
+          planFirst: planFirst,
+          notices: notices,
           header: KeyedSubtree(
             key: _header,
             child: _Probe((d) => density = d),
@@ -209,6 +216,62 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('390x844 before a run: the plan and the panel come first', (
+    tester,
+  ) async {
+    await _pump(tester, const Size(390, 844), planFirst: true);
+    final header = _rect(tester, _header);
+    final left = _rect(tester, _left);
+    final panel = _rect(tester, _panel);
+    final center = _rect(tester, _center);
+    expect(header.top, lessThan(left.top));
+    expect(left.top, lessThan(panel.top));
+    expect(panel.top, lessThan(center.top));
+  });
+
+  testWidgets('the column modes ignore planFirst', (tester) async {
+    await _pump(tester, const Size(1480, 806), planFirst: true);
+    expect(
+      _rect(tester, _left).left,
+      lessThan(_rect(tester, _center).left),
+    );
+    expect(_rect(tester, _header).bottom,
+        lessThanOrEqualTo(_rect(tester, _center).top));
+  });
+
+  testWidgets('a notice above the columns shortens the body the board sees', (
+    tester,
+  ) async {
+    const notice = Key('notice');
+    // 806 - 48 header is 758, roomy; 806 - 120 notice - 48 is 638, compact.
+    expect((await _pump(tester, const Size(1480, 806))).compactHeight, isFalse);
+    final density = await _pump(
+      tester,
+      const Size(1480, 806),
+      notices: const SizedBox(key: notice, height: 120),
+    );
+    expect(density.compactHeight, isTrue);
+    expect(
+      _rect(tester, notice).bottom,
+      lessThanOrEqualTo(_rect(tester, _header).top),
+    );
+  });
+
+  testWidgets('the single column puts its notices under the header', (
+    tester,
+  ) async {
+    const notice = Key('notice');
+    await _pump(
+      tester,
+      const Size(390, 844),
+      notices: const SizedBox(key: notice, height: 60),
+    );
+    expect(
+      _rect(tester, notice).top,
+      greaterThanOrEqualTo(_rect(tester, _header).bottom),
+    );
+  });
 
   test('the board fixtures build and compare by value', () {
     for (final build in <NightBoard Function()>[

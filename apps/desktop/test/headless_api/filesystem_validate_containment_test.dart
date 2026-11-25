@@ -95,6 +95,35 @@ void main() {
       expect(probes, isEmpty);
     });
 
+    test(
+      'creates an in-root folder when asked, and never one outside',
+      () async {
+        final inside = '${envBrowseRoot.path}/Captures/M31';
+        final made = await validate({
+          'path': inside,
+          'mustExist': true,
+          'mustBeWritable': true,
+          'create': true,
+        });
+        expect(made.statusCode, HttpStatus.ok);
+        expect((jsonDecode(await made.readAsString()) as Map)['valid'], isTrue);
+        expect(await Directory(inside).exists(), isTrue);
+
+        final outsideParent = await Directory.systemTemp.createTemp(
+          'skotiq_validate_outside_',
+        );
+        addTearDown(() => outsideParent.delete(recursive: true));
+        final outside = '${outsideParent.path}/made';
+        final refused = await validate({
+          'path': outside,
+          'mustExist': true,
+          'create': true,
+        });
+        expect(refused.statusCode, HttpStatus.forbidden);
+        expect(await Directory(outside).exists(), isFalse);
+      },
+    );
+
     test('validates an in-root existing directory', () async {
       final response = await validate({
         'path': envBrowseRoot.path,

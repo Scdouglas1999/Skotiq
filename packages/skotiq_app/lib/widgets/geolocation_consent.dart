@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/database.dart';
@@ -147,6 +150,7 @@ Future<bool> confirmGeolocationLookup(
                 includeWifiScan: includeWifiScan,
                 includeIpFallback: includeIpFallback,
                 googleKeyPresent: googleKeyPresent,
+                onPhone: !kIsWeb && (Platform.isAndroid || Platform.isIOS),
               ),
             ),
           ),
@@ -181,7 +185,33 @@ String geolocationConsentBody({
   required bool includeWifiScan,
   required bool includeIpFallback,
   bool googleKeyPresent = false,
+  bool onPhone = false,
 }) {
+  // A phone almost always has a GPS fix, which sends nothing anywhere; the
+  // fallbacks are still named, in a phone-sized paragraph.
+  if (onPhone) {
+    final fallbacks = <String>[
+      if (includeWifiScan)
+        googleKeyPresent
+            ? 'nearby Wi-Fi network names, sent once to Google (your key) '
+                'or beaconDB'
+            : 'nearby Wi-Fi network names, sent once to beaconDB (an open '
+                'positioning service)',
+      if (includeIpFallback)
+        'your public IP address, sent to ipinfo.io (city level only)',
+    ];
+    final buffer = StringBuffer(
+      'Skotiq asks this phone’s GPS first. Nothing leaves the phone.',
+    );
+    if (fallbacks.isNotEmpty) {
+      buffer.write(
+        '\n\nWithout a GPS fix it falls back to ${fallbacks.join(', then ')}.',
+      );
+    }
+    buffer.write('\n\n$outcome');
+    return buffer.toString();
+  }
+
   final steps = <String>[
     'This device’s own location service, if it has one. Nothing leaves the '
         'machine.',

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../../models/sequence/sequence_models.dart';
+import '../../backend_provider.dart' show isRemoteClientProvider;
 import '../../meridian_flip_provider.dart' show isMeridianFlipEnabledProvider;
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
@@ -73,6 +74,11 @@ class ImageOutputPathRule implements RefAwareSequenceValidator {
         ),
       ];
     }
+
+    // The folder is on the imaging host. A linked client cannot see that
+    // filesystem; the host runs this same rule against its own disk when it
+    // is asked to start.
+    if (ctx.ref.read(isRemoteClientProvider)) return const [];
 
     final dir = Directory(trimmed);
     if (!dir.existsSync()) {

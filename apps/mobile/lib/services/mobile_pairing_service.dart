@@ -59,7 +59,7 @@ class MobilePairingService {
   /// Pair using a code from the desktop UI or QR payload.
   Future<RemotePairingVerifyResult> pairWithCode({
     required String code,
-    bool requestAdminScope = false,
+    bool requestAdminScope = true,
   }) async {
     final id = await deviceId();
     return _client.verify(

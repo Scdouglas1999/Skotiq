@@ -109,6 +109,8 @@ class NightControlLayout extends StatefulWidget {
     required this.left,
     required this.center,
     required this.panel,
+    this.notices,
+    this.planFirst = false,
   });
 
   /// Title, run pill, timeline and run controls. At least [headerHeight]
@@ -123,6 +125,15 @@ class NightControlLayout extends StatefulWidget {
 
   /// The tabbed right panel.
   final Widget panel;
+
+  /// Banners about the run (mount guard, warnings, recovery). Above the
+  /// header in the column modes; under it in the single column, where the
+  /// header is the phone's top bar.
+  final Widget? notices;
+
+  /// In the single column, put the plan and the readiness panel above the
+  /// frame: before a run they are what the operator came to see.
+  final bool planFirst;
 
   static const double threeColumnMinWidth = 1180;
   static const double drawerMinWidth = 900;
@@ -141,6 +152,10 @@ class NightControlLayout extends StatefulWidget {
   static const double actionSubLabelMinWidth = 820;
   static const double chartRowHeight = 120;
   static const double compactChartRowHeight = 96;
+
+  /// A chart's height when the single column stacks them at full width: tall
+  /// enough to read a trend on a phone.
+  static const double singleColumnChartHeight = 160;
 
   /// The frame never gets shorter than this in the column modes; the chart
   /// row folds into a toggle first.
@@ -185,40 +200,66 @@ class _NightControlLayoutState extends State<NightControlLayout> {
     return ColoredBox(
       color: colors.background,
       child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final mode = NightControlLayout.modeFor(width);
-          final drawerMode = mode == NightControlMode.planDrawer;
-          // Leaving the drawer width forgets the drawer, so narrowing the
-          // window again does not throw it open over the frame.
-          if (!drawerMode) _drawerOpen = false;
-          final drawerOpen = _drawerOpen;
-          final bodyHeight = constraints.hasBoundedHeight
-              ? constraints.maxHeight - NightControlLayout.headerHeight
-              : null;
-          final centerWidth = switch (mode) {
-            NightControlMode.threeColumn => width -
-                NightControlLayout.leftWidth -
-                NightControlLayout.panelWidthFor(width),
-            NightControlMode.planDrawer =>
-              width - NightControlLayout.panelWidthFor(width),
-            NightControlMode.singleColumn => width,
-          };
-          return NightControlDensity(
-            mode: mode,
-            centerWidth: centerWidth,
-            compactHeight: bodyHeight != null &&
-                bodyHeight < NightControlLayout.compactBodyHeight,
-            planDrawerOpen: drawerOpen,
-            openPlanDrawer: drawerMode ? _openDrawer : null,
-            closePlanDrawer: drawerMode ? _closeDrawer : null,
-            child: switch (mode) {
-              NightControlMode.singleColumn => _singleColumn(colors),
-              _ => _columns(colors, mode, drawerOpen, width),
-            },
+        builder: (context, outer) {
+          final mode = NightControlLayout.modeFor(outer.maxWidth);
+          final notices = widget.notices;
+          // In the column modes the notices stand above the board and the
+          // board measures only what they leave, so a banner shortens the
+          // body the density sees. The single column scrolls and carries its
+          // notices under the header itself.
+          if (mode == NightControlMode.singleColumn || notices == null) {
+            return _board(colors, outer, mode);
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              notices,
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, inner) => _board(colors, inner, mode),
+                ),
+              ),
+            ],
           );
         },
       ),
+    );
+  }
+
+  Widget _board(
+    SkotiqColors colors,
+    BoxConstraints constraints,
+    NightControlMode mode,
+  ) {
+    final width = constraints.maxWidth;
+    final drawerMode = mode == NightControlMode.planDrawer;
+    // Leaving the drawer width forgets the drawer, so narrowing the window
+    // again does not throw it open over the frame.
+    if (!drawerMode) _drawerOpen = false;
+    final drawerOpen = _drawerOpen;
+    final bodyHeight = constraints.hasBoundedHeight
+        ? constraints.maxHeight - NightControlLayout.headerHeight
+        : null;
+    final centerWidth = switch (mode) {
+      NightControlMode.threeColumn => width -
+          NightControlLayout.leftWidth -
+          NightControlLayout.panelWidthFor(width),
+      NightControlMode.planDrawer =>
+        width - NightControlLayout.panelWidthFor(width),
+      NightControlMode.singleColumn => width,
+    };
+    return NightControlDensity(
+      mode: mode,
+      centerWidth: centerWidth,
+      compactHeight: bodyHeight != null &&
+          bodyHeight < NightControlLayout.compactBodyHeight,
+      planDrawerOpen: drawerOpen,
+      openPlanDrawer: drawerMode ? _openDrawer : null,
+      closePlanDrawer: drawerMode ? _closeDrawer : null,
+      child: switch (mode) {
+        NightControlMode.singleColumn => _singleColumn(colors),
+        _ => _columns(colors, mode, drawerOpen, width),
+      },
     );
   }
 
@@ -341,6 +382,20 @@ class _NightControlLayoutState extends State<NightControlLayout> {
 
   Widget _singleColumn(SkotiqColors colors) {
     final divider = BorderSide(color: colors.border);
+    final panelSlot = DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: _slot(widget.panel),
+    );
+    final planSlot = DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.well,
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: _slot(widget.left),
+    );
     return SingleChildScrollView(
       primary: false,
       child: Column(
@@ -350,21 +405,16 @@ class _NightControlLayoutState extends State<NightControlLayout> {
             decoration: BoxDecoration(border: Border(bottom: divider)),
             child: _slot(widget.header),
           ),
-          _slot(widget.center),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.surface,
-              border: Border(top: divider),
-            ),
-            child: _slot(widget.panel),
-          ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.well,
-              border: Border(top: divider),
-            ),
-            child: _slot(widget.left),
-          ),
+          if (widget.notices case final notices?) notices,
+          if (widget.planFirst) ...<Widget>[
+            planSlot,
+            panelSlot,
+            _slot(widget.center),
+          ] else ...<Widget>[
+            _slot(widget.center),
+            panelSlot,
+            planSlot,
+          ],
         ],
       ),
     );

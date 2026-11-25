@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,25 +51,73 @@ class ImagingSessionFrames extends ConsumerWidget {
           initialIndex: shown.indexOf(frame),
         );
 
-    return ListView(
-      padding: SkotiqTokens.paddingLg,
-      children: [
+    // Lazy, per group: a night holds hundreds of frames, and every tile built
+    // asks the host for its thumbnail. Built all at once (a Wrap), a linked
+    // phone sent a thousand requests and the host refused them (429).
+    return CustomScrollView(
+      slivers: [
+        const SliverToBoxAdapter(
+          child: SizedBox(height: SkotiqTokens.spaceLg),
+        ),
         for (final group in groups) ...[
-          _GroupHead(group: group, targetName: targetNames[group.targetId]),
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          Wrap(
-            spacing: SkotiqTokens.spaceSm,
-            runSpacing: SkotiqTokens.spaceSm,
-            children: [
-              for (final frame in group.frames)
-                _FrameTile(
-                  key: ValueKey<int>(frame.row.id),
-                  frame: frame,
-                  onOpen: () => open(frame),
-                ),
-            ],
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: SkotiqTokens.spaceLg,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: _GroupHead(
+                group: group,
+                targetName: targetNames[group.targetId],
+              ),
+            ),
           ),
-          const SizedBox(height: SkotiqTokens.spaceXl),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: SkotiqTokens.spaceSm),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: SkotiqTokens.spaceLg,
+            ),
+            sliver: SliverLayoutBuilder(
+              builder: (context, constraints) {
+                const gap = SkotiqTokens.spaceSm;
+                final width = constraints.crossAxisExtent;
+                final columns = math.max(
+                  1,
+                  ((width + gap) / (ImagingSessionFrames.tileWidth + gap))
+                      .floor(),
+                );
+                final tileWidth = (width - gap * (columns - 1)) / columns;
+                // The 3:2 thumbnail plus the caption row under it.
+                final captionHeight =
+                    MediaQuery.textScalerOf(context).scale(16) +
+                        SkotiqTokens.spaceXs * 2 +
+                        2;
+                return SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    mainAxisSpacing: gap,
+                    crossAxisSpacing: gap,
+                    mainAxisExtent: tileWidth * 2 / 3 + captionHeight,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final frame = group.frames[index];
+                      return _FrameTile(
+                        key: ValueKey<int>(frame.row.id),
+                        frame: frame,
+                        onOpen: () => open(frame),
+                      );
+                    },
+                    childCount: group.frames.length,
+                  ),
+                );
+              },
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: SizedBox(height: SkotiqTokens.spaceXl),
+          ),
         ],
       ],
     );
@@ -90,7 +140,7 @@ SavedFrameEntry _viewerEntry(BuildContext context, SessionFrame frame) {
     title: [
       '#${frame.number}',
       if (filter != null && filter.isNotEmpty) filter,
-      DurationFormat.seconds(row.exposureDuration),
+      QuantityFormat.exposure(row.exposureDuration, space: false),
     ].join(' · '),
     time: ClockFormat.hms(row.capturedAt.toLocal()),
     status: [
@@ -265,7 +315,6 @@ class _FrameTileState extends ConsumerState<_FrameTile> {
       ].join(', '),
       excludeSemantics: true,
       child: SizedBox(
-        width: ImagingSessionFrames.tileWidth,
         child: InkWell(
           onTap: widget.onOpen,
           borderRadius: SkotiqTokens.borderRadiusSm,

@@ -107,7 +107,7 @@ class _EquipmentMainColumn extends ConsumerWidget {
         // below them, so the devices are the first thing on the screen.
         return _cardsAndDiscovery(
           header: Padding(
-            padding: _bodyPadding.copyWith(bottom: 0),
+            padding: _bodyPadding(context).copyWith(bottom: 0),
             child: _ProfileSection(
               selectedProfile: selectedProfile,
               onSettings: onSettings,
@@ -117,7 +117,7 @@ class _EquipmentMainColumn extends ConsumerWidget {
             ),
           ),
           status: Padding(
-            padding: _bodyPadding.copyWith(top: 0),
+            padding: _bodyPadding(context).copyWith(top: 0),
             child: const _StatusSections(),
           ),
         );

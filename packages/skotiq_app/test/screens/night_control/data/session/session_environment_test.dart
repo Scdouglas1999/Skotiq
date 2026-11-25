@@ -16,6 +16,7 @@ import 'package:skotiq_app/services/night_session/night_session_events.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/screens/shell/widgets/android_notifications_banner.dart';
 import 'package:skotiq_app/utils/guide_distance.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
@@ -135,6 +136,26 @@ ChecklistItemVm _item(List<ChecklistItemVm> items, ChecklistItemId id) =>
     items.firstWhere((item) => item.id == id);
 
 void main() {
+  group('alerts', () {
+    test('a phone that cannot post alerts says so before the run', () async {
+      final h = await sessionHarness(
+        overrides: [
+          ..._readyRig(),
+          androidNotificationsAuthorizedProvider.overrideWith((_) => false),
+        ],
+      );
+      final alerts = _item(await _checklist(h), ChecklistItemId.alerts);
+      expect(alerts.state, ChecklistItemState.attention);
+      expect(alerts.actionLabel, const NightText('nightSessionActionTurnOn'));
+    });
+
+    test('with alerts allowed there is no row for them', () async {
+      final h = await sessionHarness(overrides: _readyRig());
+      final items = await _checklist(h);
+      expect(items.any((i) => i.id == ChecklistItemId.alerts), isFalse);
+    });
+  });
+
   group('conditions', () {
     test('no weather device and no forecast: no source, nothing shown',
         () async {

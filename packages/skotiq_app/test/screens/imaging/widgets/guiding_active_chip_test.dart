@@ -35,6 +35,7 @@ Future<void> _pumpChip(
   required Phd2State phd2State,
   GuiderState guider = _connected,
   Phd2GuideStats guide = const Phd2GuideStats(),
+  double? maxWidth,
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(900, 600);
@@ -54,8 +55,15 @@ Future<void> _pumpChip(
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: const Scaffold(
-          body: Center(child: GuidingActiveChip()),
+        home: Scaffold(
+          body: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: maxWidth ?? double.infinity,
+              ),
+              child: const GuidingActiveChip(),
+            ),
+          ),
         ),
       ),
     ),
@@ -104,9 +112,9 @@ void main() {
     );
 
     expect(find.text('Guiding'), findsOneWidget);
-    expect(find.text('RMS 0.42 px'), findsOneWidget);
+    expect(find.textContaining('RMS 0.42 px'), findsOneWidget);
     // SNR rounds to nearest integer.
-    expect(find.text('SNR 19'), findsOneWidget);
+    expect(find.textContaining('SNR 19'), findsOneWidget);
     expect(find.textContaining('"'), findsNothing);
     expect(find.textContaining('″'), findsNothing);
   });
@@ -125,7 +133,7 @@ void main() {
     );
 
     // 0.42 px at 2.00″/px.
-    expect(find.text('RMS 0.84″'), findsOneWidget);
+    expect(find.textContaining('RMS 0.84″'), findsOneWidget);
     expect(find.textContaining('px'), findsNothing);
     final tooltip = tester.widget<SkotiqTooltip>(find.byType(SkotiqTooltip));
     expect(tooltip.message, contains('arcseconds'));
@@ -167,7 +175,7 @@ void main() {
     );
 
     expect(find.text('Settling'), findsOneWidget);
-    expect(find.text('RMS 0.42 px'), findsOneWidget);
+    expect(find.textContaining('RMS 0.42 px'), findsOneWidget);
   });
 
   testWidgets('the dot turns warning-colored on lost lock', (tester) async {
@@ -208,5 +216,20 @@ void main() {
     expect(tooltip.message, contains('PHD2 guiding active'));
     expect(tooltip.message, contains('guide-camera pixels'));
     expect(tooltip.message, isNot(contains('arcseconds')));
+  });
+
+  testWidgets('a narrow preview cuts the telemetry instead of overflowing', (
+    tester,
+  ) async {
+    await _pumpChip(
+      tester,
+      phd2State: Phd2State.guiding,
+      guide: const Phd2GuideStats(rmsTotal: 0.42, snr: 18.6),
+      maxWidth: 150,
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('Guiding'), findsOneWidget);
+    expect(tester.getSize(find.byType(GuidingActiveChip)).width,
+        lessThanOrEqualTo(150));
   });
 }

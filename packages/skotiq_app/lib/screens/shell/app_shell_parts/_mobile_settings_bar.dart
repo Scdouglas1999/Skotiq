@@ -71,3 +71,45 @@ class _MobileSettingsBar extends ConsumerWidget {
     return WindowDragArea(child: bar);
   }
 }
+
+/// The shell's item on a phone, carried at the end of each screen's header:
+/// the link to the imaging host and the phone's own status. Settings is in
+/// the More sheet, so a header never shows the shell's gear beside a screen's
+/// own.
+class _PhoneHeaderTrailing extends ConsumerWidget {
+  const _PhoneHeaderTrailing();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(phoneBarStatusProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (status != null) status,
+        const RemoteConnectionIndicator(dot: true),
+      ],
+    );
+  }
+}
+
+/// A routed screen on a phone: its header carries the shell's trailing item,
+/// and it reserves no bottom inset, which the bottom bar under it owns. Built
+/// inside the shell's SafeArea, so the MediaQuery it trims has the top and
+/// side insets already taken out.
+class _PhoneScreen extends StatelessWidget {
+  final Widget child;
+
+  const _PhoneScreen({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShellHeaderTrailing(
+      trailing: const _PhoneHeaderTrailing(),
+      child: MediaQuery.removePadding(
+        context: context,
+        removeBottom: true,
+        child: child,
+      ),
+    );
+  }
+}

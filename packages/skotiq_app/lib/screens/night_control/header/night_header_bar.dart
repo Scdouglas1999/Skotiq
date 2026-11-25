@@ -71,6 +71,7 @@ class NightHeaderBar extends ConsumerWidget {
     final density = NightControlDensity.maybeOf(context);
 
     final controls = _controls(context, ref, l10n, header, density);
+    final shellTrailing = ShellHeaderTrailing.maybeOf(context);
     final strip = timeline == null ? null : _strip(l10n, timeline);
 
     return LayoutBuilder(
@@ -125,6 +126,10 @@ class NightHeaderBar extends ConsumerWidget {
                 ],
                 const SizedBox(width: _gap),
                 controlRow,
+                if (shellTrailing != null) ...<Widget>[
+                  const SizedBox(width: _gap),
+                  shellTrailing,
+                ],
               ],
             ),
           );
@@ -144,6 +149,10 @@ class NightHeaderBar extends ConsumerWidget {
                   if (inlineControls && controls.isNotEmpty) ...<Widget>[
                     const SizedBox(width: _gap),
                     controlRow,
+                  ],
+                  if (shellTrailing != null) ...<Widget>[
+                    const SizedBox(width: _controlGap),
+                    shellTrailing,
                   ],
                 ],
               ),

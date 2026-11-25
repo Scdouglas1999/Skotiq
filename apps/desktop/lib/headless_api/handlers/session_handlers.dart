@@ -10,6 +10,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
+import '../display_buffer_jpeg.dart';
 import '../job_manager.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
@@ -36,6 +37,7 @@ class SessionHandlers implements RouteSource {
     SessionApi.getImageById: handleGetImageById,
     SessionApi.updateImage: handleUpdateImage,
     SessionApi.getImageThumbnail: handleGetImageThumbnail,
+    SessionApi.getImageJpeg: handleGetImageJpeg,
     SessionApi.regenerateImageThumbnail: handleRegenerateImageThumbnail,
     SessionApi.downloadImage: handleDownloadImage,
     SessionApi.exportSessionJson: handleExportSessionJson,

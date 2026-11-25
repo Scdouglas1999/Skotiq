@@ -57,6 +57,9 @@ enum SessionApi implements ApiEndpoint {
       resource: ApiResource.system,
     ),
   ),
+  getImageJpeg(
+    ApiRoute.get('/api/images/<imageId>/jpeg', resource: ApiResource.system),
+  ),
   regenerateImageThumbnail(
     ApiRoute.post(
       '/api/images/<imageId>/regenerate-thumbnail',

@@ -18,9 +18,11 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../errors/error_text.dart';
 import '../models/backend/image_result.dart';
 import '../models/imaging/imaging_models.dart';
-import '../services/capture_preview_loader.dart' show imageStatsFromResult;
+import '../services/capture_preview_loader.dart'
+    show capturedImageDataFromResult, imageStatsFromResult;
 import '../utils/logging_service.dart';
 import 'backend_provider.dart';
+import 'linked_host.dart' show linkedHostImagingRecordsProvider;
 import 'current_frame_analysis_provider.dart';
 import '../models/imaging/saved_frame.dart';
 
@@ -32,6 +34,14 @@ final frameFileDecoderProvider = Provider<FrameFileDecoder>(
   (ref) =>
       (path) => bridge.apiReadFitsFile(filePath: path),
 );
+
+/// Whether this device can decode a FITS file itself. A phone carries no
+/// native library, so its frames are drawn by the host instead.
+final savedFrameDecodesOnDeviceProvider = Provider<bool>((ref) => true);
+
+/// The longest edge a host-drawn frame is sent at: plenty for a phone screen
+/// at 2-3x zoom, without a full sensor's RGBA in its memory.
+const int hostDrawnFrameMaxEdge = 3000;
 
 /// Where a linked client keeps the frames it downloaded to look at.
 final savedFrameCacheDirProvider = Provider<Future<Directory> Function()>(
@@ -62,6 +72,10 @@ class SavedFrameLoader
       return const SavedFrameFailed('This frame has no saved file.');
     }
     final remote = ref.read(isRemoteModeProvider);
+    if (remote && !ref.read(savedFrameDecodesOnDeviceProvider)) {
+      unawaited(_loadDrawnByHost(frame));
+      return const SavedFrameDownloading();
+    }
     unawaited(_load(frame, remote: remote));
     return remote ? const SavedFrameDownloading() : const SavedFrameDecoding();
   }
@@ -94,6 +108,44 @@ class SavedFrameLoader
     } catch (e) {
       Log.warning(
         'Saved frame ${frame.imageId} (${frame.hostPath}) did not load: $e',
+        source: 'SavedFrame',
+      );
+      _set(SavedFrameFailed(userFacingError(e)));
+    }
+  }
+
+  Future<void> _loadDrawnByHost(SavedFrameRef frame) async {
+    try {
+      final records = ref.read(linkedHostImagingRecordsProvider);
+      if (records == null) {
+        throw StateError('Not linked to an imaging host.');
+      }
+      final drawn = await records.getSavedFrameJpeg(
+        frame.imageId,
+        maxWidth: hostDrawnFrameMaxEdge,
+      );
+      if (_disposed) return;
+      _set(
+        SavedFrameReady(
+          image: capturedImageDataFromResult(
+            capturedImage: drawn,
+            settings: ExposureSettings(
+              exposureTime: drawn.exposureTime,
+              gain: 0,
+              offset: 0,
+            ),
+            capturedAt: frame.capturedAt,
+            filePath: frame.hostPath,
+            previewSource: CapturePreviewSource.remote,
+          ),
+          // No file on this device: nothing to detect stars in here.
+          localPath: '',
+        ),
+      );
+    } catch (e) {
+      Log.warning(
+        'Saved frame ${frame.imageId} (${frame.hostPath}) did not load from '
+        'the host: $e',
         source: 'SavedFrame',
       );
       _set(SavedFrameFailed(userFacingError(e)));

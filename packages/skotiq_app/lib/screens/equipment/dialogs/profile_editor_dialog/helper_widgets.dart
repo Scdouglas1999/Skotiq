@@ -381,12 +381,15 @@ class _DeviceRow extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxWidth < _sideBySideMinWidth) {
+            // Stacked, an empty slot shows only its picker: a name for a
+            // device not chosen yet doubles a phone's long list of slots.
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
                 picker,
-                if (nameField != null) ...[
+                if (nameField != null &&
+                    (deviceId != null || nameController!.text.isNotEmpty)) ...[
                   const SizedBox(height: SkotiqTokens.spaceSm),
                   nameField,
                 ],
@@ -451,97 +454,106 @@ class _DevicePickerState extends State<_DevicePicker> {
       button: true,
       enabled: true,
       label: '${widget.label}: ${selectedName ?? 'choose a device'}',
-      onTap: () => _menuKey.currentState?.showButtonMenu(),
+      onTap: () {
+        FocusManager.instance.primaryFocus?.unfocus();
+        _menuKey.currentState?.showButtonMenu();
+      },
       excludeSemantics: true,
-      child: PopupMenuButton<String>(
-        key: _menuKey,
-        tooltip: 'Choose the ${widget.label.toLowerCase()}',
-        onSelected: (value) {
-          if (value == _manualValue) {
-            _showManualEntryDialog(context);
-          } else if (value == _scanValue) {
-            // The parent watches the discovery results, so the list fills in
-            // when the scan lands.
-            context.showInfoSnackBar('Scanning for devices…');
-            widget.onScan();
-          } else {
-            final choice =
-                widget.choices.where((c) => c.id == value).firstOrNull;
-            widget.onSelected(value, choice?.name);
-          }
-        },
-        itemBuilder: (context) => [
-          for (final choice in widget.choices)
-            PopupMenuItem(
-              value: choice.id,
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: SkotiqTokens.iconXs,
-                    child: choice.id == widget.deviceId
-                        ? Icon(
-                            LucideIcons.check,
-                            size: SkotiqTokens.iconXs,
-                            color: colors.primary,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          choice.name,
-                          style: SkotiqTypography.bodySm
-                              .copyWith(color: colors.textPrimary),
-                        ),
-                        Text(
-                          choice.detail,
-                          style: SkotiqTypography.caption
-                              .copyWith(color: colors.textMuted),
-                        ),
-                      ],
+      // A text field still focused when the menu opens gets the focus back
+      // when it closes: on a phone the form jumps to it and the keyboard
+      // opens. A touch on Android does not unfocus a field by itself.
+      child: Listener(
+        onPointerDown: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+        child: PopupMenuButton<String>(
+          key: _menuKey,
+          tooltip: 'Choose the ${widget.label.toLowerCase()}',
+          onSelected: (value) {
+            if (value == _manualValue) {
+              _showManualEntryDialog(context);
+            } else if (value == _scanValue) {
+              // The parent watches the discovery results, so the list fills in
+              // when the scan lands.
+              context.showInfoSnackBar('Scanning for devices…');
+              widget.onScan();
+            } else {
+              final choice =
+                  widget.choices.where((c) => c.id == value).firstOrNull;
+              widget.onSelected(value, choice?.name);
+            }
+          },
+          itemBuilder: (context) => [
+            for (final choice in widget.choices)
+              PopupMenuItem(
+                value: choice.id,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: SkotiqTokens.iconXs,
+                      child: choice.id == widget.deviceId
+                          ? Icon(
+                              LucideIcons.check,
+                              size: SkotiqTokens.iconXs,
+                              color: colors.primary,
+                            )
+                          : null,
                     ),
-                  ),
-                ],
-              ),
-            ),
-          if (widget.choices.isNotEmpty) const PopupMenuDivider(),
-          _actionItem(_scanValue, LucideIcons.refreshCw, 'Scan for devices'),
-          _actionItem(_manualValue, LucideIcons.edit3, 'Enter manually…'),
-        ],
-        // The closed control wears the same field face as every other input
-        // in the row, so a select and a text box do not read as two different
-        // kinds of control (05 §8).
-        child: Container(
-          height: fieldHeight,
-          padding: const EdgeInsets.symmetric(
-            horizontal: SkotiqTokens.inputPaddingHorizontal,
-          ),
-          decoration: SkotiqDecorations.field(colors),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  selectedName ?? 'Choose a device…',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: SkotiqTypography.input.copyWith(
-                    color: selectedName != null
-                        ? colors.textPrimary
-                        : colors.textMuted,
-                  ),
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            choice.name,
+                            style: SkotiqTypography.bodySm
+                                .copyWith(color: colors.textPrimary),
+                          ),
+                          Text(
+                            choice.detail,
+                            style: SkotiqTypography.caption
+                                .copyWith(color: colors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: SkotiqTokens.spaceSm),
-              Icon(
-                LucideIcons.chevronDown,
-                size: SkotiqTokens.iconXs,
-                color: colors.textMuted,
-              ),
-            ],
+            if (widget.choices.isNotEmpty) const PopupMenuDivider(),
+            _actionItem(_scanValue, LucideIcons.refreshCw, 'Scan for devices'),
+            _actionItem(_manualValue, LucideIcons.edit3, 'Enter manually…'),
+          ],
+          // The closed control wears the same field face as every other input
+          // in the row, so a select and a text box do not read as two different
+          // kinds of control (05 §8).
+          child: Container(
+            height: fieldHeight,
+            padding: const EdgeInsets.symmetric(
+              horizontal: SkotiqTokens.inputPaddingHorizontal,
+            ),
+            decoration: SkotiqDecorations.field(colors),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    selectedName ?? 'Choose a device…',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: SkotiqTypography.input.copyWith(
+                      color: selectedName != null
+                          ? colors.textPrimary
+                          : colors.textMuted,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                Icon(
+                  LucideIcons.chevronDown,
+                  size: SkotiqTokens.iconXs,
+                  color: colors.textMuted,
+                ),
+              ],
+            ),
           ),
         ),
       ),

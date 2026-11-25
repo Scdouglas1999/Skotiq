@@ -384,4 +384,49 @@ void main() {
     final toggle = tester.getTopLeft(find.byType(SettingsSwitch));
     expect(toggle.dy, greaterThan(title.dy), reason: 'control under the title');
   });
+
+  testWidgets('on a phone a field goes under its title at the full width', (
+    tester,
+  ) async {
+    await pumpAppScreen(
+      tester,
+      SettingsFormScope(
+        narrow: true,
+        child: SettingRow(
+          title: 'Latitude',
+          subtitle: 'Decimal degrees',
+          trailing: SettingsTextInput(
+            controller: TextEditingController(text: '39.9'),
+          ),
+        ),
+      ),
+    );
+    final title = tester.getRect(find.text('Latitude'));
+    final field = tester.getRect(find.byType(SettingsTextInput));
+    expect(field.top, greaterThan(title.bottom));
+    expect(field.left, closeTo(title.left, 1));
+    // Full width of the row, not the 180 px narrow design width.
+    expect(field.width, greaterThan(250));
+  });
+
+  testWidgets('on a phone a switch stays beside its title', (tester) async {
+    await pumpAppScreen(
+      tester,
+      SettingsFormScope(
+        narrow: true,
+        child: Column(
+          children: [
+            SettingRow(
+              title: 'Auto-connect',
+              trailing: SettingsSwitch(value: false, onChanged: (_) {}),
+            ),
+          ],
+        ),
+      ),
+    );
+    final title = tester.getCenter(find.text('Auto-connect'));
+    final toggle = tester.getCenter(find.byType(SettingsSwitch));
+    expect(toggle.dx, greaterThan(title.dx));
+    expect((toggle.dy - title.dy).abs(), lessThan(20));
+  });
 }

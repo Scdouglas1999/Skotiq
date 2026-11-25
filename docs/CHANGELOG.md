@@ -9,6 +9,10 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [9.3.0] — 2026-11-24
+
+The Android app reworked for phones: screens that fit, setup from the phone, and fixes for starting runs, viewing frames, resuming after a host crash, reconnecting after the app was in the background, phone GPS and session thumbnails. The host gains a saved-frame JPEG endpoint and folder creation for linked clients. Upgrade the host and linked clients together. See the [release notes](release/v9.3.0.md).
+
 ## [9.2.0] — 2026-11-23
 
 Night-run recovery for every frame, reconnects that keep equipment as it was with a read-only check of what each device reports, observing nights anchored to the site, and calibration, Smart Night and linked-client corrections. Upgrade the host and linked clients together. See the [release notes](release/v9.2.0.md).

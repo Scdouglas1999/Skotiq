@@ -13,6 +13,8 @@
 //    parked; a mount with nothing running only has its tracking turned off.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../shell/widgets/android_notifications_banner.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -487,6 +489,20 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         ),
       );
     }
+  }
+
+  // The phone is what tells the operator the run stopped, guiding was lost
+  // or the clouds came; without its alerts it would say nothing.
+  if (!ref.watch(androidNotificationsAuthorizedProvider)) {
+    rows.add(
+      _row(
+        ChecklistItemId.alerts,
+        ChecklistItemState.attention,
+        'nightSessionCheckAlerts',
+        detail: const NightText('nightSessionCheckAlertsOff'),
+        actionKey: 'nightSessionActionTurnOn',
+      ),
+    );
   }
 
   return rows;

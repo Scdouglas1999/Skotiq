@@ -39,7 +39,7 @@ String nightStepLabel(SequenceNode node) {
   if (node is ExposureNode) {
     final filter = node.filter;
     final burst =
-        '${node.count} × ${QuantityFormat.trimmed(node.durationSecs)} s';
+        '${node.count} × ${QuantityFormat.exposure(node.durationSecs)}';
     return filter == null || filter.isEmpty ? burst : '$filter $burst';
   }
   return node.name;

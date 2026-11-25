@@ -414,7 +414,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Sync time from operating system',
     'Time',
     'Timezone',
-    'Town or observatory by name. Accurate on a desktop',
     'Turn Wi-Fi on for a precise fix',
     'Use system time',
     'Wi-Fi is switched off, so the precise scan was',
@@ -1001,7 +1000,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'Optional. beaconDB, the key-free service Detect':
         'Google Geolocation API key',
     'Sync time from operating system': 'Use system time',
-    'Town or observatory by name. Accurate on a desktop': 'Search place',
     'Wi-Fi is switched off, so the precise scan was':
         'Turn Wi-Fi on for a precise fix',
   },

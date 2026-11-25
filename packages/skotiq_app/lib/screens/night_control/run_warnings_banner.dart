@@ -97,15 +97,59 @@ class _NightRunWarningsBannerState
                           ? const SizedBox.shrink()
                           : warningText(newestFirst.first, oneLine: true),
                     ),
-                  ] else
-                    Expanded(child: titleText),
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  SkotiqButton(
-                    label: _expanded ? 'Show less' : 'Show all',
-                    variant: ButtonVariant.ghost,
-                    size: ButtonSize.small,
-                    onPressed: () => setState(() => _expanded = !_expanded),
-                  ),
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    SkotiqButton(
+                      label: _expanded ? 'Show less' : 'Show all',
+                      variant: ButtonVariant.ghost,
+                      size: ButtonSize.small,
+                      onPressed: () => setState(() => _expanded = !_expanded),
+                    ),
+                  ] else ...[
+                    // One line on a phone: the newest warning itself, and a
+                    // tap anywhere on it shows them all.
+                    Expanded(
+                      child: Semantics(
+                        button: true,
+                        label: _expanded ? 'Show less' : '$title. Show all',
+                        excludeSemantics: true,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => setState(() => _expanded = !_expanded),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 40),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _expanded
+                                      ? titleText
+                                      : warningText(
+                                          newestFirst.first,
+                                          oneLine: true,
+                                        ),
+                                ),
+                                if (count > 1 && !_expanded) ...[
+                                  const SizedBox(width: SkotiqTokens.spaceSm),
+                                  Text(
+                                    '+${count - 1}',
+                                    style: SkotiqTypography.labelStrongSm
+                                        .copyWith(color: colors.warning),
+                                  ),
+                                ],
+                                const SizedBox(width: SkotiqTokens.spaceXs),
+                                Icon(
+                                  _expanded
+                                      ? LucideIcons.chevronUp
+                                      : LucideIcons.chevronDown,
+                                  size: 16,
+                                  color: colors.textSecondary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   IconButton(
                     tooltip: 'Hide until the next warning',
                     onPressed: () {
@@ -124,12 +168,6 @@ class _NightRunWarningsBannerState
                   ),
                 ],
               ),
-              if (!inline && !_expanded)
-                Padding(
-                  padding:
-                      const EdgeInsets.only(left: 16 + SkotiqTokens.spaceMd),
-                  child: warningText(newestFirst.first, oneLine: true),
-                ),
               if (_expanded)
                 Padding(
                   padding: const EdgeInsets.only(

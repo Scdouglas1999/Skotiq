@@ -23,6 +23,8 @@ import 'panel/mount/night_mount_tab.dart';
 import 'panel/night_right_panel.dart';
 import 'panel/solve/night_solve_tab.dart';
 import '../../services/night_session/night_recent_solves.dart';
+import 'center/frame_stage.dart' show nightIsBeforeRun;
+import 'data/plan/night_run_phase_provider.dart';
 import 'run_warnings_banner.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 
@@ -39,29 +41,33 @@ class NightControlScreen extends ConsumerWidget {
     // A run's solves are gathered while Tonight is up, whichever tab shows.
     ref.watch(nightRecentSolvesProvider);
 
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        MountGuardBanner(),
-        EndOfNightCapBanner(),
-        RunDashboardRecoveryBanner(),
-        RunDashboardCriticalBanner(),
-        NightRunWarningsBanner(),
-        Expanded(
-          child: NightControlShortcuts(
-            child: NightControlLayout(
-              header: NightHeaderBar(),
-              left: NightLeftColumn(),
-              center: NightCenter(),
-              panel: NightRightPanel(
-                mountTab: NightMountTab(),
-                guideTab: NightGuideTab(),
-                solveTab: NightSolveTab(),
-              ),
-            ),
-          ),
+    // Before a run the phone leads with the plan and readiness; once frames
+    // come in, with the frame.
+    final planFirst = nightIsBeforeRun(ref.watch(nightRunPhaseProvider));
+
+    return NightControlShortcuts(
+      child: NightControlLayout(
+        planFirst: planFirst,
+        notices: const Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            MountGuardBanner(),
+            EndOfNightCapBanner(),
+            RunDashboardRecoveryBanner(),
+            RunDashboardCriticalBanner(),
+            NightRunWarningsBanner(),
+          ],
         ),
-      ],
+        header: const NightHeaderBar(),
+        left: const NightLeftColumn(),
+        center: const NightCenter(),
+        panel: const NightRightPanel(
+          mountTab: NightMountTab(),
+          guideTab: NightGuideTab(),
+          solveTab: NightSolveTab(),
+        ),
+      ),
     );
   }
 }

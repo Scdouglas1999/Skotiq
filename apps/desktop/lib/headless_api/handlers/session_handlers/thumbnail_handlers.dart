@@ -77,6 +77,72 @@ extension SessionThumbnailHandlers on SessionHandlers {
     }
   }
 
+  /// A saved frame drawn the way the live frame is: decoded here and sent
+  /// through the display stretch as a JPEG, with the frame's size in
+  /// `x-image-meta`. For a linked device that cannot decode a FITS itself (a
+  /// phone); `maxWidth` asks for a smaller bitmap.
+  Future<Response> handleGetImageJpeg(Request request, String imageId) async {
+    final iid = _parsePathId(imageId, 'imageId');
+    final database = container.read(databaseProvider);
+    final dbImage = await database.imagesDao.getImageById(iid);
+    if (dbImage == null) {
+      return jsonNotFound({'error': 'Image not found: $iid'});
+    }
+    if (!await File(dbImage.filePath).exists()) {
+      return jsonNotFound({
+        'error': 'Image file not found: ${dbImage.filePath}',
+      });
+    }
+    final maxWidthParam = request.url.queryParameters['maxWidth'];
+    final requestedMax = maxWidthParam == null
+        ? null
+        : int.tryParse(maxWidthParam);
+    final maxWidth = requestedMax != null && requestedMax > 0
+        ? requestedMax
+        : 0;
+    final decoded = await container
+        .read(imagingBackendProvider)
+        .readFitsFile(filePath: dbImage.filePath);
+    final s = decoded.stats;
+    final image = CapturedImageResult(
+      width: decoded.width,
+      height: decoded.height,
+      displayData: decoded.displayData,
+      histogram: decoded.histogram,
+      stats: ImageStatsResult(
+        min: s.min,
+        max: s.max,
+        mean: s.mean,
+        median: s.median,
+        stdDev: s.stdDev,
+        hfr: s.hfr,
+        eccentricity: s.eccentricity,
+        fwhm: s.fwhm,
+        starCount: s.starCount,
+      ),
+      exposureTime: decoded.exposureTime ?? dbImage.exposureDuration,
+      timestamp: dbImage.capturedAt.toUtc().toIso8601String(),
+      isColor: decoded.bayerPattern != null,
+    );
+    final encoded = await encodeCapturedImageDisplayBufferToJpeg(
+      image,
+      maxWidth: maxWidth > 0 ? maxWidth : 0,
+      maxHeight: maxWidth > 0 ? maxWidth : 0,
+    );
+    if (encoded == null) {
+      return jsonInternalServerError({'error': 'Invalid frame buffer'});
+    }
+    return contentResponse(
+      encoded.bytes,
+      contentType: 'image/jpeg',
+      contentLength: encoded.bytes.length,
+      headers: {
+        'cache-control': 'private, max-age=86400',
+        'x-image-meta': encoded.metaHeaderValue,
+      },
+    );
+  }
+
   /// Serve a sidecar JPEG with strong ETag + caching headers. Honors
   /// `If-None-Match` for 304 responses.
   Future<Response> _serveSidecarFromDisk({

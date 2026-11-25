@@ -10,6 +10,8 @@ import 'package:skotiq_core/src/providers/equipment/focuser_state_provider.dart'
 import 'package:skotiq_core/src/providers/equipment/guider_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/rotator_state_provider.dart';
+import 'package:skotiq_core/src/providers/backend_provider.dart'
+    show remoteClientLaunchProvider;
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/meridian_flip_provider.dart'
@@ -101,9 +103,11 @@ ProviderContainer _container({
   List<String> filterNames = const [],
   String imageOutputPath = '/tmp/out',
   bool? runFlipsArmed,
+  bool remoteClient = false,
 }) {
   final container = ProviderContainer(
     overrides: [
+      remoteClientLaunchProvider.overrideWithValue(remoteClient),
       cameraStateProvider.overrideWith(
         (ref) => _StubCameraNotifier(
           ref,
@@ -533,6 +537,41 @@ void main() {
       expect(issues.single.title, 'Image Output Path Missing');
       expect(issues.single.severity, ValidationSeverity.error);
       expect(issues.single.description, contains(missingDir));
+    });
+
+    test('a linked client leaves the folder check to the host', () async {
+      // The path names a folder on the imaging host, which this machine
+      // cannot see; the host checks it when asked to start.
+      final hostOnlyDir =
+          '${Directory.systemTemp.path}'
+          '${Platform.pathSeparator}skotiq_host_only_'
+          '${DateTime.now().microsecondsSinceEpoch}';
+      final container = _container(
+        imageOutputPath: hostOnlyDir,
+        remoteClient: true,
+      );
+      await container.read(appSettingsProvider.future);
+      final issues = _withRef(
+        container,
+        (ref) => ImageOutputPathRule().validate(
+          _sequenceWith([ExposureNode()]),
+          ValidationContext(ref),
+        ),
+      );
+      expect(issues, isEmpty);
+    });
+
+    test('a linked client still needs a folder set', () async {
+      final container = _container(imageOutputPath: '', remoteClient: true);
+      await container.read(appSettingsProvider.future);
+      final issues = _withRef(
+        container,
+        (ref) => ImageOutputPathRule().validate(
+          _sequenceWith([ExposureNode()]),
+          ValidationContext(ref),
+        ),
+      );
+      expect(issues.single.title, 'Image Output Path Not Configured');
     });
 
     test('clean when output directory exists and is writable', () async {

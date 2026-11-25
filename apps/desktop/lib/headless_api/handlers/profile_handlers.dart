@@ -191,6 +191,21 @@ class ProfileHandlers implements RouteSource {
       resultId = await dao.createProfile(remoteProfileToCompanion(profile));
     }
 
+    // The native store keeps its own copy of the active profile (the built-in
+    // guider, the sequencer and plate solving read it). The host's own editor
+    // writes an active row through after saving; a linked client's save comes
+    // here, so do the same: a phone's first profile is made active by
+    // createProfile, and an edit to the active one must not leave the native
+    // copy stale.
+    if ((await dao.getProfileById(resultId))?.isActive == true) {
+      await writeActiveProfileThrough(
+        dao: dao,
+        backend: container.read(profileSettingsBackendProvider),
+        logger: _logger,
+        profileId: resultId,
+      );
+    }
+
     publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.profile,

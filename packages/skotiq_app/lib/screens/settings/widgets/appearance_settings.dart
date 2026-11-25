@@ -190,21 +190,37 @@ class _ThemePicker extends StatelessWidget {
   final String selected;
   final void Function(String value) onSelected;
 
+  static const double _gap = 10;
+
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      alignment: WrapAlignment.end,
-      children: [
-        for (final (value, label) in _themeChoices)
-          _ThemeCard(
-            value: value,
-            label: label,
-            isSelected: selected == value,
-            onTap: () => onSelected(value),
-          ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Too narrow for three design-width cards (a phone, where the row
+        // stacks under its title): the three share the width in one row
+        // rather than wrapping one onto a second row.
+        final count = _themeChoices.length;
+        final fullRow = count * _ThemeCard.designWidth + (count - 1) * _gap;
+        final shared =
+            constraints.maxWidth.isFinite && constraints.maxWidth < fullRow
+                ? (constraints.maxWidth - (count - 1) * _gap) / count
+                : null;
+        return Wrap(
+          spacing: _gap,
+          runSpacing: _gap,
+          alignment: shared == null ? WrapAlignment.end : WrapAlignment.start,
+          children: [
+            for (final (value, label) in _themeChoices)
+              _ThemeCard(
+                value: value,
+                label: label,
+                isSelected: selected == value,
+                onTap: () => onSelected(value),
+                width: shared ?? _ThemeCard.designWidth,
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -215,15 +231,17 @@ class _ThemeCard extends StatefulWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.width = _ThemeCard.designWidth,
   });
 
   final String value;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final double width;
 
   /// Card width and preview height, from the mockup.
-  static const double width = 132;
+  static const double designWidth = 132;
   static const double previewHeight = 64;
 
   @override
@@ -265,7 +283,7 @@ class _ThemeCardState extends State<_ThemeCard> {
           onFocusChange: (value) => setState(() => _focused = value),
           borderRadius: SkotiqTokens.borderRadiusLg,
           child: Container(
-            width: _ThemeCard.width,
+            width: widget.width,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               borderRadius: SkotiqTokens.borderRadiusLg,

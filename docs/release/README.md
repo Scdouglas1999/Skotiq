@@ -4,12 +4,13 @@
 
 The [latest public release on GitHub](https://github.com/Scdouglas1999/Skotiq/releases/latest) includes downloads for Windows, Linux and Android.
 
-This source tree is **Skotiq 9.2.0**. Its release notes cover night-run recovery, reconnects that leave equipment as it was, site-based observing nights, and calibration and linked-client changes. [9.2.0 release notes](v9.2.0.md)
+This source tree is **Skotiq 9.3.0**. Its release notes cover the Android app rework for phones, setup from the phone, and the host changes that support it. [9.3.0 release notes](v9.3.0.md)
 
 [Changelog](../CHANGELOG.md) · [Compatibility](../known-limitations.md)
 
 ## Earlier releases
 
+- [9.2.0](v9.2.0.md)
 - [9.1.0](v9.1.0.md)
 - [9.0.1](v9.0.1.md)
 - [9.0.0](v9.0.0.md)

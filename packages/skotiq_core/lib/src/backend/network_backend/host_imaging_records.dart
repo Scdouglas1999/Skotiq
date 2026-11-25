@@ -5,6 +5,28 @@ part of '../network_backend.dart';
 mixin HostImagingRecords on NetworkBackendTransport {
   Future<Uint8List> getImageThumbnail(int imageId);
 
+  /// A saved frame drawn by the host through the display stretch, for a
+  /// device that cannot decode the FITS itself. The frame comes back at its
+  /// sensor size; [maxWidth] only bounds the bitmap sent.
+  Future<CapturedImageResult> getSavedFrameJpeg(
+    int imageId, {
+    int? maxWidth,
+  }) async {
+    final downloaded = await _downloadBytesWithHeaders(
+      SessionApi.getImageJpeg,
+      path: {'imageId': '$imageId'},
+      query: {if (maxWidth != null) 'maxWidth': '$maxWidth'},
+    );
+    final meta = _headerValue(downloaded.headers, 'x-image-meta');
+    if (meta == null || meta.isEmpty) {
+      throw StateError('The host sent the frame without its size.');
+    }
+    return decodeRemoteJpegWire(
+      jpegBytes: downloaded.bytes,
+      metaHeaderBase64: meta,
+    );
+  }
+
   /// Create a captured-image metadata row on the host.
   Future<int> createCapturedImage(Map<String, dynamic> image) async {
     final response = await _post(SessionApi.createImage, body: image);

@@ -286,7 +286,9 @@ class _BottomBar extends ConsumerWidget {
     final l10n = context.l10n;
     final load = ref.watch(savedFrameProvider(entry.frame));
     final image = load is SavedFrameReady ? load.image : null;
-    final status = load is SavedFrameReady && viewState.showStarOverlay
+    final status = load is SavedFrameReady &&
+            viewState.showStarOverlay &&
+            load.localPath.isNotEmpty
         ? starOverlayPill(
             l10n,
             ref.watch(savedFrameStarsProvider(load.localPath)),
@@ -325,12 +327,15 @@ class _BottomBar extends ConsumerWidget {
           Wrap(
             spacing: SkotiqTokens.spaceXs,
             children: <Widget>[
-              FrameViewButton(
-                label: l10n.text('nightCtrViewStars'),
-                tooltip: l10n.text('nightCtrViewStarsTip'),
-                selected: viewState.showStarOverlay,
-                onPressed: view.toggleStarOverlay,
-              ),
+              // Stars are detected in the frame's file on this device; a
+              // frame the host drew has none here.
+              if (load is SavedFrameReady && load.localPath.isNotEmpty)
+                FrameViewButton(
+                  label: l10n.text('nightCtrViewStars'),
+                  tooltip: l10n.text('nightCtrViewStarsTip'),
+                  selected: viewState.showStarOverlay,
+                  onPressed: view.toggleStarOverlay,
+                ),
               FrameViewButton(
                 label: l10n.text('nightCtrViewAnnotate'),
                 tooltip: l10n.text('nightCtrViewAnnotateTip'),

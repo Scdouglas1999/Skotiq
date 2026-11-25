@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_properties_panel.dart';
+import 'package:skotiq_app/screens/sequencer/widgets/sequence_progress_bar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/models.dart';
@@ -51,6 +52,25 @@ List<Override> _overrides() {
   ];
 }
 
+Override _running() => runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(
+        ref,
+        const RunRecord(
+          lifecycle: SequenceExecutionState.running,
+          progress: SequenceProgress(
+            state: SequenceExecutionState.running,
+            currentNodeName: 'Lunar Frames',
+            message: 'Progress: 48/200 exposures',
+            currentFilter: 'R',
+            completedExposures: 48,
+            totalExposures: 200,
+            elapsedSecs: 6,
+            estimatedRemainingSecs: 318,
+          ),
+        ),
+      ),
+    );
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -81,6 +101,39 @@ void main() {
 
   for (final (label, portrait) in phones) {
     final landscape = Size(portrait.height, portrait.width);
+
+    testWidgets('$label landscape, running: one progress bar, no overflow',
+        (tester) async {
+      await pumpAppScreen(
+        tester,
+        const SequencerScreen(),
+        size: landscape,
+        extraOverrides: [..._overrides(), _running()],
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SequenceProgressBar), findsOneWidget);
+    });
+
+    testWidgets('$label portrait, running: one progress bar, no overflow',
+        (tester) async {
+      await pumpAppScreen(
+        tester,
+        const SequencerScreen(),
+        size: portrait,
+        extraOverrides: [
+          ..._overrides(),
+          _running(),
+        ],
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      // The screen's bar only: the phone builder once mounted a second one
+      // under the same key, and the wide row overflowed a phone.
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SequenceProgressBar), findsOneWidget);
+    });
 
     testWidgets('$label portrait: no overflow, tree + tabs present',
         (tester) async {
@@ -143,5 +196,27 @@ void main() {
     // The inline properties pane is on screen alongside the tree.
     expect(find.byType(NodePropertiesPanel), findsWidgets);
     expect(find.byType(SequenceTree), findsOneWidget);
+  });
+
+  testWidgets('desktop width, running: the wide bar lays out', (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const SequencerScreen(),
+      size: const Size(1280, 800),
+      extraOverrides: [..._overrides(), _running()],
+      settle: false,
+      // The desktop layout's providers run periodic timers; the container is
+      // disposed in the body, before the binding checks for them.
+      registerTearDown: false,
+    );
+    addTearDown(handle.database.close);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SequenceProgressBar), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+    handle.container.dispose();
+    await tester.pump(const Duration(milliseconds: 10));
   });
 }

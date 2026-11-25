@@ -3,11 +3,6 @@
 // empty / loading / error pattern around it.
 part of '../planner_screen.dart';
 
-/// How the stacked (narrow) Tonight tab splits its height between the selected
-/// target's detail and the candidate list.
-const int _kNarrowDetailFlex = 4;
-const int _kNarrowListFlex = 6;
-
 /// Best tonight: the planner's scoring surface.
 ///
 /// Two columns: the filtered candidate list on the left, and the selected
@@ -81,7 +76,9 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     final detection = await readHeld(ref, plateSolverDetectionProvider);
     final preference = await readHeld(ref, plateSolverPreferenceProvider);
     if (detection.supports(preference.choice)) return null;
-    final rig = ref.read(remoteLaunchTargetProvider)?.name;
+    // A phone has no launch target; its rig is still another computer.
+    final rig = ref.read(remoteLaunchTargetProvider)?.name ??
+        (ref.read(isRemoteModeProvider) ? 'the imaging computer' : null);
     return 'Image tonight centers the target by plate solving, and no plate '
         'solver is set up ${rig == null ? 'on this computer' : 'on $rig'}. '
         'Set one up in Settings > Plate solving'
@@ -254,12 +251,19 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     if (candidates.isEmpty) return _PlannerFilteredEmptyState(colors: colors);
 
     final selected = _effectiveSelection(plan, candidates);
+    // Below the shell's layout breakpoint the detail and the list cannot both
+    // hold their measurements. The list takes the screen and a tapped target
+    // opens its detail in a sheet.
+    final narrow = availableWidth < ShellChromeMetrics.shellLayoutBreakpoint;
     final list = _CandidateList(
       candidates: candidates,
       colors: colors,
       scrollController: _scrollController,
       selectedTargetId: selected?.targetId,
-      onSelect: (target) => setState(() => _selectedTargetId = target.targetId),
+      onSelect: (target) {
+        setState(() => _selectedTargetId = target.targetId);
+        if (narrow) _showDetailSheet(context, colors, target, plan);
+      },
       imageTonight: _imageTonight.state,
       onImageTonight: _imageTonight.go,
       onCancelImageTonight: _imageTonight.cancel,
@@ -267,41 +271,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       riskFactors: plan.riskFactors,
     );
 
-    // Below the shell's layout breakpoint the two panes cannot both hold their
-    // measurements, so they stack: the target you are about to act on first,
-    // then the list you would pick a different one from.
-    final narrow = availableWidth < ShellChromeMetrics.shellLayoutBreakpoint;
-    if (narrow) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (selected != null)
-            // Flex, not intrinsic height: the detail is ~450px of content and a
-            // short landscape viewport is less than that, so it takes a share
-            // of the column and scrolls inside it rather than overflowing.
-            Flexible(
-              flex: _kNarrowDetailFlex,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  border: Border(bottom: BorderSide(color: colors.border)),
-                ),
-                child: Padding(
-                  padding: SidePanel.contentPadding,
-                  child: _TargetDetailColumn(
-                    target: selected,
-                    plan: plan,
-                    onFrameIt: () => _sendToFraming(context, ref, selected),
-                    onBuildSequence: () =>
-                        _createSequence(context, colors, selected, plan),
-                  ),
-                ),
-              ),
-            ),
-          Expanded(flex: _kNarrowListFlex, child: list),
-        ],
-      );
-    }
+    if (narrow) return list;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -320,6 +290,37 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
                 ),
         ),
       ],
+    );
+  }
+
+  /// A phone's target detail: the same column the wide layout docks, in a
+  /// sheet over the list.
+  void _showDetailSheet(
+    BuildContext context,
+    SkotiqColors colors,
+    TargetSuggestion target,
+    SessionOptimizationPlan plan,
+  ) {
+    showAdaptiveModal<void>(
+      context: context,
+      designWidth: _kPlannerDetailWidth,
+      // The column scrolls its own body, so the sheet gives it a height.
+      builder: (sheetContext) => Container(
+        height: MediaQuery.sizeOf(sheetContext).height * 0.8,
+        padding: SidePanel.contentPadding,
+        child: _TargetDetailColumn(
+          target: target,
+          plan: plan,
+          onFrameIt: () {
+            Navigator.of(sheetContext).pop();
+            _sendToFraming(context, ref, target);
+          },
+          onBuildSequence: () {
+            Navigator.of(sheetContext).pop();
+            _createSequence(context, colors, target, plan);
+          },
+        ),
+      ),
     );
   }
 

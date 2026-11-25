@@ -15,6 +15,7 @@ mixin HostFiles on NetworkBackendTransport {
     String path, {
     bool mustExist = false,
     bool mustBeWritable = false,
+    bool create = false,
   }) async {
     try {
       return await _post(
@@ -23,6 +24,8 @@ mixin HostFiles on NetworkBackendTransport {
           'path': path,
           'mustExist': mustExist,
           'mustBeWritable': mustBeWritable,
+          // Makes the folder first, inside the host's allowed folders.
+          if (create) 'create': true,
         },
       );
     } on ServerError catch (refusal) {

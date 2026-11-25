@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Flutter light theme background (SkotiqColors.background). The launch
-         window paints this before the first Flutter frame, so matching it
-         exactly is what removes the white flash at startup. -->
-    <color name="skotiq_launch_background">#F3F5F8</color>
+    <!-- Skotiq opens in its dark theme whatever the phone's own setting, so
+         the launch window paints the dark background (SkotiqColors.background)
+         in light mode too; a light window flashed before the first frame and
+         sat behind the first-launch permission prompt. -->
+    <color name="skotiq_launch_background">#0B0D12</color>
 </resources>

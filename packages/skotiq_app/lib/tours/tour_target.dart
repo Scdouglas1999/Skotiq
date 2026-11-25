@@ -171,6 +171,10 @@ enum TourTarget {
         _ => null,
       };
 
+  /// Whether a phone keeps this behind [navMore]: a rail destination, or
+  /// Settings, which a phone lists in the More sheet.
+  bool get isBehindMoreOnPhone => isRailDestination || this == navSettings;
+
   /// Whether this is a rail destination, which a phone may keep behind
   /// [navMore].
   bool get isRailDestination => switch (this) {

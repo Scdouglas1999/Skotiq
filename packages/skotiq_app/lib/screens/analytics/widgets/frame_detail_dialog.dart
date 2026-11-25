@@ -204,7 +204,7 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
             '${ClockFormat.hms(image.capturedAt.toLocal())}'
       ),
       ('Frame type', image.frameType),
-      ('Exposure', '${_trim(image.exposureDuration)} s'),
+      ('Exposure', QuantityFormat.exposure(image.exposureDuration)),
       ('Filter', filterLabel(image.filter)),
       if (image.gain != null)
         (
@@ -312,10 +312,6 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
         ),
     ];
   }
-
-  static String _trim(double value) => value == value.roundToDouble()
-      ? value.toStringAsFixed(0)
-      : value.toStringAsFixed(1);
 
   Future<void> _toggleAccepted() async {
     final next = !_isAccepted;

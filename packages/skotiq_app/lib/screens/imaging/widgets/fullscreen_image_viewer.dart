@@ -18,6 +18,10 @@ class FullscreenImageViewer extends StatelessWidget {
   const FullscreenImageViewer({super.key, required this.image});
 
   static Future<void> show(BuildContext context, CapturedImageData image) {
+    // Coming back restores the focus the page had. A field still focused from
+    // an earlier edit would then reopen the phone's keyboard over the screen
+    // the operator returned to.
+    FocusManager.instance.primaryFocus?.unfocus();
     return Navigator.of(context, rootNavigator: true).push<void>(
       PageRouteBuilder<void>(
         opaque: true,

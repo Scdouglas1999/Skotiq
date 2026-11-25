@@ -799,6 +799,45 @@ void main() {
       expect(after.focalLength, 650);
     });
 
+    test('a linked client\'s first profile reaches the native store, and an '
+        'edit to the active one does too; an inactive one does not', () async {
+      Future<Response> save(Map<String, dynamic> body) =>
+          translateHandlerErrors(
+            handlers.handleSaveProfile(
+              Request(
+                'POST',
+                Uri.parse('http://localhost/api/profiles'),
+                body: jsonEncode(body),
+              ),
+            ),
+          );
+      String idOf(String body) => (jsonDecode(body) as Map)['id'] as String;
+
+      // The first profile is made active by createProfile.
+      final first = await save({
+        'profile': const EquipmentProfile(id: '', name: 'Rig A').toJson(),
+      });
+      final idA = idOf(await first.readAsString());
+      verify(() => profileBackend.loadProfile(idA)).called(1);
+
+      // An edit to the active profile goes through as well.
+      await save({
+        'profile': EquipmentProfile(
+          id: idA,
+          name: 'Rig A',
+          focalLength: 400,
+        ).toJson(),
+      });
+      verify(() => profileBackend.loadProfile(idA)).called(1);
+
+      // A second, inactive profile leaves the native copy alone.
+      final second = await save({
+        'profile': const EquipmentProfile(id: '', name: 'Rig B').toJson(),
+      });
+      final idB = idOf(await second.readAsString());
+      verifyNever(() => profileBackend.loadProfile(idB));
+    });
+
     group('the observer site and the settings document', () {
       /// POST [settings] to /api/settings.
       Future<Response> postSettings(Map<String, dynamic> settings) =>

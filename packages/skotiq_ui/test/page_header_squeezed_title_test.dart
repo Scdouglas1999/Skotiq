@@ -40,11 +40,32 @@ void main() {
       MaterialApp(
         theme: SkotiqTheme.dark,
         home: const Scaffold(
-          body: PageHeader(icon: Icons.explore, title: 'Guiding'),
+          // The test font draws every glyph a full em wide; four letters
+          // leave room beside the icon in half the row.
+          body: PageHeader(icon: Icons.explore, title: 'Plan'),
         ),
       ),
     );
 
     expect(find.byIcon(Icons.explore), findsOneWidget);
+  });
+
+  testWidgets('a title that would be cut keeps its words and drops the icon', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: const Scaffold(
+          body: PageHeader(icon: Icons.explore, title: 'Sequencer'),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.explore), findsNothing);
   });
 }

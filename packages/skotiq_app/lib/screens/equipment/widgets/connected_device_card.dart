@@ -276,6 +276,10 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
     // status chip in the header, so the container needs no coloured ring
     // (06 §Equipment removes the green device-card borders).
     return SkotiqPanel(
+      padding: MediaQuery.sizeOf(context).width <
+              ShellChromeMetrics.shellLayoutBreakpoint
+          ? SkotiqTokens.paddingMd
+          : SkotiqTokens.paddingLg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

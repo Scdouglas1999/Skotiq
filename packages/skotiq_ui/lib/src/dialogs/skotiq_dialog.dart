@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../utils/adaptive_dialog_constraints.dart';
+import '../utils/responsive_utils.dart';
 import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_decorations.dart';
 
@@ -113,17 +114,32 @@ class SkotiqDialog extends StatelessWidget {
     this.scrollableBody = true,
   });
 
+  /// The margin a phone keeps around a full-height form dialog.
+  static const double _phoneInset = SkotiqTokens.spaceSm;
+
   @override
   Widget build(BuildContext context) {
-    final dialogSize = AdaptiveDialogConstraints.dialogSize(
+    var dialogSize = AdaptiveDialogConstraints.dialogSize(
       context,
       designWidth: width,
       designHeight: height,
     );
+    // A phone gives a tall form dialog (one with a design height) the whole
+    // screen less a margin: its body scrolls, and every row the margin and
+    // fraction would take is one less row of the form.
+    final phone = Responsive.isPhone(context);
+    if (phone && height != null) {
+      final media = MediaQuery.of(context);
+      final inset = media.padding + media.viewInsets;
+      dialogSize = (
+        width: media.size.width - 2 * _phoneInset,
+        height: media.size.height - inset.vertical - 2 * _phoneInset,
+      );
+    }
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(SkotiqTokens.spaceLg),
+      insetPadding: EdgeInsets.all(phone ? _phoneInset : SkotiqTokens.spaceLg),
       child: SkotiqDialogSurface(
         framed: true,
         title: title,
@@ -364,14 +380,24 @@ class _Footer extends StatelessWidget {
     // Right-aligned with an 8px gap, on the dialog's own surface: the reading
     // order is [ghost Cancel] [secondary alternative] [primary confirm], and
     // the caller supplies them in that order.
+    // A phone keeps the footer's buttons on one row where the desktop margins
+    // would wrap the primary action onto a line of its own.
+    final phone = Responsive.isPhone(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(
-        SkotiqTokens.space2xl,
-        SkotiqTokens.spaceXl,
-        SkotiqTokens.space2xl,
-        SkotiqTokens.space2xl,
-      ),
+      padding: phone
+          ? const EdgeInsets.fromLTRB(
+              SkotiqTokens.spaceLg,
+              SkotiqTokens.spaceMd,
+              SkotiqTokens.spaceLg,
+              SkotiqTokens.spaceLg,
+            )
+          : const EdgeInsets.fromLTRB(
+              SkotiqTokens.space2xl,
+              SkotiqTokens.spaceXl,
+              SkotiqTokens.space2xl,
+              SkotiqTokens.space2xl,
+            ),
       // The footer is a region of its own for the same reason the title is:
       // whatever the header leaves unclaimed lands on the surface node, and the
       // close button publishes no spare node of its own, so without this the

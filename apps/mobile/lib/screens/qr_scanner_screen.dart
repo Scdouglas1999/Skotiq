@@ -398,14 +398,19 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               ],
             ),
           ),
-          // Instructions
+          // Instructions, kept clear of the system navigation bar.
           Container(
-            padding: const EdgeInsets.all(24),
             color: colors.surface,
+            padding: EdgeInsets.fromLTRB(
+              24,
+              24,
+              24,
+              24 + MediaQuery.viewPaddingOf(context).bottom,
+            ),
             child: Column(
               children: [
                 Text(
-                  'Scan the QR code displayed on your Skotiq server',
+                  'Scan the QR code on your imaging computer',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: colors.textPrimary,
@@ -414,8 +419,8 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'On the desktop: Settings → Remote Access → Start pairing, '
-                  'then scan the QR shown there.',
+                  'Open Settings → Remote access and press Start pairing '
+                  'to show it.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: colors.textSecondary,

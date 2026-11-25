@@ -21,7 +21,6 @@ import '../../utils/startup_surface_queue.dart';
 import 'command_palette/command_palette.dart';
 import '../../tours/tour_overlay.dart';
 import '../../tours/tour_target.dart';
-import 'widgets/mobile_sequence_overlay.dart';
 import 'widgets/running_sequence_mini_bar.dart';
 import 'widgets/notification_toast_overlay.dart';
 import 'widgets/autofocus_progress_overlay.dart';
@@ -472,6 +471,27 @@ class _AppShellState extends ConsumerState<AppShell> {
         // is already a modal navigation context, so temporarily reclaim that
         // chrome and restore it unchanged when the IME closes.
         final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+        // A phone has no window frame to carry, so it has no shell bar: the
+        // screen's own header is the top bar and carries the shell's link
+        // status and settings at its end (ShellHeaderTrailing). A narrow
+        // desktop window keeps its strip, which holds the window controls.
+        final phoneChrome = useBottomNav && !ShellChrome.isDesktopWindow;
+        // A phone on its side moves the bar to a rail down the left edge:
+        // width it has to spare, height it does not.
+        final phoneRail =
+            phoneChrome && constraints.maxWidth > constraints.maxHeight;
+        void goToRoute(AppRoute route) {
+          try {
+            context.go(route.path);
+          } catch (e, stack) {
+            Log.warning(
+              '[AppShell] Bottom nav could not navigate to $route: $e',
+              source: 'AppShell',
+              error: e,
+              stackTrace: stack,
+            );
+          }
+        }
 
         // The splash wraps the shell's content rather than the Navigator so
         // routes pushed during startup — checkpoint recovery, onboarding,
@@ -504,182 +524,191 @@ class _AppShellState extends ConsumerState<AppShell> {
                   policy: OrderedTraversalPolicy(),
                   child: Stack(
                     children: [
-                      Column(
-                        children: [
-                          // Mobile gear strip. Settings left the bottom bar
-                          // in the six-tab consolidation, so this thin
-                          // app-bar action keeps it one tap away on phones.
-                          if (useBottomNav && !keyboardVisible)
-                            SafeArea(
-                              bottom: false,
-                              child: _MobileSettingsBar(
-                                onOpenSettings: () => openSettings(context),
+                      // The phone's one owner of the status-bar and notch
+                      // insets, with the keyboard up or down. It also takes
+                      // them out of the MediaQuery the screens read, so a
+                      // screen's own SafeArea cannot add them a second time.
+                      SafeArea(
+                        top: phoneChrome,
+                        left: phoneChrome,
+                        right: phoneChrome,
+                        // With a rail there is no bottom bar to own the
+                        // system navigation inset, so the shell keeps it.
+                        bottom: phoneRail,
+                        child: Column(
+                          children: [
+                            // Mobile gear strip. Settings left the bottom bar
+                            // in the six-tab consolidation, so this thin
+                            // app-bar action keeps it one tap away on phones.
+                            if (useBottomNav &&
+                                !phoneChrome &&
+                                !keyboardVisible)
+                              SafeArea(
+                                bottom: false,
+                                child: _MobileSettingsBar(
+                                  onOpenSettings: () => openSettings(context),
+                                ),
+                              ),
+
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  // The sidebar (desktop only) — a
+                                  // full-height pane of the slate: chrome
+                                  // header, destinations, Rig card.
+                                  // Gives way to the keyboard, as the
+                                  // bottom bar does.
+                                  if (phoneRail && !keyboardVisible)
+                                    SkotiqBottomNavigation(
+                                      vertical: true,
+                                      currentRoute: currentLocation,
+                                      onRouteSelected: goToRoute,
+                                    ),
+                                  if (!useBottomNav)
+                                    FocusTraversalOrder(
+                                      order: const NumericFocusOrder(0),
+                                      child: SideNavigation(
+                                        currentIndex: currentIndex,
+                                        onTabSelected: (index) =>
+                                            _onTabSelected(index, context),
+                                        isExpanded: isSideNavExpanded,
+                                        onToggleExpanded: () {
+                                          final currentSettings = ref
+                                              .read(appSettingsProvider)
+                                              .valueOrNull;
+                                          if (currentSettings != null) {
+                                            ref
+                                                .read(
+                                                  appSettingsProvider.notifier,
+                                                )
+                                                .setSidebarCollapsed(
+                                                  !currentSettings
+                                                      .sidebarCollapsed,
+                                                );
+                                          } else {
+                                            setState(() {
+                                              _fallbackSideNavExpanded =
+                                                  !_fallbackSideNavExpanded;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ),
+
+                                  // The page's pane: the top band, the
+                                  // banners, the routed content.
+                                  Expanded(
+                                    child: FocusTraversalOrder(
+                                      order: const NumericFocusOrder(1),
+                                      child: Column(
+                                        children: [
+                                          // The window's top edge: clock and
+                                          // LST, the global actions, then the
+                                          // window controls. Its empty space
+                                          // drags the window.
+                                          if (!useBottomNav)
+                                            const ShellTopBand(),
+
+                                          // Desktop keeps the full recovery
+                                          // banner; mobile uses the compact
+                                          // connection indicator.
+                                          if (!useBottomNav)
+                                            const DisconnectedBackendBanner(),
+
+                                          const IosBackgroundBanner(),
+
+                                          const AndroidNotificationsBanner(),
+
+                                          const ConnectionStaleBanner(),
+
+                                          const WeatherAlertBanner(),
+
+                                          Expanded(
+                                            child: ColoredBox(
+                                              color: colors.background,
+                                              child: Stack(
+                                                children: [
+                                                  // Both chromes own the top
+                                                  // inset above this content:
+                                                  // desktop via the top band,
+                                                  // mobile via the gear
+                                                  // strip, so the content
+                                                  // never re-insets the
+                                                  // notch/status-bar edge
+                                                  // itself.
+                                                  SafeArea(
+                                                    top: false,
+                                                    bottom: false,
+                                                    child:
+                                                        _ContentSemanticsBoundary(
+                                                      child: HostLinkStaleScope(
+                                                        child: phoneChrome
+                                                            ? _PhoneScreen(
+                                                                child: widget
+                                                                    .child)
+                                                            : widget.child,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (!shownByScreen.contains(
+                                                    ShellOverlay.autofocus,
+                                                  ))
+                                                    const AutofocusProgressOverlay(),
+                                                  // A live polar alignment,
+                                                  // however it started.
+                                                  if (!shownByScreen.contains(
+                                                    ShellOverlay
+                                                        .polarAlignmentRun,
+                                                  ))
+                                                    const PolarAlignmentRunOverlay(),
+                                                  // Toast notifications -
+                                                  // always on top
+                                                  const NotificationToastOverlay(),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+
+                                          // App-wide running-sequence
+                                          // mini-player. Persistent across
+                                          // every route so pause/stop/skip
+                                          // stay reachable after the operator
+                                          // navigates away from the sequencer
+                                          // mid-run; it self-hides on the
+                                          // sequencer route (full controls
+                                          // live there) and whenever no
+                                          // sequence is active. On desktop it
+                                          // sits at the bottom of the main
+                                          // pane — the sidebar runs the full
+                                          // window height, so nothing spans
+                                          // the window's foot.
+                                          if (!keyboardVisible)
+                                            RunningSequenceMiniBar(
+                                              currentLocation: currentLocation,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
 
-                          Expanded(
-                            child: Row(
-                              children: [
-                                // The sidebar (desktop only) — a
-                                // full-height pane of the slate: chrome
-                                // header, destinations, Rig card.
-                                if (!useBottomNav)
-                                  FocusTraversalOrder(
-                                    order: const NumericFocusOrder(0),
-                                    child: SideNavigation(
-                                      currentIndex: currentIndex,
-                                      onTabSelected: (index) =>
-                                          _onTabSelected(index, context),
-                                      isExpanded: isSideNavExpanded,
-                                      onToggleExpanded: () {
-                                        final currentSettings = ref
-                                            .read(appSettingsProvider)
-                                            .valueOrNull;
-                                        if (currentSettings != null) {
-                                          ref
-                                              .read(
-                                                appSettingsProvider.notifier,
-                                              )
-                                              .setSidebarCollapsed(
-                                                !currentSettings
-                                                    .sidebarCollapsed,
-                                              );
-                                        } else {
-                                          setState(() {
-                                            _fallbackSideNavExpanded =
-                                                !_fallbackSideNavExpanded;
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
-
-                                // The page's pane: the top band, the
-                                // banners, the routed content.
-                                Expanded(
-                                  child: FocusTraversalOrder(
-                                    order: const NumericFocusOrder(1),
-                                    child: Column(
-                                      children: [
-                                        // The window's top edge: clock and
-                                        // LST, the global actions, then the
-                                        // window controls. Its empty space
-                                        // drags the window.
-                                        if (!useBottomNav) const ShellTopBand(),
-
-                                        // Desktop keeps the full recovery
-                                        // banner; mobile uses the compact
-                                        // connection indicator.
-                                        if (!useBottomNav)
-                                          const DisconnectedBackendBanner(),
-
-                                        const IosBackgroundBanner(),
-
-                                        const AndroidNotificationsBanner(),
-
-                                        const ConnectionStaleBanner(),
-
-                                        const WeatherAlertBanner(),
-
-                                        Expanded(
-                                          child: ColoredBox(
-                                            color: colors.background,
-                                            child: Stack(
-                                              children: [
-                                                // Both chromes own the top
-                                                // inset above this content:
-                                                // desktop via the top band,
-                                                // mobile via the gear
-                                                // strip, so the content
-                                                // never re-insets the
-                                                // notch/status-bar edge
-                                                // itself.
-                                                SafeArea(
-                                                  top: false,
-                                                  bottom: false,
-                                                  child:
-                                                      _ContentSemanticsBoundary(
-                                                    child: HostLinkStaleScope(
-                                                      child: widget.child,
-                                                    ),
-                                                  ),
-                                                ),
-                                                // The phone sequencer's
-                                                // run controls.
-                                                if (useBottomNav &&
-                                                    currentRoute ==
-                                                        AppRoute.sequencer)
-                                                  const MobileSequenceOverlay(),
-                                                if (!shownByScreen.contains(
-                                                  ShellOverlay.autofocus,
-                                                ))
-                                                  const AutofocusProgressOverlay(),
-                                                // A live polar alignment,
-                                                // however it started.
-                                                if (!shownByScreen.contains(
-                                                  ShellOverlay
-                                                      .polarAlignmentRun,
-                                                ))
-                                                  const PolarAlignmentRunOverlay(),
-                                                // Toast notifications -
-                                                // always on top
-                                                const NotificationToastOverlay(),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-
-                                        // App-wide running-sequence
-                                        // mini-player. Persistent across
-                                        // every route so pause/stop/skip
-                                        // stay reachable after the operator
-                                        // navigates away from the sequencer
-                                        // mid-run; it self-hides on the
-                                        // sequencer route (full controls
-                                        // live there) and whenever no
-                                        // sequence is active. On desktop it
-                                        // sits at the bottom of the main
-                                        // pane — the sidebar runs the full
-                                        // window height, so nothing spans
-                                        // the window's foot.
-                                        if (!keyboardVisible)
-                                          RunningSequenceMiniBar(
-                                            currentLocation: currentLocation,
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Bottom chrome. On phone the bottom nav
-                          // auto-hides when idle so it reclaims the short
-                          // cover-screen height.
-                          //
-                          // The narrow shell carries NO status bar. The nav
-                          // does NOT hide: below 768px the nav IS the
-                          // navigation, and an affordance that takes it
-                          // away is one an operator can only lose by.
-                          if (useBottomNav && !keyboardVisible)
-                            SkotiqBottomNavigation(
-                              currentRoute: currentLocation,
-                              onRouteSelected: (route) {
-                                try {
-                                  context.go(route.path);
-                                } catch (e, stack) {
-                                  Log.warning(
-                                    '[AppShell] Bottom nav could not '
-                                    'navigate to $route: $e',
-                                    source: 'AppShell',
-                                    error: e,
-                                    stackTrace: stack,
-                                  );
-                                }
-                              },
-                            ),
-                        ],
+                            // Bottom chrome. On phone the bottom nav
+                            // auto-hides when idle so it reclaims the short
+                            // cover-screen height.
+                            //
+                            // The narrow shell carries NO status bar. The nav
+                            // does NOT hide: below 768px the nav IS the
+                            // navigation, and an affordance that takes it
+                            // away is one an operator can only lose by.
+                            if (useBottomNav && !phoneRail && !keyboardVisible)
+                              SkotiqBottomNavigation(
+                                currentRoute: currentLocation,
+                                onRouteSelected: goToRoute,
+                              ),
+                          ],
+                        ),
                       ),
 
                       // The window's own 1 px edge, drawn by the app on

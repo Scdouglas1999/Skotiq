@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'adaptive_tab_bar.dart';
+
 import 'package:skotiq_design/skotiq_design.dart';
 import '../tokens/shell_chrome_metrics.dart';
+import '../utils/text_measure.dart';
 import '../utils/touch_target.dart';
 
 /// The 56 px row every routed screen starts with (04-shell §4).
@@ -122,6 +125,12 @@ class PageHeader extends StatelessWidget {
               if (i > 0) const SizedBox(width: SkotiqTokens.spaceSm),
               actions[i],
             ],
+            if (ShellHeaderTrailing.maybeOf(buildContext)
+                case final trailing?) ...[
+              if (actions.isNotEmpty)
+                const SizedBox(width: SkotiqTokens.spaceSm),
+              trailing,
+            ],
           ],
         ),
       ),
@@ -142,7 +151,7 @@ class PageHeader extends StatelessWidget {
                 bottom: BorderSide(color: colors.border, width: 1),
               ),
             ),
-            child: tabs,
+            child: TabStripInset(inset: SkotiqTokens.spaceLg, child: tabs!),
           ),
         if (bottom != null) bottom!,
       ],
@@ -167,13 +176,23 @@ class PageHeader extends StatelessWidget {
       // On a phone whose actions leave the title less room than its icon, the
       // icon goes and the title ellipsizes, rather than the row overflowing.
       child: LayoutBuilder(
-        builder: (_, constraints) => Row(
+        builder: (layoutContext, constraints) => Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // The icon is decoration; the title is the screen's name. When
+            // both do not fit, the icon gives way first.
             if (icon != null &&
                 constraints.maxWidth >=
-                    _iconSize + _iconGap + _minTitleWidth) ...[
+                    _iconSize +
+                        _iconGap +
+                        (context == null
+                            ? measureTextWidth(
+                                layoutContext,
+                                text: title,
+                                style: SkotiqTypography.pageTitle,
+                              )
+                            : _minTitleWidth)) ...[
               Icon(icon, size: _iconSize, color: colors.textSecondary),
               const SizedBox(width: _iconGap),
             ],
@@ -214,4 +233,31 @@ class PageHeader extends StatelessWidget {
 
   /// Room the title keeps for its first letters before the icon gives way.
   static const double _minTitleWidth = 24;
+}
+
+/// Chrome the app shell asks every page header to carry at its trailing edge.
+///
+/// On a phone the shell has no bar of its own: the screen's header is the one
+/// top bar, and the shell's items (link status, settings) ride at its end so
+/// they cost no extra row. Absent everywhere else, so desktop headers are
+/// unchanged.
+class ShellHeaderTrailing extends InheritedWidget {
+  const ShellHeaderTrailing({
+    super.key,
+    required this.trailing,
+    required super.child,
+  });
+
+  /// The widget each header appends after its own actions.
+  final Widget trailing;
+
+  /// The trailing chrome for headers under [context], or null when the shell
+  /// keeps its own bar.
+  static Widget? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<ShellHeaderTrailing>()
+      ?.trailing;
+
+  @override
+  bool updateShouldNotify(ShellHeaderTrailing oldWidget) =>
+      trailing != oldWidget.trailing;
 }

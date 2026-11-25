@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
@@ -286,7 +288,10 @@ class _AdaptiveTabBarState extends State<AdaptiveTabBar> {
             physics: const ClampingScrollPhysics(),
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: widget.horizontalPadding,
+                horizontal: math.max(
+                  widget.horizontalPadding,
+                  TabStripInset.of(context),
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -605,3 +610,24 @@ const double _tabCountPadding = 6;
 /// Minimum tab height, so a tab in a bar with no height of its own is still a
 /// reachable touch target.
 const double _tabMinHeight = 40;
+
+/// The inset a tab strip keeps from the screen edge when a layout puts it on
+/// a row of its own.
+///
+/// Screens hand their strip a padding of 0 because on a wide header it sits
+/// beside the title, inside the header's gutter. A narrow [PageHeader] moves
+/// it to its own edge-to-edge row and provides this, so the first tab does not
+/// touch the edge of a phone screen.
+class TabStripInset extends InheritedWidget {
+  const TabStripInset({super.key, required this.inset, required super.child});
+
+  final double inset;
+
+  static double of(BuildContext context) {
+    final found = context.dependOnInheritedWidgetOfExactType<TabStripInset>();
+    return found == null ? 0 : found.inset;
+  }
+
+  @override
+  bool updateShouldNotify(TabStripInset oldWidget) => inset != oldWidget.inset;
+}

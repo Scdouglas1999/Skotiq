@@ -4,6 +4,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../tours/tour_target.dart';
+import '../shell_chrome.dart';
 import '../shell_navigation.dart';
 
 /// The narrow shell's navigation (04-shell §3.3).
@@ -22,7 +23,15 @@ class SkotiqBottomNavigation extends StatelessWidget {
     super.key,
     required this.currentRoute,
     required this.onRouteSelected,
+    this.vertical = false,
   });
+
+  /// A rail down the left edge instead of a bar along the bottom: a phone
+  /// held on its side has width to spare and height to save.
+  final bool vertical;
+
+  /// The rail's width when [vertical].
+  static const double railWidth = 76;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +39,48 @@ class SkotiqBottomNavigation extends StatelessWidget {
     final l10n = context.l10n;
     final overflowIsCurrent = ShellNavigation.moreSheet
         .any((d) => ShellNavigation.hosts(d, currentRoute));
+
+    final items = <Widget>[
+      for (final dest in ShellNavigation.phoneBar)
+        _BottomNavItem(
+          key: TourTarget.forDestination(dest)?.key,
+          icon: dest.icon!,
+          label: (dest.shortLabel ?? dest.label!).of(l10n),
+          isSelected: ShellNavigation.hosts(dest, currentRoute),
+          colors: colors,
+          onTap: () => onRouteSelected(dest),
+        ),
+      _BottomNavItem(
+        key: TourTarget.navMore.key,
+        icon: LucideIcons.menu,
+        label: l10n.text('navMore'),
+        isSelected: overflowIsCurrent,
+        colors: colors,
+        onTap: () => _showMoreSheet(context, l10n, colors),
+      ),
+    ];
+
+    if (vertical) {
+      return Container(
+        width: railWidth,
+        decoration: BoxDecoration(
+          color: colors.surface,
+          border: Border(right: BorderSide(color: colors.border, width: 1)),
+        ),
+        // Scrolls rather than overflows in a window shorter than five slots.
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final item in items)
+                  SizedBox(height: BottomNavMetrics.barHeight, child: item),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -41,45 +92,13 @@ class SkotiqBottomNavigation extends StatelessWidget {
         child: SizedBox(
           height: BottomNavMetrics.barHeight,
           child: Row(
-            children: [
-              for (final dest in ShellNavigation.phoneBar)
-                Expanded(
-                  child: _BottomNavItem(
-                    key: TourTarget.forDestination(dest)?.key,
-                    icon: dest.icon!,
-                    label: (dest.shortLabel ?? dest.label!).of(l10n),
-                    // Sub-route aware: the image-ready deep link
-                    // (/imaging/preview/:id) renders the Imaging screen, so
-                    // the Imaging slot must own it. Exact matching left the
-                    // whole bar unlit on those routes.
-                    isSelected: ShellNavigation.hosts(dest, currentRoute),
-                    colors: colors,
-                    onTap: () => onRouteSelected(dest),
-                  ),
-                ),
-              Expanded(
-                child: _BottomNavItem(
-                  key: TourTarget.navMore.key,
-                  icon: LucideIcons.menu,
-                  label: l10n.text('navMore'),
-                  isSelected: overflowIsCurrent,
-                  colors: colors,
-                  onTap: () => _showMoreSheet(context, l10n, colors),
-                ),
-              ),
-            ],
+            children: [for (final item in items) Expanded(child: item)],
           ),
         ),
       ),
     );
   }
 
-  /// The sheet behind "More": Plan, Equipment, Weather, Analytics, Darkroom
-  /// and Settings, in rail order.
-  ///
-  /// Every top-level surface is reachable on a phone this way, which is what
-  /// lets the bar hold five slots instead of ten: five is what a thumb can hit
-  /// without looking.
   void _showMoreSheet(
     BuildContext context,
     SkotiqLocalizations l10n,
@@ -99,33 +118,40 @@ class SkotiqBottomNavigation extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 for (final dest in ShellNavigation.moreSheet)
-                  Builder(
-                    builder: (context) {
-                      final isCurrent =
-                          ShellNavigation.hosts(dest, currentRoute);
-                      return ListTile(
-                        leading: Icon(
-                          dest.icon,
-                          color:
-                              isCurrent ? colors.primary : colors.textSecondary,
-                        ),
-                        title: Text(
-                          dest.label!.of(l10n),
-                          style: SkotiqTypography.body.copyWith(
-                            color:
-                                isCurrent ? colors.primary : colors.textPrimary,
-                            fontWeight:
-                                isCurrent ? FontWeight.w600 : FontWeight.w500,
+                  // A phone is always a client of the imaging computer, and
+                  // the Darkroom edits only there: on a phone its entry led
+                  // to a page saying so.
+                  if (!(ShellChrome.isNativeMobile &&
+                      dest == AppRoute.darkroom))
+                    Builder(
+                      builder: (context) {
+                        final isCurrent =
+                            ShellNavigation.hosts(dest, currentRoute);
+                        return ListTile(
+                          leading: Icon(
+                            dest.icon,
+                            color: isCurrent
+                                ? colors.primary
+                                : colors.textSecondary,
                           ),
-                        ),
-                        selected: isCurrent,
-                        onTap: () {
-                          Navigator.of(sheetContext).pop();
-                          onRouteSelected(dest);
-                        },
-                      );
-                    },
-                  ),
+                          title: Text(
+                            dest.label!.of(l10n),
+                            style: SkotiqTypography.body.copyWith(
+                              color: isCurrent
+                                  ? colors.primary
+                                  : colors.textPrimary,
+                              fontWeight:
+                                  isCurrent ? FontWeight.w600 : FontWeight.w500,
+                            ),
+                          ),
+                          selected: isCurrent,
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            onRouteSelected(dest);
+                          },
+                        );
+                      },
+                    ),
               ],
             ),
           ),

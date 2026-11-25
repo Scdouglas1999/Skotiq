@@ -476,7 +476,9 @@ void main() {
         },
       );
       expect(tourTargetIsOnShow(TourTarget.navEquipment), isTrue);
-      expect(tourTargetIsOnShow(TourTarget.navSettings), isFalse);
+      // Settings is listed in the More sheet on a phone too.
+      expect(tourTargetIsOnShow(TourTarget.navSettings), isTrue);
+      expect(tourTargetIsOnShow(TourTarget.planTabFraming), isFalse);
     });
 
     for (final size in const [

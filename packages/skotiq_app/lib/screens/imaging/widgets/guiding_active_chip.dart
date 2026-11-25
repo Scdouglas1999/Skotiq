@@ -112,7 +112,8 @@ class GuidingActiveChip extends ConsumerWidget {
   }
 
   /// Trailing RMS (and SNR when present) telemetry, in tabular mono so the
-  /// digits don't jitter the pill width as values tick.
+  /// digits don't jitter the pill width as values tick. One flexible text, so
+  /// a narrow preview cuts the SNR tail before the pill overflows.
   List<Widget> _telemetry(
     Phd2GuideStats stats,
     double? scale,
@@ -122,24 +123,26 @@ class GuidingActiveChip extends ConsumerWidget {
       SkotiqTypography.monoSm,
     ).copyWith(color: colors.textSecondary);
 
-    final widgets = <Widget>[
-      const SizedBox(width: SkotiqTokens.spaceSm),
-      Text(
-        'RMS ${guideDistanceText(stats.rmsTotal, scale)}',
-        style: monoStyle,
-      ),
-    ];
-
     // SNR is optional context; PHD2 reports 0.0 as its "no sample yet"
     // sentinel, so suppress it until a real value arrives rather than show a
     // misleading "SNR 0".
-    if (stats.snr > 0) {
-      widgets
-        ..add(const SizedBox(width: SkotiqTokens.spaceSm))
-        ..add(Text('SNR ${stats.snr.toStringAsFixed(0)}', style: monoStyle));
-    }
+    final text = [
+      'RMS ${guideDistanceText(stats.rmsTotal, scale)}',
+      if (stats.snr > 0) 'SNR ${stats.snr.toStringAsFixed(0)}',
+    ].join('  ');
 
-    return widgets;
+    return [
+      const SizedBox(width: SkotiqTokens.spaceSm),
+      Flexible(
+        child: Text(
+          text,
+          style: monoStyle,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ];
   }
 
   static bool _isVisibleState(Phd2State state) =>

@@ -25,6 +25,9 @@ class NightCenter extends ConsumerStatefulWidget {
   static const double minSingleColumnFrame = 240;
   static const double maxSingleColumnFrame = 360;
 
+  /// The single column's stage height before the first frame.
+  static const double emptySingleColumnFrame = 160;
+
   /// The bar that replaces a folded chart row.
   static const double chartToggleHeight = 28;
 
@@ -76,10 +79,14 @@ class _NightCenterState extends ConsumerState<NightCenter> {
         final aspect = image == null || image.height <= 0
             ? 3 / 2
             : image.width / image.height;
-        final frameHeight = (constraints.maxWidth / aspect).clamp(
-          NightCenter.minSingleColumnFrame,
-          NightCenter.maxSingleColumnFrame,
-        );
+        // With no frame yet the stage only says so; it gives the plan and
+        // readiness above it the room instead of a frame-sized empty box.
+        final frameHeight = image == null
+            ? NightCenter.emptySingleColumnFrame
+            : (constraints.maxWidth / aspect).clamp(
+                NightCenter.minSingleColumnFrame,
+                NightCenter.maxSingleColumnFrame,
+              );
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

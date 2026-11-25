@@ -275,6 +275,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       _statusMessage = 'Connecting to ${server.name}...';
       _error = null;
       _mismatchedHost = null;
+      _unpairedHost = null;
     });
 
     try {
@@ -366,6 +367,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         if (authToken == null || authToken.isEmpty) {
           final pairedToken = await _pairWithServer(
             host: enrichedServer.host,
+            serverName: enrichedServer.name,
             port: enrichedServer.webPort,
             scheme: enrichedServer.scheme,
             // Pin the server identity (when known from /api/info) so the
@@ -376,6 +378,13 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           );
           if (!_isCurrentConnectionOperation(operationGeneration)) return false;
           if (pairedToken == null) {
+            if (mounted) {
+              setState(() {
+                _isDiscovering = false;
+                _statusMessage = '';
+                _unpairedHost = enrichedServer;
+              });
+            }
             return false;
           }
           authToken = pairedToken;
@@ -601,30 +610,59 @@ mixin _MobileReconnectOps on _MobileConnectionState {
 
         final info = await executor.getCheckpointInfo();
         if (info == null || !info.canResume) return;
-        if (!context.mounted) return;
+        // The dialog needs a context under the app's MaterialApp; this State
+        // sits above it ("No MaterialLocalizations found" on every check).
+        // Right after connecting, the router's navigator is not built yet.
+        BuildContext? dialogContext;
+        for (var i = 0; i < 50 && dialogContext == null; i++) {
+          dialogContext = ref
+              .read(appRouterProvider)
+              .routerDelegate
+              .navigatorKey
+              .currentContext;
+          if (dialogContext == null) {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+            if (!mounted) return;
+          }
+        }
+        if (dialogContext == null) return;
+        // A run still going writes a resumable checkpoint too; a dropped
+        // link that came back must not offer to resume it.
+        if (ref.read(isRemoteModeProvider)) {
+          final status = await ref
+              .read(sequencerBackendProvider)
+              .sequencerGetStatus();
+          if (status.isRunning || status.isPaused) return;
+        }
+        if (!dialogContext.mounted) return;
 
         // Keep recovery actionable until the selected operation succeeds.
         // `_checkpointChecked` stays true for the rest of this connection, so
         // the prompt must survive a failed resume/discard or the checkpoint is
         // stranded until the operator reconnects.
         while (true) {
-          if (!context.mounted) return;
-          final shouldResume = await CheckpointResumeDialog.show(context, info);
-          if (shouldResume == null || !context.mounted) return;
+          if (!dialogContext.mounted) return;
+          final shouldResume = await CheckpointResumeDialog.show(
+            dialogContext,
+            info,
+          );
+          if (shouldResume == null || !dialogContext.mounted) return;
 
           try {
             if (shouldResume) {
               await executor.resumeFromCheckpoint();
-              if (!context.mounted) return;
-              context.showSuccessSnackBar('Sequence resumed from checkpoint');
+              if (!dialogContext.mounted) return;
+              dialogContext.showSuccessSnackBar(
+                'Sequence resumed from checkpoint',
+              );
             } else {
               await executor.discardCheckpoint();
             }
             return;
           } catch (e) {
-            if (!context.mounted) return;
+            if (!dialogContext.mounted) return;
             showApiErrorWithPrefix(
-              context,
+              dialogContext,
               shouldResume ? 'Failed to resume' : 'Failed to discard',
               e,
             );

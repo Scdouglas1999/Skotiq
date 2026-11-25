@@ -136,16 +136,22 @@ class _ExposureProgressPanel extends StatelessWidget {
               _StatBox(
                 colors: colors,
                 label: 'Duration',
-                value: durationSecs.toStringAsFixed(0),
-                unit: 's',
+                // A lunar or planetary burst runs in milliseconds, where
+                // whole seconds read "0 s".
+                value: durationSecs > 0 && durationSecs < 0.1
+                    ? QuantityFormat.trimmed(durationSecs * 1000)
+                    : QuantityFormat.trimmed(durationSecs),
+                unit: durationSecs > 0 && durationSecs < 0.1 ? 'ms' : 's',
                 color: colors.success,
               ),
               const SizedBox(width: 12),
               _StatBox(
                 colors: colors,
                 label: 'Total',
-                value: (durationSecs * totalFrames / 60).toStringAsFixed(1),
-                unit: 'min',
+                value: durationSecs * totalFrames < 60
+                    ? QuantityFormat.trimmed(durationSecs * totalFrames)
+                    : (durationSecs * totalFrames / 60).toStringAsFixed(1),
+                unit: durationSecs * totalFrames < 60 ? 's' : 'min',
                 color: colors.info,
               ),
             ],

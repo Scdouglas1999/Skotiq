@@ -12,10 +12,14 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart'
+    show CapturedImageResult, ImageStatsResult;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/models/imaging/saved_frame.dart';
 
 class _MockImagingBackend extends Mock implements ImagingBackend {}
+
+class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 bridge.FitsReadResult _decoded(int width, int height) => bridge.FitsReadResult(
   width: width,
@@ -238,4 +242,62 @@ void main() {
     expect(hostFileName('/home/x/Skotiq/b.xisf'), 'b.xisf');
     expect(hostFileName('c.fits'), 'c.fits');
   });
+
+  test(
+    'a phone, which cannot decode a FITS, shows the frame the host drew',
+    () async {
+      final network = _MockNetworkBackend();
+      when(
+        () => network.getSavedFrameJpeg(7, maxWidth: any(named: 'maxWidth')),
+      ).thenAnswer(
+        (_) async => CapturedImageResult(
+          width: 4656,
+          height: 3520,
+          displayData: Uint8List(4656 * 3520 * 4),
+          histogram: List<int>.filled(256, 0),
+          stats: const ImageStatsResult(
+            min: 200,
+            max: 65000,
+            mean: 610,
+            median: 576,
+            stdDev: 40,
+            starCount: 0,
+          ),
+          exposureTime: 0.005,
+          timestamp: _capturedAt.toIso8601String(),
+        ),
+      );
+      final c = ProviderContainer(
+        overrides: [
+          imagingBackendProvider.overrideWithValue(backend),
+          isRemoteModeProvider.overrideWithValue(true),
+          savedFrameDecodesOnDeviceProvider.overrideWithValue(false),
+          linkedHostImagingRecordsProvider.overrideWithValue(network),
+          frameFileDecoderProvider.overrideWithValue((path) async {
+            decoded.add(path);
+            return _decoded(1, 1);
+          }),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      final load = await _settled(c, _frame());
+
+      final ready = load as SavedFrameReady;
+      expect((ready.image.width, ready.image.height), (4656, 3520));
+      // Nothing fetched to, or decoded on, the device.
+      expect(ready.localPath, isEmpty);
+      expect(decoded, isEmpty);
+      verifyNever(
+        () => backend.downloadImage(
+          any(),
+          any(),
+          onProgress: any(named: 'onProgress'),
+        ),
+      );
+      verify(
+        () => network.getSavedFrameJpeg(7, maxWidth: hostDrawnFrameMaxEdge),
+      ).called(1);
+    },
+  );
 }

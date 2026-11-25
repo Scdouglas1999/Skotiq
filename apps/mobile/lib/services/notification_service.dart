@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart'
     show darkroomEditLocation;
-import 'package:skotiq_core/models.dart' show darkroomRouteForPayload;
+import 'package:skotiq_core/models.dart'
+    show NotificationCategory, darkroomRouteForPayload;
 import 'package:skotiq_remote_protocol/wire.dart' show NotificationPayloadType;
 
 import 'mobile_preferences.dart';
@@ -345,11 +347,12 @@ class MobileNotificationService implements MobileNotificationSink {
     if (Platform.isAndroid) {
       await _createNotificationChannels();
       // Android 13+ (API 33) requires a runtime POST_NOTIFICATIONS grant
-      // before *any* local notification will display. Without it,
-      // sequence-failed / guiding-lost / safety alerts vanish silently
-      // (no exception, no log). Request it explicitly at app startup so
-      // the operator sees the system prompt before any sequence runs.
-      await _requestAndroidNotificationPermission();
+      // before *any* local notification will display. Read the state
+      // without asking: a prompt at launch, before the app has shown
+      // anything, gives no reason to say yes. The linked shell offers it
+      // with the reason (AndroidNotificationsBanner ->
+      // [requestAndroidNotificationPermission]).
+      await refreshAndroidNotificationsAuthorization();
     }
 
     if (Platform.isIOS) {
@@ -377,52 +380,16 @@ class MobileNotificationService implements MobileNotificationSink {
     _initialized = true;
   }
 
-  /// Ask Android for the runtime POST_NOTIFICATIONS permission and stash
-  /// the result. Safe to call on any API level — the plugin returns
-  /// `true` without prompting on Android <=12 (API 32 and below), where
-  /// the permission is implicitly granted at install time.
-  ///
-  /// We intentionally do NOT swallow failures: a `null` return from the
-  /// platform channel means the call didn't reach Android (plugin mis-
-  /// registration, missing AndroidManifest entry, etc.). Log it and treat it
-  /// as denied so the banner pops up, rather than reporting a permission the
-  /// app was never actually granted.
-  Future<bool> _requestAndroidNotificationPermission() async {
-    final android = _notifications
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    if (android == null) {
-      // Plugin not registered on Android — would only happen if the
-      // package was installed wrong. Surface loudly.
-      Log.error(
-        '[MobileNotificationService] AndroidFlutterLocalNotificationsPlugin '
-        'unavailable; POST_NOTIFICATIONS cannot be requested.',
-        source: 'MobileNotificationService',
-      );
-      _androidNotificationsAuthorized = false;
-      return false;
+  /// Asks for POST_NOTIFICATIONS. Once Android stops showing the prompt
+  /// (denied twice), opens the app's notification settings instead; the app
+  /// re-reads the state when it comes back to the foreground.
+  Future<bool> requestAndroidNotificationPermission() async {
+    if (!Platform.isAndroid) return true;
+    final status = await Permission.notification.request();
+    if (status.isPermanentlyDenied) {
+      await openAppSettings();
     }
-    final granted = await android.requestNotificationsPermission();
-    if (granted == null) {
-      Log.error(
-        '[MobileNotificationService] requestNotificationsPermission '
-        'returned null — treating as denied.',
-        source: 'MobileNotificationService',
-      );
-      _androidNotificationsAuthorized = false;
-      return false;
-    }
-    _androidNotificationsAuthorized = granted;
-    if (!granted) {
-      Log.warning(
-        '[MobileNotificationService] POST_NOTIFICATIONS was denied by '
-        'the user. Sequence/safety alerts will be silenced until the '
-        'user enables notifications in system settings.',
-        source: 'MobileNotificationService',
-      );
-    }
-    return granted;
+    return refreshAndroidNotificationsAuthorization();
   }
 
   /// Re-query the current Android notification authorization state
@@ -850,10 +817,20 @@ class MobileNotificationService implements MobileNotificationSink {
         androidPriority = Priority.high;
     }
 
-    final id = _nextPushNotificationId++;
-    // Wrap around to avoid overflow, keeping it above the reserved IDs
-    if (_nextPushNotificationId > 9999) {
-      _nextPushNotificationId = 200;
+    // The phone tells a finished or failed run itself, under a fixed id. The
+    // host's push for the same run takes that id, so the two replace each
+    // other instead of showing the run twice.
+    final int id;
+    if (eventType == NotificationCategory.sequenceCompleted.storageKey) {
+      id = _sequenceCompleteId;
+    } else if (eventType == NotificationCategory.sequenceFailed.storageKey) {
+      id = _sequenceFailedId;
+    } else {
+      id = _nextPushNotificationId++;
+      // Wrap around to avoid overflow, keeping it above the reserved IDs
+      if (_nextPushNotificationId > 9999) {
+        _nextPushNotificationId = 200;
+      }
     }
 
     await _notifications.show(

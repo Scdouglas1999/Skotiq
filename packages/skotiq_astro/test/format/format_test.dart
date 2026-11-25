@@ -221,4 +221,11 @@ void main() {
       expect(QuantityFormat.fraction(0.125), '12.5%');
     });
   });
+
+  test('QuantityFormat.exposure reads milliseconds below a tenth', () {
+    expect(QuantityFormat.exposure(0.005), '5 ms');
+    expect(QuantityFormat.exposure(0.1), '0.1 s');
+    expect(QuantityFormat.exposure(300), '300 s');
+    expect(QuantityFormat.exposure(2.5, space: false), '2.5s');
+  });
 }

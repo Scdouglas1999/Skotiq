@@ -15,7 +15,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     setState(() {
       _isDiscovering = true;
       _error = null;
-      _statusMessage = 'Starting discovery...';
+      _statusMessage = 'Looking for it on this Wi-Fi…';
     });
 
     try {
@@ -24,7 +24,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       final server = await EnhancedSkotiqDiscovery.discoverWithFallback(
         onStatus: (status) {
           if (mounted) {
-            setState(() => _statusMessage = status);
+            setState(() => _statusMessage = _discoveryStatusText(status));
           }
         },
       );
@@ -43,14 +43,11 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
           _isDiscovering = false;
           _statusMessage = '';
           _error =
-              'No Skotiq server found on this network.\n\n'
-              'If you are away from the observatory, use "Connect over '
-              'Tailscale" to reach it by its MagicDNS name — local discovery '
-              'only works on the same WiFi.\n\n'
-              'On the same network, try:\n'
-              '- Scanning the QR code from the desktop\n'
-              '- Entering the host address manually\n'
-              '- Allowing UDP 45679 and HTTP 8080 through the firewall';
+              'No imaging computer answered on this Wi-Fi. Check that '
+              'Skotiq is open on it and that both are on the same network, '
+              'then scan its QR code or enter its address. Away from home, '
+              'use Tailscale or a relay below. If it still is not found, '
+              'its firewall may be blocking UDP 45679 and TCP 8080.';
         });
       }
     } catch (e, stackTrace) {
@@ -76,6 +73,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     String scheme = 'http',
     String? pinnedFingerprint,
     String? initialCode,
+    String? serverName,
   }) async {
     final uiContext = _connectionUiContext;
     if (uiContext == null || !uiContext.mounted) {
@@ -93,11 +91,24 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     // TextField rebuild during the route's exit animation, and the build
     // exception cascades into duplicate-GlobalKey / '_dependents.isEmpty'
     // assertions as the connection MaterialApp is swapped for the main shell.
-    final pairingInput = await showDialog<({String code, bool admin})>(
+    final pairingInput = await showDialog<PairingDialogResult>(
       context: uiContext,
-      builder: (ctx) =>
-          PairingCodeDialog(host: host, port: port, initialCode: initialCode),
+      builder: (ctx) => PairingCodeDialog(
+        host: host,
+        port: port,
+        serverName: serverName,
+        initialCode: initialCode,
+      ),
     );
+
+    if (pairingInput != null && pairingInput.scan && mounted) {
+      setState(() {
+        _isDiscovering = false;
+        _statusMessage = '';
+      });
+      await _scanQrCode();
+      return null;
+    }
 
     if (pairingInput == null || pairingInput.code.isEmpty || !mounted) {
       if (mounted) {
@@ -497,6 +508,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         server.pairingSupported) {
       final paired = await _pairWithServer(
         host: host,
+        serverName: server.name,
         port: port,
         // Use the scheme + identity the enriched /api/info reported so a
         // TLS-fronted host pairs over https and the pre-flight pins the
@@ -653,6 +665,10 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
   }
 }
 
+/// What [PairingCodeDialog] pops: a typed [code], or [scan] when the operator
+/// chose to scan the QR code instead. [admin] asks the host for full control.
+typedef PairingDialogResult = ({String code, bool admin, bool scan});
+
 /// Code-pairing dialog. A real StatefulWidget (not a StatefulBuilder over
 /// method-locals) so the [TextEditingController] is disposed by the
 /// framework when the dialog element unmounts — after the route's exit
@@ -666,11 +682,16 @@ class PairingCodeDialog extends StatefulWidget {
   final int port;
   final String? initialCode;
 
+  /// The name the computer announced, shown so a phone near two rigs knows
+  /// which one it is pairing with.
+  final String? serverName;
+
   const PairingCodeDialog({
     super.key,
     required this.host,
     required this.port,
     this.initialCode,
+    this.serverName,
   });
 
   @override
@@ -679,7 +700,7 @@ class PairingCodeDialog extends StatefulWidget {
 
 class _PairingCodeDialogState extends State<PairingCodeDialog> {
   late final TextEditingController _codeController;
-  bool _requestAdmin = false;
+  bool _requestAdmin = true;
 
   /// Inline validation message for the code field. An empty code must say why
   /// rather than no-op behind an enabled-looking "Pair" button.
@@ -697,6 +718,19 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
     super.dispose();
   }
 
+  void _submit() {
+    final trimmed = _codeController.text.trim();
+    if (trimmed.isEmpty) {
+      setState(() {
+        _codeError = 'Enter the pairing code before tapping Pair.';
+      });
+      return;
+    }
+    Navigator.of(
+      context,
+    ).pop((code: trimmed, admin: _requestAdmin, scan: false));
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
@@ -711,34 +745,49 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
         ),
-        SkotiqButton(
-          onPressed: () {
-            final trimmed = _codeController.text.trim();
-            if (trimmed.isEmpty) {
-              setState(() {
-                _codeError = 'Enter the pairing code before tapping Pair.';
-              });
-              return;
-            }
-            Navigator.of(context).pop((code: trimmed, admin: _requestAdmin));
-          },
-          label: 'Pair',
-          size: ButtonSize.small,
-        ),
+        SkotiqButton(onPressed: _submit, label: 'Pair', size: ButtonSize.small),
       ],
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
+              Icon(LucideIcons.monitor, size: 16, color: colors.textSecondary),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Expanded(
+                child: Text(
+                  [
+                    if (widget.serverName case final name? when name.isNotEmpty)
+                      name,
+                    widget.host,
+                  ].join(' · '),
+                  style: SkotiqTypography.labelStrongSm.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(
-            'Enter the pairing code shown on the appliance. Read it '
-            'from the pairing page in a browser — open '
-            'http://${widget.host}:${widget.port}/pair — or from the '
-            "desktop's Remote Access screen.",
+            'On the imaging computer, open Settings → Remote access and '
+            'press Start pairing. Scan the QR code it shows, or type the code.',
             style: TextStyle(
-              fontSize: SkotiqTypography.fontSize13,
-              color: colors.textSecondary,
+              fontSize: SkotiqTypography.fontSize14,
+              color: colors.textPrimary,
             ),
+          ),
+          const SizedBox(height: 12),
+          SkotiqButton(
+            onPressed: () => Navigator.of(
+              context,
+            ).pop((code: '', admin: _requestAdmin, scan: true)),
+            label: 'Scan QR code',
+            icon: LucideIcons.scanLine,
+            variant: ButtonVariant.secondary,
           ),
           const SizedBox(height: 12),
           TextField(
@@ -750,32 +799,47 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
             ),
             textCapitalization: TextCapitalization.characters,
             autocorrect: false,
+            enableSuggestions: false,
+            keyboardType: TextInputType.visiblePassword,
+            textInputAction: TextInputAction.go,
+            onSubmitted: (_) => _submit(),
             onChanged: (_) {
               if (_codeError != null) setState(() => _codeError = null);
             },
           ),
-          // Own Material: SkotiqDialog paints its surface with a
-          // DecoratedBox, which sits between this tile and the nearest
-          // Material ancestor. Flutter asserts on that arrangement because the
-          // tile's background and tap ripple are painted on that Material and
-          // would be hidden — the admin toggle gave no touch feedback at all.
-          Material(
-            type: MaterialType.transparency,
-            child: CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Grant full admin access'),
-              subtitle: const Text(
-                'Off by default. Enable only if this device should '
-                'manage backups and filesystem paths.',
-              ),
-              value: _requestAdmin,
-              onChanged: (value) {
-                setState(() => _requestAdmin = value ?? false);
-              },
+          const SizedBox(height: 12),
+          SkotiqSwitchRow(
+            label: 'Full control of the imaging computer',
+            subtitle:
+                'Lets this phone choose capture folders and manage '
+                'backups too. Turn it off for a phone you lend to someone.',
+            value: _requestAdmin,
+            onChanged: (value) => setState(() => _requestAdmin = value),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No screen on the imaging computer? Open '
+            'http://${widget.host}:${widget.port}/pair in a browser to see '
+            'the code.',
+            style: TextStyle(
+              fontSize: SkotiqTypography.fontSize13,
+              color: colors.textSecondary,
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// The discovery's progress in the phone's words: the methods it tries are
+/// its business, where it is looking is the operator's.
+String _discoveryStatusText(String status) {
+  if (status.startsWith('Checking last server')) {
+    return 'Trying the computer this phone used last…';
+  }
+  if (status.contains('broadcast') || status.contains('mDNS')) {
+    return 'Looking for it on this Wi-Fi…';
+  }
+  return status;
 }
