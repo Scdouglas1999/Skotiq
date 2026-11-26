@@ -537,43 +537,60 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
           style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: SkotiqTextField(
-                key: const ValueKey('link.manual.host'),
-                controller: _manualHost,
-                hint: 'Computer name or IP, for example 192.168.1.50',
-                prefixIcon: LucideIcons.monitor,
-                dense: true,
-                onSubmitted: (_) => _checkManualAddress(),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final hostField = SkotiqTextField(
+              key: const ValueKey('link.manual.host'),
+              controller: _manualHost,
+              hint: 'Computer name or IP, for example 192.168.1.50',
+              prefixIcon: LucideIcons.monitor,
+              dense: true,
+              onSubmitted: (_) => _checkManualAddress(),
+            );
+            final portAndCheck = <Widget>[
+              SizedBox(
+                width: 96,
+                child: SkotiqTextField(
+                  key: const ValueKey('link.manual.port'),
+                  controller: _manualPort,
+                  hint: 'Port',
+                  mono: true,
+                  dense: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onSubmitted: (_) => _checkManualAddress(),
+                ),
               ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            SizedBox(
-              width: 96,
-              child: SkotiqTextField(
-                key: const ValueKey('link.manual.port'),
-                controller: _manualPort,
-                hint: 'Port',
-                mono: true,
-                dense: true,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onSubmitted: (_) => _checkManualAddress(),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              SkotiqButton(
+                label: 'Check',
+                variant: ButtonVariant.secondary,
+                size: ButtonSize.small,
+                isLoading: _checkingManual,
+                onPressed: _checkingManual ? null : _checkManualAddress,
               ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            SkotiqButton(
-              label: 'Check',
-              variant: ButtonVariant.secondary,
-              size: ButtonSize.small,
-              isLoading: _checkingManual,
-              onPressed: _checkingManual ? null : _checkManualAddress,
-            ),
-          ],
+            ];
+            // On a phone the address gets the whole row: beside the port and
+            // Check it was a few characters wide ("Compute…").
+            if (constraints.maxWidth < 420) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  hostField,
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  Row(children: portAndCheck),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: hostField),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                ...portAndCheck,
+              ],
+            );
+          },
         ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         Text(
