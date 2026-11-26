@@ -11,6 +11,8 @@ import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_connection_state.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/src/providers/demo_rig_provider.dart';
+import 'package:skotiq_core/src/providers/settings_provider.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -98,5 +100,55 @@ void main() {
     final host = liveHost();
     await notifier.connect('rig', 8080);
     expect(notifier.currentBackend, same(host));
+  });
+
+  group('the setting', () {
+    Future<void> settle(bool Function() done) async {
+      for (var i = 0; i < 200 && !done(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    Future<void> setDemo(bool value) =>
+        container.read(appSettingsProvider.notifier).setDemoRig(value);
+
+    test('switches the backend both ways, and the settings still load on the '
+        'demo rig', () async {
+      container.read(demoRigSelectionProvider);
+      await container.read(appSettingsProvider.future);
+      expect(notifier.currentBackend, isA<DisconnectedBackend>());
+
+      await setDemo(true);
+      await settle(() => notifier.currentBackend is DemoBackend);
+      expect(notifier.currentBackend, isA<DemoBackend>());
+      final demo = notifier.currentBackend;
+      // The settings reload after the swap, from this phone's database.
+      final settings = await container.read(appSettingsProvider.future);
+      expect(settings.demoRig, isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(
+        notifier.currentBackend,
+        same(demo),
+        reason: 'the reload after the swap must not swap again',
+      );
+
+      await setDemo(false);
+      await settle(() => notifier.currentBackend is DisconnectedBackend);
+      expect(notifier.currentBackend, isA<DisconnectedBackend>());
+      expect(
+        (await container.read(appSettingsProvider.future)).demoRig,
+        isFalse,
+      );
+    });
+
+    test('a launch with the setting on starts on the demo rig', () async {
+      await container.read(appSettingsProvider.future);
+      await setDemo(true);
+      expect(notifier.currentBackend, isA<DisconnectedBackend>());
+
+      container.read(demoRigSelectionProvider);
+      await settle(() => notifier.currentBackend is DemoBackend);
+      expect(notifier.currentBackend, isA<DemoBackend>());
+    });
   });
 }

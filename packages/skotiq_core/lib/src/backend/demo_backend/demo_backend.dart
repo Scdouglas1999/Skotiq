@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
@@ -284,12 +285,18 @@ class DemoBackend extends _DemoRigCore
     }
   }
 
+  /// The members [noSuchMethod] has answered, so a test can see which calls
+  /// the app makes that the demo rig does not simulate.
+  @visibleForTesting
+  final Set<String> debugUnavailableCalls = <String>{};
+
   /// Everything the demo rig does not simulate.
   @override
-  dynamic noSuchMethod(Invocation invocation) => Future<Never>.error(
-    demoRigUnavailable(_memberName(invocation.memberName)),
-    StackTrace.current,
-  );
+  dynamic noSuchMethod(Invocation invocation) {
+    final name = _memberName(invocation.memberName);
+    debugUnavailableCalls.add(name);
+    return Future<Never>.error(demoRigUnavailable(name), StackTrace.current);
+  }
 
   static String _memberName(Symbol symbol) {
     final text = symbol.toString();

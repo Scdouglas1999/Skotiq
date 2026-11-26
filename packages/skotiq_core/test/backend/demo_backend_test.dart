@@ -444,4 +444,27 @@ void main() {
       expect(File(path).existsSync(), isFalse);
     },
   );
+
+  test('the default renderer draws the frame on another isolate', () async {
+    final backend = DemoBackend(
+      latitudeDeg: 40,
+      longitudeDeg: -105,
+      cameraWidth: 64,
+      cameraHeight: 48,
+    );
+    addTearDown(backend.dispose);
+    await backend.connectDevice(DeviceType.camera, DemoDeviceIds.camera);
+    await backend.cameraStartExposure(
+      deviceId: DemoDeviceIds.camera,
+      exposureTime: 0.1,
+      frameType: FrameType.light,
+    );
+    final image = await backend.cameraGetLastImage(DemoDeviceIds.camera);
+    expect(image, isNotNull);
+    expect(image!.displayData.length, 64 * 48 * 4);
+    expect(
+      (await backend.getLastRawImageData(DemoDeviceIds.camera)).length,
+      64 * 48,
+    );
+  });
 }

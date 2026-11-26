@@ -397,7 +397,9 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
         (oldBackend.remoteHost?.link.connectionState ??
                 BackendConnectionState.connected) ==
             BackendConnectionState.connected;
-    final leavingRemoteHost = oldBackend.linksToHost && newBackend.hasNoHost;
+    final leavingRemoteHost =
+        oldBackend.linksToHost &&
+        (newBackend.hasNoHost || newBackend.isDemoRig);
     if (outgoingHostIsControllable &&
         executionState.isBusy &&
         !leavingRemoteHost) {
