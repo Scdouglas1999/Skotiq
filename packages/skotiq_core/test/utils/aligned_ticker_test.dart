@@ -180,4 +180,19 @@ void main() {
       });
     });
   });
+
+  test('with no clock given, it runs on the zone clock fake time sets', () {
+    // A test's fake time starts at its own instant; a ticker that read the
+    // real wall clock instead measured its delay on a different clock from
+    // the one its timer ran on, and near a minute boundary skipped a tick.
+    fakeAsync((async) {
+      var ticks = 0;
+      final ticker = AlignedTicker(const Duration(minutes: 1), () => ticks++);
+      async.elapse(const Duration(milliseconds: 100));
+      expect(ticks, 1, reason: 'the boundary 100 ms away did not tick');
+      async.elapse(const Duration(minutes: 1));
+      expect(ticks, 2);
+      ticker.cancel();
+    }, initialTime: DateTime.utc(2026, 11, 26, 22, 0, 59, 900));
+  });
 }

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
+
 /// How long from [now] until the next multiple of [period] measured from the
 /// epoch — i.e. the next instant on the shared wall-clock boundary.
 ///
@@ -10,7 +12,7 @@ Duration delayToNextBoundary(Duration period, {DateTime? now}) {
   if (periodUs <= 0) {
     return Duration.zero;
   }
-  final nowUs = (now ?? DateTime.now()).toUtc().microsecondsSinceEpoch;
+  final nowUs = (now ?? clock.now()).toUtc().microsecondsSinceEpoch;
   final remainder = nowUs % periodUs;
   return Duration(microseconds: periodUs - remainder);
 }
@@ -50,7 +52,10 @@ class AlignedTicker {
   /// `fakeAsync` moves timers but not [DateTime.now], and the whole property
   /// worth testing is *which instant* the ticks land on.
   AlignedTicker(this.period, this._onTick, {DateTime Function()? now})
-    : _now = now ?? DateTime.now {
+    // `clock.now`, not `DateTime.now`: the same wall clock in the app, and
+    // the test's clock under fake time, so a delay is measured on the clock
+    // its timer runs on.
+    : _now = now ?? clock.now {
     _schedule();
   }
 
