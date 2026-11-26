@@ -467,6 +467,84 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
               // wide row needs.
               final compact = constraints.maxWidth <
                   ShellChromeMetrics.shellLayoutBreakpoint;
+              // A phone: one line and a hairline bar. The plan under it is
+              // what the operator came to this screen for, and the step's
+              // row in it already shows the same progress.
+              if (constraints.maxWidth < SkotiqTokens.breakpointMobile) {
+                final message = progress.message;
+                // "Progress: 1/175 exposures" repeats the count beside it;
+                // a wait or a retry says something the count does not.
+                final saysMore =
+                    message != null && !message.startsWith('Progress:');
+                return Container(
+                  padding: const EdgeInsets.fromLTRB(
+                    SkotiqTokens.spaceLg,
+                    SkotiqTokens.spaceXs,
+                    SkotiqTokens.spaceLg,
+                    SkotiqTokens.spaceXs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    border: Border(
+                      bottom: BorderSide(color: widget.colors.border),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          if (isPaused)
+                            Icon(
+                              LucideIcons.pause,
+                              size: 12,
+                              color: widget.colors.warning,
+                            )
+                          else
+                            _PulsingIndicator(colors: widget.colors),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          Expanded(
+                            child: Text(
+                              progress.currentNodeName ??
+                                  (isPaused ? 'Paused' : 'Starting...'),
+                              style: SkotiqTypography.labelStrong
+                                  .copyWith(color: widget.colors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          countValue,
+                          if (remaining != null) ...[
+                            const SizedBox(width: SkotiqTokens.spaceSm),
+                            Flexible(child: remaining),
+                          ],
+                        ],
+                      ),
+                      if (saysMore)
+                        Text(
+                          message,
+                          style: TextStyle(
+                            fontSize: SkotiqTypography.fontSize11,
+                            color: widget.colors.textMuted,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      const SizedBox(height: SkotiqTokens.spaceXs),
+                      SizedBox(
+                        height: 3,
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: progress.progressPercent.clamp(0.0, 1.0),
+                          child: ColoredBox(color: widget.colors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
               if (compact) {
                 return Container(
                   padding: const EdgeInsets.symmetric(
