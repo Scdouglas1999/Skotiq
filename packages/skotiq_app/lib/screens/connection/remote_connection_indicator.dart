@@ -579,6 +579,11 @@ class _RemoteConnectionSheetState
                 onPressed: _reconnecting ? null : _handleReconnect,
                 icon: LucideIcons.refreshCw,
                 label: _reconnecting ? 'Reconnecting...' : 'Reconnect now',
+                // The next thing to do only while the link is down; on a
+                // live link it is a tool, not the sheet's main action.
+                variant: status == RemoteConnectionStatus.connected
+                    ? ButtonVariant.secondary
+                    : ButtonVariant.primary,
               ),
             ),
           // A desktop LAUNCHED linked cannot drop to "no backend" and be useful:
