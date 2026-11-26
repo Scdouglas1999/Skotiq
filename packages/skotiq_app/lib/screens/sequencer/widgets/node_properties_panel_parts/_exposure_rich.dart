@@ -226,8 +226,11 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
 
     final exposureContext =
         ref.watch(smartNightExposureContextProvider).valueOrNull;
-    final exposureRecommendation =
-        exposureContext?.recommendForFilter(node.filter);
+    // Sky advice is for lights: a dark or bias length follows the lights it
+    // calibrates, not the sky.
+    final exposureRecommendation = node.frameType == FrameType.light
+        ? exposureContext?.recommendForFilter(node.filter)
+        : null;
     // Belt-and-suspenders gate. The parent _NodeEditor
     // already wraps the editor body in IgnorePointer when running; wrap the
     // largest properties form in IgnorePointer too so an extraction refactor

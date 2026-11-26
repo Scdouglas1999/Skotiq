@@ -238,6 +238,31 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
+  testWidgets('a dark step gets no sky recommendation', (tester) async {
+    // A dark's length follows the lights it calibrates; "sky-limited" advice
+    // on it was noise.
+    final dark = ExposureNode(
+      id: 'exp-dark',
+      durationSecs: 360,
+      count: 5,
+      filter: 'L',
+      frameType: FrameType.dark,
+    );
+    final root = InstructionSetNode(id: 'root', childIds: [dark.id]);
+    final sequence = Sequence.create(
+      name: 'Dark recommendation test',
+      rootNodeId: root.id,
+      nodes: {root.id: root, dark.id: dark.copyWith(parentId: root.id)},
+    );
+    final container = _seed(sequence);
+    container.read(selectedNodeIdProvider.notifier).state = dark.id;
+
+    await _pumpPanel(tester, container);
+
+    expect(find.text('Recommended exposure'), findsNothing);
+    await tester.pump(const Duration(seconds: 1));
+  });
+
   testWidgets('Smart Exposure added rows use shared exposure recommendation',
       (tester) async {
     final smart = SmartExposureNode(
