@@ -263,20 +263,32 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
               // for devices" has something to expand: before this it
               // bumped a provider no mounted widget was listening to, and
               // the primary action of the first screen did nothing at all.
+              // The drawer is capped the way the main layout caps it: open
+              // with a scan's results it took the whole column and ran 170 px
+              // past a phone's bottom bar.
               _ => firstRun
-                  ? Column(
-                      children: [
-                        Expanded(
-                          child: _FirstTimeOnboarding(
-                            colors: colors,
-                            onStartSetup: () => ref
-                                .read(discoveryScanRequestProvider.notifier)
-                                .state++,
-                            onManualSetup: createEmptyProfile,
+                  ? LayoutBuilder(
+                      builder: (context, box) => Column(
+                        children: [
+                          Expanded(
+                            child: _FirstTimeOnboarding(
+                              colors: colors,
+                              onStartSetup: () => ref
+                                  .read(discoveryScanRequestProvider.notifier)
+                                  .state++,
+                              onManualSetup: createEmptyProfile,
+                            ),
                           ),
-                        ),
-                        const DiscoveryPanel(),
-                      ],
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight: box.hasBoundedHeight
+                                  ? box.maxHeight * 0.85
+                                  : double.infinity,
+                            ),
+                            child: const DiscoveryPanel(),
+                          ),
+                        ],
+                      ),
                     )
                   : _EquipmentMainColumn(
                       selectedProfile: selectedProfile,
