@@ -14,6 +14,7 @@ import '../providers/focuser_backlash_provider.dart'
         focuserBacklashCalibrationSettingsProvider,
         focuserBacklashOfferSessionProvider;
 import '../providers/sequence_provider.dart';
+import '../models/sequence/sequence_models.dart';
 import '../providers/session_provider.dart';
 import '../providers/settings_provider.dart';
 import '../settings/app_settings_state.g.dart' show AppSettingsState;

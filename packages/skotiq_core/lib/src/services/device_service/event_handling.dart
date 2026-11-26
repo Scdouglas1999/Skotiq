@@ -220,12 +220,15 @@ extension _DeviceServiceEventHandling on DeviceService {
       case bridge.EquipmentEvent_MountSlewCompleted(:final deviceId):
         if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(false);
-        // Smart notification - only show if not on imaging/planetarium screens
+        // A slew the run made is the run's own step, and Tonight says so; a
+        // toast for it covered the phone's frame strip at every target.
+        if (_ref.read(sequenceExecutionStateProvider).canStop) break;
         _ref
             .read(smartNotificationServiceProvider)
             .showSuccessIfNotOnScreens(
               message: 'Slew completed',
               relevantScreens: [
+                AppScreen.dashboard,
                 AppScreen.imaging,
                 AppScreen.planetarium,
                 AppScreen.sequencer,
