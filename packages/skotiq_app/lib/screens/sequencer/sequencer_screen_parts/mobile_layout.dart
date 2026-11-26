@@ -165,12 +165,16 @@ class _MobileBuilderLayout extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
-                FloatingActionButton(
-                  heroTag: 'add_node_fab',
-                  backgroundColor: colors.primary,
-                  onPressed: () => showSequencerNodeSheet(context, colors),
-                  child: Icon(LucideIcons.plus, color: onPrimary),
-                ),
+                // On its side with a step selected the properties pane sits
+                // here, and the button covered its tabs. The plan's own
+                // "Tap + to add a node" row stays.
+                if (!(landscape && selectedNodeId != null))
+                  FloatingActionButton(
+                    heroTag: 'add_node_fab',
+                    backgroundColor: colors.primary,
+                    onPressed: () => showSequencerNodeSheet(context, colors),
+                    child: Icon(LucideIcons.plus, color: onPrimary),
+                  ),
               ],
             ),
           ),

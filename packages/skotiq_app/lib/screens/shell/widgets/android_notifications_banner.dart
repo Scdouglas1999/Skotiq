@@ -36,8 +36,9 @@ class AndroidNotificationsBanner extends ConsumerWidget {
     final dismissed = ref.watch(androidNotificationsBannerDismissedProvider);
     if (authorized || dismissed) return const SizedBox.shrink();
     final request = ref.watch(androidNotificationsRequestProvider);
-    final phone =
-        MediaQuery.sizeOf(context).width < SkotiqTokens.breakpointMobile;
+    // The device class, not the width: on its side a phone is wide but only
+    // ~400 dp tall, and the long banner took a fifth of it.
+    final phone = Responsive.isPhone(context);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
