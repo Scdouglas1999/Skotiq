@@ -710,6 +710,8 @@ SettingsSectionDef _sectionDef(
           'session replay',
           'recording',
           'developer',
+          'demo rig',
+          'testing',
         ],
         build: (context) => const ReplayDebugSettings(),
       ),

@@ -15,7 +15,12 @@ import '../../utils/snackbar_helper.dart';
 /// (`apps/desktop/lib/main.dart`); the phone app is a client of a rig it never
 /// owns, so offering "work locally" there would be a button to nowhere.
 bool get canWorkLocally =>
-    Platform.isLinux || Platform.isMacOS || Platform.isWindows;
+    debugCanWorkLocallyOverride ??
+    (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
+
+/// Lets a widget test on a desktop host render what a phone renders.
+@visibleForTesting
+bool? debugCanWorkLocallyOverride;
 
 /// Reinstate the local [FfiBackend] on a machine sitting on a
 /// [DisconnectedBackend], and say what happened.
