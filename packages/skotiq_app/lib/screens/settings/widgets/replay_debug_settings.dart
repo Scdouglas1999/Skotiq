@@ -29,6 +29,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/confirm_dialog.dart';
+import '../../connection/work_locally.dart' show canWorkLocally;
 import 'settings_widgets.dart';
 import '../../../utils/snackbar_helper.dart';
 
@@ -215,6 +216,9 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
             ),
           ],
         ),
+        // A computer has the real simulators of its own rig; only the phone
+        // app, which owns no equipment, runs the demo rig.
+        if (!canWorkLocally) const _DemoRigSection(),
       ],
     );
   }
@@ -301,6 +305,49 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
         subtitle: subtitle,
         trailing: trailing,
       ),
+    );
+  }
+}
+
+/// The demo rig switch: simulated equipment inside the phone app, for
+/// testing and demos without an imaging computer.
+class _DemoRigSection extends ConsumerWidget {
+  const _DemoRigSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(appSettingsProvider).valueOrNull;
+    if (settings == null) return const SizedBox.shrink();
+    final backend = ref.watch(backendProvider);
+    final linked = !backend.hasNoHost && !backend.isDemoRig;
+    return SettingsSection(
+      title: 'Testing',
+      children: [
+        SettingRow(
+          key: const ValueKey('settings.demoRig'),
+          title: 'Demo rig (testing)',
+          subtitle: linked
+              ? 'Simulates equipment on this phone when it is not linked to '
+                  'an imaging computer. This phone is linked now, so it '
+                  'starts when you disconnect.'
+              : 'Simulates equipment on this phone when it is not linked to '
+                  'an imaging computer. Frames are synthetic star fields, '
+                  'not a real sky.',
+          trailing: SettingsSwitch(
+            value: settings.demoRig,
+            onChanged: (value) async {
+              try {
+                await ref.read(appSettingsProvider.notifier).setDemoRig(value);
+              } catch (error) {
+                if (!context.mounted) return;
+                context.showErrorSnackBar(
+                  'Could not change the demo rig: ${userFacingError(error)}',
+                );
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 }

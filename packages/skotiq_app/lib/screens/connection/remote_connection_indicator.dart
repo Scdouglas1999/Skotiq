@@ -42,6 +42,11 @@ enum RemoteConnectionStatus {
   serverOffline,
   error,
   notConnected,
+
+  /// Not linked: the phone runs the demo rig, simulated equipment inside
+  /// the app. Shown as a labeled badge everywhere, so a screenshot or a demo
+  /// is never taken for a real rig.
+  demoRig,
 }
 
 /// Compact pill-style indicator showing the live state of the
@@ -166,6 +171,9 @@ class _RemoteConnectionIndicatorState
         },
       );
     }
+    if (ref.watch(backendProvider).isDemoRig) {
+      return _build(context, RemoteConnectionStatus.demoRig, hostAddress: null);
+    }
     // A launch linked to a host that has not answered yet has no backend to
     // ask, but it is linked: say the host is unreachable, not "not linked".
     final target = ref.watch(remoteLaunchTargetProvider);
@@ -201,9 +209,12 @@ class _RemoteConnectionIndicatorState
     // The tap lived on a bare gesture wrapper, which publishes an action
     // and no role, so assistive tech read a live control as an inert
     // disabled panel. The flags are only published when given.
-    final description = hostAddress == null
-        ? 'Not linked to a remote imaging host'
-        : '${_textFor(status, _unansweredSeconds)} · $hostAddress';
+    final description = status == RemoteConnectionStatus.demoRig
+        ? 'Demo rig: simulated equipment on this phone, not linked to an '
+            'imaging computer'
+        : hostAddress == null
+            ? 'Not linked to a remote imaging host'
+            : '${_textFor(status, _unansweredSeconds)} · $hostAddress';
     return Tooltip(
       message: description,
       child: Semantics(
@@ -212,11 +223,51 @@ class _RemoteConnectionIndicatorState
         label: 'Imaging host link: $description',
         child: GestureDetector(
           onTap: () => _showDetails(context),
-          child: widget.dot
-              ? _buildDot(context, status)
-              : widget.compact
-                  ? _buildCompact(context, status)
-                  : _buildFull(context, status, hostAddress),
+          child: status == RemoteConnectionStatus.demoRig &&
+                  (widget.dot || widget.compact)
+              ? _buildDemoBadge(context)
+              : widget.dot
+                  ? _buildDot(context, status)
+                  : widget.compact
+                      ? _buildCompact(context, status)
+                      : _buildFull(context, status, hostAddress),
+        ),
+      ),
+    );
+  }
+
+  /// A small "Demo" badge in place of the dot or the icon: a dot's color
+  /// alone would not tell a screenshot of the demo rig from a real one.
+  Widget _buildDemoBadge(BuildContext context) {
+    final color = _colorFor(context, RemoteConnectionStatus.demoRig);
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: SkotiqTokens.spaceSm,
+        vertical: SkotiqTokens.spaceSm,
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: SkotiqTokens.spaceSm,
+          vertical: SkotiqTokens.spaceXs,
+        ),
+        decoration: SkotiqDecorations.chip(
+          SkotiqColors.of(context),
+          tone: color,
+          radius: SkotiqTokens.radiusLg,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.flaskConical, size: 14, color: color),
+            const SizedBox(width: SkotiqTokens.spaceXs),
+            Text(
+              'Demo',
+              style: SkotiqTypography.labelQuiet.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -345,6 +396,8 @@ class _RemoteConnectionIndicatorState
         return colors?.error ?? theme.colorScheme.error;
       case RemoteConnectionStatus.notConnected:
         return colors?.textMuted ?? theme.colorScheme.onSurfaceVariant;
+      case RemoteConnectionStatus.demoRig:
+        return colors?.info ?? theme.colorScheme.tertiary;
     }
   }
 
@@ -366,6 +419,8 @@ class _RemoteConnectionIndicatorState
       // network.
       case RemoteConnectionStatus.notConnected:
         return LucideIcons.link;
+      case RemoteConnectionStatus.demoRig:
+        return LucideIcons.flaskConical;
     }
   }
 
@@ -385,6 +440,8 @@ class _RemoteConnectionIndicatorState
         return 'Connection error';
       case RemoteConnectionStatus.notConnected:
         return 'Not connected';
+      case RemoteConnectionStatus.demoRig:
+        return 'Demo rig';
     }
   }
 }
@@ -511,7 +568,9 @@ class _RemoteConnectionSheetState
     final unansweredSeconds =
         hostLink == null ? null : unansweredSecondsFor(hostLink);
     var status = hostLink == null
-        ? RemoteConnectionStatus.notConnected
+        ? (activeBackend.isDemoRig
+            ? RemoteConnectionStatus.demoRig
+            : RemoteConnectionStatus.notConnected)
         : _statusForConnectionState(hostLink.connectionState);
     if (status == RemoteConnectionStatus.connected &&
         unansweredSeconds != null) {
@@ -770,6 +829,8 @@ class _RemoteConnectionSheetState
         return LucideIcons.alertTriangle;
       case RemoteConnectionStatus.notConnected:
         return LucideIcons.xCircle;
+      case RemoteConnectionStatus.demoRig:
+        return LucideIcons.flaskConical;
     }
   }
 
@@ -788,6 +849,8 @@ class _RemoteConnectionSheetState
         return colors?.error ?? theme.colorScheme.error;
       case RemoteConnectionStatus.notConnected:
         return colors?.textMuted ?? theme.colorScheme.onSurfaceVariant;
+      case RemoteConnectionStatus.demoRig:
+        return colors?.info ?? theme.colorScheme.tertiary;
     }
   }
 
@@ -814,6 +877,10 @@ class _RemoteConnectionSheetState
             'Check the server logs and upgrade if needed.';
       case RemoteConnectionStatus.notConnected:
         return 'Not connected to a server';
+      case RemoteConnectionStatus.demoRig:
+        return 'This phone is running the demo rig: simulated equipment and '
+            'synthetic frames, with no imaging computer. Turn it off in '
+            'Settings > Replay & debug > Testing.';
     }
   }
 }

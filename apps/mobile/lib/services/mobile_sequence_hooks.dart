@@ -158,7 +158,8 @@ class MobileSequenceHooks {
   Future<void> _setupEventNotifier() async {
     await _eventNotifier?.stop();
     final backend = _ref.read(backendProvider);
-    if (backend.hasNoHost) {
+    // The demo rig raises no alerts worth a phone notification.
+    if (backend.hasNoHost || backend.isDemoRig) {
       _eventNotifier = null;
       return;
     }

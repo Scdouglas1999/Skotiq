@@ -360,13 +360,20 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
   @override
   Widget build(BuildContext context) {
     try {
+      // The phone rests on the demo rig instead of no backend while it is
+      // turned on in Settings > Replay & debug.
+      ref.watch(demoRigSelectionProvider);
       // Handle disconnection from Settings — if the backend becomes
       // DisconnectedBackend, return to the connection screen. Listening
       // (instead of watching+addPostFrameCallback in build) avoids the
       // build-time setState cycle flagged
       ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
         if (!mounted) return;
-        if (_connectedServer != null && next.hasNoHost && !_skippedConnection) {
+        // The demo rig is not a link either: losing the host lands on it
+        // when it is turned on.
+        if (_connectedServer != null &&
+            (next.hasNoHost || next.isDemoRig) &&
+            !_skippedConnection) {
           // Audit drop the checkpoint-once latch alongside the
           // backend swap. Otherwise a Settings-driven disconnect then
           // reconnect in the same app lifecycle would silently skip the

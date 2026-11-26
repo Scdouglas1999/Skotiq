@@ -66,7 +66,8 @@ final hostCloudPushConfiguredProvider = FutureProvider<bool>((ref) async {
 final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
   ref,
 ) {
-  if (ref.watch(backendProvider).hasNoHost) {
+  final backend = ref.watch(backendProvider);
+  if (backend.hasNoHost || backend.isDemoRig) {
     return PushDeliveryTargets.none;
   }
   return ref.watch(_pushDeliveryTargetsReadProvider)(ref);
