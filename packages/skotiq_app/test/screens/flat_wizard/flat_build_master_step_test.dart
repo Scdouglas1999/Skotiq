@@ -19,9 +19,15 @@ class _Seam extends Mock implements PostSessionSeam {}
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<void> settle(WidgetTester tester) async {
-    for (var i = 0; i < 20; i++) {
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+  /// Pumps until [until] shows. The backlog reads and writes a real
+  /// in-memory database, which a fixed number of turns did not always cover
+  /// while the whole suite ran (seen once in the 9.3.2 gate).
+  Future<void> settle(WidgetTester tester, Finder until) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (until.evaluate().isEmpty && DateTime.now().isBefore(deadline)) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
       await tester.pump(const Duration(milliseconds: 20));
     }
   }
@@ -116,11 +122,11 @@ void main() {
         ),
       },
     );
-    await settle(tester);
+    await settle(tester, find.text('3 frames ready'));
 
     expect(find.text('3 frames ready'), findsOneWidget);
     await tester.tap(find.widgetWithText(SkotiqButton, 'Build master flat'));
-    await settle(tester);
+    await settle(tester, find.text('In the library, 3 of 3 frames'));
 
     expect(flatCalls.single['biasOrDarkFlat'], '/masters/MasterBias.fits');
     expect(find.text('In the library, 3 of 3 frames'), findsOneWidget);
@@ -162,7 +168,7 @@ void main() {
         ),
       },
     );
-    await settle(tester);
+    await settle(tester, find.text('2 frames on the imaging computer'));
 
     expect(find.text('2 frames on the imaging computer'), findsOneWidget);
     expect(find.textContaining('Darkroom there'), findsOneWidget);
