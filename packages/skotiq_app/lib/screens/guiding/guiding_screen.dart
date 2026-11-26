@@ -170,11 +170,15 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
         _connectAction(isConnected, isPhd2Guider, connecting, guiderId);
 
     return [
-      SkotiqChip(
-        label: context.l10n.text(guiderStateLabel(phd2State).$1),
-        tone: _getStateTone(phd2State),
-        dot: true,
-      ),
+      // At 360 dp "Not guiding" beside the buttons cut the title to "Guidi…";
+      // the star view already says nothing is guiding. Every live state
+      // still shows.
+      if (!(narrow && phd2State == Phd2State.stopped))
+        SkotiqChip(
+          label: context.l10n.text(guiderStateLabel(phd2State).$1),
+          tone: _getStateTone(phd2State),
+          dot: true,
+        ),
       if (narrow)
         SkotiqIconButton(
           key: TourTarget.guidingConnectButton.key,

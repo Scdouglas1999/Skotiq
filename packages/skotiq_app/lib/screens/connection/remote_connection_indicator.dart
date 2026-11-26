@@ -238,8 +238,13 @@ class _RemoteConnectionIndicatorState
 
   /// A small "Demo" badge in place of the dot or the icon: a dot's color
   /// alone would not tell a screenshot of the demo rig from a real one.
+  ///
+  /// On a phone the word is dropped: beside a status chip and two buttons it
+  /// cut the Guiding title to "G…". The tinted flask still sets it apart.
   Widget _buildDemoBadge(BuildContext context) {
     final color = _colorFor(context, RemoteConnectionStatus.demoRig);
+    final showLabel =
+        MediaQuery.sizeOf(context).width >= SkotiqTokens.breakpointMobile;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceSm,
@@ -259,14 +264,16 @@ class _RemoteConnectionIndicatorState
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(LucideIcons.flaskConical, size: 14, color: color),
-            const SizedBox(width: SkotiqTokens.spaceXs),
-            Text(
-              'Demo',
-              style: SkotiqTypography.labelQuiet.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
+            if (showLabel) ...[
+              const SizedBox(width: SkotiqTokens.spaceXs),
+              Text(
+                'Demo',
+                style: SkotiqTypography.labelQuiet.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

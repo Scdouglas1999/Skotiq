@@ -263,9 +263,10 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
               // for devices" has something to expand: before this it
               // bumped a provider no mounted widget was listening to, and
               // the primary action of the first screen did nothing at all.
-              // The drawer is capped the way the main layout caps it: open
-              // with a scan's results it took the whole column and ran 170 px
-              // past a phone's bottom bar.
+              // The drawer is capped and scrolls inside: open with a scan's
+              // results it took the whole column and ran 170 px past a phone's
+              // bottom bar. First run has nothing above it worth keeping in
+              // view, so the cap is higher than the main layout's.
               _ => firstRun
                   ? LayoutBuilder(
                       builder: (context, box) => Column(

@@ -1,7 +1,10 @@
-// A phone on the demo rig says so wherever the link indicator sits, in words,
-// so a screenshot of simulated equipment is never taken for a real rig.
+// A phone on the demo rig says so wherever the link indicator sits, so a
+// screenshot of simulated equipment is never taken for a real rig: a flask
+// badge on a phone, where the word would crowd the page title, and the word
+// "Demo" beside it on anything wider.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/connection/remote_connection_indicator.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
@@ -30,7 +33,9 @@ void main() {
         ],
       );
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Demo'), findsOneWidget);
+      expect(find.byIcon(LucideIcons.flaskConical), findsOneWidget);
+      expect(find.text('Demo'), findsNothing);
+      expect(find.bySemanticsLabel(RegExp('Demo rig')), findsOneWidget);
 
       await tester.tap(find.byType(RemoteConnectionIndicator));
       await tester.pump();
@@ -58,5 +63,24 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Demo'), findsNothing);
+  });
+
+  testWidgets('wider than a phone, the badge also says Demo', (tester) async {
+    final demo = DemoBackend(latitudeDeg: 40, longitudeDeg: -105);
+    addTearDown(demo.dispose);
+    await pumpAppScreen(
+      tester,
+      const Align(
+        alignment: Alignment.topRight,
+        child: RemoteConnectionIndicator(compact: true),
+      ),
+      size: const Size(900, 800),
+      settle: false,
+      extraOverrides: [
+        backendProvider.overrideWith((ref) => TestBackendNotifier(ref, demo)),
+      ],
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Demo'), findsOneWidget);
   });
 }
