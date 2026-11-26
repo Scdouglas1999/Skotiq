@@ -13,6 +13,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 
 import '../../../harness/mock_backend.dart';
+import '../../../harness/mock_database.dart';
 import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;
 import 'night_action_test_support.dart';
 
@@ -84,6 +85,23 @@ class _GivingUpCentering extends Mock implements CenteringService {
 class _StaticAppSettings extends AppSettingsNotifier {
   @override
   Future<AppSettingsState> build() async => const AppSettingsState();
+}
+
+/// A container with its own in-memory database. The rig operations read the
+/// active equipment profile, which loads from the database: without this the
+/// test opened the default one and left its failed load running past the
+/// test's end, which once failed the Center test under the full suite.
+ProviderContainer _container(List<Override> overrides) {
+  final database = mockDatabase();
+  final container = ProviderContainer(overrides: [
+    databaseProvider.overrideWithValue(database),
+    ...overrides,
+  ]);
+  addTearDown(() async {
+    container.dispose();
+    await database.close();
+  });
+  return container;
 }
 
 void main() {
@@ -204,12 +222,11 @@ void main() {
   test('guiding restart waits for SettleDone', () async {
     final backend = mockBackend();
     final phd2 = _MockPhd2();
-    final container = ProviderContainer(overrides: [
+    final container = _container([
       backendProvider.overrideWith((ref) => TestBackendNotifier(ref, backend)),
       phd2ControllerProvider.overrideWithValue(phd2),
       appSettingsProvider.overrideWith(_StaticAppSettings.new),
     ]);
-    addTearDown(container.dispose);
     when(() => phd2.startGuiding()).thenAnswer((_) async {});
 
     var settled = false;
@@ -234,12 +251,11 @@ void main() {
   test('guiding restart fails when the star is lost while settling', () async {
     final backend = mockBackend();
     final phd2 = _MockPhd2();
-    final container = ProviderContainer(overrides: [
+    final container = _container([
       backendProvider.overrideWith((ref) => TestBackendNotifier(ref, backend)),
       phd2ControllerProvider.overrideWithValue(phd2),
       appSettingsProvider.overrideWith(_StaticAppSettings.new),
     ]);
-    addTearDown(container.dispose);
     when(() => phd2.startGuiding()).thenAnswer((_) async {});
 
     final done = container.read(nightRigOpsProvider).startGuidingAndSettle();
@@ -257,13 +273,12 @@ void main() {
 
   test('Center ends on its outcome and records the result', () async {
     final backend = mockBackend();
-    final container = ProviderContainer(overrides: [
+    final container = _container([
       backendProvider.overrideWith((ref) => TestBackendNotifier(ref, backend)),
       phd2ControllerProvider.overrideWithValue(_MockPhd2()),
       appSettingsProvider.overrideWith(_StaticAppSettings.new),
       centeringServiceProvider.overrideWithValue(_GivingUpCentering()),
     ]);
-    addTearDown(container.dispose);
 
     final result = await container.read(nightRigOpsProvider).center(
         const NightCenterTarget(name: 'M31', raHours: 0.7, decDegrees: 41));
