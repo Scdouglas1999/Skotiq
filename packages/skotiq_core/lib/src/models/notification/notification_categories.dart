@@ -505,6 +505,7 @@ class NotificationRoutingMatrix extends Equatable {
       for (final c in NotificationCategory.values)
         c: NotificationRoutingRule(
           transports: _systemPushByDefault(c) ? inAppPush : inApp,
+          enabled: !_offByDefault(c),
           minSeverity: c.defaultSeverity,
         ),
     };
@@ -514,6 +515,12 @@ class NotificationRoutingMatrix extends Equatable {
   @override
   List<Object?> get props => [enabled, rules];
 }
+
+/// Categories whose row starts switched off; the operator can turn it on in
+/// Settings. A new target is a step the run takes, which the run's own screens
+/// show; as a toast it covered the phone's frame strip at every target.
+bool _offByDefault(NotificationCategory c) =>
+    c == NotificationCategory.targetStarted;
 
 /// Categories routed to systemPush by default. The 8 critical-by-default
 /// categories plus the three non-critical completion milestones the legacy

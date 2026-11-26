@@ -254,6 +254,36 @@ void main() {
     await router.dispose();
   });
 
+  test(
+    'a target starting is not a toast unless the operator turns it on',
+    () async {
+      final t = _RecordingTransport(NotificationTransportKind.inApp);
+      final quiet = NotificationRouter(
+        transports: [t],
+        matrix: NotificationRoutingMatrix.defaults(),
+      );
+      quiet.route(NotificationCategory.targetStarted, {'target.name': 'M 31'});
+      await Future<void>.delayed(Duration.zero);
+      expect(t.sent, isEmpty);
+      await quiet.dispose();
+
+      final defaults = NotificationRoutingMatrix.defaults();
+      final on = NotificationRouter(
+        transports: [t],
+        matrix: defaults.withRule(
+          NotificationCategory.targetStarted,
+          defaults
+              .ruleFor(NotificationCategory.targetStarted)
+              .copyWith(enabled: true),
+        ),
+      );
+      on.route(NotificationCategory.targetStarted, {'target.name': 'M 31'});
+      await Future<void>.delayed(Duration.zero);
+      expect(t.sent.length, 1);
+      await on.dispose();
+    },
+  );
+
   test('debounce blocks repeated fires inside the window', () async {
     final t = _RecordingTransport(NotificationTransportKind.discord);
     final matrix = NotificationRoutingMatrix.defaults().withRule(
