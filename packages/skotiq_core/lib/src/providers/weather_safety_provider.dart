@@ -194,16 +194,19 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       _startRemoteStatusPolling();
       return;
     }
-    if (backend.hasNoHost) {
+    if (backend.hasNoHost || backend.isDemoRig) {
       // UI-only mode has no rig to protect and no authority to issue hardware
       // commands. Keep the conservative unknown/unsafe verdict so imaging is
       // never presented as weather-safe, but make the state passive: evaluating
       // the fail-closed policy here would invoke SafeRig against a deliberately
       // disconnected backend and report a pair of false CRITICAL failures.
+      // The demo rig has nothing to protect either, and a fail-closed park of
+      // its mount in the middle of a demo would say something untrue.
       state = state.copyWith(
         actions: WeatherSafetyActions.safe,
-        failModeWarning:
-            'Connect to an imaging host to evaluate weather safety.',
+        failModeWarning: backend.isDemoRig
+            ? 'Weather safety is not evaluated on the demo rig.'
+            : 'Connect to an imaging host to evaluate weather safety.',
       );
       return;
     }

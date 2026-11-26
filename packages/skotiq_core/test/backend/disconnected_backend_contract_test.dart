@@ -63,57 +63,72 @@ void main() {
     backend.dispose();
   });
 
-  test('every non-future member of the contract is overridden', () {
-    final sources = [
-      ...Directory(
-        'lib/src/backend/roles',
-      ).listSync().whereType<File>().where((f) => f.path.endsWith('.dart')),
-      File('lib/src/backend/skotiq_backend.dart'),
-    ];
-    final disconnected = File(
-      'lib/src/backend/disconnected_backend.dart',
-    ).readAsStringSync();
+  // Both backends answer unknown members through noSuchMethod, so both need
+  // their own override of every member that is not a future.
+  final catchAllBackends = <String, String Function()>{
+    'DisconnectedBackend': () =>
+        File('lib/src/backend/disconnected_backend.dart').readAsStringSync(),
+    'DemoBackend': () => [
+      for (final f in Directory(
+        'lib/src/backend/demo_backend',
+      ).listSync().whereType<File>().where((f) => f.path.endsWith('.dart')))
+        f.readAsStringSync(),
+    ].join('\n'),
+  };
 
-    // An abstract member: a declaration at class-member indent that ends in
-    // `;` with no body. Fields and constructors of the data classes that
-    // share these files are not at this indent with this shape.
-    final member = RegExp(
-      r'^  (?!static |final |const |factory |return |//)'
-      r'([A-Za-z_][\w<>?,. ()]*?)\s+(?:get\s+)?(\w+)\s*(?:\(|;|=>)',
-      multiLine: true,
-    );
-    final missing = <String>[];
-    var abstractMembers = 0;
-    for (final source in sources) {
-      final text = source.readAsStringSync();
-      for (final interface in RegExp(
-        r'abstract (?:interface )?class (\w+)[^{]*\{(.*?)^\}',
+  for (final MapEntry(key: backendName, value: readSource)
+      in catchAllBackends.entries) {
+    test('every non-future member of the contract is overridden in '
+        '$backendName', () {
+      final sources = [
+        ...Directory(
+          'lib/src/backend/roles',
+        ).listSync().whereType<File>().where((f) => f.path.endsWith('.dart')),
+        File('lib/src/backend/skotiq_backend.dart'),
+      ];
+      final implementation = readSource();
+
+      // An abstract member: a declaration at class-member indent that ends
+      // in `;` with no body. Fields and constructors of the data classes
+      // that share these files are not at this indent with this shape.
+      final member = RegExp(
+        r'^  (?!static |final |const |factory |return |//)'
+        r'([A-Za-z_][\w<>?,. ()]*?)\s+(?:get\s+)?(\w+)\s*(?:\(|;|=>)',
         multiLine: true,
-        dotAll: true,
-      ).allMatches(text)) {
-        for (final match in member.allMatches(interface.group(2)!)) {
-          final returnType = match.group(1)!.trim();
-          final name = match.group(2)!;
-          abstractMembers++;
-          if (returnType.startsWith('Future<')) continue;
-          if (!RegExp('\\b$name\\b').hasMatch(disconnected)) {
-            missing.add('${interface.group(1)}.$name returns $returnType');
+      );
+      final missing = <String>[];
+      var abstractMembers = 0;
+      for (final source in sources) {
+        final text = source.readAsStringSync();
+        for (final interface in RegExp(
+          r'abstract (?:interface )?class (\w+)[^{]*\{(.*?)^\}',
+          multiLine: true,
+          dotAll: true,
+        ).allMatches(text)) {
+          for (final match in member.allMatches(interface.group(2)!)) {
+            final returnType = match.group(1)!.trim();
+            final name = match.group(2)!;
+            abstractMembers++;
+            if (returnType.startsWith('Future<')) continue;
+            if (!RegExp('\\b$name\\b').hasMatch(implementation)) {
+              missing.add('${interface.group(1)}.$name returns $returnType');
+            }
           }
         }
       }
-    }
 
-    expect(
-      abstractMembers,
-      greaterThan(150),
-      reason: 'the scan found the roles',
-    );
-    expect(
-      missing,
-      isEmpty,
-      reason:
-          'noSuchMethod returns a failed Future; give these members an '
-          'explicit override in DisconnectedBackend',
-    );
-  });
+      expect(
+        abstractMembers,
+        greaterThan(150),
+        reason: 'the scan found the roles',
+      );
+      expect(
+        missing,
+        isEmpty,
+        reason:
+            'noSuchMethod returns a failed Future; give these members an '
+            'explicit override in $backendName',
+      );
+    });
+  }
 }

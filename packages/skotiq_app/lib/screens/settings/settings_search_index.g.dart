@@ -628,11 +628,13 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'replay-debug': [
     'Decisions older than this are pruned daily. Range',
+    'Demo rig (testing)',
     'Logging',
     'Maintenance',
     'Replay & debug',
     'Replay decision logging',
     'Retention (days)',
+    'Testing',
     'When enabled, every adaptive-exposure swap, trigger',
   ],
   'rig-catalogs': [

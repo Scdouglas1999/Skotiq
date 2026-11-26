@@ -187,7 +187,7 @@ class _NetworkStatusIndicatorState
     // (local-only) or DisconnectedBackend (skipped connect / dropped
     // session). On mobile the first is irrelevant, so collapse both
     // into `notConnected`.
-    final combined = backend.hasNoHost
+    final combined = backend.hasNoHost || backend.isDemoRig
         ? _CombinedConnectionStatus.notConnected
         : _CombinedConnectionStatus.connected;
     return _renderIndicator(context, combined, osState, backend: null);

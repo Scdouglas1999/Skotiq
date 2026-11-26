@@ -4,7 +4,7 @@
 //
 // Owns:
 //   * startMinimized, autoConnectEquipment, confirmBeforeClosing,
-//     autoDiscoverOnLaunch
+//     autoDiscoverOnLaunch, demoRig (Settings → Replay & debug → Testing)
 //
 // Does NOT own:
 //   * Theme / language / fonts → see `appearance.dart`.
@@ -24,4 +24,6 @@ extension GeneralSettingsSection on AppSettingsNotifier {
 
   Future<void> setAutoDiscoverOnLaunch(bool value) =>
       _set(AppSettingDefs.autoDiscoverOnLaunch, value);
+
+  Future<void> setDemoRig(bool value) => _set(AppSettingDefs.demoRig, value);
 }

@@ -58,6 +58,8 @@ const Set<String> _addedSinceBase = {
   'centering_tolerance_arcsec',
   'image_grading_eccentricity_baseline_percent',
   'image_grading_star_count_drop_percent',
+  // The phone's demo rig switch, kept on this device.
+  'demo_rig',
 };
 
 /// Wire fields of settings declared after the base build; the base wire form
@@ -69,6 +71,7 @@ const Set<String> _wireAddedSinceBase = {
   'imageGradingEccentricityBaselinePercent',
   'imageGradingStarCountDropPercent',
   'centeringToleranceArcsec',
+  'demoRig',
 };
 
 /// A default changed on purpose since the base build. A stored row still

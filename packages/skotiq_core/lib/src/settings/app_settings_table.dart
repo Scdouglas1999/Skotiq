@@ -90,6 +90,16 @@ const List<Setting<Object?>> kAppSettingsTable = [
     clientKeepsOwn: true,
     seeded: true,
   ),
+
+  /// Run the demo rig: simulated equipment inside the phone app, used while
+  /// the phone is not linked to an imaging computer. For testing and demos.
+  BoolSetting(
+    'demoRig',
+    'demo_rig',
+    false,
+    sync: SettingSync.thisComputer,
+    clientKeepsOwn: true,
+  ),
   DoubleSetting('latitude', 'observer_latitude', 0.0, seeded: true),
   DoubleSetting('longitude', 'observer_longitude', 0.0, seeded: true),
   DoubleSetting('elevation', 'observer_elevation', 0.0, seeded: true),

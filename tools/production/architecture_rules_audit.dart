@@ -257,11 +257,12 @@ bool _mayNameBackendClass(String path) =>
     path == 'packages/skotiq_core/lib/src/backend/disconnected_backend.dart' ||
     path == 'packages/skotiq_core/lib/src/providers/backend_provider.dart' ||
     path.startsWith('packages/skotiq_core/lib/src/backend/network_backend/') ||
-    path.startsWith('packages/skotiq_core/lib/src/backend/ffi_backend/');
+    path.startsWith('packages/skotiq_core/lib/src/backend/ffi_backend/') ||
+    path.startsWith('packages/skotiq_core/lib/src/backend/demo_backend/');
 
 const _backendInstead =
     'Ask the backend, not its class: `backend.remoteHost?.<role>` for host '
-    'data, `backend.hasNoHost`, `backend.runsRigHere`, '
+    'data, `backend.hasNoHost`, `backend.isDemoRig`, `backend.runsRigHere`, '
     '`backend.ownsDeviceBridge`, or `isRemoteModeProvider` '
     '(packages/skotiq_core/lib/src/backend/remote_host.dart). Something only '
     'a linked host has becomes a role in backend/roles/host_data/ with a '
@@ -877,7 +878,8 @@ List<_Violation> _checkRustDirection() {
 // ---------------------------------------------------------------------------
 // backend-class
 
-const _backendClassNames = 'NetworkBackend|FfiBackend|DisconnectedBackend';
+const _backendClassNames =
+    'NetworkBackend|FfiBackend|DisconnectedBackend|DemoBackend';
 
 /// A type test, a cast, a pattern (`case NetworkBackend _`, a switch arm
 /// `NetworkBackend() =>`) or a `runtimeType` comparison.
