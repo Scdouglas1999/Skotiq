@@ -483,7 +483,13 @@ class _InfoRow extends ConsumerWidget {
     final keepOpen = header.phase == NightRunPhase.armed
         ? l10n.text(ref.watch(armedStartNoteKeyProvider))
         : null;
-    final detail = keepOpen ?? progress;
+    // Each part stays whole and its separator stays on its line, so a wrap
+    // falls between "step 7 of 12 ·" and "Ha 180 s".
+    final detail = keepOpen ??
+        progress
+            ?.split(' · ')
+            .map((part) => part.replaceAll(' ', '\u00a0'))
+            .join('\u00a0· ');
 
     final planLine = Text.rich(
       TextSpan(
@@ -503,9 +509,12 @@ class _InfoRow extends ConsumerWidget {
             ),
         ],
       ),
-      maxLines: 1,
+      // Stacked under the pill it has the row's full width and may take a
+      // second line: on a phone one line cut the time to dark, or the step
+      // and frame counts, to an ellipsis.
+      maxLines: stacked ? 2 : 1,
       overflow: TextOverflow.ellipsis,
-      softWrap: false,
+      softWrap: stacked,
     );
     final pill = _RunPill(header: header, now: now);
 

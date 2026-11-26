@@ -68,18 +68,24 @@ bool _enabled(WidgetTester tester, String label) =>
 const _runControls = <String>['Pause', 'Resume', 'Skip step', 'Stop'];
 const _readyControls = <String>['Edit plan', 'Start at dark', 'Start now'];
 
+/// Text containing [words]; the plan line keeps each part whole with
+/// non-breaking spaces, which a reader of the screen sees as spaces.
+Finder _says(String words) => find.textContaining(
+      RegExp(RegExp.escape(words).replaceAll(' ', '[ \u00a0]')),
+    );
+
 void main() {
   group('controls by run phase', () {
     testWidgets('ready: Edit plan, Start at dark, Start now', (tester) async {
       await _pumpHeader(tester, NightRunPhase.ready);
       _expectButtons(_readyControls, _runControls);
       expect(_enabled(tester, 'Start now'), isTrue);
-      expect(find.textContaining('Ready · not started'), findsOneWidget);
+      expect(_says('Ready · not started'), findsOneWidget);
       expect(
-        find.textContaining('2 targets · 12 steps · ≈7 h planned'),
+        _says('2 targets · 12 steps · ≈7 h planned'),
         findsOneWidget,
       );
-      expect(find.textContaining('dark in 1 h 12 m'), findsOneWidget);
+      expect(_says('dark in 1 h 12 m'), findsOneWidget);
     });
 
     testWidgets('a restored run says it waits for Start', (tester) async {
@@ -98,7 +104,7 @@ void main() {
         ),
       );
       expect(
-        find.textContaining(
+        _says(
           'restored at 37 frames, nothing moves until you press Start',
         ),
         findsOneWidget,
@@ -118,7 +124,7 @@ void main() {
         ..._runControls,
       ]);
       expect(find.text('Starts at 19:48'), findsOneWidget);
-      expect(find.textContaining('must stay open'), findsOneWidget);
+      expect(_says('must stay open'), findsOneWidget);
       await tester.tap(_button('Cancel'));
       await tester.pump();
       expect(harness.api.calls, <String>['cancelArmed']);
@@ -136,9 +142,9 @@ void main() {
         ..._readyControls,
       ]);
       // Started 19:48, now 23:52.
-      expect(find.textContaining('Running 4 h 04 m'), findsOneWidget);
+      expect(_says('Running 4 h 04 m'), findsOneWidget);
       expect(
-        find.textContaining('target 1 of 2 · step 7 of 12 · Ha 180 s · 44/60'),
+        _says('target 1 of 2 · step 7 of 12 · Ha 180 s · 44/60'),
         findsOneWidget,
       );
     });
@@ -167,8 +173,8 @@ void main() {
           stop: base.stop,
         ),
       );
-      expect(find.textContaining('target 1 of 2 · $waiting'), findsOneWidget);
-      expect(find.textContaining('step 2 of 12'), findsNothing);
+      expect(_says('target 1 of 2 · $waiting'), findsOneWidget);
+      expect(_says('step 2 of 12'), findsNothing);
     });
 
     testWidgets('paused by the user: Resume', (tester) async {
@@ -182,7 +188,7 @@ void main() {
         ..._readyControls,
       ]);
       expect(_enabled(tester, 'Resume'), isTrue);
-      expect(find.textContaining('Paused'), findsOneWidget);
+      expect(_says('Paused'), findsOneWidget);
     });
 
     testWidgets('paused for autofocus: Resume and Skip are the action\'s',
@@ -193,7 +199,7 @@ void main() {
         pausedFor: ManualActionId.autofocus,
       );
       _expectButtons(<String>['Resume', 'Skip step', 'Stop'], _readyControls);
-      expect(find.textContaining('Paused for autofocus'), findsOneWidget);
+      expect(_says('Paused for autofocus'), findsOneWidget);
       expect(_enabled(tester, 'Resume'), isFalse);
       expect(_enabled(tester, 'Skip step'), isFalse);
       final stop = tester.widget<HoldToConfirmButton>(
@@ -208,13 +214,13 @@ void main() {
       _expectButtons(<String>['Pause', 'Skip step', 'Stop'], _readyControls);
       expect(_enabled(tester, 'Pause'), isFalse);
       expect(_enabled(tester, 'Skip step'), isFalse);
-      expect(find.textContaining('Stopping'), findsOneWidget);
+      expect(_says('Stopping'), findsOneWidget);
     });
 
     testWidgets('finished: the ready controls again', (tester) async {
       await _pumpHeader(tester, NightRunPhase.finished);
       _expectButtons(_readyControls, _runControls);
-      expect(find.textContaining('Ended'), findsOneWidget);
+      expect(_says('Ended'), findsOneWidget);
     });
 
     // SY-36: a failed run reads "Failed" in the error tone, like the rig
@@ -287,7 +293,7 @@ void main() {
       expect(_enabled(tester, 'Start now'), isFalse);
       expect(_enabled(tester, 'Start at dark'), isFalse);
       expect(_enabled(tester, 'Edit plan'), isTrue);
-      expect(find.textContaining('No plan loaded'), findsOneWidget);
+      expect(_says('No plan loaded'), findsOneWidget);
     });
   });
 
@@ -441,9 +447,11 @@ void main() {
         expect(glyphs, findsWidgets);
         expect(find.byType(SkotiqButton), findsNothing);
         // One row of controls and the strip: no title row, no button row.
+        // The plan line may take a second caption line (about 16 dp); a
+        // title or button row would add 40 or more.
         expect(
           tester.getSize(find.byType(NightHeaderBar)).height,
-          lessThan(110),
+          lessThan(125),
         );
         expect(
           tester.getTopLeft(glyphs.first).dy,
