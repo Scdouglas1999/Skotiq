@@ -4,7 +4,6 @@
 // kept little of the plan in view.
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
@@ -54,7 +53,7 @@ void main() {
         runRecordProvider.overrideWith(
           (ref) => RunRecordNotifier(
             ref,
-            RunRecord(lifecycle: SequenceExecutionState.running),
+            const RunRecord(lifecycle: SequenceExecutionState.running),
           ),
         ),
         ledgerClockProvider.overrideWith(
@@ -108,7 +107,7 @@ void main() {
         runRecordProvider.overrideWith(
           (ref) => RunRecordNotifier(
             ref,
-            RunRecord(lifecycle: SequenceExecutionState.running),
+            const RunRecord(lifecycle: SequenceExecutionState.running),
           ),
         ),
         ledgerClockProvider.overrideWith(
@@ -128,7 +127,7 @@ void main() {
         });
       }
 
-      walk(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!);
+      walk(tester.getSemantics(find.byType(SequencerScreen)));
       return out;
     }
 
