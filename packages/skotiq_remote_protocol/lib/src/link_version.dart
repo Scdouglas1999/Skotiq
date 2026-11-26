@@ -6,7 +6,7 @@ import 'wire/api_error_codes.dart';
 
 /// The Skotiq release this build is. `version.yaml` is the source; the
 /// version-consistency audit fails CI when this differs from it.
-const String skotiqRelease = '9.3.3';
+const String skotiqRelease = '9.3.4';
 
 /// A client links only to a host of the same Skotiq release.
 ///

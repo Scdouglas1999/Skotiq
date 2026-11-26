@@ -9,6 +9,10 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [9.3.4] — 2026-11-26
+
+A second phone follow-up: Tonight's plan line on a phone wraps instead of cutting off the time to dark or the frame counts, "Target started" is no longer a toast by default, the link details say whether the host is reached over Tailscale, and the demo guider's Settings tab says it has no settings. Upgrade the host and linked clients together. See the [release notes](release/v9.3.4.md).
+
 ## [9.3.3] — 2026-11-26
 
 A phone follow-up: a live run's pause, stop and skip sit in the Sequencer's plan row instead of a row of their own, the phone's floating buttons have names, and the demo rig's scratch frames leave the frame list when it stops. Upgrade the host and linked clients together. See the [release notes](release/v9.3.3.md).
