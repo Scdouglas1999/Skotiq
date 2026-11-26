@@ -13,10 +13,15 @@ import 'dart:io';
 ///   dart run tools/production/gate.dart --only placeholders
 ///   dart run tools/production/gate.dart --skip rust --out build/gate
 ///   dart run tools/production/gate.dart --list
+///   dart run tools/production/gate.dart --only flutter-tests:skotiq_app --shard 2/4
 ///
 /// `--skip` takes a stage or a check name. With `--out <dir>` each check's
 /// output goes to `<dir>/<check>.log` and only the summary is printed (also
 /// written to `<dir>/SUMMARY.txt`); without it, output is streamed.
+///
+/// `--shard <i>/<n>` runs the i-th of n parts of each check that splits its
+/// test files (the two largest Flutter packages); the CI Dart Tests jobs run
+/// the parts side by side. Other checks run whole.
 ///
 /// Not here: the desktop build matrix and the license audit (CI only, see
 /// .github/workflows/ci.yml), and the release workflows.
@@ -34,6 +39,10 @@ class Check {
   /// is missing the check is reported as SKIPPED in the summary.
   final String? requires;
 
+  /// Whether `--shard` splits this check's `test/` files between parts. The
+  /// command then names the part's files; without `--shard` it runs them all.
+  final bool sharded;
+
   const Check(
     this.stage,
     this.name,
@@ -41,8 +50,25 @@ class Check {
     this.workingDirectory,
     this.pathEnvironment = const {},
     this.requires,
+    this.sharded = false,
   });
 }
+
+const _flutterTest = [
+  'flutter',
+  'test',
+  '--exclude-tags',
+  'golden',
+  '--file-reporter',
+  'json:test-results.json',
+];
+
+/// The packages whose Flutter tests run as their own checks, in parts: each
+/// takes most of an hour in one piece.
+const _shardedPackages = {
+  'skotiq_app': 'packages/skotiq_app',
+  'skotiq_core': 'packages/skotiq_core',
+};
 
 const _registerArgs = [
   '--register',
@@ -243,8 +269,16 @@ final List<Check> checks = [
   Check('audits', 'oversized-files', _tool('oversized_file_audit')),
   Check('audits', 'narrative-comments', _tool('narrative_comment_audit')),
 
-  // Dart Tests job. Golden pixel-diff tests are host-specific and excluded
+  // Dart Tests jobs. Golden pixel-diff tests are host-specific and excluded
   // (melos run test:golden runs them on the baseline host).
+  for (final MapEntry(key: name, value: directory) in _shardedPackages.entries)
+    Check(
+      'dart-tests',
+      'flutter-tests:$name',
+      _flutterTest,
+      workingDirectory: directory,
+      sharded: true,
+    ),
   Check('dart-tests', 'flutter-tests', [
     'dart',
     'run',
@@ -252,13 +286,9 @@ final List<Check> checks = [
     'exec',
     '--concurrency=1',
     '--flutter',
+    for (final name in _shardedPackages.keys) '--ignore=$name',
     '--',
-    'flutter',
-    'test',
-    '--exclude-tags',
-    'golden',
-    '--file-reporter',
-    'json:test-results.json',
+    ..._flutterTest,
   ]),
   Check('dart-tests', 'pure-dart-tests', [
     'dart',
@@ -356,7 +386,7 @@ final List<Check> checks = [
 
 List<String> get stages => {for (final check in checks) check.stage}.toList();
 
-const _valueFlags = {'--stage', '--only', '--skip', '--out'};
+const _valueFlags = {'--stage', '--only', '--skip', '--out', '--shard'};
 
 Future<void> main(List<String> args) async {
   for (var i = 0; i < args.length; i++) {
@@ -374,6 +404,12 @@ Future<void> main(List<String> args) async {
   // CI's Dart Tests job also collects coverage: the Flutter tests then write
   // coverage/lcov.info in each package.
   final coverage = args.contains('--coverage');
+  final shardArg = _values(args, '--shard').lastOrNull;
+  final shard = shardArg == null ? (1, 1) : _parseShard(shardArg);
+  if (shard == null) {
+    stderr.writeln('gate: --shard takes <i>/<n> with 1 <= i <= n');
+    exit(2);
+  }
 
   for (final name in [...selectedStages, ...skip]) {
     if (!stages.contains(name) && !checks.any((c) => c.name == name)) {
@@ -441,9 +477,12 @@ Future<void> main(List<String> args) async {
     final logFile = outDir == null
         ? null
         : File('${outDir.path}/${check.name.replaceAll(':', '_')}.log');
-    final command = coverage && check.name == 'flutter-tests'
-        ? [...check.command, '--coverage']
-        : check.command;
+    final command = [
+      ...check.command,
+      if (coverage && check.name.startsWith('flutter-tests')) '--coverage',
+      if (check.sharded && shard.$2 > 1)
+        ..._shardFiles('$root/${check.workingDirectory}', shard),
+    ];
     if (onCi) stdout.writeln('::group::${check.name}');
     if (logFile == null) {
       stdout.writeln('== ${check.name}: ${command.join(' ')}');
@@ -511,6 +550,30 @@ List<String> _values(List<String> args, String flag) => [
   for (var i = 0; i < args.length - 1; i++)
     if (args[i] == flag) args[i + 1],
 ];
+
+(int, int)? _parseShard(String value) {
+  final parts = value.split('/');
+  if (parts.length != 2) return null;
+  final index = int.tryParse(parts[0]);
+  final count = int.tryParse(parts[1]);
+  if (index == null || count == null || index < 1 || index > count) {
+    return null;
+  }
+  return (index, count);
+}
+
+/// The test files of part `index` of `count` under [package]`/test`, relative
+/// to the package: every count-th file in path order, so each part draws from
+/// every directory.
+List<String> _shardFiles(String package, (int, int) shard) {
+  final (index, count) = shard;
+  final files = [
+    for (final entity in Directory('$package/test').listSync(recursive: true))
+      if (entity is File && entity.path.endsWith('_test.dart'))
+        entity.path.substring(package.length + 1),
+  ]..sort();
+  return [for (var i = index - 1; i < files.length; i += count) files[i]];
+}
 
 Future<bool> _onPath(String program) async {
   final result = await Process.run(Platform.isWindows ? 'where' : 'which', [

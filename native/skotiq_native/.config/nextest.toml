@@ -1,0 +1,12 @@
+# cargo-nextest, which scripts/rust_checks.sh test uses when it is installed
+# (CI installs it). Each test runs in its own process, so the in-process
+# SERIAL locks of the simulated-rig tests no longer make them take turns.
+
+[profile.default]
+# Run every test, so one failure cannot hide the rest.
+fail-fast = false
+# Most tests wait on simulated rig clocks: the suite used about 540 CPU
+# seconds over 260 wall seconds at 16 threads on 6 cores. Twelve keeps a
+# 4-core runner busy without starving the timing-sensitive tests.
+test-threads = 12
+slow-timeout = { period = "60s" }

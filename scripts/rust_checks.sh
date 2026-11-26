@@ -3,7 +3,7 @@
 # Windows) and `melos run gate`.
 #
 #   scripts/rust_checks.sh clippy      workspace clippy, warnings and the listed lints denied
-#   scripts/rust_checks.sh test        workspace tests, every test binary run
+#   scripts/rust_checks.sh test        workspace tests, every test run (cargo-nextest when installed)
 #   scripts/rust_checks.sh fmt         rustfmt check
 #   scripts/rust_checks.sh duplicates  the resolved duplicate-version set matches the baseline
 set -euo pipefail
@@ -22,8 +22,19 @@ case "${1:-}" in
     ;;
   test)
     # Light optimization keeps debug assertions and overflow checks but runs
-    # the image and autofocus tests several times faster.
-    CARGO_PROFILE_TEST_OPT_LEVEL=1 cargo test --locked --all-features --workspace --no-fail-fast
+    # the image and autofocus tests several times faster. Line tables keep
+    # file and line in backtraces at a fraction of full debug info's compile
+    # and link time.
+    export CARGO_PROFILE_TEST_OPT_LEVEL=1 CARGO_PROFILE_TEST_DEBUG=line-tables-only
+    if cargo nextest --version >/dev/null 2>&1; then
+      # Each test in its own process, many at once across every test binary
+      # (.config/nextest.toml): most of the suite's time is simulated rigs
+      # waiting on their clocks, not CPU. nextest runs no doc tests.
+      cargo nextest run --locked --all-features --workspace
+      cargo test --locked --all-features --workspace --doc
+    else
+      cargo test --locked --all-features --workspace --no-fail-fast
+    fi
     ;;
   fmt)
     cargo fmt --all -- --check

@@ -104,14 +104,35 @@ jobs:
       - name: Audit gates
         run: melos run gate -- --stage audits
 
-  test-dart:
-    name: Dart Tests
+  test-dart-part:
+    # The Dart suite in parts that run side by side: skotiq_app and
+    # skotiq_core (most of an hour each in one piece) in four parts each, and
+    # everything else of the dart-tests stage in one.
+    name: Dart Tests (${{ matrix.part }})
     runs-on: ubuntu-latest
-    # The serialized suite, instrumented for coverage (one run gives both the
-    # results and the report), reached 75 minutes on a hosted runner. Leave
-    # time for the remaining packages, relay and production migration probe
-    # on a slower runner.
-    timeout-minutes: 120
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: skotiq_app 1/4
+            gate: --only flutter-tests:skotiq_app --shard 1/4
+          - part: skotiq_app 2/4
+            gate: --only flutter-tests:skotiq_app --shard 2/4
+          - part: skotiq_app 3/4
+            gate: --only flutter-tests:skotiq_app --shard 3/4
+          - part: skotiq_app 4/4
+            gate: --only flutter-tests:skotiq_app --shard 4/4
+          - part: skotiq_core 1/4
+            gate: --only flutter-tests:skotiq_core --shard 1/4
+          - part: skotiq_core 2/4
+            gate: --only flutter-tests:skotiq_core --shard 2/4
+          - part: skotiq_core 3/4
+            gate: --only flutter-tests:skotiq_core --shard 3/4
+          - part: skotiq_core 4/4
+            gate: --only flutter-tests:skotiq_core --shard 4/4
+          - part: other packages
+            gate: --stage dart-tests --skip flutter-tests:skotiq_app --skip flutter-tests:skotiq_core
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -134,6 +155,64 @@ jobs:
         # the console reporter does not attribute to a test can be named), the
         # pure Dart packages, and the v4.3.0 database migration to the current
         # schema. Each runs even when an earlier one failed.
+        run: melos run gate -- ${{ matrix.gate }}
+
+      - name: Name the failed Dart tests
+        if: failure()
+        # The console reporter hides a failed setUpAll, tearDownAll or file
+        # load that has no error; this names every failed test in the JSON
+        # records, hidden or not, and any test that never finished.
+        run: |
+          python3 scripts/test_name_failed_dart_tests.py
+          python3 scripts/name_failed_dart_tests.py || true
+
+      - name: Keep the Dart test records
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dart-test-results-${{ strategy.job-index }}
+          path: '**/test-results.json'
+          retention-days: 14
+
+  test-dart:
+    # The check branch protection and the release gate require: green only
+    # when every part is.
+    name: Dart Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: test-dart-part
+    if: always()
+    steps:
+      - name: Every part passed
+        run: |
+          echo "Dart test parts: ${{ needs.test-dart-part.result }}"
+          [ "${{ needs.test-dart-part.result }}" = success ]
+
+  test-dart-coverage:
+    # Nightly: the whole suite in one run, instrumented. Coverage slows the
+    # tests, so the parts that run on every push go without it.
+    name: Dart Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      - name: Run Dart tests with coverage
         run: melos run gate -- --stage dart-tests --coverage
 
       - name: Merge per-package coverage reports
@@ -174,23 +253,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
         continue-on-error: true
 
-      - name: Name the failed Dart tests
-        if: failure()
-        # The console reporter hides a failed setUpAll, tearDownAll or file
-        # load that has no error; this names every failed test in the JSON
-        # records, hidden or not, and any test that never finished.
-        run: |
-          python3 scripts/test_name_failed_dart_tests.py
-          python3 scripts/name_failed_dart_tests.py || true
-
-      - name: Keep the Dart test records
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: dart-test-results
-          path: '**/test-results.json'
-          retention-days: 14
-
   test-rust:
     # Linux Rust runs on every PR + push for fast feedback.
     name: Rust Tests (linux)
@@ -220,6 +282,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: native/skotiq_native
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
 
       - name: Run Rust clippy (workspace, deny warnings + high-value lints)
         run: bash scripts/rust_checks.sh clippy
@@ -259,6 +326,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: native/skotiq_native
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
 
       - name: Run Rust clippy (workspace, deny warnings + high-value lints)
         # The ascom/ crate is Windows-only and holds most of the unsafe

@@ -93,23 +93,41 @@ class BuildOnlyArtifactTest(unittest.TestCase):
 
 
 
-class OneDartTestRunTest(unittest.TestCase):
-    """The Dart suite runs once per PR, instrumented, and that run's lcov is
-    the coverage report."""
+class DartTestPartsTest(unittest.TestCase):
+    """The Dart suite runs in parts on every push, and whole with coverage
+    every night."""
 
-    def test_dart_tests_runs_instrumented_and_publishes_coverage(self):
-        text = (WORKFLOWS / "ci.yml").read_text()
-        steps = steps_by_name(text, "test-dart")
-        self.assertIn("--stage dart-tests --coverage", steps["Run Dart tests"])
+    def setUp(self):
+        self.text = (WORKFLOWS / "ci.yml").read_text()
+
+    def test_the_parts_cover_every_shard_and_the_rest(self):
+        steps = steps_by_name(self.text, "test-dart-part")
+        self.assertIn("melos run gate -- ${{ matrix.gate }}", steps["Run Dart tests"])
+        for package in ("skotiq_app", "skotiq_core"):
+            shards = re.findall(
+                rf"gate: --only flutter-tests:{package} --shard (\d+)/(\d+)", self.text)
+            self.assertTrue(shards, package)
+            count = {int(n) for _, n in shards}
+            self.assertEqual(len(count), 1, f"{package} parts disagree on the count")
+            self.assertEqual(sorted(int(i) for i, _ in shards),
+                             list(range(1, count.pop() + 1)), package)
+        self.assertIn(
+            "gate: --stage dart-tests --skip flutter-tests:skotiq_app "
+            "--skip flutter-tests:skotiq_core", self.text)
+
+    def test_dart_tests_is_green_only_when_every_part_is(self):
+        steps = steps_by_name(self.text, "test-dart")
+        self.assertIn('[ "${{ needs.test-dart-part.result }}" = success ]',
+                      steps["Every part passed"])
+        self.assertRegex(self.text, r"(?m)^    name: Dart Tests$")
+
+    def test_coverage_runs_whole_and_nightly(self):
+        steps = steps_by_name(self.text, "test-dart-coverage")
+        self.assertIn("--stage dart-tests --coverage", steps["Run Dart tests with coverage"])
         self.assertIn("Merge per-package coverage reports", steps)
         self.assertIn("Upload coverage to Codecov", steps)
-
-    def test_no_second_job_reruns_the_suite_for_coverage(self):
-        text = (WORKFLOWS / "ci.yml").read_text()
-        reruns = [line for line in text.splitlines()
-                  if "melos run test" in line and "--coverage" in line]
-        self.assertEqual(reruns, [])
-        self.assertNotRegex(text, r"(?m)^  coverage:\s*$")
+        job = self.text[self.text.index("  test-dart-coverage:"):]
+        self.assertIn("if: github.event_name == 'schedule'", job.split("steps:")[0])
 
 if __name__ == "__main__":
     unittest.main()
