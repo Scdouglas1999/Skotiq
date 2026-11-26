@@ -1072,10 +1072,10 @@ void main() {
         if (update) {
           recorded[probe.name] = result;
         } else {
-          expect(
-            result,
-            _withChanges(fixture[probe.name], _changedOnPurpose[probe.name]),
-          );
+          final base = probe.name == 'notification routing'
+              ? _targetStartedOff(fixture[probe.name])
+              : fixture[probe.name];
+          expect(result, _withChanges(base, _changedOnPurpose[probe.name]));
         }
       },
     );
@@ -1307,6 +1307,24 @@ class _SameAs {
 
 /// [base] with the entries of [changes] laid over it, map by map. A change
 /// that is not a map replaces the base value whole.
+/// The default routing row for "Target started" is off since 9.3.4: it
+/// toasted at every target of a run. Every default matrix the base build read
+/// or wrote, as a map or as the stored JSON text, has that one row turned off.
+Object? _targetStartedOff(Object? value) {
+  if (value is String && value.startsWith('{"enabled"')) {
+    return jsonEncode(_targetStartedOff(jsonDecode(value)));
+  }
+  if (value is Map) {
+    return {
+      for (final entry in value.entries)
+        entry.key: entry.key == 'targetStarted' && entry.value is Map
+            ? {...entry.value as Map, 'enabled': false}
+            : _targetStartedOff(entry.value),
+    };
+  }
+  return value;
+}
+
 Object? _withChanges(Object? base, Object? changes) {
   if (changes is! Map || base is! Map) return changes ?? base;
   return {
