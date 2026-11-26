@@ -36,6 +36,8 @@ class AndroidNotificationsBanner extends ConsumerWidget {
     final dismissed = ref.watch(androidNotificationsBannerDismissedProvider);
     if (authorized || dismissed) return const SizedBox.shrink();
     final request = ref.watch(androidNotificationsRequestProvider);
+    final phone =
+        MediaQuery.sizeOf(context).width < SkotiqTokens.breakpointMobile;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -47,9 +49,12 @@ class AndroidNotificationsBanner extends ConsumerWidget {
       child: SkotiqBanner(
         tone: BannerTone.warning,
         icon: Icons.notifications_off_outlined,
-        title: 'Alerts are off.',
-        message: 'Turn them on to hear if the run stops, guiding is lost or '
-            'clouds arrive.',
+        // On a phone it shows on every screen, so it is one line there.
+        title: phone ? 'Alerts are off' : 'Alerts are off.',
+        message: phone
+            ? null
+            : 'Turn them on to hear if the run stops, guiding is lost or '
+                'clouds arrive.',
         action: request == null
             ? null
             : SkotiqButton(

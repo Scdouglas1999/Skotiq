@@ -144,7 +144,10 @@ class SkotiqBanner extends StatelessWidget {
           : IntrinsicSafeLayout(
               child: LayoutBuilder(
                 builder: (context, constraints) {
+                  // A title alone fits beside its actions; only a message
+                  // needs the full width.
                   final stacked =
+                      message != null &&
                       constraints.hasBoundedWidth &&
                       constraints.maxWidth < stackBelow;
                   return stacked
