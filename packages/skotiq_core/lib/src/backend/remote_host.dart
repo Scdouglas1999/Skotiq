@@ -4,6 +4,7 @@ import 'network_backend/host_data/remote_notes_journal.dart';
 import 'network_backend/host_data/remote_observation_log.dart';
 import 'network_backend/host_data/remote_observing_lists_store.dart';
 import 'network_backend/host_data/remote_polar_alignment_log.dart';
+import 'demo_backend/demo_backend.dart';
 import 'disconnected_backend.dart';
 import 'ffi_backend.dart';
 import 'roles/host_data/calibration_library.dart';
@@ -227,10 +228,18 @@ extension HostDataDispatch on SkotiqBackend {
   /// fails; screens show what to connect instead of loading.
   bool get hasNoHost => this is DisconnectedBackend;
 
+  /// True when the phone runs the demo rig: simulated equipment inside this
+  /// app, with no imaging computer. Like [hasNoHost], the app is not linked
+  /// and offers the link; unlike it, device calls are answered.
+  bool get isDemoRig => this is DemoBackend;
+
   /// True when the rig is this machine: its devices, files and database are
   /// in this process, so paths are local paths and device work happens here.
+  /// The demo rig is not a rig: host-only features stay closed on it.
   bool get runsRigHere =>
-      this is! NetworkBackend && this is! DisconnectedBackend;
+      this is! NetworkBackend &&
+      this is! DisconnectedBackend &&
+      this is! DemoBackend;
 
   /// True when the device drivers are loaded in this process, so device calls
   /// that have no backend method yet may go straight to the bridge.
@@ -243,6 +252,8 @@ extension SequencerRoleHostDispatch on SequencerBackend {
   RemoteHost? get remoteHost => _remoteHostOf(this);
 
   bool get hasNoHost => this is DisconnectedBackend;
+
+  bool get isDemoRig => this is DemoBackend;
 }
 
 RemoteHost? _remoteHostOf(Object backend) {
@@ -264,6 +275,8 @@ extension DiagnosticsRoleHostDispatch on DiagnosticsBackend {
 /// device state notifiers receive it.
 extension DeviceRoleHostDispatch on DeviceBackend {
   RemoteHost? get remoteHost => _remoteHostOf(this);
+
+  bool get isDemoRig => this is DemoBackend;
 }
 
 extension HostLinkIdentity on HostLink {

@@ -7,6 +7,7 @@ library;
 export 'src/backend/skotiq_backend.dart';
 export 'src/backend/ffi_backend.dart';
 export 'src/backend/network_backend.dart';
+export 'src/backend/demo_backend/demo_backend.dart';
 export 'src/backend/disconnected_backend.dart';
 export 'src/backend/remote_host.dart';
 export 'src/backend/target_scoring.dart';
