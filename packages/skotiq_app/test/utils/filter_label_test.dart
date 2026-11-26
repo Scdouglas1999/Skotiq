@@ -24,4 +24,19 @@ void main() {
   test('surrounding whitespace is trimmed off a real name', () {
     expect(filterLabel('  SII '), 'SII');
   });
+
+  group('frameCaption', () {
+    test('a light is captioned by its filter', () {
+      expect(frameCaption(filter: 'Ha', frameType: 'light'), 'Ha');
+      expect(frameCaption(filter: null, frameType: 'light'), kNoFilterLabel);
+    });
+
+    test('a calibration frame is captioned by what it is', () {
+      expect(frameCaption(filter: 'L', frameType: 'dark'), 'Dark');
+      expect(frameCaption(filter: 'L', frameType: 'bias'), 'Bias');
+      expect(frameCaption(filter: 'L', frameType: 'darkflat'), 'Dark flat');
+      expect(frameCaption(filter: 'Ha', frameType: 'flat'), 'Flat Ha');
+      expect(frameCaption(filter: null, frameType: 'flat'), 'Flat');
+    });
+  });
 }

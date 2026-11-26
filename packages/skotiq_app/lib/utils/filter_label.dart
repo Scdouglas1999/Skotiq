@@ -32,3 +32,21 @@ String filterLabel(String? filter) {
   if (trimmed == null || trimmed.isEmpty) return kNoFilterLabel;
   return trimmed;
 }
+
+/// A frame's compact caption: the filter for a light, and what the frame is
+/// for a calibration frame ("Dark", "Bias", "Flat Ha"). A dark is shot with
+/// whatever filter is in the wheel, so its filter says nothing about it.
+///
+/// [frameType] is the stored spelling (`light`, `dark`, `flat`, `bias`,
+/// `darkflat`, `snapshot`).
+String frameCaption({required String? filter, required String frameType}) {
+  return switch (frameType.toLowerCase()) {
+    'dark' => 'Dark',
+    'bias' => 'Bias',
+    'darkflat' => 'Dark flat',
+    'flat' => filterLabel(filter) == kNoFilterLabel
+        ? 'Flat'
+        : 'Flat ${filterLabel(filter)}',
+    _ => filterLabel(filter),
+  };
+}

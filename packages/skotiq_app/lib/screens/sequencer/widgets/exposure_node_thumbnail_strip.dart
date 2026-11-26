@@ -204,7 +204,7 @@ SavedFrameEntry _viewerEntry(ProducingNodeThumbnail t) {
     title: t.fileName,
     time: t.capturedAt.toLocal().toString().split('.').first,
     status: [
-      '${filterLabel(t.filter)} · ${t.exposureDuration.toStringAsFixed(1)}s',
+      '${frameCaption(filter: t.filter, frameType: t.frameType)} · ${t.exposureDuration.toStringAsFixed(1)}s',
       if (t.hfr != null) 'HFR ${t.hfr!.toStringAsFixed(2)}',
       if (t.eccentricity != null) 'ecc ${t.eccentricity!.toStringAsFixed(2)}',
       if (t.starCount != null) '${t.starCount} stars',
@@ -323,7 +323,7 @@ class _ThumbnailTileState extends ConsumerState<_ThumbnailTile> {
     final t = widget.thumbnail;
     final parts = <String>[];
     parts.add(
-        '${filterLabel(t.filter)} · ${t.exposureDuration.toStringAsFixed(0)}s');
+        '${frameCaption(filter: t.filter, frameType: t.frameType)} · ${t.exposureDuration.toStringAsFixed(0)}s');
     if (t.hfr != null) parts.add('HFR ${t.hfr!.toStringAsFixed(2)}');
     if (t.eccentricity != null) {
       parts.add('ecc ${t.eccentricity!.toStringAsFixed(2)}');
@@ -402,7 +402,10 @@ class _ThumbnailTileState extends ConsumerState<_ThumbnailTile> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  filterLabel(widget.thumbnail.filter),
+                  frameCaption(
+                    filter: widget.thumbnail.filter,
+                    frameType: widget.thumbnail.frameType,
+                  ),
                   style: TextStyle(
                     fontSize: SkotiqTypography.fontSize9,
                     fontWeight: FontWeight.w600,
