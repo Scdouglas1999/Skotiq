@@ -132,8 +132,10 @@ void main() {
         hasLength(1),
         reason: 'every APK has to come from the one keyed flutter command',
       );
-      for (final abi in ['armeabi-v7a', 'arm64-v8a', 'x86_64']) {
-        expect(script, contains('"$abi")'), reason: '$abi is not built');
+      // Releases after 9.3.1 build arm64 only.
+      expect(script, contains('"arm64-v8a")'), reason: 'arm64 is not built');
+      for (final abi in ['armeabi-v7a', 'x86_64']) {
+        expect(script, isNot(contains('"$abi")')), reason: '$abi is built');
       }
     });
 
