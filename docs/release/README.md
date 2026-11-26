@@ -4,12 +4,13 @@
 
 The [latest public release on GitHub](https://github.com/Scdouglas1999/Skotiq/releases/latest) includes downloads for Windows, Linux and Android.
 
-This source tree is **Skotiq 9.3.2**. Its release notes cover a polish pass on the Android app, the new one-file-per-platform downloads and a demo rig for testing. [9.3.2 release notes](v9.3.2.md)
+This source tree is **Skotiq 9.3.3**. Its release notes cover a phone follow-up to 9.3.2: the running Sequencer's controls in the plan row and demo rig frame cleanup. [9.3.3 release notes](v9.3.3.md)
 
 [Changelog](../CHANGELOG.md) · [Compatibility](../known-limitations.md)
 
 ## Earlier releases
 
+- [9.3.2](v9.3.2.md)
 - [9.3.1](v9.3.1.md)
 - [9.3.0](v9.3.0.md)
 - [9.2.0](v9.2.0.md)

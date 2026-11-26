@@ -9,6 +9,10 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [9.3.3] — 2026-11-26
+
+A phone follow-up: a live run's pause, stop and skip sit in the Sequencer's plan row instead of a row of their own, the phone's floating buttons have names, and the demo rig's scratch frames leave the frame list when it stops. Upgrade the host and linked clients together. See the [release notes](release/v9.3.3.md).
+
 ## [9.3.2] — 2026-11-26
 
 A polish pass on the Android app: a one-row Tonight header, the Ledger view on phones, properties that fill the screen, a one-line alerts banner, an unlinked phone that says so instead of failing scans, and a hidden demo rig for testing. Releases now carry one file per platform. Upgrade the host and linked clients together. See the [release notes](release/v9.3.2.md).

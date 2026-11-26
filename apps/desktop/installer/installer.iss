@@ -1,5 +1,5 @@
 #define MyAppName "Skotiq"
-#define MyAppVersion "9.3.2"
+#define MyAppVersion "9.3.3"
 #define MyAppPublisher "Skotiq"
 #define MyAppExeName "skotiq.exe"
 #define ReleaseDir "..\\build\\windows\\x64\\runner\\Release"
