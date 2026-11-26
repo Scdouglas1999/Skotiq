@@ -9,6 +9,10 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [9.3.2] — 2026-11-26
+
+A polish pass on the Android app: a one-row Tonight header, the Ledger view on phones, properties that fill the screen, a one-line alerts banner, an unlinked phone that says so instead of failing scans, and a hidden demo rig for testing. Releases now carry one file per platform. Upgrade the host and linked clients together. See the [release notes](release/v9.3.2.md).
+
 ## [9.3.1] — 2026-11-26
 
 Fixes from a full simulated night run from the phone: built-in guider calibration, guiding stops on the run's own mount moves, a false mount alarm on a site change, building a second target into a plan, restored frames leaving the reject folder, solver paths set over the API, error details reaching linked clients, and phone layout fixes. Upgrade the host and linked clients together. See the [release notes](release/v9.3.1.md).

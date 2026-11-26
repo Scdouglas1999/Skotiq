@@ -4,12 +4,13 @@
 
 The [latest public release on GitHub](https://github.com/Scdouglas1999/Skotiq/releases/latest) includes downloads for Windows, Linux and Android.
 
-This source tree is **Skotiq 9.3.1**. Its release notes cover fixes from a full simulated night run from the phone: guiding, mount safety, runs, frames and setup. [9.3.1 release notes](v9.3.1.md)
+This source tree is **Skotiq 9.3.2**. Its release notes cover a polish pass on the Android app, the new one-file-per-platform downloads and a demo rig for testing. [9.3.2 release notes](v9.3.2.md)
 
 [Changelog](../CHANGELOG.md) · [Compatibility](../known-limitations.md)
 
 ## Earlier releases
 
+- [9.3.1](v9.3.1.md)
 - [9.3.0](v9.3.0.md)
 - [9.2.0](v9.2.0.md)
 - [9.1.0](v9.1.0.md)
