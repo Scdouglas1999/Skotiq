@@ -64,6 +64,9 @@ class _MobileBuilderLayout extends ConsumerWidget {
     final executionState = ref.watch(sequenceExecutionStateProvider);
     final isRunning = executionState == SequenceExecutionState.running ||
         executionState == SequenceExecutionState.paused;
+    final transportLive = executionState.canStop ||
+        executionState.canResume ||
+        executionState.canSkip;
     // Read orientation once for the build-time decisions (the FAB
     // visibility check below). The onNodeTap closure keeps its own tap-time
     // read so a rotation between build and tap still routes correctly.
@@ -91,10 +94,17 @@ class _MobileBuilderLayout extends ConsumerWidget {
             children: [
               // File/edit actions (New, Open, Save, Undo) — mobile remote
               // clients need the same affordances as the desktop builder.
+              // With no run live the transport row would be Start beside a
+              // disabled Stop and Skip, so Start joins the toolbar and the
+              // row comes back only while there is a run to pause, stop or
+              // skip.
               SequenceToolbar(
-                  key: TourTarget.sequencerToolbar.key, colors: colors),
+                key: TourTarget.sequencerToolbar.key,
+                colors: colors,
+                showStart: !transportLive,
+              ),
 
-              MobilePlaybackBar(colors: colors),
+              if (transportLive) MobilePlaybackBar(colors: colors),
 
               // Live telemetry while executing: the one-line strip Imaging
               // shows, so a phone has one status bar and the plan keeps the

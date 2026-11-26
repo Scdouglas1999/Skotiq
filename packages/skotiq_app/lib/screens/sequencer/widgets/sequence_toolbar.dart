@@ -24,6 +24,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../services/run_dashboard_providers.dart';
 import 'flat_wizard_dialog.dart';
 import 'mosaic_wizard_dialog.dart';
+import 'preflight_validation_dialog.dart';
 import 'quick_start_wizard_dialog.dart';
 import 'save_sequence.dart';
 import 'sequence_issues_dialog.dart';
@@ -37,13 +38,23 @@ import 'visual_timeline.dart';
 import '../sequence_counts.dart';
 import '../import_sequence_dialog.dart';
 import '../../../router/app_routes.dart';
+import '../../../tours/tour_target.dart';
 
 part 'sequence_toolbar/actions_and_estimate.dart';
 
 class SequenceToolbar extends ConsumerStatefulWidget {
   final SkotiqColors colors;
 
-  const SequenceToolbar({super.key, required this.colors});
+  /// Puts Start on the bar while no run is live. The phone builder hides its
+  /// transport row then (Stop and Skip would both be disabled), so Start
+  /// rides here instead of costing a row of its own.
+  final bool showStart;
+
+  const SequenceToolbar({
+    super.key,
+    required this.colors,
+    this.showStart = false,
+  });
 
   @override
   ConsumerState<SequenceToolbar> createState() => _SequenceToolbarState();
@@ -907,6 +918,18 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 Expanded(
                   child: _CanvasBarName(colors: colors, sequence: sequence),
                 ),
+                if (widget.showStart) ...[
+                  SkotiqButton(
+                    key: TourTarget.sequencerTransport.key,
+                    label: 'Start',
+                    icon: LucideIcons.play,
+                    size: ButtonSize.small,
+                    onPressed: sequence == null || !executionState.canStart
+                        ? null
+                        : () => startWithPreflight(context, ref),
+                  ),
+                  const SizedBox(width: SkotiqTokens.spaceXs),
+                ],
                 SkotiqIconButton(
                   icon: LucideIcons.undo2,
                   tooltip: touch
