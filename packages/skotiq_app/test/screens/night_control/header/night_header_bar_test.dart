@@ -45,7 +45,7 @@ Future<NightHarness> _pumpHeader(
         child: const NightHeaderBar(),
       ),
     ),
-    size: Size(width, 400),
+    size: Size(width, width < 600 ? 800 : 900),
     textScale: textScale,
   );
   return harness;
@@ -425,6 +425,34 @@ void main() {
   });
 
   group('layout', () {
+    for (final phase in <NightRunPhase>[
+      NightRunPhase.ready,
+      NightRunPhase.running,
+    ]) {
+      testWidgets('a phone puts the ${phase.name} controls beside the status',
+          (tester) async {
+        await _pumpHeader(
+          tester,
+          phase,
+          width: 360,
+          mode: NightControlMode.singleColumn,
+        );
+        final glyphs = find.byType(SkotiqIconButton);
+        expect(glyphs, findsWidgets);
+        expect(find.byType(SkotiqButton), findsNothing);
+        // One row of controls and the strip: no title row, no button row.
+        expect(
+          tester.getSize(find.byType(NightHeaderBar)).height,
+          lessThan(110),
+        );
+        expect(
+          tester.getTopLeft(glyphs.first).dy,
+          lessThan(tester.getTopLeft(find.byType(NightTimelineStrip)).dy),
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+
     const phases = <NightRunPhase>[
       NightRunPhase.ready,
       NightRunPhase.armed,

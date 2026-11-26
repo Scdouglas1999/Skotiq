@@ -70,7 +70,14 @@ class NightHeaderBar extends ConsumerWidget {
     final now = nightNowOnClock(ref);
     final density = NightControlDensity.maybeOf(context);
 
-    final controls = _controls(context, ref, l10n, header, density);
+    // A phone gives the header one row: the run's state and plan on the
+    // left, the controls as glyphs on the right. Labelled, they took a row
+    // of their own under a title the bottom bar already shows. An armed
+    // start keeps its "Starts at 19:48 · Cancel" words.
+    final phone =
+        Responsive.isPhone(context) && header.phase != NightRunPhase.armed;
+    final controls =
+        _controls(context, ref, l10n, header, density, iconOnly: phone);
     final shellTrailing = ShellHeaderTrailing.maybeOf(context);
     final strip = timeline == null ? null : _strip(l10n, timeline);
 
@@ -78,9 +85,10 @@ class NightHeaderBar extends ConsumerWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth - _padding.horizontal;
         final title = l10n.text('nightCtlTitle');
-        final titleWidth =
-            measureTextWidth(context, text: title, style: _titleStyle);
-        final controlsWidth = _controlsWidth(context, controls);
+        final titleWidth = phone
+            ? 0.0
+            : measureTextWidth(context, text: title, style: _titleStyle);
+        final controlsWidth = _controlsWidth(context, controls, phone: phone);
         final singleColumn = density?.mode == NightControlMode.singleColumn;
         final besideStrip = width -
             titleWidth -
@@ -88,26 +96,32 @@ class NightHeaderBar extends ConsumerWidget {
             (strip == null ? 0 : timelineWidth + 2 * _gap + 1) -
             3 * _gap;
         final oneRow = !singleColumn && besideStrip >= minInfoWidth;
-        final inlineControls =
+        final inlineControls = phone ||
             width - titleWidth - controlsWidth - 3 * _gap >= minInlineInfoWidth;
 
         final titleText = Semantics(
           header: true,
-          child: Text(
-            title,
-            style: _titleStyle.copyWith(color: colors.textPrimary),
-            maxLines: 1,
-          ),
+          label: phone ? title : null,
+          child: phone
+              ? const SizedBox.shrink()
+              : Text(
+                  title,
+                  style: _titleStyle.copyWith(color: colors.textPrimary),
+                  maxLines: 1,
+                ),
         );
         final info = _InfoRow(
           header: header,
           timeline: timeline,
           now: now,
-          stacked: !oneRow && !inlineControls,
+          stacked: phone || (!oneRow && !inlineControls),
         );
+        // Glyph buttons are 48 dp touch boxes around a small glyph, so they
+        // need no gap of their own.
         final controlRow = Row(
           mainAxisSize: MainAxisSize.min,
-          children: _spaced(controls.map((c) => c.widget), _controlGap),
+          children:
+              _spaced(controls.map((c) => c.widget), phone ? 0 : _controlGap),
         );
 
         if (oneRow) {
@@ -144,7 +158,7 @@ class NightHeaderBar extends ConsumerWidget {
               Row(
                 children: <Widget>[
                   titleText,
-                  const SizedBox(width: _gap),
+                  if (!phone) const SizedBox(width: _gap),
                   Expanded(child: info),
                   if (inlineControls && controls.isNotEmpty) ...<Widget>[
                     const SizedBox(width: _gap),
@@ -184,9 +198,13 @@ class NightHeaderBar extends ConsumerWidget {
     return out;
   }
 
-  double _controlsWidth(BuildContext context, List<_Control> controls) {
+  double _controlsWidth(
+    BuildContext context,
+    List<_Control> controls, {
+    required bool phone,
+  }) {
     if (controls.isEmpty) return 0;
-    var total = _controlGap * (controls.length - 1);
+    var total = (phone ? 0.0 : _controlGap) * (controls.length - 1);
     for (final control in controls) {
       total += control.measure(context);
     }
@@ -283,8 +301,9 @@ class NightHeaderBar extends ConsumerWidget {
     WidgetRef ref,
     SkotiqLocalizations l10n,
     NightHeaderVm header,
-    NightControlDensity? density,
-  ) {
+    NightControlDensity? density, {
+    required bool iconOnly,
+  }) {
     final phase = header.phase;
     final controls = <_Control>[];
 
@@ -294,6 +313,7 @@ class NightHeaderBar extends ConsumerWidget {
         _ButtonControl(
           label: l10n.text('nightPlanDrawer'),
           icon: LucideIcons.panelLeftOpen,
+          iconOnly: iconOnly,
           control: const NightControlVm.enabled(),
           onPressed: openDrawer,
         ),
@@ -304,6 +324,8 @@ class NightHeaderBar extends ConsumerWidget {
       controls.add(
         _ButtonControl(
           label: l10n.text('nightCtlEditPlan'),
+          glyph: LucideIcons.pencil,
+          iconOnly: iconOnly,
           control: const NightControlVm.enabled(),
           onPressed: () => context.go(AppRoute.sequencer.path),
         ),
@@ -316,6 +338,8 @@ class NightHeaderBar extends ConsumerWidget {
       controls.add(
         _ButtonControl(
           label: l10n.text(resume ? 'nightCtlResume' : 'nightCtlPause'),
+          glyph: resume ? LucideIcons.play : LucideIcons.pause,
+          iconOnly: iconOnly,
           control: control,
           onPressed: () => _runCommand(
             context,
@@ -329,6 +353,8 @@ class NightHeaderBar extends ConsumerWidget {
       controls.add(
         _ButtonControl(
           label: l10n.text('nightCtlSkip'),
+          glyph: LucideIcons.skipForward,
+          iconOnly: iconOnly,
           control: control,
           onPressed: () => _runCommand(context, ref, (s) => s.skip()),
         ),
@@ -338,6 +364,7 @@ class NightHeaderBar extends ConsumerWidget {
       controls.add(
         _StopControl(
           label: l10n.text('nightCtlStop'),
+          iconOnly: iconOnly,
           control: control,
           onConfirmed: () => _runCommand(
             context,
@@ -361,6 +388,8 @@ class NightHeaderBar extends ConsumerWidget {
         controls.add(
           _ButtonControl(
             label: l10n.text('nightActStartAtDark'),
+            glyph: LucideIcons.moon,
+            iconOnly: iconOnly,
             control: control,
             onPressed: () => _armStartAtDark(context, ref),
           ),
@@ -371,6 +400,8 @@ class NightHeaderBar extends ConsumerWidget {
       controls.add(
         _ButtonControl(
           label: l10n.text('nightCtlStartNow'),
+          glyph: LucideIcons.play,
+          iconOnly: iconOnly,
           control: control,
           variant: ButtonVariant.primary,
           onPressed: () => startWithPreflight(context, ref),
@@ -513,7 +544,8 @@ class _InfoRow extends ConsumerWidget {
     final parts = <String>[];
     if (header.phase.isRunLive) {
       final (ti, tc) = (header.targetIndex, header.targetCount);
-      if (ti != null && tc != null) {
+      // "target 1 of 1" says nothing a one-target plan's name does not.
+      if (ti != null && tc != null && tc > 1) {
         parts.add(
           l10n.text('nightCtlTargetOf',
               params: {'index': '$ti', 'count': '$tc'}),
@@ -738,6 +770,8 @@ class _ButtonControl extends _Control {
     required this.control,
     required this.onPressed,
     this.icon,
+    this.glyph,
+    this.iconOnly = false,
     this.variant = ButtonVariant.secondary,
   });
 
@@ -745,28 +779,50 @@ class _ButtonControl extends _Control {
   final NightControlVm control;
   final VoidCallback onPressed;
   final IconData? icon;
+
+  /// The glyph the control shows alone on a phone; [icon] when null.
+  final IconData? glyph;
+
+  /// Draw the glyph alone, named by its tooltip.
+  final bool iconOnly;
   final ButtonVariant variant;
 
+  IconData? get _iconOnlyGlyph => iconOnly ? (glyph ?? icon) : null;
+
   @override
-  double measure(BuildContext context) => SkotiqButton.measureWidth(
-        context,
-        label: label,
-        hasIcon: icon != null,
-        size: ButtonSize.small,
-      );
+  double measure(BuildContext context) => _iconOnlyGlyph != null
+      ? SkotiqTokens.minTouchTarget
+      : SkotiqButton.measureWidth(
+          context,
+          label: label,
+          hasIcon: icon != null,
+          size: ButtonSize.small,
+        );
 
   @override
   Widget get widget => Builder(
         builder: (context) => _ReasonTooltip(
           control: control,
-          child: SkotiqButton(
-            label: label,
-            icon: icon,
-            size: ButtonSize.small,
-            variant: variant,
-            onPressed: control.enabled ? onPressed : null,
-            semanticsHint: _ReasonTooltip.reasonOf(context, control),
-          ),
+          child: _iconOnlyGlyph != null
+              ? Semantics(
+                  hint: _ReasonTooltip.reasonOf(context, control),
+                  child: SkotiqIconButton(
+                    icon: _iconOnlyGlyph!,
+                    tooltip: label,
+                    color: variant == ButtonVariant.primary && control.enabled
+                        ? context.skotiqColors.primary
+                        : null,
+                    onPressed: control.enabled ? onPressed : null,
+                  ),
+                )
+              : SkotiqButton(
+                  label: label,
+                  icon: icon,
+                  size: ButtonSize.small,
+                  variant: variant,
+                  onPressed: control.enabled ? onPressed : null,
+                  semanticsHint: _ReasonTooltip.reasonOf(context, control),
+                ),
         ),
       );
 }
@@ -778,18 +834,22 @@ class _StopControl extends _Control {
     required this.label,
     required this.control,
     required this.onConfirmed,
+    this.iconOnly = false,
   });
 
   final String label;
   final NightControlVm control;
   final VoidCallback onConfirmed;
+  final bool iconOnly;
 
   @override
-  double measure(BuildContext context) => SkotiqButton.measureWidth(
-        context,
-        label: label,
-        size: ButtonSize.small,
-      );
+  double measure(BuildContext context) => iconOnly
+      ? SkotiqTokens.minTouchTarget
+      : SkotiqButton.measureWidth(
+          context,
+          label: label,
+          size: ButtonSize.small,
+        );
 
   @override
   Widget get widget => Builder(
@@ -808,12 +868,19 @@ class _StopControl extends _Control {
                 onConfirmed: onConfirmed,
                 child: IgnorePointer(
                   child: ExcludeSemantics(
-                    child: SkotiqButton(
-                      label: label,
-                      size: ButtonSize.small,
-                      variant: ButtonVariant.destructive,
-                      onPressed: control.enabled ? () {} : null,
-                    ),
+                    child: iconOnly
+                        ? SkotiqIconButton(
+                            icon: LucideIcons.square,
+                            tooltip: label,
+                            color: control.enabled ? colors.error : null,
+                            onPressed: control.enabled ? () {} : null,
+                          )
+                        : SkotiqButton(
+                            label: label,
+                            size: ButtonSize.small,
+                            variant: ButtonVariant.destructive,
+                            onPressed: control.enabled ? () {} : null,
+                          ),
                   ),
                 ),
               ),
