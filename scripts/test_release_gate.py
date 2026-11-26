@@ -193,10 +193,9 @@ class RequiredChecksTest(unittest.TestCase):
 class SourceCommitTest(unittest.TestCase):
     COMMIT = "4736791e4" + "0" * 31
 
-    def verify(self, zip_commit, tar_commit, loose_commit=COMMIT):
+    def verify(self, zip_commit, tar_commit):
         with tempfile.TemporaryDirectory() as temporary:
             assets = Path(temporary)
-            (assets / "SOURCE-COMMIT.txt").write_text(loose_commit + "\n")
             with zipfile.ZipFile(assets / "skotiq-9.0.1-windows-x64.zip", "w") as archive:
                 archive.writestr("skotiq.exe", b"")
                 if zip_commit:
@@ -218,14 +217,13 @@ class SourceCommitTest(unittest.TestCase):
 
     def test_an_archive_from_another_commit_is_refused(self):
         other = "a" * 40
-        for zip_commit, tar_commit, loose in (
-            (other, self.COMMIT, self.COMMIT),
-            (self.COMMIT, other, self.COMMIT),
-            (self.COMMIT, self.COMMIT, other),
-            (None, self.COMMIT, self.COMMIT),
+        for zip_commit, tar_commit in (
+            (other, self.COMMIT),
+            (self.COMMIT, other),
+            (None, self.COMMIT),
         ):
-            with self.subTest(zip=zip_commit, tar=tar_commit, loose=loose):
-                self.assertNotEqual(self.verify(zip_commit, tar_commit, loose).returncode, 0)
+            with self.subTest(zip=zip_commit, tar=tar_commit):
+                self.assertNotEqual(self.verify(zip_commit, tar_commit).returncode, 0)
 
 
 if __name__ == "__main__":

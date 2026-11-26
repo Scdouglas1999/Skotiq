@@ -4,14 +4,14 @@ This notice describes the components redistributed in the release
 artifacts produced by `.github/workflows/release.yml`:
 
 - `skotiq-<version>-windows-x64.zip`
-- `skotiq-<version>-linux-x64.tar.gz`
-- `skotiq-<version>-android-universal.apk`
+- `skotiq-<version>-linux-x64.tar.gz` (and the same bundle as `skotiq-<version>-linux-x64-update.zip` for the in-app updater)
+- `skotiq-<version>-android-arm64-v8a.apk`
 
 Skotiq's own code and assets are governed by `SKOTIQ-LICENSE.txt`
 (the Skotiq Source-Available License, version 1.2). Third-party components
 remain governed by their respective licenses. The desktop archives contain
-this notice, the Skotiq license, and `LICENSES/LGPL-2.1.txt`; the GitHub
-release also publishes those files plus `SOURCE-COMMIT.txt` as separate assets. Flutter's generated
+this notice, the Skotiq license, `LICENSES/LGPL-2.1.txt` and `SOURCE-COMMIT.txt`;
+the license and this notice are also at the root of the source repository. Flutter's generated
 `NOTICES.Z` remains embedded in each Flutter application and is the detailed
 notice bundle for resolved Dart, Flutter, plugin, font, and icon dependencies.
 

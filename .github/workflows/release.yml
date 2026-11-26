@@ -236,57 +236,41 @@ jobs:
           apks=(apps/mobile/build/app/outputs/flutter-apk/app-*-release.apk)
           bash scripts/verify_android_release_signatures.sh "${apks[@]}"
 
-      - name: Stage + checksum APKs
+      - name: Stage the APK
         run: |
           set -euo pipefail
           mkdir -p dist
-          apkdir="apps/mobile/build/app/outputs/flutter-apk"
-          found=0
-          for abi in armeabi-v7a arm64-v8a x86_64; do
-            src="$apkdir/app-$abi-release.apk"
-            [ -f "$src" ] || continue
-            dest="skotiq-${APP_VERSION}-android-$abi.apk"
-            cp "$src" "dist/$dest"
-            (cd dist && sha256sum "$dest" > "$dest.sha256")
-            found=$((found + 1))
-          done
-          if [ "$found" -eq 0 ]; then
-            echo "::error::No per-ABI release APKs found in $apkdir"
-            ls -l "$apkdir" || true
+          src="apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
+          if [ ! -f "$src" ]; then
+            echo "::error::No arm64 release APK at $src"
             exit 1
           fi
+          cp "$src" "dist/skotiq-${APP_VERSION}-android-arm64-v8a.apk"
           ls -l dist
 
-      # One signed manifest per ABI, so an arm64 phone is never offered the
-      # x86_64 build. The APK is its own package here — Android installs it
-      # whole — so the manifest's downloadUrl is the APK's own release asset
+      # The arm64 manifest. The APK is its own package here — Android installs
+      # it whole — so the manifest's downloadUrl is the APK's own release asset
       # URL. Only a build-only run, which is never published, goes unsigned.
-      - name: Sign OTA manifests (per ABI)
+      # A 32-bit or x86_64 install from 9.3.1 or earlier finds no manifest for
+      # its architecture and says the release publishes no update for it.
+      - name: Sign OTA manifest
         env:
           SKOTIQ_UPDATE_PRIVATE_KEY: ${{ needs.version.outputs.require_signing == 'true' && (secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY) || '' }}
         run: |
           set -euo pipefail
           BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
-          # ABI -> the architecture name currentUpdateArchitecture() reports on
-          # that device, which is what the app matches the manifest against.
-          declare -A ARCH_FOR_ABI=(
-            [armeabi-v7a]=arm
-            [arm64-v8a]=arm64
-            [x86_64]=x64
-          )
-          for abi in armeabi-v7a arm64-v8a x86_64; do
-            asset="skotiq-${APP_VERSION}-android-$abi.apk"
-            [ -f "$GITHUB_WORKSPACE/dist/$asset" ] || continue
-            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${APP_VERSION}/${asset}"
-            (cd packages/skotiq_updater && dart run tool/build_update_manifest.dart \
-              --payload "$GITHUB_WORKSPACE/dist/$asset" \
-              --out-dir "$GITHUB_WORKSPACE/dist" \
-              --version "$APP_VERSION" \
-              --build-number "$BUILD_NUMBER" \
-              --platform android \
-              --arch "${ARCH_FOR_ABI[$abi]}" \
-              --download-url "$url")
-          done
+          # arm64 is the architecture name currentUpdateArchitecture() reports
+          # on an arm64-v8a device, which the app matches the manifest against.
+          asset="skotiq-${APP_VERSION}-android-arm64-v8a.apk"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${APP_VERSION}/${asset}"
+          (cd packages/skotiq_updater && dart run tool/build_update_manifest.dart \
+            --payload "$GITHUB_WORKSPACE/dist/$asset" \
+            --out-dir "$GITHUB_WORKSPACE/dist" \
+            --version "$APP_VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --platform android \
+            --arch arm64 \
+            --download-url "$url")
           ls -l dist
 
       - name: Upload Android artifact
@@ -361,7 +345,7 @@ jobs:
       - name: Verify glibc floor (Bookworm / Raspberry Pi OS compatibility)
         run: bash scripts/package_linux.sh glibc-floor apps/desktop/build/linux/x64/release/bundle --versioned-libs
 
-      - name: Package + checksum
+      - name: Package
         run: |
           set -euo pipefail
           BUNDLE="apps/desktop/build/linux/x64/release/bundle"
@@ -370,8 +354,6 @@ jobs:
           tar -czf "dist/skotiq-${APP_VERSION}-linux-x64.tar.gz" \
             -C apps/desktop/build/linux/x64/release \
             --transform "s,^bundle,skotiq-${APP_VERSION}-linux-x64," bundle
-          (cd dist && sha256sum "skotiq-${APP_VERSION}-linux-x64.tar.gz" \
-             > "skotiq-${APP_VERSION}-linux-x64.tar.gz.sha256")
           ls -l dist
 
       - name: Verify actual archive in Bookworm appliance
@@ -395,6 +377,9 @@ jobs:
       # The OTA package is a zip rather than the tar.gz above: the updater
       # extracts zips, and teaching it a second archive format to save one
       # asset would be new code on the path that replaces a live install.
+      # The zip keeps no file modes and has no top folder, so people download
+      # the tar.gz; "-update" in the name says which is which. Installs follow
+      # the downloadUrl in the signed manifest, not a file name.
       # downloadUrl is baked into the signed manifest, so it must equal the
       # real published asset URL — the immutable per-tag GitHub Releases link
       # (the tag is always v<APP_VERSION>, validated by the version job).
@@ -406,7 +391,7 @@ jobs:
         run: |
           set -euo pipefail
           BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
-          ASSET="skotiq-${APP_VERSION}-linux-x64.zip"
+          ASSET="skotiq-${APP_VERSION}-linux-x64-update.zip"
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${APP_VERSION}/${ASSET}"
           (cd packages/skotiq_updater && dart run tool/build_update_manifest.dart \
             --payload "$GITHUB_WORKSPACE/apps/desktop/build/linux/x64/release/bundle" \
@@ -417,7 +402,6 @@ jobs:
             --arch x64 \
             --package-name "$ASSET" \
             --download-url "$URL")
-          (cd dist && sha256sum "$ASSET" > "$ASSET.sha256")
           ls -l dist
 
       - name: Upload Linux artifact
@@ -588,9 +572,6 @@ jobs:
           $url = "https://github.com/$($env:GITHUB_REPOSITORY)/releases/download/v$($env:APP_VERSION)/$name"
           ./scripts/build_update_package.ps1 -SkipBuild -SkipUpdaterBuild -NoPusherCopy `
             -OutputDir dist -DownloadUrl $url
-          $zip = "dist/$name"
-          (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() + "  $name" `
-            | Out-File -Encoding ascii "$zip.sha256"
           # Per-target name. The publish job copies every platform's artifacts
           # into one flat directory, so three jobs each emitting `manifest.json`
           # would leave whichever copied last standing and the other two
@@ -634,7 +615,7 @@ jobs:
           # manifest.json pattern stays for any artifact built before the
           # per-target rename.
           find artifacts -type f \( -name '*.apk' -o -name '*.tar.gz' \
-            -o -name '*.zip' -o -name '*.sha256' \
+            -o -name '*.zip' \
             -o -name 'manifest.json' -o -name 'manifest-*.json' \) \
             -exec cp -v {} release-assets/ \;
           # A manifest whose name collided would silently leave a platform
@@ -645,10 +626,10 @@ jobs:
             echo "::error::Two build jobs produced the same manifest filename; one overwrote the other: $dupes"
             exit 1
           fi
-          cp LICENSE release-assets/SKOTIQ-LICENSE.txt
-          cp docs/THIRD_PARTY_NOTICES.md release-assets/THIRD_PARTY_NOTICES.md
-          cp third_party/licenses/LGPL-2.1.txt release-assets/LGPL-2.1.txt
-          printf '%s\n' "$GITHUB_SHA" > release-assets/SOURCE-COMMIT.txt
+          # One checksum list for every package. The license files and
+          # SOURCE-COMMIT.txt are inside each desktop archive.
+          (cd release-assets && sha256sum -- *.apk *.tar.gz *.zip > SHA256SUMS.txt)
+          cat release-assets/SHA256SUMS.txt
           echo "Release assets:"
           ls -l release-assets
 

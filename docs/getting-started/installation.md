@@ -22,11 +22,12 @@ artifact for your platform:
 | --- | --- | --- |
 | Windows x64 | `skotiq-8.0.0-windows-x64.zip` | Portable; executable not code-signed |
 | Linux x64 | `skotiq-8.0.0-linux-x64.tar.gz` | Portable tar bundle |
-| Android | `skotiq-8.0.0-android-arm64-v8a.apk` | Signed sideload companion; other ABIs also available |
+| Android | `skotiq-8.0.0-android-arm64-v8a.apk` | Signed sideload companion for 64-bit devices |
 | macOS | None | Build from source for development |
 | iOS | None | Build from source with your Apple signing identity |
 
-Each application artifact has a matching `.sha256` file. Desktop archives
+`SHA256SUMS.txt` in each release lists the checksum of every package. (The
+`linux-x64-update.zip` is for the in-app updater; download the tar.gz.) Desktop archives
 include `SKOTIQ-LICENSE.txt`, `THIRD_PARTY_NOTICES.md`, and the applicable
 third-party license text. `SOURCE-COMMIT.txt` records the exact source commit
 used to build each desktop archive.
@@ -63,14 +64,14 @@ vendor udev rules, libraries, and group membership.
 
 ## Windows installation
 
-1. Download `skotiq-8.0.0-windows-x64.zip` and its checksum.
+1. Download `skotiq-8.0.0-windows-x64.zip` and `SHA256SUMS.txt`.
 2. Optionally verify it in PowerShell:
 
    ```powershell
    Get-FileHash .\skotiq-8.0.0-windows-x64.zip -Algorithm SHA256
    ```
 
-   Compare the result with the first value in the `.sha256` file.
+   Compare the result with the zip's line in `SHA256SUMS.txt`.
 3. Extract the entire archive to a writable folder. Do not run the executable
    from inside the ZIP.
 4. Run `skotiq.exe`.
@@ -86,11 +87,11 @@ a compatible vendor library yourself or use ASCOM/Alpaca.
 
 ## Linux installation
 
-1. Download `skotiq-8.0.0-linux-x64.tar.gz` and its checksum.
+1. Download `skotiq-8.0.0-linux-x64.tar.gz` and `SHA256SUMS.txt`.
 2. Verify and extract it:
 
    ```bash
-   sha256sum -c skotiq-8.0.0-linux-x64.tar.gz.sha256
+   sha256sum -c --ignore-missing SHA256SUMS.txt
    tar -xzf skotiq-8.0.0-linux-x64.tar.gz
    cd skotiq-8.0.0-linux-x64
    ./skotiq
@@ -133,8 +134,8 @@ device SDKs.
 3. Allow “Install unknown apps” for the browser/file manager you used, then
    open the APK.
 4. This is a signed sideload package distributed through GitHub, rather than
-   the Play Store. Most current phones use `arm64-v8a`; choose `armeabi-v7a`
-   for older 32-bit devices or `x86_64` for an emulator.
+   the Play Store. It runs on 64-bit (`arm64-v8a`) phones and tablets, which
+   is nearly every device sold since 2017.
 5. Pair it with a running Skotiq desktop/headless host over the LAN.
 
 The mobile app is a companion for monitoring and light control; the desktop is

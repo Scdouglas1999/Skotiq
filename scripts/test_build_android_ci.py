@@ -70,11 +70,11 @@ class AndroidCiBuildTest(unittest.TestCase):
     def call_rows(self):
         return [json.loads(line) for line in self.calls.read_text().splitlines()]
 
-    def test_all_abis_survive_flutter_replacing_its_output_directory(self):
+    def test_the_arm64_apk_survives_flutter_replacing_its_output_directory(self):
         result = self.run_build()
         self.assertEqual(result.returncode, 0, result.stderr)
         rows = self.call_rows()
-        self.assertEqual([row["target"] for row in rows], ["android-arm", "android-arm64", "android-x64"])
+        self.assertEqual([row["target"] for row in rows], ["android-arm64"])
         for row in rows:
             self.assertIn("--release", row["args"])
             self.assertIn("--split-per-abi", row["args"])
@@ -82,7 +82,7 @@ class AndroidCiBuildTest(unittest.TestCase):
             self.assertIn("org.gradle.jvmargs=-Xmx3g", row["properties"])
             self.assertIn("org.gradle.workers.max=2", row["properties"])
             self.assertIn("kotlin.compiler.execution.strategy=in-process", row["properties"])
-        for abi in ("armeabi-v7a", "arm64-v8a", "x86_64"):
+        for abi in ("arm64-v8a",):
             apk = self.app / f"build/app/outputs/flutter-apk/app-{abi}-release.apk"
             self.assertEqual(apk.read_bytes(), abi.encode())
         samples = [json.loads(line) for line in (self.evidence / "memory.jsonl").read_text().splitlines()]
@@ -90,23 +90,23 @@ class AndroidCiBuildTest(unittest.TestCase):
         self.assertNotIn("fixture-private-password", json.dumps(samples))
         self.assertIn("CI_MEMORY", result.stdout)
 
-    def test_build_failure_stops_before_the_next_abi_and_preserves_exit_code(self):
+    def test_build_failure_preserves_exit_code(self):
         result = self.run_build(FIXTURE_FAIL="android-arm64")
         self.assertEqual(result.returncode, 23, result.stderr)
-        self.assertEqual(len(self.call_rows()), 2)
+        self.assertEqual(len(self.call_rows()), 1)
         self.assertTrue((self.evidence / "memory.jsonl").is_file())
 
     def test_success_without_expected_apk_fails_closed(self):
         result = self.run_build(FIXTURE_MISSING="android-arm64")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("nonempty release APK for arm64-v8a", result.stderr)
-        self.assertEqual(len(self.call_rows()), 2)
+        self.assertEqual(len(self.call_rows()), 1)
 
     def test_stale_expected_apk_cannot_satisfy_a_build(self):
         outputs = self.app / "build/app/outputs/flutter-apk"
         outputs.mkdir(parents=True)
-        (outputs / "app-armeabi-v7a-release.apk").write_bytes(b"stale")
-        result = self.run_build(FIXTURE_MISSING="android-arm")
+        (outputs / "app-arm64-v8a-release.apk").write_bytes(b"stale")
+        result = self.run_build(FIXTURE_MISSING="android-arm64")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(self.call_rows()), 1)
 

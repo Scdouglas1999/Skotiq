@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build all release APKs with bounded CI concurrency and memory telemetry."""
+"""Build the release APK with bounded CI concurrency and memory telemetry."""
 
 import argparse
 import datetime
@@ -12,10 +12,10 @@ import tempfile
 import threading
 
 
+# Only arm64: nearly every phone since 2017. The 32-bit arm and x86_64
+# (emulator, Chromebook) packages left the release after 9.3.1.
 TARGETS = (
-    ("android-arm", "armeabi-v7a"),
     ("android-arm64", "arm64-v8a"),
-    ("android-x64", "x86_64"),
 )
 GRADLE_PROPERTIES = """org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=768m -XX:ReservedCodeCacheSize=256m
 org.gradle.workers.max=2

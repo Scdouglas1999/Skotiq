@@ -205,12 +205,12 @@ building a profile.
 |---|---|---|
 | `skotiq-8.1.0-windows-x64.zip` | Windows x64 | Portable — extract and run. Not code-signed yet |
 | `skotiq-8.1.0-linux-x64.tar.gz` | Linux x64 | Portable bundle, needs glibc 2.35 or newer |
-| `skotiq-8.1.0-android-arm64-v8a.apk` | Android | The companion app. Also built for `armeabi-v7a` and `x86_64` |
+| `skotiq-8.1.0-android-arm64-v8a.apk` | Android | The companion app, for 64-bit phones and tablets |
 
 **There's no macOS or iOS build.** The Mac version compiles, but nothing is packaged
 and neither has ever been run against hardware. Treat them as source only.
 
-Every file comes with a `.sha256` so you can check it downloaded intact. The desktop
+`SHA256SUMS.txt` lists a checksum for every file so you can check it downloaded intact. The desktop
 archives also contain the license, the third-party notices, and a note of the exact
 commit they were built from.
 
@@ -228,8 +228,8 @@ your catalogs and frames.
 ## Getting started
 
 1. Download the file for your platform from
-   [Releases](https://github.com/Scdouglas1999/Skotiq/releases/latest), and check the
-   `.sha256` checksum.
+   [Releases](https://github.com/Scdouglas1999/Skotiq/releases/latest), and check its
+   checksum in `SHA256SUMS.txt`.
 2. Extract the whole thing somewhere you can write to. Don't run it from inside the
    zip.
 3. Start it — `skotiq.exe` on Windows, `./skotiq` on Linux. Windows may warn about an

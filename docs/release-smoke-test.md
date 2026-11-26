@@ -52,7 +52,7 @@ also try a current rolling-release desktop) **without** the dev toolchain:
 
 On a real Android phone/tablet:
 
-- [ ] Sideload `skotiq-<version>-android-universal.apk` ("Install unknown
+- [ ] Sideload `skotiq-<version>-android-arm64-v8a.apk` ("Install unknown
       apps"). Expect the OS to flag it as **debug-signed** — that is the
       documented beta posture, not a failure.
 - [ ] App opens.

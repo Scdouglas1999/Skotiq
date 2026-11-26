@@ -86,13 +86,13 @@ base64 -w0 release.jks            # -> ANDROID_KEYSTORE_BASE64
 # key password   -> ANDROID_KEY_PASSWORD
 ```
 
-The release job builds **per-ABI** APKs through `scripts/build_android_ci.py`
-(one `flutter build apk --release --split-per-abi --target-platform=<abi>` per
-ABI, each with the update public key): `armeabi-v7a`, `arm64-v8a`, `x86_64`,
-published as
-`skotiq-<version>-android-<abi>.apk`. These are sideload artifacts; all
-splits share one `versionCode`. Distinct per-ABI `versionCode`s are only needed
-for a Play Store upload and are intentionally out of scope here.
+The release job builds one arm64 APK through `scripts/build_android_ci.py`
+(`flutter build apk --release --split-per-abi --target-platform=android-arm64`,
+with the update public key), published as
+`skotiq-<version>-android-arm64-v8a.apk`. It is a sideload artifact. Releases
+up to 9.3.1 also published `armeabi-v7a` and `x86_64` APKs; those installs find
+no manifest for their architecture in later releases, and their update check
+says the release publishes no update manifest for `android/arm` or `android/x64`.
 
 ## Update hosting
 
@@ -101,11 +101,13 @@ describes, named for the target it was built for:
 
 ```
 manifest-windows-x64.json   skotiq-<version>-windows-x64.zip
-manifest-linux-x64.json     skotiq-<version>-linux-x64.zip
+manifest-linux-x64.json     skotiq-<version>-linux-x64-update.zip
 manifest-android-arm64.json skotiq-<version>-android-arm64-v8a.apk
-manifest-android-arm.json   skotiq-<version>-android-armeabi-v7a.apk
-manifest-android-x64.json   skotiq-<version>-android-x86_64.apk
 ```
+
+The Linux update zip is separate from the `linux-x64.tar.gz` people download:
+the updater extracts zips, and the zip keeps no file modes. The release also
+carries `SHA256SUMS.txt`, one checksum line per package.
 
 The per-target names matter: the publish job flattens every build job's
 artifacts into one directory, so a shared `manifest.json` would leave one

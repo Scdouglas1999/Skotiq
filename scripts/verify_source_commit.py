@@ -2,7 +2,7 @@
 
 Each Linux and Windows archive carries SOURCE-COMMIT.txt, written by the job
 that built it. A release is built from the commit its tag names, so every
-copy, and the loose SOURCE-COMMIT.txt beside the assets, must name that commit.
+copy must name that commit.
 """
 
 import argparse
@@ -30,9 +30,6 @@ def main():
     parser.add_argument("--commit", required=True)
     args = parser.parse_args()
     problems = []
-    loose = args.assets / NAME
-    if not loose.is_file() or loose.read_text().strip() != args.commit:
-        problems.append(f"{loose} does not name {args.commit}")
     archives = sorted(p for p in args.assets.iterdir()
                       if p.name.endswith((".zip", ".tar.gz")))
     if not archives:
