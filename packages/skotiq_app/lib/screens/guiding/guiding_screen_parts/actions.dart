@@ -65,15 +65,16 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   /// The chip tone for a guider state (05 §10: status colours mean status).
   ChipTone _getStateTone(Phd2State state) {
     switch (state) {
+      // Settling follows every dither while the guider is guiding: it is
+      // not an alarm, and primary is this app's red.
       case Phd2State.guiding:
+      case Phd2State.settling:
         return ChipTone.success;
       case Phd2State.looping:
       case Phd2State.calibrating:
       case Phd2State.unknown:
-        return ChipTone.warning;
       case Phd2State.paused:
-      case Phd2State.settling:
-        return ChipTone.primary;
+        return ChipTone.warning;
       case Phd2State.lostLock:
         return ChipTone.error;
       case Phd2State.stopped:
