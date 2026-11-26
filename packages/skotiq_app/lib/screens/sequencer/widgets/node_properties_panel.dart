@@ -299,9 +299,14 @@ class _SelectedNodeBanner extends ConsumerWidget {
       ValidationSeverity.info => BannerTone.info,
     };
 
-    // At most half of a short column (a phone in landscape), scrolling
-    // inside that, so a long hint never pushes the column past its bottom.
-    return Flexible(
+    // Its own height, up to a quarter of the screen (scrolling inside that,
+    // so a long hint never pushes the column past its bottom). A Flexible
+    // here split the column with the editor above it: on a phone the editor
+    // stopped halfway down with blank space under the banner.
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.25,
+      ),
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(

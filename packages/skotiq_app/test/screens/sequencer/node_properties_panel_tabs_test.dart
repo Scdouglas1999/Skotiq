@@ -84,6 +84,25 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
+  testWidgets('the banner sits at the bottom and the editor fills the rest',
+      (tester) async {
+    // The banner used to be a Flexible beside the editor's Expanded, so the
+    // two split the column: the editor stopped halfway down a phone and the
+    // banner floated mid-screen over blank space.
+    final handle = await pumpPanel(tester);
+    final node = ExposureNode(name: 'Broken', durationSecs: 0, count: 5);
+    loadAndSelect(handle, singleNodeSequence(node), node.id);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    final panel = tester.getRect(find.byType(NodePropertiesPanel));
+    final banner = tester.getRect(find.byType(SkotiqBanner));
+    expect(
+        panel.bottom - banner.bottom, lessThanOrEqualTo(SkotiqTokens.spaceLg));
+    expect(banner.height, lessThan(panel.height / 4));
+    await tester.pump(const Duration(seconds: 1));
+  });
+
   testWidgets('switching tabs keeps the selected-node banner pinned',
       (tester) async {
     final handle = await pumpPanel(tester);
