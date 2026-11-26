@@ -94,17 +94,16 @@ class _MobileBuilderLayout extends ConsumerWidget {
             children: [
               // File/edit actions (New, Open, Save, Undo) — mobile remote
               // clients need the same affordances as the desktop builder.
-              // With no run live the transport row would be Start beside a
-              // disabled Stop and Skip, so Start joins the toolbar and the
-              // row comes back only while there is a run to pause, stop or
-              // skip.
+              // With no run live Start joins the toolbar; while a run is
+              // live its pause, stop and skip do, instead of a row of their
+              // own.
               SequenceToolbar(
                 key: TourTarget.sequencerToolbar.key,
                 colors: colors,
                 showStart: !transportLive,
+                transport:
+                    transportLive ? MobilePlaybackBar(colors: colors) : null,
               ),
-
-              if (transportLive) MobilePlaybackBar(colors: colors),
 
               // Live telemetry while executing: the one-line strip Imaging
               // shows, so a phone has one status bar and the plan keeps the

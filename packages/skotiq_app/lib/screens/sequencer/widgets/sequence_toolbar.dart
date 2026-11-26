@@ -50,10 +50,16 @@ class SequenceToolbar extends ConsumerStatefulWidget {
   /// rides here instead of costing a row of its own.
   final bool showStart;
 
+  /// The run's pause, stop and skip buttons, shown in the phone's plan row
+  /// while a run is live in place of a row of their own. Undo and redo move
+  /// into the menu while they are shown, so the plan's name keeps its room.
+  final Widget? transport;
+
   const SequenceToolbar({
     super.key,
     required this.colors,
     this.showStart = false,
+    this.transport,
   });
 
   @override
@@ -912,7 +918,35 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               ),
             );
             // Undo and redo stay on the bar: in the menu they were missing
-            // altogether, and a phone has no Ctrl+Z.
+            // altogether, and a phone has no Ctrl+Z. While the run's
+            // controls are on the bar they lead the menu instead.
+            final transport = widget.transport;
+            if (transport != null) {
+              actions.insertAll(0, [
+                _ToolbarAction(
+                  icon: LucideIcons.undo2,
+                  label: 'Undo$lockedTooltipSuffix',
+                  onPressed:
+                      (canEdit && notifier.canUndo) ? notifier.undo : null,
+                ),
+                _ToolbarAction(
+                  icon: LucideIcons.redo2,
+                  label: 'Redo$lockedTooltipSuffix',
+                  onPressed:
+                      (canEdit && notifier.canRedo) ? notifier.redo : null,
+                ),
+              ]);
+              return Row(
+                children: [
+                  Expanded(
+                    child: _CanvasBarName(colors: colors, sequence: sequence),
+                  ),
+                  transport,
+                  const SizedBox(width: SkotiqTokens.spaceXs),
+                  _ToolbarOverflowMenu(colors: colors, actions: actions),
+                ],
+              );
+            }
             return Row(
               children: [
                 Expanded(

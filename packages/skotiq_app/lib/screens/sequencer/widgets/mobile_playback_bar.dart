@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../localization/skotiq_localizations.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../tours/tour_target.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'preflight_validation_dialog.dart';
-import '../../../widgets/run_status/sequence_status_visuals.dart';
 
-/// Compact playback control bar for mobile devices.
-/// Shows playback controls and current status in a single horizontal row.
+/// Pause or resume, stop and skip for a phone's Sequencer, as compact
+/// buttons that sit in the plan row while a run is live.
+///
+/// It used to be a row of its own with the run's frame count, time and state,
+/// all of which the progress card above the plan already shows; on a 360 dp
+/// phone that row and the status strip left little of the plan in view.
 class MobilePlaybackBar extends ConsumerWidget {
   final SkotiqColors colors;
 
@@ -23,141 +24,90 @@ class MobilePlaybackBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final executionState = ref.watch(sequenceExecutionStateProvider);
-    final sequence = ref.watch(currentSequenceProvider);
+    Future<void> stopSequence() async {
+      final result = await ref.read(sequenceActionServiceProvider).stop();
+      if (!context.mounted) return;
+      context.showCommandActionResult(result);
+    }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border(bottom: BorderSide(color: colors.border)),
-        boxShadow: [
-          BoxShadow(
-            // absolute: drop-shadow scrim (theme-independent)
-            color: ImageOverlayColors.shadow.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    // Centralized capabilities so completed/failed offer a functional
+    // Start (never a silent exact-idle no-op) and stopFailed/cleanupFailed
+    // keep an enabled Stop retry.
+    final canStart = executionState.canStart;
+    final canPause = executionState.canPause;
+    final canResume = executionState.canResume;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Play / Pause / Resume — the primary transport button.
+        _MobilePlaybackButton(
+          key: TourTarget.sequencerTransport.key,
+          colors: colors,
+          icon: canPause ? LucideIcons.pause : LucideIcons.play,
+          label: canPause ? 'Pause' : (canResume ? 'Resume' : 'Start'),
+          isActive: canPause,
+          isEnabled: canStart || canPause || canResume,
+          isCompact: true,
+          onPressed: () async {
+            if (canStart) {
+              await startWithPreflight(context, ref);
+            } else if (canPause) {
+              final result =
+                  await ref.read(sequenceActionServiceProvider).pause();
+              if (!context.mounted) return;
+              context.showCommandActionResult(result);
+            } else if (canResume) {
+              final result =
+                  await ref.read(sequenceActionServiceProvider).resume();
+              if (!context.mounted) return;
+              context.showCommandActionResult(result);
+            }
+          },
+        ),
+
+        const SizedBox(width: SkotiqTokens.spaceXs),
+
+        // Stop button — hold-to-confirm so a thumb-slip during an
+        // overnight session can't abort the run. Enabled wherever a stop
+        // is meaningful, including a retry from stopFailed / cleanupFailed.
+        HoldToConfirmButton(
+          enabled: executionState.canStop,
+          holdColor: colors.error,
+          confirmText: 'Hold to stop',
+          semanticsLabel: 'Stop the sequence',
+          onConfirmed: stopSequence,
+          // IgnorePointer so the inner InkWell does not consume the
+          // long-press event; gestures are owned exclusively by the
+          // surrounding [HoldToConfirmButton]. The visual styling is
+          // preserved so the affordance still reads as "Stop".
+          child: IgnorePointer(
+            child: _MobilePlaybackButton(
+              colors: colors,
+              icon: LucideIcons.square,
+              label: 'Stop',
+              isEnabled: executionState.canStop,
+              isCompact: true,
+              onPressed: stopSequence,
+            ),
           ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isVeryNarrow = constraints.maxWidth < 360;
-          final isNarrow = constraints.maxWidth < 400;
-          final buttonSpacing = isNarrow ? 4.0 : 8.0;
-          Future<void> stopSequence() async {
-            final result = await ref.read(sequenceActionServiceProvider).stop();
+        ),
+
+        const SizedBox(width: SkotiqTokens.spaceXs),
+
+        _MobilePlaybackButton(
+          colors: colors,
+          icon: LucideIcons.skipForward,
+          label: 'Skip',
+          isEnabled: executionState.canSkip,
+          isCompact: true,
+          onPressed: () async {
+            final result = await ref.read(sequenceActionServiceProvider).skip();
             if (!context.mounted) return;
             context.showCommandActionResult(result);
-          }
-
-          // Centralized capabilities so completed/failed offer a functional
-          // Start (never a silent exact-idle no-op) and stopFailed/cleanupFailed
-          // keep an enabled Stop retry.
-          final canStart = executionState.canStart;
-          final canPause = executionState.canPause;
-          final canResume = executionState.canResume;
-
-          return Row(
-            children: [
-              // Play / Pause / Resume — the primary transport button.
-              _MobilePlaybackButton(
-                key: TourTarget.sequencerTransport.key,
-                colors: colors,
-                icon: canPause ? LucideIcons.pause : LucideIcons.play,
-                label: canPause ? 'Pause' : (canResume ? 'Resume' : 'Start'),
-                isActive: canPause,
-                isEnabled: canStart || canPause || canResume,
-                isCompact: isNarrow,
-                onPressed: () async {
-                  if (canStart) {
-                    await startWithPreflight(context, ref);
-                  } else if (canPause) {
-                    final result =
-                        await ref.read(sequenceActionServiceProvider).pause();
-                    if (!context.mounted) return;
-                    context.showCommandActionResult(result);
-                  } else if (canResume) {
-                    final result =
-                        await ref.read(sequenceActionServiceProvider).resume();
-                    if (!context.mounted) return;
-                    context.showCommandActionResult(result);
-                  }
-                },
-              ),
-
-              SizedBox(width: buttonSpacing),
-
-              // Stop button — hold-to-confirm so a thumb-slip during an
-              // overnight session can't abort the run. Enabled wherever a stop
-              // is meaningful, including a retry from stopFailed / cleanupFailed.
-              HoldToConfirmButton(
-                enabled: executionState.canStop,
-                holdColor: colors.error,
-                confirmText: 'Hold to stop',
-                semanticsLabel: 'Stop the sequence',
-                onConfirmed: stopSequence,
-                // IgnorePointer so the inner InkWell does not consume the
-                // long-press event; gestures are owned exclusively by the
-                // surrounding [HoldToConfirmButton]. The visual styling is
-                // preserved so the affordance still reads as "Stop".
-                child: IgnorePointer(
-                  child: _MobilePlaybackButton(
-                    colors: colors,
-                    icon: LucideIcons.square,
-                    label: 'Stop',
-                    isEnabled: executionState.canStop,
-                    isCompact: isNarrow,
-                    onPressed: stopSequence,
-                  ),
-                ),
-              ),
-
-              SizedBox(width: buttonSpacing),
-
-              _MobilePlaybackButton(
-                colors: colors,
-                icon: LucideIcons.skipForward,
-                label: 'Skip',
-                isEnabled: executionState.canSkip,
-                isCompact: isNarrow,
-                onPressed: () async {
-                  final result =
-                      await ref.read(sequenceActionServiceProvider).skip();
-                  if (!context.mounted) return;
-                  context.showCommandActionResult(result);
-                },
-              ),
-
-              const Spacer(),
-
-              if (sequence != null && !isVeryNarrow) ...[
-                _InfoChip(
-                  colors: colors,
-                  icon: LucideIcons.camera,
-                  value: '${sequence.totalExposures}',
-                  isCompact: isNarrow,
-                ),
-                SizedBox(width: isNarrow ? 4 : 8),
-                _InfoChip(
-                  colors: colors,
-                  icon: LucideIcons.clock,
-                  value: DurationFormat.seconds(sequence.totalIntegrationSecs,
-                      style: DurationStyle.coarse,
-                      rounding: DurationRounding.truncate),
-                  isCompact: isNarrow,
-                ),
-                SizedBox(width: isNarrow ? 4 : 8),
-              ],
-
-              _StatusBadge(
-                  colors: colors,
-                  state: executionState,
-                  pausedIdle: ref.watch(pausedRunIdleProvider),
-                  isCompact: isVeryNarrow),
-            ],
-          );
-        },
-      ),
+          },
+        ),
+      ],
     );
   }
 }
@@ -234,151 +184,6 @@ class _MobilePlaybackButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  final SkotiqColors colors;
-  final IconData icon;
-  final String value;
-  final bool isCompact;
-
-  const _InfoChip({
-    required this.colors,
-    required this.icon,
-    required this.value,
-    this.isCompact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final horizontalPadding = isCompact ? 6.0 : 8.0;
-    final iconSize = isCompact ? 10.0 : 12.0;
-    final fontSize = isCompact ? 10.0 : 11.0;
-    final spacing = isCompact ? 3.0 : 4.0;
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 4),
-      decoration: BoxDecoration(
-        color: colors.surfaceAlt,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: iconSize, color: colors.textMuted),
-          SizedBox(width: spacing),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w500,
-              color: colors.textSecondary,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final SkotiqColors colors;
-  final SequenceExecutionState state;
-  final bool isCompact;
-
-  const _StatusBadge({
-    required this.colors,
-    required this.state,
-    required this.pausedIdle,
-    this.isCompact = false,
-  });
-
-  final bool? pausedIdle;
-
-  @override
-  Widget build(BuildContext context) {
-    // Single source of truth for color/icon so the mobile badge cannot
-    // diverge from the toolbar badge and recovery LED.
-    final visuals = SequenceStatusVisuals.of(
-      state,
-      colors,
-      context.l10n,
-      pausedIdle: pausedIdle,
-    );
-    final badgeColor = visuals.color;
-    final icon = visuals.icon;
-
-    final badgeSize = isCompact ? 28.0 : 32.0;
-    final iconSize = isCompact ? 12.0 : 14.0;
-
-    return Container(
-      width: badgeSize,
-      height: badgeSize,
-      decoration: SkotiqDecorations.statusChip(
-        badgeColor,
-        borderRadius: BorderRadius.circular(SkotiqTokens.radiusFull),
-      ),
-      child: state == SequenceExecutionState.running
-          ? _PulsingIcon(color: badgeColor, icon: icon, size: iconSize)
-          : Icon(icon, size: iconSize, color: badgeColor),
-    );
-  }
-}
-
-class _PulsingIcon extends StatefulWidget {
-  final Color color;
-  final IconData icon;
-  final double size;
-
-  const _PulsingIcon({required this.color, required this.icon, this.size = 14});
-
-  @override
-  State<_PulsingIcon> createState() => _PulsingIconState();
-}
-
-class _PulsingIconState extends State<_PulsingIcon>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    // Created idle and started by the OnScreenAnimationGate in build(): a
-    // repeat() that outlives visibility schedules a frame on every vsync and
-    // stops the whole app from idling.
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return OnScreenAnimationGate(
-      controller: _controller,
-      repeating: true,
-      reverse: true,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Icon(
-            widget.icon,
-            size: widget.size,
-            color: widget.color.withValues(
-              alpha: 0.5 + _controller.value * 0.5,
-            ),
-          );
-        },
       ),
     );
   }
