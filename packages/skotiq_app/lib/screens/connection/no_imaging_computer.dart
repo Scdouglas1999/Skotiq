@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'link_rig_dialog.dart';
+import 'rig_connect_entry.dart';
 import 'work_locally.dart';
 
 /// What a rig screen shows while this app has no imaging computer: the
@@ -13,11 +12,15 @@ import 'work_locally.dart';
 ///
 /// In place of a scan that can only fail ("not connected to a Skotiq
 /// Headless Server") on a phone that was opened without its rig.
-class NoImagingComputerState extends StatelessWidget {
+///
+/// Link opens this app's own connect flow: the phone's connection screen,
+/// not the desktop dialog, which pairs and then asks for a restart a phone
+/// cannot do.
+class NoImagingComputerState extends ConsumerWidget {
   const NoImagingComputerState({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: SingleChildScrollView(
         child: EmptyState(
@@ -34,7 +37,7 @@ class NoImagingComputerState extends StatelessWidget {
               SkotiqButton(
                 label: 'Link to a computer',
                 icon: LucideIcons.link,
-                onPressed: () => unawaited(showLinkRigDialog(context)),
+                onPressed: () => ref.read(openRigConnectProvider)(context),
               ),
               if (canWorkLocally)
                 const WorkLocallyButton(variant: ButtonVariant.secondary),
