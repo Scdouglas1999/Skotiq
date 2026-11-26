@@ -418,6 +418,17 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     return (delete(capturedImages)..where((i) => i.id.equals(id))).go();
   }
 
+  /// Deletes the rows of every frame stored under [folder]: frames written
+  /// to a scratch folder that is gone, such as the demo rig's.
+  Future<int> deleteImagesUnder(String folder) {
+    final prefix = folder.endsWith('/') || folder.endsWith(r'\')
+        ? folder
+        : '$folder${Platform.pathSeparator}';
+    return (delete(
+      capturedImages,
+    )..where((i) => i.filePath.substr(1, prefix.length).equals(prefix))).go();
+  }
+
   Future<void> rejectImage(int id, String reason) {
     return (update(capturedImages)..where((i) => i.id.equals(id))).write(
       CapturedImagesCompanion(

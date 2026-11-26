@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'flat_wizard_provider.dart';
 
@@ -59,8 +60,14 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
   BackendNotifier(
     this._ref, {
     NetworkBackendFactory networkBackendFactory = NetworkBackend.new,
+    Future<Directory> Function()? demoScratchDirectory,
   }) : _networkBackendFactory = networkBackendFactory,
+       _demoScratchDirectory = demoScratchDirectory,
        super(DisconnectedBackend());
+
+  /// Where the demo rig writes its scratch frames; the app's temporary
+  /// folder unless a test gives one.
+  final Future<Directory> Function()? _demoScratchDirectory;
 
   /// The backend currently owned by this notifier.
   ///
@@ -82,6 +89,7 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
       ? DemoBackend(
           latitudeDeg: _demoRigLatitude,
           longitudeDeg: _demoRigLongitude,
+          scratchDirectory: _demoScratchDirectory,
         )
       : DisconnectedBackend();
 
@@ -440,6 +448,33 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
 
     oldBackend.dispose();
     state = newBackend;
+    for (final backend in [oldBackend, newBackend]) {
+      if (backend is DemoBackend) unawaited(_forgetDemoFrames(backend));
+    }
+  }
+
+  /// The demo's scratch frames are deleted with it, and a demo the app quit
+  /// in left them deleted too: their rows would list frames that are gone.
+  /// Rows of frames kept in the captures folder stay.
+  Future<void> _forgetDemoFrames(DemoBackend demo) async {
+    try {
+      final folder = await demo.scratchFolderPath();
+      final removed = await _ref
+          .read(databaseProvider)
+          .imagesDao
+          .deleteImagesUnder(folder);
+      if (removed > 0) {
+        Log.info(
+          '[BackendNotifier] Forgot $removed demo rig scratch frames',
+          source: 'BackendNotifier',
+        );
+      }
+    } on Object catch (e) {
+      Log.warning(
+        '[BackendNotifier] Could not forget the demo rig scratch frames: $e',
+        source: 'BackendNotifier',
+      );
+    }
   }
 
   bool _ownsTransition(SkotiqBackend backend, int transitionGeneration) =>

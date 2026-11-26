@@ -461,6 +461,11 @@ class DemoBackend extends _DemoRigCore
   // ---------------------------------------------------------------------------
   // Saving frames.
 
+  /// The folder this demo writes its scratch frames to. It is deleted when
+  /// the demo stops, so the frame rows that point into it go too.
+  Future<String> scratchFolderPath() async =>
+      (_scratch ??= await _scratchDirectory()).path;
+
   @override
   Future<String> saveScratchFrameFromLastCapture({
     required String deviceId,
