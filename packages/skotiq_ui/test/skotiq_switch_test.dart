@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -244,6 +245,69 @@ void main() {
       await tester.tap(find.byType(SkotiqSwitch));
       await tester.pumpAndSettle();
       expect(value, isTrue);
+    });
+
+    testWidgets('tapping the label toggles too, unless disabled', (
+      tester,
+    ) async {
+      var value = false;
+      await tester.pumpWidget(
+        _wrap(
+          SkotiqSwitchRow(
+            label: 'Cooling',
+            subtitle: 'Enable camera cooling',
+            value: value,
+            onChanged: (v) => value = v,
+          ),
+        ),
+      );
+      await tester.tap(find.text('Enable camera cooling'));
+      await tester.pumpAndSettle();
+      expect(value, isTrue);
+
+      await tester.pumpWidget(
+        _wrap(
+          SkotiqSwitchRow(
+            label: 'Cooling',
+            value: false,
+            enabled: false,
+            onChanged: (v) => value = !value,
+          ),
+        ),
+      );
+      await tester.tap(find.text('Cooling'));
+      await tester.pumpAndSettle();
+      expect(value, isTrue);
+    });
+
+    testWidgets('a screen reader still finds one control, the switch', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(
+          const SkotiqSwitchRow(
+            label: 'Cooling',
+            value: false,
+            onChanged: _noop,
+          ),
+        ),
+      );
+      var tappable = 0;
+      void walk(SemanticsNode node) {
+        if (node.getSemanticsData().hasAction(SemanticsAction.tap)) {
+          tappable++;
+          expect(node.label, contains('Cooling'));
+        }
+        node.visitChildren((child) {
+          walk(child);
+          return true;
+        });
+      }
+
+      walk(tester.getSemantics(find.byType(SkotiqSwitchRow)));
+      expect(tappable, 1);
+      semantics.dispose();
     });
   });
 

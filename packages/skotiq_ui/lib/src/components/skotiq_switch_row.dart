@@ -44,7 +44,15 @@ class SkotiqSwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
-    final labelWidget = _buildLabel(colors);
+    // The label toggles the switch too: it is the larger target, and the one
+    // a finger aims for. The switch node already carries the label's name, so
+    // the label adds no second control for a screen reader.
+    final labelWidget = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      excludeFromSemantics: true,
+      onTap: _switchEnabled ? () => onChanged!(!value) : null,
+      child: _buildLabel(colors),
+    );
 
     // The label is a sibling of the switch, so assistive tech announced
     // "toggle button, on" with no idea which setting it belonged to. Naming
