@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/ffi_backend.dart';
+import '../backend/demo_backend/demo_backend.dart';
 import '../backend/disconnected_backend.dart';
 import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
@@ -70,6 +71,56 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
   SkotiqBackend get currentBackend => state;
 
   bool isCurrentBackend(SkotiqBackend backend) => identical(state, backend);
+
+  bool _demoRigWanted = false;
+  double _demoRigLatitude = 0;
+  double _demoRigLongitude = 0;
+
+  /// The backend of a client that is not linked to a host: the demo rig when
+  /// it is turned on, otherwise none.
+  SkotiqBackend _restingBackend() => _demoRigWanted
+      ? DemoBackend(
+          latitudeDeg: _demoRigLatitude,
+          longitudeDeg: _demoRigLongitude,
+        )
+      : DisconnectedBackend();
+
+  /// Rest on the demo rig, or on no backend, while this client is not linked
+  /// to an imaging host. [latitudeDeg] and [longitudeDeg] place the demo
+  /// mount's sky.
+  ///
+  /// A resting backend is replaced at once. A linked or connecting backend is
+  /// left alone: a linked phone always uses its host, and the choice applies
+  /// when the link is let go. A connect requested meanwhile wins.
+  Future<void> setDemoRigWanted(
+    bool wanted, {
+    required double latitudeDeg,
+    required double longitudeDeg,
+  }) async {
+    _demoRigWanted = wanted;
+    _demoRigLatitude = latitudeDeg;
+    _demoRigLongitude = longitudeDeg;
+    final current = state;
+    final resting = current.hasNoHost || current.isDemoRig;
+    if (!resting || current.isDemoRig == wanted) return;
+    final next = _restingBackend();
+    try {
+      // The current generation, not a new one: this must never supersede a
+      // connect or disconnect the operator asked for.
+      await _swapBackend(
+        next,
+        expectedCurrent: current,
+        authorityGeneration: _transitionGeneration,
+      );
+    } on Object {
+      if (!identical(state, next)) next.dispose();
+      rethrow;
+    }
+    Log.info(
+      '[BackendNotifier] ${wanted ? 'Started' : 'Stopped'} the demo rig',
+      source: 'BackendNotifier',
+    );
+  }
 
   /// Connect to a remote server and wait for the WebSocket event stream.
   ///
@@ -208,7 +259,7 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     );
   }
 
-  /// Swap the failed [backend] out for a fresh [DisconnectedBackend]. Best
+  /// Swap the failed [backend] out for a fresh resting backend. Best
   /// effort: if the device-service quiesce that [_swapBackend] performs throws,
   /// force an authoritative disconnected state anyway (disposing the failed
   /// backend directly) so a failed connect never leaves the stale backend
@@ -218,7 +269,7 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     int transitionGeneration,
   ) async {
     if (!_ownsTransition(backend, transitionGeneration)) return;
-    final disconnected = DisconnectedBackend();
+    final disconnected = _restingBackend();
     try {
       await _swapBackend(
         disconnected,
@@ -238,18 +289,22 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
       );
       if (_ownsTransition(backend, transitionGeneration)) {
         backend.dispose();
-        state = DisconnectedBackend();
+        state = _restingBackend();
       }
     }
   }
 
   /// Disconnect from server and quiesce in-flight device operations first.
+  /// The client then rests on the demo rig when it is turned on.
   Future<void> disconnect() async {
     final transitionGeneration = ++_transitionGeneration;
-    await _swapBackend(
-      DisconnectedBackend(),
-      authorityGeneration: transitionGeneration,
-    );
+    final resting = _restingBackend();
+    try {
+      await _swapBackend(resting, authorityGeneration: transitionGeneration);
+    } on Object {
+      if (!identical(state, resting)) resting.dispose();
+      rethrow;
+    }
   }
 
   /// Flush host- or remote-owned sequence edits before the application exits.
