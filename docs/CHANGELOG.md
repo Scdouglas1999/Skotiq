@@ -9,6 +9,10 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [9.3.1] — 2026-11-26
+
+Fixes from a full simulated night run from the phone: built-in guider calibration, guiding stops on the run's own mount moves, a false mount alarm on a site change, building a second target into a plan, restored frames leaving the reject folder, solver paths set over the API, error details reaching linked clients, and phone layout fixes. Upgrade the host and linked clients together. See the [release notes](release/v9.3.1.md).
+
 ## [9.3.0] — 2026-11-24
 
 The Android app reworked for phones: screens that fit, setup from the phone, and fixes for starting runs, viewing frames, resuming after a host crash, reconnecting after the app was in the background, phone GPS and session thumbnails. The host gains a saved-frame JPEG endpoint and folder creation for linked clients. Upgrade the host and linked clients together. See the [release notes](release/v9.3.0.md).
