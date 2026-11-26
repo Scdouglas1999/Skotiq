@@ -41,6 +41,21 @@ final nightSessionRangeProvider = Provider<({DateTime from, DateTime to})?>((
   return (from: from, to: to.isBefore(from) ? from : to);
 });
 
+/// The spacing between two frames past which their chart line breaks:
+/// four of the night's usual frame intervals, and never under 20 minutes, so
+/// an autofocus run or a flip does not break it.
+@visibleForTesting
+Duration nightFrameGap(List<DateTime> times) {
+  const floor = Duration(minutes: 20);
+  if (times.length < 3) return floor;
+  final steps = <int>[
+    for (var i = 1; i < times.length; i++)
+      times[i].difference(times[i - 1]).inMilliseconds,
+  ]..sort();
+  final usual = Duration(milliseconds: steps[steps.length ~/ 2] * 4);
+  return usual > floor ? usual : floor;
+}
+
 /// HFR and star count per light frame, autofocus, flip and reject marks.
 final nightFrameSeriesProvider = Provider<NightSeriesVm>((ref) {
   final rows = ref.watch(nightSessionLightRowsProvider);
@@ -50,7 +65,16 @@ final nightFrameSeriesProvider = Provider<NightSeriesVm>((ref) {
   final hfr = <SeriesPoint>[];
   final stars = <SeriesPoint>[];
   final rejects = <SeriesMarker>[];
+  final gap = nightFrameGap(rows.map((row) => row.capturedAt).toList());
+  DateTime? previous;
   for (final row in rows) {
+    // Hours without frames (a cloudy spell, the night's two runs) are a
+    // break in the line, not a straight line drawn across them.
+    if (previous != null && row.capturedAt.difference(previous) > gap) {
+      hfr.add(SeriesPoint(previous, null));
+      stars.add(SeriesPoint(previous, null));
+    }
+    previous = row.capturedAt;
     final accepted = row.isAccepted;
     hfr.add(SeriesPoint(row.capturedAt, row.hfr, accepted: accepted));
     stars.add(
