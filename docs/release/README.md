@@ -4,12 +4,13 @@
 
 The [latest public release on GitHub](https://github.com/Scdouglas1999/Skotiq/releases/latest) includes downloads for Windows, Linux and Android.
 
-This source tree is **Skotiq 9.3.4**. Its release notes cover a second phone follow-up to 9.3.2: Tonight's plan line, quieter target toasts, the link's route and the demo guider. [9.3.4 release notes](v9.3.4.md)
+This source tree is **Skotiq 9.3.5**. Its release notes cover a small fix on top of 9.3.4: a switch's label flips the switch. [9.3.5 release notes](v9.3.5.md)
 
 [Changelog](../CHANGELOG.md) · [Compatibility](../known-limitations.md)
 
 ## Earlier releases
 
+- [9.3.4](v9.3.4.md)
 - [9.3.3](v9.3.3.md)
 - [9.3.2](v9.3.2.md)
 - [9.3.1](v9.3.1.md)
