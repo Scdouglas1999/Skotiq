@@ -72,6 +72,8 @@ void main() {
     expect(find.byType(MobilePlaybackBar), findsOneWidget);
     expect(find.byTooltip('Pause'), findsOneWidget);
     expect(find.byTooltip('Skip'), findsOneWidget);
+    // The add button was an unlabeled control to a screen reader.
+    expect(find.byTooltip('Add a step'), findsOneWidget);
     expect(
       find.descendant(of: bar, matching: find.byTooltip('Undo')),
       findsNothing,

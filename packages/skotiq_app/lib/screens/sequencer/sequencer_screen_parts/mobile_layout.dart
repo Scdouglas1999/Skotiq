@@ -153,6 +153,7 @@ class _MobileBuilderLayout extends ConsumerWidget {
                 if (selectedNodeId != null && !landscape) ...[
                   FloatingActionButton.small(
                     heroTag: 'properties_fab',
+                    tooltip: 'Step properties',
                     backgroundColor: colors.accent,
                     onPressed: () =>
                         showSequencerPropertiesSheet(context, colors),
@@ -170,6 +171,7 @@ class _MobileBuilderLayout extends ConsumerWidget {
                 if (!(landscape && selectedNodeId != null))
                   FloatingActionButton(
                     heroTag: 'add_node_fab',
+                    tooltip: 'Add a step',
                     backgroundColor: colors.primary,
                     onPressed: () => showSequencerNodeSheet(context, colors),
                     child: Icon(LucideIcons.plus, color: onPrimary),
