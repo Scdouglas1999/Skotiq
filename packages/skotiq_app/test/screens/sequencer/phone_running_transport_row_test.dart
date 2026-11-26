@@ -5,6 +5,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
@@ -86,5 +87,66 @@ void main() {
         matchesGoldenFile(Uri.file(out).toString()),
       );
     }
+  });
+
+  testWidgets('a tab left behind is not read out by a screen reader', (
+    tester,
+  ) async {
+    // Once visited, a Sequencer tab stays built so it reopens instantly. It
+    // must still leave the accessibility tree when another tab shows.
+    final semantics = tester.ensureSemantics();
+    final notifier = CurrentSequenceNotifier();
+    // ignore: invalid_use_of_protected_member
+    notifier.state = _plan();
+    await pumpAppScreen(
+      tester,
+      const SequencerScreen(),
+      size: const Size(360, 780),
+      settle: false,
+      extraOverrides: [
+        currentSequenceProvider.overrideWith((_) => notifier),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(
+            ref,
+            RunRecord(lifecycle: SequenceExecutionState.running),
+          ),
+        ),
+        ledgerClockProvider.overrideWith(
+          (ref) => const Stream<DateTime>.empty(),
+        ),
+      ],
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+
+    Set<String> labels() {
+      final out = <String>{};
+      void walk(SemanticsNode node) {
+        if (node.label.isNotEmpty) out.add(node.label);
+        node.visitChildren((child) {
+          walk(child);
+          return true;
+        });
+      }
+
+      walk(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!);
+      return out;
+    }
+
+    final builder = labels();
+    await tester.tap(find.bySemanticsLabel('Templates'));
+    // Its library loads off the UI thread.
+    for (var i = 0; i < 100 && labels().difference(builder).isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final templatesOnly = labels().difference(builder);
+    expect(templatesOnly, isNotEmpty, reason: 'the Templates tab showed');
+
+    await tester.tap(find.bySemanticsLabel('Builder'));
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(labels().intersection(templatesOnly), isEmpty);
+    semantics.dispose();
   });
 }
