@@ -59,7 +59,14 @@ final phd2ConnectedProvider = Provider<bool>((ref) {
 });
 
 /// Provider for PHD2 state (Guiding, Stopped, etc.)
-final phd2StateProvider = StateProvider<Phd2State>((ref) => Phd2State.stopped);
+///
+/// Starts over when the app gains or loses its imaging host: a phone that
+/// unlinked mid-run kept "Guiding" on the Guiding tab with nothing linked.
+/// A reconnect to the same host keeps the value.
+final phd2StateProvider = StateProvider<Phd2State>((ref) {
+  ref.watch(backendProvider.select((backend) => backend.hasNoHost));
+  return Phd2State.stopped;
+});
 
 /// Provider for star lost events (timestamp of last star lost event)
 final starLostEventProvider = StateProvider<DateTime?>((ref) => null);

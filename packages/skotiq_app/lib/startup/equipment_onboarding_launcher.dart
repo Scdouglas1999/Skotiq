@@ -71,6 +71,12 @@ class _EquipmentOnboardingLauncherState
     _hasChecked = true;
     final authority = ref.read(backendProvider);
     final generation = ++_checkGeneration;
+    // With no imaging computer there is no rig here to set up: every scan in
+    // the wizard would fail. Linking one runs this check again.
+    if (authority.hasNoHost) {
+      _queue.pass(StartupSurface.equipmentOnboarding);
+      return;
+    }
 
     try {
       final shouldRun =

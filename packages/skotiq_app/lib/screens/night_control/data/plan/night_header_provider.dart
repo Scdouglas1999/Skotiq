@@ -4,6 +4,7 @@
 // controller.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart' show eonFrameTypeOfNodeId;
@@ -74,6 +75,7 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
           NightRunPhase.notSetUp:
       final notReady = _notReadyReason(
         tree,
+        hasHost: !ref.watch(backendProvider.select((b) => b.hasNoHost)),
         cameraConnected: ref.watch(nightCameraConnectedProvider),
       );
       startNow = notReady != null
@@ -196,9 +198,15 @@ final nightRunEndingProvider = Provider<NightRunEnding?>((ref) {
 String? _nonEmpty(String? s) => s == null || s.isEmpty ? null : s;
 
 /// Why a plan cannot start at all, or null when it can.
-String? _notReadyReason(NightPlanTree? tree, {required bool cameraConnected}) {
+String? _notReadyReason(
+  NightPlanTree? tree, {
+  required bool hasHost,
+  required bool cameraConnected,
+}) {
   if (tree == null) return 'ncPlanNoPlan';
   if (!tree.launchable) return 'ncPlanNothingToRun';
+  // No imaging computer means no camera to connect: say what to do first.
+  if (!hasHost) return 'ncPlanLinkComputer';
   if (!cameraConnected) return 'ncPlanConnectCamera';
   return null;
 }

@@ -600,6 +600,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'ncPlanNoPlan': 'No plan is loaded',
     'ncPlanNothingToRun': 'The plan has no targets or exposures',
     'ncPlanConnectCamera': 'Connect the camera first',
+    'ncPlanLinkComputer': 'Link to your imaging computer first',
     'ncPlanNoSite': 'Set an observing site to know when it gets dark',
     'ncPlanNoDarkTonight': 'The sky does not get fully dark tonight',
     'ncPlanAlreadyDark': 'It is already dark, so the run can start now',
@@ -2275,6 +2276,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'ncPlanNoPlan': 'No hay ningún plan cargado',
     'ncPlanNothingToRun': 'El plan no tiene objetivos ni exposiciones',
     'ncPlanConnectCamera': 'Conecta primero la cámara',
+    'ncPlanLinkComputer': 'Vincula primero tu ordenador de captura',
     'ncPlanNoSite': 'Indica un lugar de observación para saber cuándo oscurece',
     'ncPlanNoDarkTonight': 'Esta noche el cielo no llega a oscurecer del todo',
     'ncPlanAlreadyDark':

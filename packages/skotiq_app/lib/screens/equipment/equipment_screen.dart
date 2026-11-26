@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import '../connection/no_imaging_computer.dart';
 import 'widgets/connected_device_card.dart';
 import 'widgets/device_tile_width.dart';
 import 'widgets/discovery_panel.dart';
@@ -102,6 +104,15 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
   Widget build(BuildContext context) {
     watchProfileAuthority();
     final colors = SkotiqColors.of(context);
+    if (ref.watch(backendProvider).hasNoHost) {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PageHeader(title: 'Equipment', icon: LucideIcons.plug),
+          Expanded(child: NoImagingComputerState()),
+        ],
+      );
+    }
     final profilesAsync = ref.watch(equipmentProfilesProvider);
     if (profilesAsync.hasError) {
       return _EquipmentProfilesUnavailable(
