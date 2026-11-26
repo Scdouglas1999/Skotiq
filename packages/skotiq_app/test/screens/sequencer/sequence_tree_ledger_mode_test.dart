@@ -553,17 +553,21 @@ void main() {
   });
 
   // Touch (the test platform): marker, chevron, icon, gap, the 48 px actions
-  // slot, the badge gutter and a 96 px name floor cost 207 px before any
-  // column; the tree pads 20 px a side.
+  // slot, the badge gutter and an 80 px name floor cost 191 px before any
+  // column, and the touch columns are 64 / 48 / 74 / 62; the tree pads 20 px
+  // a side. Ledger gives up columns before it gives up its rows: Count stays
+  // last, and below that the steps are named alone.
   for (final (width, columns) in <(double, List<String>?)>[
     (560, ['Filter / exp', 'Count', 'Duration', 'ETA']),
-    (480, ['Filter / exp', 'Count', 'ETA']),
-    (410, ['Filter / exp', 'Count']),
-    (360, null),
+    (440, ['Filter / exp', 'Count', 'ETA']),
+    (380, ['Filter / exp', 'Count']),
+    (320, ['Count']),
+    (260, <String>[]),
   ]) {
     testWidgets(
         'a ${width.toInt()} px canvas shows '
-        '${columns?.join(', ') ?? 'compact rows'}', (tester) async {
+        '${columns == null ? 'compact rows' : columns.isEmpty ? 'names only' : columns.join(', ')}',
+        (tester) async {
       final built = _threeLevelSequence([
         ExposureNode(
           name: 'L subs',

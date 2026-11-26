@@ -66,6 +66,20 @@ const double _ledgerDragFeedbackWidth = 544.0;
 /// The four column widths, in order (spec §2).
 const List<double> _ledgerColumnWidths = <double>[70.0, 60.0, 74.0, 62.0];
 
+/// The same columns on a touch screen, where a phone needs the width for
+/// names: "Dark 55 s" and "12/65" still fit, right-aligned.
+const List<double> _ledgerTouchColumnWidths = <double>[
+  64.0,
+  48.0,
+  74.0,
+  62.0,
+];
+
+double _ledgerColumnWidth(BuildContext context, int column) =>
+    (SkotiqTouchTarget.isTouch(context)
+        ? _ledgerTouchColumnWidths
+        : _ledgerColumnWidths)[column];
+
 const List<String> _ledgerColumnLabels = <String>[
   'Filter / exp',
   'Count',
@@ -74,37 +88,41 @@ const List<String> _ledgerColumnLabels = <String>[
 ];
 
 /// The narrowest name slot a ledger row is drawn with, at depth 1: about a
-/// dozen characters, so a phone keeps "Cool camera" whole and drops a column
-/// for it.
-const double _ledgerNameFloor = 96.0;
+/// dozen characters, so "Cool camera" stays whole and a column goes first.
+/// A touch screen settles for ten: a 360 dp phone then keeps Filter / exp and
+/// Count beside the names.
+double _ledgerNameFloor(BuildContext context) =>
+    SkotiqTouchTarget.isTouch(context) ? 80.0 : 96.0;
 
 /// Which of the four columns the canvas shows, by index into
 /// [_ledgerColumnWidths]. A canvas too narrow for all four drops Duration
-/// first and then ETA, so a phone held upright still gets ledger rows with
-/// Filter / exp and Count, rather than leaving the Ledger choice for compact
-/// rows. Empty when not even those two fit: the tree then draws compact rows.
-List<int> _ledgerColumnSetFor(BuildContext context, double contentWidth) {
+/// first, then ETA, then Filter / exp, and at last shows the step names
+/// alone, so a phone always gets the Ledger it chose. Null only when not even
+/// a name fits: the tree then draws compact rows.
+List<int>? _ledgerColumnSetFor(BuildContext context, double contentWidth) {
   final fixed = _ledgerRunningMarkerWidth +
       _ledgerChevronWidth +
       13 + // icon
       SkotiqTokens.spaceSm + // icon gap
       _ledgerActionsSlotWidth(context) +
       _ledgerBadgeGutter +
-      _ledgerNameFloor;
+      _ledgerNameFloor(context);
   for (final set in _ledgerColumnSets) {
     var width = fixed;
     for (final i in set) {
-      width += _ledgerColumnWidths[i];
+      width += _ledgerColumnWidth(context, i);
     }
     if (width <= contentWidth) return set;
   }
-  return const <int>[];
+  return null;
 }
 
 const List<List<int>> _ledgerColumnSets = <List<int>>[
   <int>[0, 1, 2, 3],
   <int>[0, 1, 3],
   <int>[0, 1],
+  <int>[1],
+  <int>[],
 ];
 
 /// Index of the ETA column, which can be tinted on its own.
@@ -167,7 +185,7 @@ class _LedgerColumnHeader extends StatelessWidget {
             SizedBox(width: _ledgerActionsSlotWidth(context)),
             for (final i in _LedgerColumnSet.of(context))
               SizedBox(
-                width: _ledgerColumnWidths[i],
+                width: _ledgerColumnWidth(context, i),
                 child: Text(
                   _ledgerColumnLabels[i],
                   style: style,
@@ -1085,7 +1103,7 @@ class _LedgerColumnCells extends StatelessWidget {
         children: [
           for (final i in _LedgerColumnSet.of(context))
             SizedBox(
-              width: _ledgerColumnWidths[i],
+              width: _ledgerColumnWidth(context, i),
               child: Text(
                 values[i],
                 style: SkotiqTypography.readoutXs.copyWith(

@@ -769,7 +769,7 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
               // columns only by taking the gutter's 34 px cannot host Ledger.
               final ledgerColumns = _ledgerColumnSetFor(context, contentWidth);
               final canvasDensity =
-                  density == SequencerDensity.ledger && ledgerColumns.isEmpty
+                  density == SequencerDensity.ledger && ledgerColumns == null
                       ? SequencerDensity.compact
                       : density;
               // Whether the canvas is overruling the preference. A clamp is a
@@ -811,7 +811,7 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
               final reservedTop = _reservedPinHeight;
 
               return _LedgerColumnSet(
-                columns: ledgerColumns,
+                columns: ledgerColumns ?? const <int>[],
                 child: Column(
                   children: [
                     // No header row: the canvas bar above the tree carries the

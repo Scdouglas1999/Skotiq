@@ -583,17 +583,15 @@ void main() {
     );
   });
 
-  testWidgets('below the column floor nothing folds', (tester) async {
-    // The canvas — not the preference — decides what is on screen: too narrow
-    // for even two ledger columns the tree falls back to compact rows and draws
-    // every child. An arrow-key order still folded there would step over rows
-    // the operator can plainly see.
+  testWidgets('compact rows fold nothing', (tester) async {
+    // Compact rows draw every child, so an arrow-key order still folded there
+    // would step over rows the operator can plainly see. (A canvas too narrow
+    // for even a ledger name clamps to compact the same way.)
     final built = _runInAlpha();
-    final handle = await _pumpTree(
-      tester,
-      built.sequence,
-      size: const Size(360, 900),
-    );
+    final handle = await _pumpTree(tester, built.sequence);
+    handle.container.read(_testDensityProvider.notifier).state =
+        SequencerDensity.compact;
+    await tester.pumpAndSettle();
     await _drainValidationDebounce(tester);
 
     expect(
