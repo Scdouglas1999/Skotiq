@@ -20,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_properties_panel.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_progress_bar.dart';
+import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/models.dart';
@@ -49,6 +50,9 @@ List<Override> _overrides() {
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
     // Idle = editable; the builder shows its add/edit affordances.
+    // A phone on its side draws the ledger, whose ETA clock is a periodic
+    // stream that would outlive the fake-async test.
+    ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
   ];
 }
 
@@ -183,6 +187,9 @@ void main() {
       size: const Size(844, 390),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
+        ledgerClockProvider.overrideWith(
+          (ref) => const Stream<DateTime>.empty(),
+        ),
       ],
       settle: false,
     );

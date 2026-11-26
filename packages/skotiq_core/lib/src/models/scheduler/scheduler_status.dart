@@ -257,7 +257,7 @@ class SchedulerStatus extends Equatable {
     if (currentTargetId != null) 'currentTargetId': currentTargetId,
     if (currentTargetName != null) 'currentTargetName': currentTargetName,
     if (nextEvaluationAt != null)
-      'nextEvaluationAt': nextEvaluationAt!.toIso8601String(),
+      'nextEvaluationAt': nextEvaluationAt!.toUtc().toIso8601String(),
     if (lastError != null) 'lastError': lastError,
     if (pausedByOperatorStop) 'pausedByOperatorStop': true,
   };

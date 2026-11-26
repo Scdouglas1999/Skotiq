@@ -53,7 +53,22 @@ mixin HostFiles on NetworkBackendTransport {
   /// (the host's capture path does not exist on the phone's filesystem).
   /// Returns `null` when the host has no capture directory configured.
   Future<DiskSpaceInfo?> getHostCaptureDiskSpace() async {
-    final json = await _get(SystemApi.diskSpace);
+    final Map<String, dynamic> json;
+    try {
+      json = await _get(SystemApi.diskSpace);
+    } on ServerError catch (refusal) {
+      // The host's answer about its folder, rebuilt as the exception a local
+      // query throws, so a missing folder reads the same on both sides.
+      if (refusal.code != 'disk_query_failed') rethrow;
+      final details = refusal.details ?? const <String, dynamic>{};
+      throw DiskSpaceException(
+        details['path'] as String? ?? '',
+        refusal.message,
+        refusal,
+        DiskSpaceFailureKind.values.asNameMap()[details['kind']] ??
+            DiskSpaceFailureKind.queryFailed,
+      );
+    }
     if (json['configured'] == false) return null;
     return DiskSpaceInfo(
       path: json['path'] as String? ?? '',

@@ -491,9 +491,14 @@ fn needs_observer_site(trigger: &TargetTrigger) -> bool {
 fn no_observer_site_reason(trigger: &TargetTrigger, role: TriggerRole) -> String {
     let clause = match role {
         TriggerRole::StartWhen => {
-            format!("This target waits for {} before it starts", trigger.label())
+            format!(
+                "This target waits for {} before it starts",
+                operator_trigger_label(trigger)
+            )
         }
-        TriggerRole::EndWhen => format!("This target stops when {}", trigger.label()),
+        TriggerRole::EndWhen => {
+            format!("This target stops when {}", operator_trigger_label(trigger))
+        }
     };
     format!(
         "{}, but no observer location is set, so the sequencer cannot work out whether the \
@@ -730,7 +735,8 @@ async fn wait_for_trigger(
         return NodeStatus::Success;
     }
 
-    let label = trigger.label();
+    // Shown to the operator: times as a date, not as Unix seconds.
+    let label = operator_trigger_label(trigger);
     let mut emitted_initial = false;
     let poll = std::time::Duration::from_secs(u64::from(poll_secs));
 

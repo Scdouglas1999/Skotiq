@@ -448,11 +448,15 @@ class PairingHandlers implements RouteSource {
   /// `POST /api/pairing/lan-claim` — one-tap pairing for a device on the local
   /// network. No code required: see [lanTrustedSourceAddress] for the trust
   /// model. Accepted only when the pairing mode is [PairingMode.lanOpen] AND the
-  /// TCP source is a non-loopback private LAN address. Always mints a
-  /// `control`-scoped token (admin needs the explicit code flow). Rate-limited
-  /// like the code endpoints.
+  /// TCP source is a non-loopback private LAN address. Mints the scope the
+  /// client names in `requestedScope`, `control` when it names none: the
+  /// phone asks for `admin`, because on a headless rig it is the only screen
+  /// that can choose the capture folder, the solver and the backups. Anyone
+  /// on the private LAN can already move the mount with `control`; the rig is
+  /// one owner's, on their own network. Rate-limited like the code endpoints.
   ///
-  /// Body (all optional): `{deviceId?, deviceName?, deviceType?}`.
+  /// Body (all optional): `{deviceId?, deviceName?, deviceType?,
+  /// requestedScope?}`.
   Future<Response> handleLanClaim(Request request) async {
     final requestId = requestIdFrom(request);
     final clientKey = rateLimitClientKey(request);
@@ -513,6 +517,21 @@ class PairingHandlers implements RouteSource {
         optionalString(payload, 'deviceName', maxLength: 128) ?? 'LAN device';
     final deviceType =
         optionalString(payload, 'deviceType', maxLength: 32) ?? 'mobile';
+    final requestedGrant = _resolveRequestedGrant(
+      optionalString(payload, 'requestedScope', maxLength: 256) ?? 'control',
+    );
+    if (requestedGrant == null) {
+      return jsonBadRequest(
+        {
+          'error': 'invalid_requested_scope',
+          'message':
+              'requestedScope is not a scope this server knows. Use "view", '
+              '"control" or "admin".',
+          'requestId': requestId,
+        },
+        headers: {requestIdHeader: requestId},
+      );
+    }
 
     // Mint through the exact tested code path: generate a code server-side and
     // consume it immediately. The code is never transmitted, so this reuses all
@@ -524,7 +543,7 @@ class PairingHandlers implements RouteSource {
       deviceId: deviceId,
       deviceName: deviceName,
       deviceType: deviceType,
-      authGrantSpec: 'control',
+      authGrantSpec: requestedGrant.toSpec(),
     );
     if (verify.outcome != PairingVerifyOutcome.success ||
         verify.sessionToken == null) {
@@ -542,20 +561,17 @@ class PairingHandlers implements RouteSource {
     }
 
     final token = verify.sessionToken!;
-    recordPairedSession(
-      token,
-      HeadlessAuthGrant.fromCoarse(HeadlessTokenScope.control),
-    );
+    recordPairedSession(token, requestedGrant);
     pairingAttempts.clear(clientKey);
     clearAuthFailures(clientKey);
     _logInfo(
       '[PAIR][$requestId] LAN one-tap pairing granted to device=$deviceId '
-      'from ${source.address}',
+      'from ${source.address} scope=${requestedGrant.toSpec()}',
     );
     return jsonOk(
       {
         'token': token,
-        'tokenScope': headlessTokenScopeName(HeadlessTokenScope.control),
+        'tokenScope': requestedGrant.toSpec(),
         'expiresAt': verify.expiresAt!.toUtc().toIso8601String(),
         'pairing': 'lan',
       },

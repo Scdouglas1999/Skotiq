@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
@@ -10,6 +11,7 @@ import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/daos/sessions_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/services/local_imaging_records.dart';
+import 'package:skotiq_core/src/services/restored_frame_path.dart';
 
 import '../fakes/fake_network_client.dart';
 import 'package:skotiq_core/src/backend/network_backend/host_data/remote_host_records.dart';
@@ -137,6 +139,67 @@ void main() {
       expect(row!.isAccepted, isFalse);
       expect(row.rejectionReason, 'HFR too high');
     });
+  });
+
+  // Night test 2026-11-25: a frame graded into Reject/ and then restored
+  // stayed in Reject/, so a folder-based stack left it out.
+  group('restoring a rejected frame', () {
+    test('restoredFramePath walks out of the reject folder', () {
+      expect(restoredFramePath('/c/M42/L/Reject/f.fits'), '/c/M42/L/f.fits');
+      expect(
+        restoredFramePath('/c/M42/Bad/f.fits', rejectFolder: 'Bad'),
+        '/c/M42/f.fits',
+      );
+      expect(restoredFramePath('/c/M42/L/f.fits'), isNull);
+      expect(
+        restoredFramePath('/rejects/f.fits', rejectFolder: '/rejects'),
+        isNull,
+      );
+      // An absolute folder outside the frame's: the sequencer used Reject/.
+      expect(
+        restoredFramePath('/c/M42/L/Reject/f.fits', rejectFolder: '/rejects'),
+        '/c/M42/L/f.fits',
+      );
+    });
+
+    test(
+      'the frame and its thumbnail move back, and the row follows',
+      () async {
+        final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(db.close);
+        final imagesDao = ImagesDao(db);
+        final repository = LocalImagingRecords(
+          sessionsDao: SessionsDao(db),
+          imagesDao: imagesDao,
+        );
+        final root = await Directory.systemTemp.createTemp('restore_');
+        addTearDown(() => root.delete(recursive: true));
+        final reject = await Directory('${root.path}/Reject').create();
+        final frame = await File('${reject.path}/f.fits').writeAsString('x');
+        final thumb = await File('${frame.path}.thumb.jpg').writeAsString('t');
+        final id = await repository.createImage(
+          CapturedImagesCompanion.insert(
+            filePath: frame.path,
+            fileName: 'f.fits',
+            frameType: const Value('light'),
+            exposureDuration: 120,
+            capturedAt: DateTime.utc(2025, 1, 1),
+          ),
+        );
+        await imagesDao.setThumbnailPath(id, thumb.path);
+        await repository.rejectImage(id, 'HFR too high');
+
+        await repository.acceptImage(id);
+
+        final row = (await repository.getImageById(id))!;
+        expect(row.isAccepted, isTrue);
+        expect(row.filePath, '${root.path}/f.fits');
+        expect(File(row.filePath).existsSync(), isTrue);
+        expect(frame.existsSync(), isFalse);
+        expect(row.thumbnailPath, '${root.path}/f.fits.thumb.jpg');
+        expect(File(row.thumbnailPath!).existsSync(), isTrue);
+      },
+    );
   });
 
   group('RemoteImagingRecords', () {

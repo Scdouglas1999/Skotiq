@@ -214,16 +214,17 @@ void main() {
     testWidgets('finished: the ready controls again', (tester) async {
       await _pumpHeader(tester, NightRunPhase.finished);
       _expectButtons(_readyControls, _runControls);
-      expect(find.textContaining('Finished'), findsOneWidget);
+      expect(find.textContaining('Ended'), findsOneWidget);
     });
 
     // SY-36: a failed run reads "Failed" in the error tone, like the rig
-    // chip, not a gray "Finished".
+    // chip, not a gray "Ended". A run ended by the dawn park, the weather or
+    // the autopilot reads "Ended" (it said "Finished", which read as done).
     for (final (ending, label) in <(NightRunEnding, String)>[
       (NightRunEnding.completed, 'Completed'),
       (NightRunEnding.failed, 'Failed'),
       (NightRunEnding.stopped, 'Stopped'),
-      (NightRunEnding.ended, 'Finished'),
+      (NightRunEnding.ended, 'Ended'),
     ]) {
       testWidgets('finished, $ending: the pill reads $label', (tester) async {
         final base = headerFor(NightRunPhase.finished);
@@ -237,7 +238,7 @@ void main() {
           'Completed',
           'Failed',
           'Stopped',
-          'Finished',
+          'Ended',
         ]) {
           if (other != label) expect(find.text(other), findsNothing);
         }

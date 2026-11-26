@@ -54,6 +54,8 @@ List<Override> _overrides() {
   ];
 }
 
+// These pin the docked narrow-window layout of a desktop (mouse) build; a
+// touch screen gets the panels as overlays (builder_touch_overlay_test).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -79,7 +81,7 @@ void main() {
           'defect left the canvas at ~180px while properties kept ~250 and '
           'the palette ~200',
     );
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('at a 1600px window all three panes stay open', (tester) async {
     await pumpAppScreen(
@@ -97,7 +99,7 @@ void main() {
     expect(find.text('Nodes'), findsOneWidget);
     expect(find.text('Snippets'), findsOneWidget);
     expect(find.text('Targets'), findsOneWidget);
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   // The palette tabs switch panes on click, so the accessibility tree must not
   // publish them as "Tab 1 of 3 [DISABLED]".
@@ -124,7 +126,7 @@ void main() {
       );
     }
     semantics.dispose();
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('the palette tab labels are never clipped by their strip',
       (tester) async {
@@ -158,5 +160,5 @@ void main() {
         reason: '"$label" runs past the right edge of the tab strip',
       );
     }
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

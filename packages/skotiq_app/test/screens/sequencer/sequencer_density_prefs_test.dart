@@ -59,13 +59,4 @@ void main() {
     expect(await container.read(sequencerDensityPrefsProvider.future),
         SequencerDensity.ledger);
   });
-
-  test('mobile pins every preference to comfortable', () {
-    expect(effectiveSequencerDensity(SequencerDensity.ledger, isMobile: true),
-        SequencerDensity.comfortable);
-    expect(effectiveSequencerDensity(SequencerDensity.compact, isMobile: true),
-        SequencerDensity.comfortable);
-    expect(effectiveSequencerDensity(SequencerDensity.ledger, isMobile: false),
-        SequencerDensity.ledger);
-  });
 }

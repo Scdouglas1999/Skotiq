@@ -51,5 +51,27 @@ void main() {
       expect(failure.detail, contains(card.headline));
       expect(failure.detail, contains(raw));
     });
+
+    // Mobile rework P2-9: the Devices tab read "Your equipment profile is
+    // missing a value: Failed to connect built-in guider: Operation failed:
+    // requires …".
+    test('the reason is said once, without its wrappers', () {
+      final failure = ConnectAllFailure.fromProgress(
+        const DeviceConnectProgress(
+          deviceType: 'guider',
+          deviceId: 'builtin:guider',
+          status: DeviceConnectProgressStatus.failed,
+          errorMessage: 'Failed to connect built-in guider: Operation failed: '
+              'requires an active profile with a guide focal length',
+        ),
+      );
+      expect(
+          failure.detail,
+          endsWith(
+            ': requires an active profile with a guide focal length',
+          ));
+      expect(failure.detail, isNot(contains('Operation failed')));
+      expect(failure.detail, isNot(contains('Failed to connect')));
+    });
   });
 }

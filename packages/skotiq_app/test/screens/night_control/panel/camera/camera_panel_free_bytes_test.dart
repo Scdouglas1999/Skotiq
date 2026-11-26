@@ -25,6 +25,7 @@ void main() {
         databaseProvider.overrideWithValue(database),
         nightRunPhaseProvider.overrideWithValue(NightRunPhase.notSetUp),
         nightCaptureFreeBytesProvider.overrideWithValue(live),
+        captureFolderMissingProvider.overrideWithValue(false),
         nightDiskProjectionProvider.overrideWithValue(
           DiskSpaceProjection(
             freeBytes: projected,

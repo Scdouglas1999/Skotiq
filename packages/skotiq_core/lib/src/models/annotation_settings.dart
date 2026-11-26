@@ -73,11 +73,14 @@ abstract class AnnotationSettings with _$AnnotationSettings {
     /// disks.
     @Default(0.05) double catalogBboxPaddingFraction,
 
+    // Both overlays are off by default: nothing covers the frame unless the
+    // operator turns it on.
+
     /// Whether to show compass overlay (N/E arrows from plate solve rotation)
-    @Default(true) bool compassEnabled,
+    @Default(false) bool compassEnabled,
 
     /// Whether to show scale bar overlay (angular size reference)
-    @Default(true) bool scaleBarEnabled,
+    @Default(false) bool scaleBarEnabled,
 
     @Default(GridType.none) GridType gridType,
 

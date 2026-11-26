@@ -59,12 +59,12 @@ Future<bool> confirmAndDeleteSequenceNode({
           // none.
           descendants == 0
               ? 'This node will be removed from the sequence. '
-                  'Recover it with Undo in the toolbar (or Ctrl+Z).'
+                  'Recover it with Undo in the toolbar${shortcutSuffix('Z', or: true)}.'
               : descendants == 1
                   ? 'This will also remove its 1 descendant. '
-                      'Recover it with Undo in the toolbar (or Ctrl+Z).'
+                      'Recover it with Undo in the toolbar${shortcutSuffix('Z', or: true)}.'
                   : 'This will also remove its $descendants descendants. '
-                      'Recover it with Undo in the toolbar (or Ctrl+Z).',
+                      'Recover it with Undo in the toolbar${shortcutSuffix('Z', or: true)}.',
           style: TextStyle(color: resolvedColors.textSecondary),
         ),
       ),
@@ -150,7 +150,7 @@ Future<bool> confirmAndDeleteFoldGroup({
           // what the row shows, and a delete prompt has to name the same
           // things the row named.
           '${group.memberLabels.join(' · ')} will be removed from the '
-          'sequence. Recover them with Undo in the toolbar (or Ctrl+Z).',
+          'sequence. Recover them with Undo in the toolbar${shortcutSuffix('Z', or: true)}.',
           style: TextStyle(color: resolvedColors.textSecondary),
         ),
       ),

@@ -309,6 +309,11 @@ class RecoveryHistoryEntry extends Equatable {
   final bool abortedByUser;
   final String? lastError;
 
+  /// The loop could not fix the cause and handed the run to the operator as
+  /// a pause (the mount is parked, say): not recovered, and not stopped
+  /// either. [lastError] is what the operator has to do.
+  final bool pausedForOperator;
+
   const RecoveryHistoryEntry({
     required this.startedAt,
     required this.endedAt,
@@ -317,6 +322,7 @@ class RecoveryHistoryEntry extends Equatable {
     required this.recovered,
     required this.abortedByUser,
     required this.lastError,
+    this.pausedForOperator = false,
   });
 
   Duration get duration => endedAt.difference(startedAt);
@@ -332,6 +338,7 @@ class RecoveryHistoryEntry extends Equatable {
       recovered: json['recovered'] as bool,
       abortedByUser: json['aborted_by_user'] as bool,
       lastError: json['last_error'] as String?,
+      pausedForOperator: json['paused_for_operator'] == true,
     );
   }
 
@@ -346,6 +353,7 @@ class RecoveryHistoryEntry extends Equatable {
     'recovered': recovered,
     'aborted_by_user': abortedByUser,
     'last_error': lastError,
+    'paused_for_operator': pausedForOperator,
   };
 
   @override
@@ -357,5 +365,6 @@ class RecoveryHistoryEntry extends Equatable {
     recovered,
     abortedByUser,
     lastError,
+    pausedForOperator,
   ];
 }

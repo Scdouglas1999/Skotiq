@@ -802,6 +802,17 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // truthful either way.
         next = next.copyWith(plateSolver: before.plateSolver);
 
+        // The solver paths here are copies too, but a changed one is a real
+        // request: it goes to the preference the solver reads, or the write
+        // is acknowledged and the solver keeps the old program.
+        if (next.astapPath != before.astapPath ||
+            next.astrometryPath != before.astrometryPath) {
+          await _writeSolverPaths(
+            astapPath: next.astapPath,
+            astrometryPath: next.astrometryPath,
+          );
+        }
+
         await dao.setSettings(AppSettingsCodec.toRows(next));
         if (generation != _backendGeneration ||
             ref.backendScopeOver(backend).isStale ||

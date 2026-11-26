@@ -20,6 +20,16 @@ enum FrameType {
     FrameType.snapshot => 'Snapshot',
   };
 
+  /// What a step of this type reads as where a light reads as its filter
+  /// ("Dark 55 s", not "G 55 s"): a dark or bias is taken with the cover on,
+  /// wherever the wheel sits. Null for a type the filter describes.
+  String? get coverOnLabel => switch (this) {
+    FrameType.dark => 'Dark',
+    FrameType.bias => 'Bias',
+    FrameType.darkFlat => 'Dark flat',
+    _ => null,
+  };
+
   /// The frame type as a captured-image record names it: the `frame_type`
   /// column, the host's image rows and the executor's capture events.
   String get record => switch (this) {

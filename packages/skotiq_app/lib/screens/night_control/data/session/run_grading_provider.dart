@@ -35,7 +35,14 @@ abstract class _RunEventNotifier<T> extends StateNotifier<T> {
   void _follow(DiagnosticsBackend backend, {required bool clear}) {
     final generation = ++_generation;
     final previous = _subscription;
-    if (clear) state = _initial;
+    // The backend changes while other providers rebuild from it, and a
+    // provider may not change another during its build: clear on the next
+    // microtask, unless a later change has already taken over.
+    if (clear) {
+      scheduleMicrotask(() {
+        if (mounted && generation == _generation) state = _initial;
+      });
+    }
     _subscription = backend.eventStream.listen((event) {
       if (generation != _generation) return;
       final payload = typedEventFromWire(event)?.payload;

@@ -107,7 +107,11 @@ class AutoSaveService {
 
   final Future<void> Function(AutoSaveConfig config)? persistConfig;
   final Future<void> Function(DateTime timestamp)? persistLastBackup;
-  final void Function(Sequence sequence, int databaseId)? onSequenceSaved;
+
+  /// [savedName] is the name the row was filed under (a first save takes
+  /// one no saved plan uses).
+  final void Function(Sequence sequence, int databaseId, String savedName)?
+  onSequenceSaved;
 
   AutoSaveConfig _config = const AutoSaveConfig();
   Timer? _sequenceTimer;
@@ -333,12 +337,16 @@ class AutoSaveService {
     try {
       final sequences = _pendingSequences.values.toList();
       for (final sequence in sequences) {
-        final databaseId = await sequenceRepository.saveSequence(sequence);
+        final toSave = await withFreeNameForFirstSave(
+          sequenceRepository,
+          sequence,
+        );
+        final databaseId = await sequenceRepository.saveSequence(toSave);
         // A newer immutable snapshot may have arrived while this save was in
         // flight. Never remove or mark that newer edit as saved.
         if (identical(_pendingSequences[sequence.id], sequence)) {
           _pendingSequences.remove(sequence.id);
-          onSequenceSaved?.call(sequence, databaseId);
+          onSequenceSaved?.call(sequence, databaseId, toSave.name);
         }
       }
 
@@ -697,10 +705,14 @@ final autoSaveServiceProvider = Provider<AutoSaveService>((ref) {
     persistLastBackup: (timestamp) => ref
         .read(settingsDaoProvider)
         .setSetting(_lastBackupKey, timestamp.toUtc().toIso8601String()),
-    onSequenceSaved: (sequence, databaseId) {
+    onSequenceSaved: (sequence, databaseId, savedName) {
       final editor = ref.read(currentSequenceProvider.notifier);
       if (identical(ref.read(currentSequenceProvider), sequence)) {
-        editor.applyRemoteSave(databaseId, expectedSnapshot: sequence);
+        editor.applyRemoteSave(
+          databaseId,
+          expectedSnapshot: sequence,
+          savedName: savedName,
+        );
       }
     },
   );

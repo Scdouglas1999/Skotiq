@@ -298,7 +298,15 @@ class _ThemeCardState extends State<_ThemeCard> {
               children: [
                 // The Light and Dark previews are pictures of other
                 // palettes; in red night they go through the image filter.
-                RedNightImage(child: _ThemePreview(preview: preview)),
+                // Through the filter, the Light picture is a block of full
+                // red, the brightest thing on the screen; dim it to a hint.
+                RedNightImage(
+                  child: Opacity(
+                    opacity:
+                        colors.isRedNight && widget.value == 'light' ? 0.25 : 1,
+                    child: _ThemePreview(preview: preview),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,

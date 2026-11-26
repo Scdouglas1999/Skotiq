@@ -637,34 +637,48 @@ class _ControlsSheet extends StatelessWidget {
                     ),
                   ),
                 if (showButtons)
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      SkotiqTokens.spaceLg,
-                      showSections ? 0 : SkotiqTokens.spaceMd,
-                      SkotiqTokens.spaceLg,
-                      SkotiqTokens.spaceMd,
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: _SheetLoopButton(
-                            isLooping: isLooping,
-                            isSingleCapture: isSingleCapture,
-                            isStoppingCapture: isStoppingCapture,
-                            onToggleLoop: onToggleLoop,
+                  // A running plan owns the camera: Snapshot only says "Run
+                  // capturing", and Tonight's manual actions pause the run
+                  // first. The panels get the room instead; a paused run
+                  // gives the buttons back.
+                  Consumer(
+                    builder: (context, ref, buttons) => ref.watch(
+                      // Running only: a paused run leaves the camera free.
+                      sequenceExecutionStateProvider.select(
+                        (s) => s.isBusy && s != SequenceExecutionState.paused,
+                      ),
+                    )
+                        ? const SizedBox.shrink()
+                        : buttons!,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        SkotiqTokens.spaceLg,
+                        showSections ? 0 : SkotiqTokens.spaceMd,
+                        SkotiqTokens.spaceLg,
+                        SkotiqTokens.spaceMd,
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: _SheetLoopButton(
+                              isLooping: isLooping,
+                              isSingleCapture: isSingleCapture,
+                              isStoppingCapture: isStoppingCapture,
+                              onToggleLoop: onToggleLoop,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: SkotiqTokens.spaceSm),
-                        Expanded(
-                          child: _SheetSnapshotButton(
-                            isLooping: isLooping,
-                            isSingleCapture: isSingleCapture,
-                            isSavingCapture: isSavingCapture,
-                            isStoppingCapture: isStoppingCapture,
-                            onSnapshot: onSnapshot,
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          Expanded(
+                            child: _SheetSnapshotButton(
+                              isLooping: isLooping,
+                              isSingleCapture: isSingleCapture,
+                              isSavingCapture: isSavingCapture,
+                              isStoppingCapture: isStoppingCapture,
+                              onSnapshot: onSnapshot,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
               ],

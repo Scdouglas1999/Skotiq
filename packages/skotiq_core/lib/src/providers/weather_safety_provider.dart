@@ -510,8 +510,13 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       // flag on the state below is what surfaces must render, and the reason
       // carries the same statement in words for anything that only shows text.
       finalStatus = WeatherSafetyStatus.safe;
-      finalActions = const WeatherSafetyActions(
-        reason: 'Weather safety is off. Conditions are not being checked',
+      finalActions = WeatherSafetyActions(
+        reason: safetyMonitorReading == SafetySourceReading.absent
+            ? 'Weather safety is off. Conditions are not being checked'
+            // The standard Weather Unsafe trigger reads the monitor on its
+            // own, so the run is still guarded.
+            : 'Weather safety is off. The safety monitor still stops the run '
+                  'when it reads unsafe',
       );
     } else if (useFailMode) {
       // The no-data fail-mode resolution comes from the single shared truth

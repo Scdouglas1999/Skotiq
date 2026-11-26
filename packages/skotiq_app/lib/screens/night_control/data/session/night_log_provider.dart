@@ -59,6 +59,8 @@ const Set<String> _feedTitlesLeftOut = <String>{
   'Frame rejected',
   'Exposure complete',
   'Exposure progress',
+  // A per-frame "keep the planned length" decision; a real adjustment stays.
+  'Exposure unchanged',
   'Progress',
   'Instruction progress',
   'Camera temperature',
@@ -164,9 +166,26 @@ final nightLogProvider = Provider<List<NightLogEntryVm>>((ref) {
   );
 
   final names = ref.watch(nightLogDeviceNamesProvider);
+  // The guider's stop and its reason arrive as two events: "Guiding stopped"
+  // above "Guiding stopped because the run was stopped" said it twice.
+  final reasonedStops = <DateTime>[
+    for (final event in feed)
+      // "Guiding stopped because …", "Guiding stopped: the mount moved …",
+      // "Guiding stopped (…)".
+      if ((event.title.startsWith('Guiding stopped') &&
+              event.title != 'Guiding stopped') ||
+          (event.title == 'Guiding stopped' && event.message.isNotEmpty))
+        event.time,
+  ];
+  bool saidWithReason(RunDashboardEvent event) =>
+      event.title == 'Guiding stopped' &&
+      event.message.isEmpty &&
+      reasonedStops.any(
+        (at) => at.difference(event.time).abs() <= const Duration(seconds: 5),
+      );
   final entries = <NightLogEntryVm>[
     for (final event in feed)
-      if (nightLogKeepsFeedRow(event))
+      if (nightLogKeepsFeedRow(event) && !saidWithReason(event))
         NightLogEntryVm(
           at: event.time,
           message: NightText.literal(_feedLine(event, names)),

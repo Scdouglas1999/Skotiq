@@ -83,3 +83,15 @@ class SequenceSummary {
     return const [];
   }
 }
+
+/// [name], or "[name] 2", "[name] 3", … — the first one no entry in [taken]
+/// already uses, compared without case. Three plans built for one target all
+/// filed as "NGC1313 Plan" left the library unable to tell them apart.
+String freeSequenceName(String name, Iterable<String> taken) {
+  final used = {for (final t in taken) t.trim().toLowerCase()};
+  if (!used.contains(name.trim().toLowerCase())) return name;
+  for (var n = 2; ; n++) {
+    final candidate = '$name $n';
+    if (!used.contains(candidate.toLowerCase())) return candidate;
+  }
+}

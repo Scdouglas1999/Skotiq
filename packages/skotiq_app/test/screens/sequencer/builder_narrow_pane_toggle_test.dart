@@ -55,6 +55,8 @@ Finder _paneToggle(String tooltip) => find.byWidgetPredicate(
       description: 'SkotiqIconButton("$tooltip")',
     );
 
+// These pin the docked narrow-window layout of a desktop (mouse) build; a
+// touch screen gets the panels as overlays (builder_touch_overlay_test).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -101,7 +103,7 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('a force-opened pane can be collapsed again', (tester) async {
     await pumpAppScreen(
@@ -126,5 +128,5 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_paneToggle('Show Toolbox'), findsOneWidget);
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }

@@ -471,7 +471,8 @@ class _NodeTreeView extends ConsumerWidget {
                                         ? 'Tap + to add a node'
                                         : isRoot
                                             ? 'Drop a node here, or '
-                                                'double-click one in the palette'
+                                                '${SkotiqTouchTarget.isTouch(context) ? 'double-tap' : 'double-click'}'
+                                                ' one in the palette'
                                             : 'Drop a node here',
                                     style: SkotiqTypography.bodySm.copyWith(
                                       color: colors.textMuted,
@@ -595,8 +596,8 @@ class _NodeTreeView extends ConsumerWidget {
   /// [siblingCount] is the parent's child count, which bounds the block's
   /// Move Down.
   ///
-  /// Desktop-only by construction: folding is a Ledger rendering, and
-  /// `effectiveSequencerDensity` never resolves Ledger on a phone.
+  /// Folding is a Ledger rendering, so it shows wherever the canvas is wide
+  /// enough for the ledger: a desktop, a tablet, a phone on its side.
   Widget _buildFoldEntry(
     BuildContext context,
     WidgetRef ref, {

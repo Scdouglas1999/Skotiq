@@ -823,7 +823,10 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   ref.listen(appSettingsProvider, (prev, next) {
     // On a linked client these settings mirror the host's, as markers when
     // the link has no admin access; they are not this computer's credentials.
-    if (ref.read(isRemoteModeProvider)) return;
+    // This listener belongs to the local-mode router and can fire once more
+    // while the switch to a link rebuilds it, when this provider may no
+    // longer read through `ref`; ask the container for the current mode.
+    if (ref.container.read(isRemoteModeProvider)) return;
     final before = prev?.valueOrNull;
     final after = next.valueOrNull;
     if (before == null || after == null) return;

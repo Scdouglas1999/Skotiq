@@ -118,6 +118,23 @@ computer and ignores the remembered one. Whether an instance is the imaging
 computer or a linked client is decided once, when it starts; changing it
 restarts the app.
 
+## Running the imaging computer headless for phones
+
+A plain `skotiq --headless` listens on `127.0.0.1` only, so phones and other
+computers cannot reach it. Start it in one of these ways to serve the local
+network:
+
+- `skotiq --headless --require-auth` generates a token at startup. Phones pair
+  as described below and each receives its own token; you never type the
+  generated one.
+- `skotiq --headless --auth-token=<token>` (or `SKOTIQ_AUTH_TOKEN`) sets a
+  fixed admin token, for scripts and other tools that send it themselves.
+
+Add `--port=<n>` to change the port from 8080. At startup the service prints
+the addresses it serves and whether a token is required. See
+[headless-secure-setup.md](headless-secure-setup.md) for every bind and token
+option.
+
 ## Pairing model
 
 1. Enable **Remote access** on the imaging computer.

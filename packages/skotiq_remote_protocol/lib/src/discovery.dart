@@ -158,6 +158,8 @@ class DiscoveredServer {
     String? hostName,
     String? platform,
     String? hostMode,
+    // A token the host refused: drop it so the next connect pairs.
+    bool clearAuthToken = false,
   }) {
     return DiscoveredServer(
       host: host ?? this.host,
@@ -169,7 +171,7 @@ class DiscoveredServer {
       authRequired: authRequired ?? this.authRequired,
       authenticationMode: authenticationMode ?? this.authenticationMode,
       pairingSupported: pairingSupported ?? this.pairingSupported,
-      authToken: authToken ?? this.authToken,
+      authToken: clearAuthToken ? null : authToken ?? this.authToken,
       fingerprint: fingerprint ?? this.fingerprint,
       lanPairing: lanPairing ?? this.lanPairing,
       scheme: scheme ?? this.scheme,

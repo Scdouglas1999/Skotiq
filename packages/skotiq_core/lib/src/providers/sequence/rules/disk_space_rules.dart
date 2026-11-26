@@ -1,6 +1,8 @@
 import '../../../models/sequence/sequence_models.dart';
 import '../../../services/disk_space_guard.dart';
+import '../../../models/disk_space.dart';
 import '../../disk_space_provider.dart';
+import '../../host_role.dart' show remoteHostProvider;
 import '../sequence_validation.dart';
 import '../../../models/sequence/validation/validation_issue.dart';
 
@@ -47,18 +49,37 @@ class DiskSpaceProjectionRule implements AsyncSequenceValidator {
           resolutionHint: projection.detail,
         ),
       ];
-    } catch (e) {
+    } on DiskSpaceException catch (e) {
+      if (e.kind != DiskSpaceFailureKind.pathMissing) return [_checkFailed(e)];
+      // On the host, ImageOutputPathRule already reports a missing folder.
+      // A linked client cannot look at the host's disk, so this is where it
+      // learns the run would be refused.
+      if (ctx.ref.read(remoteHostProvider) == null) return const [];
       return [
         ValidationIssue(
-          severity: ValidationSeverity.warning,
-          category: ValidationCategory.diskSpace,
-          title: 'Disk-space check failed',
+          severity: ValidationSeverity.error,
+          category: ValidationCategory.settings,
+          title: 'Capture folder missing',
           description:
-              'Could not query free space on the capture directory: $e',
+              'The capture folder ${e.path} is not on the imaging computer, '
+              'so the run would be refused. Its drive may not be mounted.',
           resolutionHint:
-              'Verify the capture directory in Settings > Files & storage is valid and accessible.',
+              'Reconnect the drive, or choose another folder in Settings > '
+              'Files & storage.',
+          code: 'image_output_path_missing',
         ),
       ];
+    } catch (e) {
+      return [_checkFailed(e)];
     }
   }
+
+  ValidationIssue _checkFailed(Object e) => ValidationIssue(
+    severity: ValidationSeverity.warning,
+    category: ValidationCategory.diskSpace,
+    title: 'Disk-space check failed',
+    description: 'Could not query free space on the capture directory: $e',
+    resolutionHint:
+        'Verify the capture directory in Settings > Files & storage is valid and accessible.',
+  );
 }

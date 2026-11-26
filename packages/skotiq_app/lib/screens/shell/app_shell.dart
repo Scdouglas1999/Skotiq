@@ -35,6 +35,8 @@ import 'widgets/startup_splash_gate.dart';
 import 'widgets/window_chrome.dart';
 import 'widgets/side_navigation.dart';
 import 'shell_chrome.dart';
+import 'checkpoint_recovery_rule.dart';
+export 'checkpoint_recovery_rule.dart';
 import 'shell_navigation.dart';
 import 'phone_bar_status.dart';
 import 'widgets/skotiq_bottom_navigation.dart';
@@ -682,9 +684,19 @@ class _AppShellState extends ConsumerState<AppShell> {
                                           // pane — the sidebar runs the full
                                           // window height, so nothing spans
                                           // the window's foot.
+                                          // With the bottom nav under it,
+                                          // the nav takes the system inset;
+                                          // the bar taking it too left a
+                                          // band of empty space between them.
                                           if (!keyboardVisible)
-                                            RunningSequenceMiniBar(
-                                              currentLocation: currentLocation,
+                                            MediaQuery.removePadding(
+                                              context: context,
+                                              removeBottom:
+                                                  useBottomNav && !phoneRail,
+                                              child: RunningSequenceMiniBar(
+                                                currentLocation:
+                                                    currentLocation,
+                                              ),
                                             ),
                                         ],
                                       ),

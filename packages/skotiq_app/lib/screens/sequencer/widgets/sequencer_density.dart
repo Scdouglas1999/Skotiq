@@ -44,19 +44,6 @@ enum SequencerDensity {
   static const defaultDensity = SequencerDensity.ledger;
 }
 
-/// The density the tree may actually render at.
-///
-/// The phone builder has its own row design (48 dp touch rows, no columns to
-/// align, no hover to reveal actions), so it always draws comfortable rows
-/// regardless of the stored preference — one settings row serves both
-/// builders, and only the desktop one offers the control.
-SequencerDensity effectiveSequencerDensity(
-  SequencerDensity preference, {
-  required bool isMobile,
-}) {
-  return isMobile ? SequencerDensity.comfortable : preference;
-}
-
 /// Persisted sequencer row density, backed by the `settingsDaoProvider`
 /// persistence pattern. A read or write failure surfaces through the
 /// [AsyncValue] rather than being swallowed — a silent fallback hides bugs.

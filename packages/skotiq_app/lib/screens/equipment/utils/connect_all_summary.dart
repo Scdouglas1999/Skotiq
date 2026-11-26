@@ -1,3 +1,4 @@
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -32,8 +33,18 @@ class ConnectAllFailure {
     return ConnectAllFailure(
       deviceType: event.deviceType,
       message: diagnosis.headline,
-      detail: '${diagnosis.headline}: $raw',
+      detail: '${diagnosis.headline}: ${_cause(raw)}',
     );
+  }
+
+  /// The driver's reason without the wrappers it gathered on the way up:
+  /// "Your equipment profile is missing a value: Failed to connect built-in
+  /// guider: Operation failed: requires …" said the failure three times.
+  static String _cause(String raw) {
+    final cause = userFacingError(
+      raw.replaceFirst(RegExp(r'^Failed to connect [^:]+: '), ''),
+    );
+    return cause.isEmpty ? raw : cause;
   }
 
   /// The device a sweep label names; the guide camera is a camera.

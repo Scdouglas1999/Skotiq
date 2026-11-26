@@ -47,6 +47,7 @@ class PositioningResult {
     this.provider,
     this.accessPointsUsed = 0,
     this.locationName,
+    this.altitudeMetres,
   });
 
   final double latitude;
@@ -70,6 +71,11 @@ class PositioningResult {
   /// How many access points the positioning service was given. Zero for every
   /// source but [PositioningSource.wifiScan].
   final int accessPointsUsed;
+
+  /// Height of a satellite fix, in metres, when the platform measured one
+  /// (it reports a vertical accuracy). Null for every other source: Wi-Fi and
+  /// IP lookups give no height.
+  final double? altitudeMetres;
 
   /// City/region label, when the answering service supplied one. The
   /// positioning services return coordinates only.

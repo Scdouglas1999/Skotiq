@@ -191,6 +191,26 @@ void main() {
     expect(container.read(appSettingsProvider).value!.theme, 'light');
   });
 
+  test('a solver path in a settings snapshot reaches the preference', () async {
+    when(() => backend.getPlateSolverConfig()).thenAnswer(
+      (_) async => const PlateSolverPreference(choice: PlateSolverChoice.astap),
+    );
+    when(() => backend.setPlateSolverConfig(any())).thenAnswer((_) async {});
+    container = build();
+    await container.read(appSettingsProvider.future);
+
+    await container
+        .read(appSettingsProvider.notifier)
+        .applyRemoteSettings(const models.AppSettings(astapPath: '/opt/astap'));
+
+    final written =
+        verify(() => backend.setPlateSolverConfig(captureAny())).captured.last
+            as PlateSolverPreference;
+    expect(written.astapPath, '/opt/astap');
+    expect(written.choice, PlateSolverChoice.astap);
+    expect(container.read(appSettingsProvider).value!.astapPath, '/opt/astap');
+  });
+
   test('loading settings refreshes a stale projection', () async {
     // A profile seeded by an older build: the row says ASTAP...
     await database.settingsDao.setSetting('plate_solver', 'ASTAP');

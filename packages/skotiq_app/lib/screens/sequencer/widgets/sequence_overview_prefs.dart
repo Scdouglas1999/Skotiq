@@ -29,15 +29,15 @@ class SequenceOverviewPrefs {
   /// Nothing chosen yet: every density answers with its own default.
   static const defaults = SequenceOverviewPrefs._(<SequencerDensity, bool>{});
 
-  /// Ledger's overview is on out of the box and the other two densities' is
-  /// off (spec §7): the gutter is the only thing that makes a 40-step night
-  /// navigable at 28 px a row, while the strip costs 80 px of the tree the
-  /// comfortable rows already need.
-  static bool defaultVisibleIn(SequencerDensity density) =>
-      density == SequencerDensity.ledger;
+  /// The overview strip is off until asked for: it costs 80 px of the tree
+  /// the rows already need.
+  static bool defaultVisibleIn(SequencerDensity density) => false;
 
+  /// Ledger has no overview: its colored blocks repeated the rows beside
+  /// them and took width the step names need.
   bool visibleIn(SequencerDensity density) =>
-      _chosen[density] ?? defaultVisibleIn(density);
+      density != SequencerDensity.ledger &&
+      (_chosen[density] ?? defaultVisibleIn(density));
 
   SequenceOverviewPrefs withVisibility(
     SequencerDensity density,
@@ -132,10 +132,8 @@ String sequenceOverviewToggleLabel({
   required SequencerDensity density,
   required bool visible,
 }) {
-  final noun = density == SequencerDensity.ledger ? 'overview gutter' : 'map';
-  return visible ? 'Hide the $noun' : 'Show the $noun';
+  return visible ? 'Hide the map' : 'Show the map';
 }
 
 /// The one word the labelled tier puts on the button, for the same reason.
-String sequenceOverviewButtonLabel(SequencerDensity density) =>
-    density == SequencerDensity.ledger ? 'Gutter' : 'Map';
+String sequenceOverviewButtonLabel(SequencerDensity density) => 'Map';

@@ -23,6 +23,7 @@ export 'src/utils/animation_duration.dart';
 export 'src/utils/menu_position.dart';
 export 'src/utils/on_screen_animation_gate.dart';
 export 'src/utils/platform_shortcuts.dart';
+export 'src/utils/unfocus_on_keyboard_close.dart';
 export 'src/utils/text_measure.dart';
 
 export 'src/components/brand/brand.dart';

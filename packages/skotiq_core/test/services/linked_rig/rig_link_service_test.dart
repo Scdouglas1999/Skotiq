@@ -22,6 +22,7 @@ class _FakeClient extends RemotePairingClient {
     required String deviceId,
     required String deviceName,
     String deviceType = 'mobile',
+    String? requestedScope,
   }) async {
     calls.add({'id': deviceId, 'name': deviceName, 'type': deviceType});
     if (throwOnCall != null) throw throwOnCall!;

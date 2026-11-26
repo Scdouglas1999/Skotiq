@@ -6,6 +6,7 @@ import 'package:skotiq_core/services.dart';
 
 import '../../../../utils/guide_distance.dart';
 import '../../../../services/night_actions/night_action_controller.dart';
+import '../../data/plan/night_header_provider.dart' show nightRunEndingProvider;
 import '../../data/plan/night_run_phase_provider.dart';
 import '../../data/plan/plan_steps_provider.dart';
 import '../../data/session/session_format.dart';
@@ -190,6 +191,16 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
   String? detail;
   var titleKey =
       'nightActivity${kind.name[0].toUpperCase()}${kind.name.substring(1)}';
+  // "Sequence finished" under a header pill that says "Stopped": the card
+  // says how the run ended, as the pill does.
+  if (kind == NightActivityKind.finished) {
+    titleKey = switch (ref.watch(nightRunEndingProvider)) {
+      NightRunEnding.completed => 'nightActivityCompleted',
+      NightRunEnding.stopped => 'nightActivityStopped',
+      NightRunEnding.failed => 'nightActivityFailed',
+      NightRunEnding.ended || null => 'nightActivityEnded',
+    };
+  }
   if (kind == NightActivityKind.capture) {
     final exposure = ref.watch(exposureProgressProvider);
     final wheel = ref.watch(filterWheelStateProvider);
@@ -209,7 +220,11 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
                   ? structured.durationSecs
                   : node is ExposureNode
                       ? node.durationSecs
-                      : null,
+                      // A Smart Exposure step (what Image tonight builds)
+                      // takes the length of the filter plan it is on.
+                      : node is SmartExposureNode
+                          ? _smartPlanSecs(node, structured)
+                          : null,
               ' s')),
       metric('nightPanelGain', camera.gain?.toString()),
       metric('nightPanelOffset', camera.offset?.toString()),
@@ -349,3 +364,15 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
     metrics: metrics,
   );
 });
+
+/// The sub-exposure length of the filter plan [node] is taking: the plan the
+/// run reports when it does, else the plan for the filter in the wheel.
+double? _smartPlanSecs(SmartExposureNode node, Object? structured) {
+  if (structured is SmartExposureInstructionProgressDetail &&
+      structured.planIndex >= 0 &&
+      structured.planIndex < node.plans.length) {
+    return node.plans[structured.planIndex].durationSecs;
+  }
+  if (node.plans.length == 1) return node.plans.single.durationSecs;
+  return null;
+}

@@ -725,7 +725,24 @@ impl Run {
     /// A trigger that parked the rig has already stopped the guider. Returns
     /// what the operator needs to hear about a guider that is still guiding.
     async fn end_the_runs_guiding(&self, result: NodeStatus) -> Option<String> {
-        if result != NodeStatus::Cancelled || self.teardown.parked_by_trigger() {
+        if result == NodeStatus::Success {
+            // A run that ran to its end leaves no hold behind: the park's
+            // "paused while the mount moves" read on after the night (night
+            // test 2026-11-26). A guider still guiding keeps what it has; a
+            // failed run keeps the reason that may explain it.
+            let guiding = matches!(
+                self.device_ops.guider_get_status().await,
+                Ok(status) if status.is_guiding
+            );
+            if !guiding {
+                self.device_ops.guider_note_stop_reason(None).await;
+            }
+            return None;
+        }
+        if result != NodeStatus::Cancelled {
+            return None;
+        }
+        if self.teardown.parked_by_trigger() {
             return None;
         }
         let trigger_state = self.triggers.read().await.state();

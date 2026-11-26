@@ -11,11 +11,17 @@ part of '../weather_screen.dart';
 String weatherSafetyStatusText({
   required WeatherSafetyStatus status,
   required bool monitoring,
+  bool safetyMonitor = false,
   DateTime? snoozeUntil,
   DateTime? now,
 }) {
   if (!monitoring) {
-    return 'Weather safety is off, so conditions are not being checked.';
+    // The standard Weather Unsafe trigger reads a connected safety monitor
+    // whether or not weather safety is on.
+    return safetyMonitor
+        ? 'Weather safety is off. The safety monitor still stops a run when '
+            'it reads unsafe.'
+        : 'Weather safety is off, so conditions are not being checked.';
   }
   switch (status) {
     case WeatherSafetyStatus.safe:
@@ -76,13 +82,22 @@ String weatherPolicyArmedLabel({
 ///
 /// The long form lives in the conditions HUD; this is the glanceable version,
 /// and it keeps the monitoring-off distinction —
-/// "Not monitored" is not "Safe".
+/// "Not monitored" is not "Safe". With weather monitoring off, a connected
+/// safety monitor still guards the run (the Weather Unsafe trigger reads it),
+/// so its reading is the verdict; "Not monitored" only when nothing watches.
 @visibleForTesting
 String weatherSafetyChipLabel({
   required WeatherSafetyStatus status,
   required bool monitoring,
+  SafetySourceReading monitor = SafetySourceReading.absent,
 }) {
-  if (!monitoring) return 'Not monitored';
+  if (!monitoring) {
+    return switch (monitor) {
+      SafetySourceReading.safe => 'Safe',
+      SafetySourceReading.unsafe => 'Unsafe',
+      _ => 'Not monitored',
+    };
+  }
   switch (status) {
     case WeatherSafetyStatus.safe:
       return 'Safe';
@@ -99,8 +114,15 @@ String weatherSafetyChipLabel({
 ChipTone weatherSafetyChipTone({
   required WeatherSafetyStatus status,
   required bool monitoring,
+  SafetySourceReading monitor = SafetySourceReading.absent,
 }) {
-  if (!monitoring) return ChipTone.neutral;
+  if (!monitoring) {
+    return switch (monitor) {
+      SafetySourceReading.safe => ChipTone.success,
+      SafetySourceReading.unsafe => ChipTone.error,
+      _ => ChipTone.neutral,
+    };
+  }
   switch (status) {
     case WeatherSafetyStatus.safe:
       return ChipTone.success;
@@ -155,6 +177,8 @@ class _SafetyDisclosure extends ConsumerWidget {
                 weatherSafetyStatusText(
                   status: status,
                   monitoring: monitoring,
+                  safetyMonitor: safetyState.safetyMonitorReading !=
+                      SafetySourceReading.absent,
                   snoozeUntil: safetyState.snoozeUntil,
                 ),
                 style: SkotiqTypography.bodySm.copyWith(

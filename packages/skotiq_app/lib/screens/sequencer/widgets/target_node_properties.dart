@@ -126,7 +126,12 @@ class TargetGroupProperties extends ConsumerWidget {
           // Name resolution: a named target must resolve to coordinates.
           // Otherwise "M31" sitting at the 0h/+0° default is a runnable state
           // that every downstream surface reports as a real pointing.
-          _CoordinateLookupSection(colors: colors, node: node),
+          // Spaced like "Frame target" below: flush, the button touched the
+          // Rotation row.
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: _CoordinateLookupSection(colors: colors, node: node),
+          ),
           NodePropertyField(
             colors: colors,
             label: 'Rotation (optional)',

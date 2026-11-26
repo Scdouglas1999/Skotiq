@@ -310,10 +310,14 @@ class RemotePairingClient {
   ///
   /// Honours [pinnedFingerprint] the same way [verify] does: if a pin is set we
   /// confirm the server identity before trusting its token.
+  ///
+  /// [requestedScope] names the access asked for (`view`, `control`, `admin`);
+  /// a host that predates the field grants `control`.
   Future<RemotePairingVerifyResult?> lanClaim({
     required String deviceId,
     required String deviceName,
     String deviceType = 'mobile',
+    String? requestedScope,
   }) async {
     await _enforcePinning();
 
@@ -325,6 +329,7 @@ class RemotePairingClient {
             'deviceId': deviceId,
             'deviceName': deviceName,
             'deviceType': deviceType,
+            if (requestedScope != null) 'requestedScope': requestedScope,
           }),
         )
         .timeout(timeout);

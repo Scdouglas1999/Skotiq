@@ -142,8 +142,10 @@ String _nextLine(
   final current = status.currentTargetName;
   switch (status.state) {
     case SchedulerState.running:
-      return current != null
-          ? 'Imaging $current'
+      if (current != null) return 'Imaging $current';
+      final until = _waitingUntil(rows, now);
+      return until != null
+          ? 'Waiting, nothing can be imaged until $until'
           : 'Waiting, nothing can be imaged right now';
     case SchedulerState.paused:
       return current != null ? 'Paused on $current' : 'Paused';
@@ -155,24 +157,37 @@ String _nextLine(
             ? 'Add a target to give it something to shoot'
             : 'No targets in this group';
       }
-      final later = [
-        for (final r in rows)
-          if (r.target.inAutopilot &&
-              !r.target.progress.isCompleted &&
-              (r.window?.start?.isAfter(now) ?? false))
-            r,
-      ]..sort((a, b) => a.window!.start!.compareTo(b.window!.start!));
       if (rows.every((r) => !r.target.inAutopilot)) {
         return 'Every target here is off its list';
       }
-      if (later.isNotEmpty) {
-        final first = later.first;
-        return 'Nothing can be imaged until '
-            '${ClockFormat.hm(first.window!.start!.toLocal())} '
-            '(${first.target.name} rises)';
-      }
+      final until = _waitingUntil(rows, now);
+      if (until != null) return 'Nothing can be imaged until $until';
       return 'Nothing can be imaged right now';
   }
+}
+
+/// When the first autopilot target becomes imageable tonight, and why it is
+/// not yet: "dark at 20:39", or "21:10 (M 42 climbs above the altitude
+/// floor)". Null when no target opens later tonight.
+String? _waitingUntil(List<_TargetRow> rows, DateTime now) {
+  final later = [
+    for (final r in rows)
+      if (r.target.inAutopilot &&
+          !r.target.progress.isCompleted &&
+          (r.window?.start?.isAfter(now) ?? false))
+        r,
+  ]..sort((a, b) => a.window!.start!.compareTo(b.window!.start!));
+  if (later.isEmpty) return null;
+  final first = later.first;
+  final window = first.window!;
+  final at = ClockFormat.hm(window.start!.toLocal());
+  // A window that opens at dusk is waiting for dark, not for the target: a
+  // target already high in the evening sky does not "rise".
+  if (window.start!.difference(window.dusk).abs() <
+      const Duration(minutes: 2)) {
+    return 'dark at $at';
+  }
+  return '$at (${first.target.name} clears the altitude floor)';
 }
 
 /// The list side of the tab: toolbar, count, the rows and the week ahead.

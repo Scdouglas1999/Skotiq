@@ -73,8 +73,10 @@ class _SequencerPageHeader extends ConsumerWidget {
           label: tab.label,
           icon: tab.icon,
           buttonKey: _buttonKeyFor(tab),
-          semanticLabel:
-              isPhone ? tab.label : '${tab.label} (Alt+${tab.index + 1})',
+          // A Fold or tablet has no keyboard to press Alt on.
+          semanticLabel: isPhone || !platformExpectsKeyboard()
+              ? tab.label
+              : '${tab.label} (Alt+${tab.index + 1})',
         ),
     ];
 
@@ -222,12 +224,26 @@ class _SequencerPageHeader extends ConsumerWidget {
           variant: ButtonVariant.secondary,
           onPressed: onResume,
         ),
-      SkotiqButton(
-        key: TourTarget.sequencerTransport.key,
-        label: 'Stop',
-        icon: LucideIcons.square,
-        variant: ButtonVariant.destructive,
-        onPressed: onStop,
+      // Hold to confirm, as the Tonight header does: a stray tap on a Fold or
+      // tablet must not end an overnight run.
+      Builder(
+        builder: (context) => HoldToConfirmButton(
+          key: TourTarget.sequencerTransport.key,
+          holdColor: context.skotiqColors.error,
+          confirmText: 'Hold to stop',
+          semanticsLabel: 'Stop the sequence',
+          onConfirmed: onStop,
+          child: IgnorePointer(
+            child: ExcludeSemantics(
+              child: SkotiqButton(
+                label: 'Stop',
+                icon: LucideIcons.square,
+                variant: ButtonVariant.destructive,
+                onPressed: () {},
+              ),
+            ),
+          ),
+        ),
       ),
     ];
   }

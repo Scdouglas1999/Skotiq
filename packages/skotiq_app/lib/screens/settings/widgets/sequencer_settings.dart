@@ -406,7 +406,8 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 SettingRow(
                   title: 'Park on unsafe weather',
                   subtitle: 'Park the mount and close the cover and dome when '
-                      'weather turns unsafe. When off, the run stops exposing '
+                      'weather turns unsafe. That ends the run; start it '
+                      'again once the sky clears. When off, the run stops exposing '
                       'and waits for safe weather; nothing is parked or '
                       'closed. Same setting as Weather Safety > Auto-park '
                       'mount.',

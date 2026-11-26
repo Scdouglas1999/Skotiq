@@ -395,7 +395,8 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
         SkotiqChip(
           label: '$infoCount ${infoCount == 1 ? 'note' : 'notes'}',
           icon: SkotiqIcons.info,
-          tone: ChipTone.primary,
+          // A note needs nothing done; the accent read as an error.
+          tone: ChipTone.info,
         ),
     ];
 

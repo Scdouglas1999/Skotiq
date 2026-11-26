@@ -249,7 +249,7 @@ class SchedulerDecision extends Equatable {
     'reasoning': reasoning,
     'scoredCandidates': scoredCandidates.map((s) => s.toJson()).toList(),
     'rejected': rejected.map((r) => r.toJson()).toList(),
-    'evaluatedAt': evaluatedAt.toIso8601String(),
+    'evaluatedAt': evaluatedAt.toUtc().toIso8601String(),
     'isSwitch': isSwitch,
   };
 

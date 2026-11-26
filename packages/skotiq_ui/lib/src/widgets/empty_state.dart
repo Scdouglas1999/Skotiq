@@ -72,60 +72,80 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
+    // Scrolls, rather than overflowing, when its slot is shorter than the
+    // message: a phone on its side gives an empty pane under a header
+    // little more than a line of height.
     return Padding(
       padding: _padding,
       child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: maxWidth),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(icon, size: iconSize, color: colors.textMuted),
-              SizedBox(height: _iconTitleGap),
-              Text(
-                title,
-                style: SkotiqTypography.sectionTitle.copyWith(
-                  color: colors.textPrimary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              if (body != null) ...<Widget>[
-                const SizedBox(height: titleBodyGap),
+        child: _ScrollWhenBounded(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: maxWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(icon, size: iconSize, color: colors.textMuted),
+                SizedBox(height: _iconTitleGap),
                 Text(
-                  body!,
-                  style: SkotiqTypography.bodySm.copyWith(
-                    color: colors.textSecondary,
+                  title,
+                  style: SkotiqTypography.sectionTitle.copyWith(
+                    color: colors.textPrimary,
                   ),
                   textAlign: TextAlign.center,
                 ),
+                if (body != null) ...<Widget>[
+                  const SizedBox(height: titleBodyGap),
+                  Text(
+                    body!,
+                    style: SkotiqTypography.bodySm.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                if (action != null) ...<Widget>[
+                  const SizedBox(height: actionGap),
+                  // The action is a node of its own.
+                  //
+                  // A screen with a keyboard shortcut has a focusable ancestor
+                  // over everything on it — `CallbackShortcuts` builds a `Focus`,
+                  // and a `Focus` publishes `focusable` unless told not to — and
+                  // that one annotated node absorbs every descendant fragment
+                  // that is not bounded. An empty state is several paragraphs
+                  // around ONE interactive descendant, so the tap and the role of
+                  // that one control merged into the same node as all the words:
+                  // the Darkroom's "Nothing to open" state reached AT-SPI as a
+                  // single ~300-character button whose name was the screen title,
+                  // the reason, and this label twice over. There was no node
+                  // named for the action, so an exact-name lookup failed, and an
+                  // activation landed on a node whose extents were the whole
+                  // screen. States with two or more actions escaped it only
+                  // because two taps cannot merge into one node.
+                  //
+                  // The boundary stops the merge here: the words stay text and
+                  // the control keeps its own name and its own box.
+                  Semantics(container: true, child: action!),
+                ],
               ],
-              if (action != null) ...<Widget>[
-                const SizedBox(height: actionGap),
-                // The action is a node of its own.
-                //
-                // A screen with a keyboard shortcut has a focusable ancestor
-                // over everything on it — `CallbackShortcuts` builds a `Focus`,
-                // and a `Focus` publishes `focusable` unless told not to — and
-                // that one annotated node absorbs every descendant fragment
-                // that is not bounded. An empty state is several paragraphs
-                // around ONE interactive descendant, so the tap and the role of
-                // that one control merged into the same node as all the words:
-                // the Darkroom's "Nothing to open" state reached AT-SPI as a
-                // single ~300-character button whose name was the screen title,
-                // the reason, and this label twice over. There was no node
-                // named for the action, so an exact-name lookup failed, and an
-                // activation landed on a node whose extents were the whole
-                // screen. States with two or more actions escaped it only
-                // because two taps cannot merge into one node.
-                //
-                // The boundary stops the merge here: the words stay text and
-                // the control keeps its own name and its own box.
-                Semantics(container: true, child: action!),
-              ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// A scroll view where the height is bounded; the child as it is where it is
+/// not (in a list, where a scroll view inside would have no height to fill).
+class _ScrollWhenBounded extends StatelessWidget {
+  const _ScrollWhenBounded({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => constraints.hasBoundedHeight
+        ? SingleChildScrollView(child: child)
+        : child,
+  );
 }

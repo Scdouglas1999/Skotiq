@@ -167,7 +167,7 @@ class _SearchEntry extends StatelessWidget {
       child: Semantics(
         button: true,
         enabled: true,
-        label: 'Search the sky (${shortcutLabel('K')})',
+        label: 'Search the sky${shortcutSuffix('K')}',
         excludeSemantics: true,
         child: InkWell(
           onTap: onTap,
@@ -194,24 +194,26 @@ class _SearchEntry extends StatelessWidget {
                     ),
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: colors.surface.withValues(alpha: 0.8),
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline4),
-                    border:
-                        Border.all(color: colors.border.withValues(alpha: 0.5)),
-                  ),
-                  child: Text(
-                    shortcutLabel('K'),
-                    style: TextStyle(
-                      fontSize: SkotiqTypography.fontSize10,
-                      color: colors.textMuted,
+                // The keycap only where a keyboard is expected.
+                if (shortcutSuffix('K').isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: colors.surface.withValues(alpha: 0.8),
+                      borderRadius:
+                          BorderRadius.circular(SkotiqTokens.radiusInline4),
+                      border: Border.all(
+                          color: colors.border.withValues(alpha: 0.5)),
+                    ),
+                    child: Text(
+                      shortcutLabel('K'),
+                      style: TextStyle(
+                        fontSize: SkotiqTypography.fontSize10,
+                        color: colors.textMuted,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),

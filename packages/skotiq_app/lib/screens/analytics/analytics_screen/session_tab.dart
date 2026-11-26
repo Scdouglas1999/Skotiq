@@ -392,7 +392,9 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Quality badges are advisory. Right-click or long-press '
+                        'Quality badges are advisory. '
+                        // A phone has no right button to click.
+                        '${platformExpectsKeyboard() ? 'Right-click or long-press' : 'Long-press'} '
                         'a frame to reject it; to reject in bulk, use Science ▸ '
                         'Field quality ▸ Grade frames.',
                         style: SkotiqTypography.caption.copyWith(

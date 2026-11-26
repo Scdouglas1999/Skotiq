@@ -105,6 +105,13 @@ impl Vec2 {
     pub(crate) fn magnitude(self) -> f64 {
         (self.x * self.x + self.y * self.y).sqrt()
     }
+
+    pub(crate) fn scaled(self, factor: f64) -> Self {
+        Self {
+            x: self.x * factor,
+            y: self.y * factor,
+        }
+    }
 }
 
 #[cfg(test)]

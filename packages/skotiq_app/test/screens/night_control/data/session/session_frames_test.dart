@@ -106,6 +106,7 @@ void main() {
       nightSessionNowProvider
           .overrideWithValue(stats.startTime.add(const Duration(hours: 12))),
       nightCaptureFreeBytesProvider.overrideWithValue(null),
+      captureFolderMissingProvider.overrideWithValue(false),
     ]);
     expect(h.read(nightSessionStatsProvider).elapsed, const Duration(hours: 8));
   });
@@ -281,6 +282,7 @@ void main() {
     final h = await sessionHarness(
       overrides: <Override>[
         nightCaptureFreeBytesProvider.overrideWithValue(639 * (1 << 30)),
+        captureFolderMissingProvider.overrideWithValue(false),
         nightSessionNowProvider.overrideWithValue(kNight),
       ],
     );
@@ -321,6 +323,7 @@ void main() {
           (ref) => RunRecordNotifier(ref, RunRecord(stats: live)),
         ),
         nightCaptureFreeBytesProvider.overrideWithValue(null),
+        captureFolderMissingProvider.overrideWithValue(false),
       ],
     );
     final vm = await h.settle(nightSessionStatsProvider);
@@ -356,6 +359,7 @@ void main() {
           (ref) => RunRecordNotifier(ref, RunRecord(stats: live)),
         ),
         nightCaptureFreeBytesProvider.overrideWithValue(null),
+        captureFolderMissingProvider.overrideWithValue(false),
       ],
     );
     await _seedNight(h);

@@ -221,24 +221,6 @@ void main() {
     );
   });
 
-  testWidgets('the gutter jump scrolls the tree, not the pager',
-      (tester) async {
-    final seed = _tallSequence();
-    await pumpBuilder(tester, seed.sequence);
-    await drain(tester);
-
-    treePosition(tester).jumpTo(treePosition(tester).maxScrollExtent);
-    await drain(tester);
-
-    // Tap near the top of the gutter: it stands for the first rows, which are
-    // now off the top of the viewport.
-    final gutter = tester.getRect(find.byKey(sequenceGutterMapKey));
-    await expectRevealMovesOnlyTheTree(
-      tester,
-      () => tester.tapAt(Offset(gutter.center.dx, gutter.top + 6)),
-    );
-  });
-
   testWidgets('Find a step scrolls the tree, not the pager', (tester) async {
     final seed = _tallSequence();
     await pumpBuilder(tester, seed.sequence);

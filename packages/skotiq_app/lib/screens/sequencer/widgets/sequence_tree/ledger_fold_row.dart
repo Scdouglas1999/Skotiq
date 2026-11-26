@@ -232,49 +232,55 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
         const SizedBox(width: SkotiqTokens.spaceSm),
         Expanded(
           child: ExcludeSemantics(
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    group.label,
-                    style: SkotiqTypography.bodySm.copyWith(
-                      // A folded row stands for several steps, so it carries
-                      // the container weight even though its members are
-                      // leaves.
-                      fontWeight: FontWeight.w600,
-                      color: nameColor,
-                    ),
-                    softWrap: false,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (state.isRunning) ...[
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  _LedgerChip(
-                    colors: colors,
-                    label: 'Running',
-                    tone: colors.primary,
-                  ),
-                ],
-                const SizedBox(width: SkotiqTokens.spaceSm),
-                _LedgerChip(colors: colors, label: group.chipText),
-                if (summary.isNotEmpty) ...[
-                  const SizedBox(width: SkotiqTokens.spaceSm),
+            child: LayoutBuilder(builder: (context, slot) {
+              // As a ledger row: on a narrow canvas the label keeps the slot.
+              final roomy = slot.maxWidth >= _ledgerRoomyNameSlot;
+              return Row(
+                children: [
                   Flexible(
                     child: Text(
-                      summary,
-                      style: SkotiqTypography.labelQuiet.copyWith(
-                        color: colors.textMuted,
+                      group.label,
+                      style: SkotiqTypography.bodySm.copyWith(
+                        // A folded row stands for several steps, so it carries
+                        // the container weight even though its members are
+                        // leaves.
+                        fontWeight: FontWeight.w600,
+                        color: nameColor,
                       ),
                       softWrap: false,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (state.isRunning && roomy) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    _LedgerChip(
+                      colors: colors,
+                      label: 'Running',
+                      tone: colors.primary,
+                    ),
+                  ],
+                  if (roomy) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    _LedgerChip(colors: colors, label: group.chipText),
+                  ],
+                  if (summary.isNotEmpty && roomy) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    Flexible(
+                      child: Text(
+                        summary,
+                        style: SkotiqTypography.labelQuiet.copyWith(
+                          color: colors.textMuted,
+                        ),
+                        softWrap: false,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
+              );
+            }),
           ),
         ),
         _buildActions(context),

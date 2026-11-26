@@ -65,6 +65,12 @@ class _WeatherNotifier extends WeatherSafetyNotifier {
   }
 }
 
+class _MonitorNotifier extends SafetyMonitorStateNotifier {
+  _MonitorNotifier(super.ref, SafetyMonitorState value) {
+    state = value;
+  }
+}
+
 class _GuiderNotifier extends GuiderStateNotifier {
   _GuiderNotifier(super.ref, GuiderState value) {
     state = value;
@@ -93,14 +99,22 @@ ProviderContainer _container({
   bool diskUnknown = false,
   GuiderState guider = const GuiderState(),
   AppSettingsState settings = _settings,
+  SequenceExecutionState run = SequenceExecutionState.idle,
+  SafetyMonitorState monitor = const SafetyMonitorState(),
 }) {
   return ProviderContainer(
     overrides: [
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier()..seed((r) => r.copyWith(lifecycle: run)),
+      ),
       readinessReportProvider.overrideWithValue(report),
       weatherSafetyProvider.overrideWith(
         (ref) => _WeatherNotifier(ref, weather),
       ),
       guiderStateProvider.overrideWith((ref) => _GuiderNotifier(ref, guider)),
+      safetyMonitorStateProvider.overrideWith(
+        (ref) => _MonitorNotifier(ref, monitor),
+      ),
       appSettingsProvider.overrideWith(() => _SettingsNotifier(settings)),
       captureDirDiskSpaceProvider.overrideWith((ref) async* {
         yield diskUnknown ? null : (disk ?? _defaultDisk());
@@ -236,4 +250,70 @@ void main() {
       );
     },
   );
+
+  test('a running sequence blocks the autopilot start', () async {
+    for (final state in [
+      SequenceExecutionState.running,
+      SequenceExecutionState.paused,
+    ]) {
+      final container = _container(report: _report(), run: state);
+      addTearDown(container.dispose);
+      await container.read(captureDirDiskSpaceProvider.future);
+      final readiness = container.read(schedulerStartReadinessProvider);
+      expect(readiness.blocked, isTrue, reason: '$state');
+      expect(
+        readiness.blockers.map((i) => i.id),
+        contains(SchedulerReadinessIssueId.activeRun),
+      );
+    }
+    final idle = _container(report: _report());
+    addTearDown(idle.dispose);
+    await idle.read(captureDirDiskSpaceProvider.future);
+    expect(
+      idle.read(schedulerStartReadinessProvider).issues.map((i) => i.id),
+      isNot(contains(SchedulerReadinessIssueId.activeRun)),
+    );
+  });
+
+  group('weather safety off', () {
+    const off = WeatherSafetyState(
+      status: WeatherSafetyStatus.safe,
+      actions: WeatherSafetyActions.safe,
+      currentAlertLevel: AlertLevel.clear,
+      monitoringEnabled: false,
+    );
+    SafetyMonitorState monitor({required bool safe}) => SafetyMonitorState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'monitor-1',
+      isSafe: safe,
+      lastChecked: DateTime.now(),
+    );
+    SchedulerStartReadiness read(SafetyMonitorState m) {
+      final container = _container(weather: off, monitor: m);
+      addTearDown(container.dispose);
+      return container.read(schedulerStartReadinessProvider);
+    }
+
+    test('with no safety monitor, warns the run is unguarded', () {
+      expect(
+        read(const SafetyMonitorState()).warnings.map((i) => i.title),
+        contains('Weather monitoring disabled'),
+      );
+    });
+
+    test('a connected safety monitor still guards the run', () {
+      final readiness = read(monitor(safe: true));
+      expect(
+        [...readiness.warnings, ...readiness.blockers].map((i) => i.id),
+        isNot(contains(SchedulerReadinessIssueId.weather)),
+      );
+    });
+
+    test('a safety monitor reading unsafe blocks the start', () {
+      expect(
+        read(monitor(safe: false)).blockers.map((i) => i.title),
+        contains('Safety monitor reads unsafe'),
+      );
+    });
+  });
 }

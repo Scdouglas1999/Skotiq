@@ -87,7 +87,7 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
       onClose: () => Navigator.of(context).pop(_changed),
       actions: [
         SkotiqButton(
-          label: _isAccepted ? 'Flag as poor quality' : 'Restore as good',
+          label: _isAccepted ? 'Reject frame' : 'Restore frame',
           icon: _isAccepted ? LucideIcons.flag : LucideIcons.check,
           variant: ButtonVariant.secondary,
           onPressed: _busy ? null : _toggleAccepted,

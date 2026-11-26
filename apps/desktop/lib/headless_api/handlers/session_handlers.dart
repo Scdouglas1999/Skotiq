@@ -458,7 +458,9 @@ class SessionHandlers implements RouteSource {
           optionalString(payload, 'rejectionReason') ?? 'rejected',
         );
       } else if (payload['isAccepted'] == true) {
-        await imagesDao.acceptImage(iid);
+        // Through the repository: a restored frame also leaves the reject
+        // folder.
+        await container.read(imagingRecordsProvider).acceptImage(iid);
       }
     }
 

@@ -374,7 +374,12 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     final fix = detection.fix;
     _latController.text = _trimNumber(detection.latitude);
     _lonController.text = _trimNumber(detection.longitude);
-    if (!detection.keptElevation) _elevController.clear();
+    final measured = detection.measuredElevation;
+    if (measured != null) {
+      _elevController.text = _trimNumber(measured);
+    } else if (!detection.keptElevation) {
+      _elevController.clear();
+    }
     setState(() {
       _latError = null;
       _lonError = null;
@@ -383,8 +388,9 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     _publishBlockingReason();
     context.showSuccessSnackBar(
       'Coordinates set to ${detection.where}. ${fix.explanation}'
-      '${detection.keptElevation ? '' : ' Elevation cleared: enter the '
-          'elevation for this site.'}'
+      '${measured != null ? ' Elevation ${measured.toStringAsFixed(0)} m '
+          'from the GPS fix.' : detection.keptElevation ? '' : ' Elevation '
+          'cleared: enter the elevation for this site.'}'
       // The wizard has no map and no place search, so the nudge points at the
       // fields directly below.
       '${fix.isPrecise ? '' : detection.attempt.canRetryWithWifi ? ' Turn Wi-Fi on for a precise fix.' : ' Correct the coordinates below if it is off.'}',

@@ -91,7 +91,13 @@ class NightSessionEventsNotifier extends StateNotifier<NightSessionEvents> {
       hostNightHistoryProvider,
       (_, next) {
         final history = next.valueOrNull;
-        if (history != null) _addEarlier(history.events);
+        // The host's history lands while the panels that read this notifier
+        // rebuild; changing it during their build is refused.
+        if (history != null) {
+          scheduleMicrotask(() {
+            if (mounted) _addEarlier(history.events);
+          });
+        }
       },
       fireImmediately: true,
     );

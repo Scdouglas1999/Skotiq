@@ -290,7 +290,7 @@ Sequence buildCalibrationSequence({
     for (final dark in needs.darks.where((d) => d.setPointC == setPoint)) {
       add(
         ExposureNode(
-          id: 'eon-dark-${index++}',
+          id: '$kEonDarkIdPrefix${index++}',
           name: 'Darks ${dark.label}',
           parentId: root,
           durationSecs: dark.exposureSecs,
@@ -309,7 +309,7 @@ Sequence buildCalibrationSequence({
     for (final bias in needs.bias.where((b) => b.setPointC == setPoint)) {
       add(
         ExposureNode(
-          id: 'eon-bias-${index++}',
+          id: '$kEonBiasIdPrefix${index++}',
           name: 'Bias ${gainOffsetLabel(bias.gain, bias.offset)}',
           parentId: root,
           durationSecs: biasExposureSecs,
@@ -374,3 +374,15 @@ bool isCalibrationOnlySequence(Sequence sequence) {
   }
   return calibrationFrames;
 }
+
+/// Id prefixes of the end-of-night plan's dark and bias steps. A linked
+/// phone never holds that plan; the running step's id is all it sees.
+const String kEonDarkIdPrefix = 'eon-dark-';
+const String kEonBiasIdPrefix = 'eon-bias-';
+
+/// The frame type of an end-of-night step, from its id; null for any other.
+FrameType? eonFrameTypeOfNodeId(String? id) => switch (id) {
+  final id? when id.startsWith(kEonDarkIdPrefix) => FrameType.dark,
+  final id? when id.startsWith(kEonBiasIdPrefix) => FrameType.bias,
+  _ => null,
+};

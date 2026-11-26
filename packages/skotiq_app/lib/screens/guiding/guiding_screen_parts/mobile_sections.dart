@@ -254,6 +254,34 @@ mixin _GuidingMobileSections
     final guiderId = ref.watch(guiderStateProvider).deviceId;
     final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
 
+    // The built-in guider's settings are shown here. Before, this tab held
+    // two buttons to Equipment, whose phone layout reaches the form only
+    // through a camera, mount or focuser card's Settings.
+    if (!isPhd2Guider && ref.watch(isBuiltinGuiderProvider)) {
+      final colors = SkotiqColors.of(context);
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Built-in guider',
+              style: SkotiqTypography.sectionTitle
+                  .copyWith(color: colors.textPrimary),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceXs),
+            Text(
+              'Skotiq calibrates this guider each time guiding starts. '
+              'Changes are sent together when you press Apply.',
+              style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            const BuiltinGuiderConfigForm(),
+          ],
+        ),
+      );
+    }
+
     if (!isPhd2Guider) {
       return Padding(
         padding: const EdgeInsets.all(SkotiqTokens.spaceMd),

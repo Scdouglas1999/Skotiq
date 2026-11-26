@@ -35,6 +35,8 @@ import 'widgets/planning_risks_banner.dart';
 import '../../router/planner_route.dart';
 import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
+import '../../router/sequencer_route.dart';
+import '../sequencer/sequencer_screen.dart';
 import '../../services/observing_site.dart';
 import '../../services/sequence_action_service.dart';
 import '../sequencer/widgets/preflight_validation_dialog.dart'

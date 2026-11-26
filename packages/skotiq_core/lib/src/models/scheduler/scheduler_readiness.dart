@@ -12,6 +12,9 @@ enum SchedulerReadinessIssueId {
   dawn,
   disk,
   remoteCompatibility,
+
+  /// A sequence the operator started holds the rig.
+  activeRun,
 }
 
 class SchedulerReadinessIssue {

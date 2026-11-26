@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
@@ -317,4 +318,24 @@ void main() {
         container.read(nightActivityProvider).kind, NightActivityKind.failed);
     expect(container.read(nightActivityProvider).context, isNull);
   });
+
+  // Night test 2026-11-26: the header pill said "Stopped" while the Overview
+  // card under it said "Sequence finished".
+  for (final (ending, key) in <(NightRunEnding?, String)>[
+    (NightRunEnding.completed, 'nightActivityCompleted'),
+    (NightRunEnding.stopped, 'nightActivityStopped'),
+    (NightRunEnding.ended, 'nightActivityEnded'),
+    (null, 'nightActivityEnded'),
+  ]) {
+    test('a finished run titled by how it ended: $ending', () {
+      final container = ProviderContainer(overrides: [
+        activeEquipmentProfileProvider.overrideWithValue(null),
+        nightRunPhaseProvider.overrideWithValue(NightRunPhase.finished),
+        nightActiveStepProvider.overrideWithValue(null),
+        nightRunEndingProvider.overrideWithValue(ending),
+      ]);
+      addTearDown(container.dispose);
+      expect(container.read(nightActivityProvider).title.key, key);
+    });
+  }
 }

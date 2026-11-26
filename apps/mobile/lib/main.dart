@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/connection/link_mismatch_actions.dart';
+import 'package:skotiq_app/screens/shell/checkpoint_recovery_rule.dart';
 import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_core/backend.dart';
@@ -515,8 +516,12 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         theme: theme,
         localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
         supportedLocales: SkotiqLocalizations.supportedLocales,
-        builder: (context, child) =>
-            RedNightScreen(child: child ?? const SizedBox.shrink()),
+        // The shell's own router app ends text editing on keyboard close;
+        // this covers the connection screen (pairing code, address).
+        builder: (context, child) => UnfocusOnKeyboardClose(
+          child: RedNightScreen(child: child ?? const SizedBox.shrink()),
+        ),
+        navigatorObservers: [UnfocusTextOnPopupObserver()],
         home: home,
       ),
     );

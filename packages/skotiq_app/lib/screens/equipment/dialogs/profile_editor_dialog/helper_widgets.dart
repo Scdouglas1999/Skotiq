@@ -216,12 +216,16 @@ class _IconOption extends StatelessWidget {
 
 class _ColorOption extends StatelessWidget {
   final Color? color;
+
+  /// The color's name, for a screen reader.
+  final String? name;
   final bool isSelected;
   final VoidCallback onTap;
   final SkotiqColors colors;
 
   const _ColorOption({
     required this.color,
+    this.name,
     required this.isSelected,
     required this.onTap,
     required this.colors,
@@ -233,7 +237,7 @@ class _ColorOption extends StatelessWidget {
       button: true,
       enabled: true,
       selected: isSelected,
-      label: color == null ? 'No accent color' : 'Accent color',
+      label: color == null ? 'No accent color' : 'Accent color: $name',
       onTap: onTap,
       excludeSemantics: true,
       child: GestureDetector(
@@ -327,7 +331,7 @@ class _DeviceRow extends StatelessWidget {
   final List<_DeviceChoice> choices;
   final void Function(String? id, String? name) onDeviceSelected;
   final VoidCallback onClear;
-  final VoidCallback onScan;
+  final Future<void> Function() onScan;
   final SkotiqColors colors;
 
   const _DeviceRow({
@@ -416,7 +420,7 @@ class _DevicePicker extends StatefulWidget {
   final String? deviceId;
   final List<_DeviceChoice> choices;
   final void Function(String? id, String? name) onSelected;
-  final VoidCallback onScan;
+  final Future<void> Function() onScan;
   final SkotiqColors colors;
 
   const _DevicePicker({
@@ -438,6 +442,32 @@ class _DevicePickerState extends State<_DevicePicker> {
 
   final _menuKey = GlobalKey<PopupMenuButtonState<String>>();
 
+  /// A scan asked for from this list is under way; the closed control says
+  /// so, as the list closed on the tap.
+  bool _scanning = false;
+
+  Future<void> _scanThenReopen() async {
+    setState(() => _scanning = true);
+    try {
+      await widget.onScan();
+    } on Object catch (e) {
+      // The discovery provider shows its own failure; the list still reopens.
+      debugPrint('Scan for devices failed: $e');
+    }
+    // The results land in the provider; this row gets them on the next
+    // build. Opened before it, the list showed the scan's cleared state.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    setState(() => _scanning = false);
+    // Only while the editor is still what the operator is looking at: not
+    // over another list, a dialog, or a field they went on to type in.
+    final editing = FocusManager.instance.primaryFocus?.context
+            ?.findAncestorStateOfType<EditableTextState>() !=
+        null;
+    if (ModalRoute.of(context)?.isCurrent != true || editing) return;
+    _menuKey.currentState?.showButtonMenu();
+  }
+
   String? get _selectedName {
     final id = widget.deviceId;
     if (id == null) return null;
@@ -453,7 +483,8 @@ class _DevicePickerState extends State<_DevicePicker> {
     return Semantics(
       button: true,
       enabled: true,
-      label: '${widget.label}: ${selectedName ?? 'choose a device'}',
+      label: '${widget.label}: '
+          '${_scanning ? 'scanning for devices' : selectedName ?? 'choose a device'}',
       onTap: () {
         FocusManager.instance.primaryFocus?.unfocus();
         _menuKey.currentState?.showButtonMenu();
@@ -471,10 +502,9 @@ class _DevicePickerState extends State<_DevicePicker> {
             if (value == _manualValue) {
               _showManualEntryDialog(context);
             } else if (value == _scanValue) {
-              // The parent watches the discovery results, so the list fills in
-              // when the scan lands.
-              context.showInfoSnackBar('Scanning for devices…');
-              widget.onScan();
+              // A snackbar would sit behind this dialog, and the list closed
+              // on the tap: reopen it, filled, when the scan lands.
+              unawaited(_scanThenReopen());
             } else {
               final choice =
                   widget.choices.where((c) => c.id == value).firstOrNull;
@@ -536,11 +566,13 @@ class _DevicePickerState extends State<_DevicePicker> {
               children: [
                 Expanded(
                   child: Text(
-                    selectedName ?? 'Choose a device…',
+                    _scanning
+                        ? 'Scanning…'
+                        : selectedName ?? 'Choose a device…',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: SkotiqTypography.input.copyWith(
-                      color: selectedName != null
+                      color: selectedName != null && !_scanning
                           ? colors.textPrimary
                           : colors.textMuted,
                     ),

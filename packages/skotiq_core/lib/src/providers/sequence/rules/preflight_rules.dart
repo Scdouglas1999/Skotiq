@@ -162,6 +162,28 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
       );
     }
 
+    // Darks the plan takes itself, at the same settings and temperature,
+    // cover their lights: the warning asked for darks the run was about to
+    // capture.
+    for (final node in sequence.enabledNodes) {
+      if (node is! ExposureNode || node.frameType != FrameType.dark) continue;
+      // Fewer than the library's quorum would still leave them short.
+      if (node.count < settings.darkLibraryMinCoverage) continue;
+      final binValue = _binningToInt(node.binning);
+      requirements.remove(
+        DarkFrameRequirement(
+          gain: node.gain ?? settings.defaultGain,
+          offset: node.offset ?? settings.defaultOffset,
+          durationSecs: node.durationSecs,
+          binX: binValue,
+          binY: binValue,
+          targetTemp: plannedTemps.containsKey(node.id)
+              ? plannedTemps[node.id]
+              : camTargetTemp,
+        ),
+      );
+    }
+
     if (requirements.isEmpty) return const [];
 
     // Query the dark library. On a remote-client slave the local dark library
@@ -302,6 +324,10 @@ Map<String, double?> _plannedSensorTemps(Sequence sequence, double? initial) {
     if (node == null || !node.isEnabled) return;
     if (node is CoolCameraNode) {
       current = node.targetTemp;
+    } else if (node is WarmCameraNode) {
+      // After a warm-up the sensor holds no setpoint: frames taken then
+      // match no cooled light.
+      current = null;
     } else if (node is ExposureNode) {
       temps[node.id] = current;
     }

@@ -12,6 +12,7 @@ import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show HoldToConfirmButton;
 
 import '../../harness/pump_app_screen.dart';
 
@@ -84,6 +85,14 @@ void main() {
       find.text('Start'),
       findsNothing,
       reason: 'the sequence is already running',
+    );
+    // A stray tap on a Fold or tablet must not end the night.
+    expect(
+      find.ancestor(
+        of: find.text('Stop'),
+        matching: find.byType(HoldToConfirmButton),
+      ),
+      findsOneWidget,
     );
   });
 

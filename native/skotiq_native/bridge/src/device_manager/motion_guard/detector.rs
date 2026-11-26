@@ -459,10 +459,14 @@ impl Detector {
         }
         if let (Some(a0), Some(a1), Some(a2)) = (s0.altitude_deg, s1.altitude_deg, s2.altitude_deg)
         {
+            // A dive moves an axis. The altitude alone also drops when the
+            // site changes under a still mount (a parked mount read -34.9
+            // after a GPS site update and raised a critical alarm).
             if a0 >= BELOW_HORIZON_DEG
                 && a1 < BELOW_HORIZON_DEG
                 && a2 < BELOW_HORIZON_DEG
                 && a0 - a2 > DIVE_DEG
+                && net > STOPPED_DEG_PER_SEC
             {
                 return Some(Finding::Motion {
                     kind: MotionKind::BelowHorizon,

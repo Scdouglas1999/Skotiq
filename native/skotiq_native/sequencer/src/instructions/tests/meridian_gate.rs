@@ -803,3 +803,77 @@ async fn the_flip_step_reads_the_runs_site() {
         Some("Meridian flip not yet required")
     );
 }
+
+/// The flip hold reaches clients as the step's progress. Sent as a bare
+/// lifecycle message it landed in the native status and nowhere else, so a
+/// phone showed a run sitting at its next frame for two minutes with no
+/// reason given.
+#[tokio::test]
+async fn the_flip_hold_is_reported_as_the_steps_progress() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ec = crate::node::context::ExecutionContext::new_for_test("hold-node".to_string());
+    ec.run.device_ops = ops;
+    ec.run.rig.camera_id = Some("camera-1".to_string());
+    ec.run.rig.mount_id = Some("mount-1".to_string());
+    ec.run.rig.longitude = Some(0.0);
+    let dir = std::env::temp_dir().join(format!("sk-mer-hold-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).expect("temp dir");
+    ec.run.rig.save_path = Some(dir.clone());
+
+    let trigger_state = Arc::new(tokio::sync::RwLock::new(
+        crate::triggers::TriggerState::new(),
+    ));
+    {
+        let mut state = trigger_state.write().await;
+        state.trigger_config.meridian_flip_minutes_past = Some(5.0);
+        state.target.target_ra = Some(1.0);
+        state.target.target_dec = Some(40.0);
+        state.telemetry.pier_side = Some(crate::PierSide::West);
+        state.target.current_hour_angle = Some(10.0 / 60.0);
+    }
+    ec.run.trigger_state = Some(trigger_state);
+    let lst =
+        crate::meridian::local_sidereal_time(crate::meridian::julian_day(&chrono::Utc::now()), 0.0);
+    ec.target_ra = Some((lst - 10.0 / 60.0 + 24.0) % 24.0);
+    ec.target_dec = Some(40.0);
+
+    let updates: Arc<std::sync::Mutex<Vec<crate::node::progress::ProgressUpdate>>> =
+        Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = updates.clone();
+    ec.progress_callback = Some(Arc::new(move |u| sink.lock().unwrap().push(u)));
+
+    let node_type = NodeType::TakeExposure(ExposureConfig {
+        count: 3,
+        duration_secs: 2.0,
+        frame_type: crate::FrameType::Light,
+        ..ExposureConfig::default()
+    });
+    let held = tokio::time::timeout(
+        Duration::from_millis(800),
+        crate::node::registry::instruction_for(&node_type)
+            .expect("an instruction node")
+            .execute("hold-node", &node_type, &mut ec),
+    )
+    .await;
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(
+        held.is_err(),
+        "a due flip holds the burst, not {:?}",
+        held.ok()
+    );
+
+    let updates = updates.lock().unwrap();
+    let hold = updates
+        .iter()
+        .find(|u| {
+            u.detail
+                .as_ref()
+                .is_some_and(|d| d.detail_text().starts_with("Waiting for the meridian flip"))
+        })
+        .expect("the hold is reported");
+    assert_eq!(hold.node_id, "hold-node");
+    assert!(
+        hold.instruction.is_some() && hold.progress_percent.is_some(),
+        "only instruction progress becomes an event a client receives"
+    );
+}

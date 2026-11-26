@@ -5,7 +5,10 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// The 28 px strip under the narrow page header (06 §Imaging, "Narrow").
+import '../../../utils/guide_distance.dart';
+
+/// The 28 px strip under the narrow page header (06 §Imaging, "Narrow"), and
+/// under a running plan's controls in the phone Sequencer.
 ///
 /// Below the shell breakpoint there is no instrument bar (04 §5), so this is
 /// the one place the rig's state is on screen while imaging. It is built from
@@ -25,6 +28,9 @@ class ImagingStatusStrip extends ConsumerWidget {
     final mountState = ref.watch(mountStateProvider);
     final guiderState = ref.watch(guiderStateProvider);
     final focuserState = ref.watch(focuserStateProvider);
+    final wheel = ref.watch(filterWheelStateProvider);
+    final wheelConnected =
+        wheel.connectionState == DeviceConnectionState.connected;
 
     final cameraConnected =
         cameraState.connectionState == DeviceConnectionState.connected;
@@ -32,6 +38,14 @@ class ImagingStatusStrip extends ConsumerWidget {
         focuserState.connectionState == DeviceConnectionState.connected;
     final guiderConnected =
         guiderState.connectionState == DeviceConnectionState.connected;
+    // While guiding, the strip carries the RMS: on a phone it is the only
+    // guiding readout, so nothing has to sit on the frame for it.
+    final guideRms = guiderConnected && guiderState.isGuiding
+        ? guideDistanceText(
+            ref.watch(guideStatsProvider).rmsTotal,
+            ref.watch(guideScaleProvider),
+          )
+        : null;
 
     return Container(
       height: ShellChromeMetrics.narrowStatusStripHeight,
@@ -56,6 +70,22 @@ class ImagingStatusStrip extends ConsumerWidget {
                   cameraConnected ? 'Camera connected' : 'Camera not connected',
               maxValueWidth: _valueMaxWidth,
             ),
+            // The filter only for a rig with a wheel: a pill that can only
+            // ever say "Not connected" is noise on a one-shot-colour rig.
+            if (wheelConnected) ...[
+              const InstrumentSeparator(),
+              InstrumentPill(
+                icon: SkotiqIcons.filter,
+                dotTone: wheel.isMoving
+                    ? InstrumentTone.warning
+                    : InstrumentTone.success,
+                value: wheel.isMoving
+                    ? 'Moving'
+                    : (wheel.currentFilterName ?? 'Ready'),
+                semanticLabel: 'Filter ${wheel.currentFilterName ?? 'wheel'}',
+                maxValueWidth: _valueMaxWidth,
+              ),
+            ],
             const InstrumentSeparator(),
             InstrumentPill(
               icon: SkotiqIcons.mount,
@@ -71,10 +101,13 @@ class ImagingStatusStrip extends ConsumerWidget {
               icon: SkotiqIcons.guider,
               dotTone: _tone(guiderState.connectionState),
               value: guiderConnected
-                  ? (guiderState.isGuiding ? 'Guiding' : 'Ready')
+                  ? (guideRms ?? (guiderState.isGuiding ? 'Guiding' : 'Ready'))
                   : 'Not connected',
+              mono: guideRms != null,
               semanticLabel: guiderConnected
-                  ? 'Guider ${guiderState.isGuiding ? 'guiding' : 'ready'}'
+                  ? (guideRms != null
+                      ? 'Guider guiding, RMS $guideRms'
+                      : 'Guider ${guiderState.isGuiding ? 'guiding' : 'ready'}')
                   : 'Guider not connected',
               maxValueWidth: _valueMaxWidth,
             ),

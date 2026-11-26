@@ -51,11 +51,31 @@ extension PlateSolveSettingsSection on AppSettingsNotifier {
     await _set(AppSettingDefs.plateSolver, label);
   }
 
-  Future<void> setAstapPath(String value) =>
-      _set(AppSettingDefs.astapPath, value);
+  Future<void> setAstapPath(String value) async {
+    await _writeSolverPaths(astapPath: value);
+    await _set(AppSettingDefs.astapPath, value);
+  }
 
-  Future<void> setAstrometryPath(String value) =>
-      _set(AppSettingDefs.astrometryPath, value);
+  Future<void> setAstrometryPath(String value) async {
+    await _writeSolverPaths(astrometryPath: value);
+    await _set(AppSettingDefs.astrometryPath, value);
+  }
+
+  /// Write solver program paths to the plate-solver preference, the store
+  /// the solver reads; the settings rows are copies of it.
+  Future<void> _writeSolverPaths({
+    String? astapPath,
+    String? astrometryPath,
+  }) async {
+    final service = ref.read(plateSolveServiceProvider);
+    final current = await service.getConfig();
+    await service.setConfig(
+      current.copyWith(astapPath: astapPath, astrometryPath: astrometryPath),
+    );
+    ref
+      ..invalidate(plateSolverPreferenceProvider)
+      ..invalidate(plateSolverDetectionProvider);
+  }
 
   Future<void> setPlateSolveTimeout(int value) =>
       _set(AppSettingDefs.plateSolveTimeout, value);

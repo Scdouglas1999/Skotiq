@@ -28,7 +28,7 @@ class NightAfterRunVm {
   /// The mount is connected and not parked.
   final bool mountUnparked;
 
-  /// The camera is connected with its cooler on.
+  /// The camera is connected with its cooler on and not warming up.
   final bool coolerOn;
 
   @override
@@ -54,7 +54,9 @@ final nightAfterRunProvider = Provider<NightAfterRunVm>((ref) {
     ),
     coolerOn: ref.watch(
       cameraStateProvider.select(
-        (c) => nightConnected(c.connectionState) && c.isCooling,
+        // A warm-up already under way (the end-of-night one after a run)
+        // has nothing left to ask of the operator.
+        (c) => nightConnected(c.connectionState) && c.isCooling && !c.isWarming,
       ),
     ),
   );

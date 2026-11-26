@@ -6,6 +6,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart' show eonFrameTypeOfNodeId;
 
 import '../tonight_night.dart';
 import '../../../../services/run_dashboard_providers.dart';
@@ -133,11 +134,29 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
     targetCount: tree?.targets.length,
     stepIndex: stepIndex >= 0 ? stepIndex + 1 : null,
     stepCount: tree?.steps.length,
-    waitingFor: activeTarget == null
-        ? null
-        : targetWaitMessage(progress?.nodeProgressDetail[activeTarget.id]),
-    currentFilter: _nonEmpty(progress?.currentFilter) ??
-        (activeNode is ExposureNode ? _nonEmpty(activeNode.filter) : null),
+    // A frame held for a meridian flip is a wait too: two minutes with no
+    // exposure and nothing on the header said why. The engine reports it as
+    // the running step's progress, not as the run's message.
+    waitingFor: (activeTarget == null
+            ? null
+            : targetWaitMessage(
+                progress?.nodeProgressDetail[activeTarget.id])) ??
+        flipWaitMessage(switch (progress?.currentNodeId) {
+          final id? => progress!.nodeProgressDetail[id],
+          null => null,
+        }),
+    // A dark or bias is taken with the cover on, wherever the wheel sits, so
+    // it reads as its frame type ("Dark 55 s"), not as the wheel's filter.
+    currentFilter: switch (activeNode) {
+      ExposureNode(:final frameType) when frameType.coverOnLabel != null =>
+        frameType.coverOnLabel,
+      // The end-of-night darks run a plan of their own the phone never
+      // holds: they read "G 55 s" from the wheel.
+      null when eonFrameTypeOfNodeId(progress?.currentNodeId) != null =>
+        eonFrameTypeOfNodeId(progress?.currentNodeId)!.coverOnLabel,
+      _ => _nonEmpty(progress?.currentFilter) ??
+          (activeNode is ExposureNode ? _nonEmpty(activeNode.filter) : null),
+    },
     currentExposureSecs:
         activeNode is ExposureNode ? activeNode.durationSecs : null,
     framesDone: frames?.captured,
@@ -156,17 +175,22 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
     stop: stop,
     startNow: startNow,
     startAtDark: startAtDark,
-    ending: phase == NightRunPhase.finished
-        ? switch (execution) {
-            SequenceExecutionState.completed => NightRunEnding.completed,
-            SequenceExecutionState.failed => NightRunEnding.failed,
-            _ => ref.watch(sequenceStopEvidenceProvider)?.author ==
-                    SequenceStopAuthor.operatorPress
-                ? NightRunEnding.stopped
-                : NightRunEnding.ended,
-          }
-        : null,
+    ending: ref.watch(nightRunEndingProvider),
   );
+});
+
+/// How the last run ended, once it has (null before then); the header pill
+/// and the Overview card both say it.
+final nightRunEndingProvider = Provider<NightRunEnding?>((ref) {
+  if (ref.watch(nightRunPhaseProvider) != NightRunPhase.finished) return null;
+  return switch (ref.watch(sequenceExecutionStateProvider)) {
+    SequenceExecutionState.completed => NightRunEnding.completed,
+    SequenceExecutionState.failed => NightRunEnding.failed,
+    _ => ref.watch(sequenceStopEvidenceProvider)?.author ==
+            SequenceStopAuthor.operatorPress
+        ? NightRunEnding.stopped
+        : NightRunEnding.ended,
+  };
 });
 
 String? _nonEmpty(String? s) => s == null || s.isEmpty ? null : s;

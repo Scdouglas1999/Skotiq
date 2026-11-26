@@ -35,8 +35,8 @@ _AnnotationSettings _$AnnotationSettingsFromJson(
   maxObjectsToDisplay: (json['maxObjectsToDisplay'] as num?)?.toInt() ?? 500,
   catalogBboxPaddingFraction:
       (json['catalogBboxPaddingFraction'] as num?)?.toDouble() ?? 0.05,
-  compassEnabled: json['compassEnabled'] as bool? ?? true,
-  scaleBarEnabled: json['scaleBarEnabled'] as bool? ?? true,
+  compassEnabled: json['compassEnabled'] as bool? ?? false,
+  scaleBarEnabled: json['scaleBarEnabled'] as bool? ?? false,
   gridType:
       $enumDecodeNullable(_$GridTypeEnumMap, json['gridType']) ?? GridType.none,
   showSolveResiduals: json['showSolveResiduals'] as bool? ?? false,

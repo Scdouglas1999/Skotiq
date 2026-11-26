@@ -15,7 +15,12 @@ class _TargetDetail extends ConsumerWidget {
     required this.onSetInAutopilot,
     required this.onRemoveFromGroup,
     required this.onLimitsChanged,
+    this.onOwnPage = false,
   });
+
+  /// Shown as its own page over the Plan (a phone): leaving for the
+  /// Sequencer closes that page first, or it stays on top of the Sequencer.
+  final bool onOwnPage;
 
   final _TargetRow row;
   final Project? group;
@@ -242,7 +247,15 @@ class _TargetDetail extends ConsumerWidget {
         ref: ref,
         target: suggestion,
       );
-      if (added && context.mounted) context.go(AppRoute.sequencer.path);
+      if (added && context.mounted) {
+        final router = GoRouter.of(context);
+        if (onOwnPage) Navigator.of(context).pop();
+        // Land on the plan the target went into, not whichever Sequencer
+        // tab was open last.
+        ref.read(sequencerTabProvider.notifier).state =
+            SequencerTab.builder.index;
+        router.go(AppRoute.sequencer.path);
+      }
     } catch (error) {
       if (!context.mounted) return;
       context.showErrorSnackBar(
@@ -432,6 +445,7 @@ class _TargetDetailPage extends ConsumerWidget {
                             onSetInAutopilot: onSetInAutopilot,
                             onRemoveFromGroup: onRemoveFromGroup,
                             onLimitsChanged: onLimitsChanged,
+                            onOwnPage: true,
                           ),
                         ),
                       ),

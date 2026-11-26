@@ -652,22 +652,25 @@ class _SearchHeaderState extends ConsumerState<SearchHeader> {
                           color: widget.colors.textMuted),
                       prefixIcon: Icon(SkotiqIcons.search,
                           size: 16, color: widget.colors.textMuted),
-                      suffixIcon: Container(
-                        margin: const EdgeInsets.all(8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: widget.colors.background,
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusInline4),
-                        ),
-                        child: Text(
-                          shortcutLabel('K'),
-                          style: TextStyle(
-                              fontSize: SkotiqTypography.fontSize10,
-                              color: widget.colors.textMuted),
-                        ),
-                      ),
+                      // The keycap only where a keyboard is expected.
+                      suffixIcon: shortcutSuffix('K').isEmpty
+                          ? null
+                          : Container(
+                              margin: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: widget.colors.background,
+                                borderRadius: BorderRadius.circular(
+                                    SkotiqTokens.radiusInline4),
+                              ),
+                              child: Text(
+                                shortcutLabel('K'),
+                                style: TextStyle(
+                                    fontSize: SkotiqTypography.fontSize10,
+                                    color: widget.colors.textMuted),
+                              ),
+                            ),
                       filled: true,
                       fillColor: widget.colors.surfaceAlt,
                       border: OutlineInputBorder(

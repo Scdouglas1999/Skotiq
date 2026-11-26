@@ -84,10 +84,13 @@ class MobilePairingService {
   /// before the minted token is trusted.
   Future<RemotePairingVerifyResult?> lanClaim() async {
     final id = await deviceId();
+    // Full control, as the code dialog pairs by default: a headless rig has
+    // no other screen to choose its capture folder, solver or backups on.
     return _client.lanClaim(
       deviceId: id,
       deviceName: deviceName(),
       deviceType: 'mobile',
+      requestedScope: 'admin',
     );
   }
 

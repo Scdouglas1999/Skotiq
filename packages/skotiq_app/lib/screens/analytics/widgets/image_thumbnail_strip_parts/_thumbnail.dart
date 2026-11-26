@@ -440,7 +440,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
               ),
               const SizedBox(width: 8),
               Text(
-                isAccepted ? 'Flag as poor quality' : 'Restore as good',
+                isAccepted ? 'Reject frame' : 'Restore frame',
                 style: SkotiqTypography.caption
                     .copyWith(color: colors.textPrimary),
               ),

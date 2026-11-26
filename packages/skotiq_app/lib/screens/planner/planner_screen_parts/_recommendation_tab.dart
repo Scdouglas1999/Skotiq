@@ -341,11 +341,15 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
         includeSessionPreamble: true,
       );
       if (!context.mounted) return;
+      // An open plan gets the target added, as the Targets tab's Build
+      // sequence does (one Undo takes it back out). It used to be replaced,
+      // so the same button did two different things depending on the tab.
+      final appended = ref.read(currentSequenceProvider) != null;
       final loaded = await loadPlanTonightSequenceIntoEditor(
         context: context,
         ref: ref,
         result: built,
-        replaceSequence: true,
+        replaceSequence: false,
       );
       if (!loaded || !context.mounted) return;
 
@@ -359,9 +363,16 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
         ),
       );
 
-      // Tonight is where a built night is started; the Sequencer stays one
-      // tap away from its plan card.
-      context.go(AppRoute.tonight.path);
+      if (appended) {
+        // Show where the target went in the plan.
+        ref.read(sequencerTabProvider.notifier).state =
+            SequencerTab.builder.index;
+        context.go(AppRoute.sequencer.path);
+      } else {
+        // Tonight is where a built night is started; the Sequencer stays one
+        // tap away from its plan card.
+        context.go(AppRoute.tonight.path);
+      }
     } on SmartNightBuildException catch (e) {
       if (!context.mounted) return;
       context.showErrorSnackBar(e.message);

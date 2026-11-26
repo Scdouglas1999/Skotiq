@@ -106,6 +106,11 @@ pub enum Effect {
     /// key applies it; see [`take_unplug`]. Only the first fire after arming
     /// unplugs; later fires just fail.
     Unplug { reorder: bool },
+    /// The sky turns bad: a safety monitor reads unsafe from the call this
+    /// fires on until the key is re-armed or cleared. Returns `Ok(())` and
+    /// latches, like [`Effect::Stall`]; the gate that consults the key reads
+    /// the latch through [`is_unsafe`]. Meant for `safetymonitor.status`.
+    Unsafe,
     /// The NYX-101 runaway (2026-10-17, 10-19, 11-08): after `delay_secs`
     /// the mount's Dec axis runs on its own at `deg_per_sec` for `run_secs`,
     /// ignoring every stop command, then the mount stops answering for
@@ -182,6 +187,8 @@ struct Registry {
     /// Keys an [`Effect::Unplug`] fired on: whether to reorder, and whether
     /// the gate has applied it yet.
     unplugged: HashMap<String, (bool, bool)>,
+    /// Keys latched unsafe by [`Effect::Unsafe`].
+    unsafe_keys: std::collections::HashSet<String>,
     /// Runaways latched by [`Effect::Runaway`], with when they were latched.
     runaway: HashMap<String, (std::time::Instant, Effect)>,
 }
@@ -249,6 +256,7 @@ pub fn arm(key: &str, spec: FaultSpec) {
     reg.stalled.remove(key);
     reg.backlash.remove(key);
     reg.unplugged.remove(key);
+    reg.unsafe_keys.remove(key);
     reg.runaway.remove(key);
 }
 
@@ -265,6 +273,7 @@ pub fn clear(key: &str) {
     reg.stalled.remove(key);
     reg.backlash.remove(key);
     reg.unplugged.remove(key);
+    reg.unsafe_keys.remove(key);
     reg.runaway.remove(key);
 }
 
@@ -279,6 +288,16 @@ pub fn clear_all() {
     reg.backlash.clear();
     reg.runaway.clear();
     reg.unplugged.clear();
+    reg.unsafe_keys.clear();
+}
+
+/// Whether an [`Effect::Unsafe`] has fired on `key` since it was armed.
+pub fn is_unsafe(key: &str) -> bool {
+    registry()
+        .lock()
+        .expect("sim fault registry poisoned")
+        .unsafe_keys
+        .contains(key)
 }
 
 /// The unplug an [`Effect::Unplug`] on `key` asked for and the gate has not
@@ -402,6 +421,10 @@ fn decide(key: &str) -> Decision {
             reg.backlash.insert(key.to_string(), steps);
             Decision::Proceed
         }
+        Effect::Unsafe => {
+            reg.unsafe_keys.insert(key.to_string());
+            Decision::Proceed
+        }
         Effect::Unplug { reorder } => {
             reg.unplugged
                 .entry(key.to_string())
@@ -509,6 +532,17 @@ pub fn arm_from_env() {
     let Ok(raw) = std::env::var("SKOTIQ_SIM_FAULTS") else {
         return;
     };
+    // Every simulated device connect calls this. Re-arming the same spec
+    // reset each fault's count, so `after(N)` restarted with every connect
+    // (eight times per host start); arm again only when the spec changes.
+    static ARMED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+    {
+        let mut armed = ARMED.lock().unwrap_or_else(|e| e.into_inner());
+        if armed.as_deref() == Some(raw.as_str()) {
+            return;
+        }
+        *armed = Some(raw.clone());
+    }
     match parse_spec_list(&raw) {
         Ok(specs) => {
             if let Ok(seed) = std::env::var("SKOTIQ_SIM_FAULT_SEED") {
@@ -534,7 +568,7 @@ pub fn arm_from_env() {
 ///
 /// Triggers: `once`, `times(N)`, `always`, `after(N)`, `every(N)`, `p(0.25)`.
 /// Effects: `error`, `error(msg)`, `notconnected`, `delay(MS)`,
-/// `delaythenerror(MS)`, `delaythenerror(MS,msg)`, `stall`, `backlash(STEPS)`,
+/// `delaythenerror(MS)`, `delaythenerror(MS,msg)`, `stall`, `unsafe`, `backlash(STEPS)`,
 /// `notimplemented`, `runaway(DEG_PER_S,RUN_S,BLACKOUT_S,DELAY_S)` (key
 /// `mount.runaway`, every argument optional).
 ///
@@ -668,6 +702,7 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
             Ok(Effect::DelayThenError(ms, message))
         }
         "stall" => Ok(Effect::Stall),
+        "unsafe" => Ok(Effect::Unsafe),
         "unplug" => match arg.map(str::trim) {
             None | Some("") => Ok(Effect::Unplug { reorder: false }),
             Some("reorder") => Ok(Effect::Unplug { reorder: true }),
@@ -740,7 +775,7 @@ fn parse_effect(raw: &str) -> Result<Effect, String> {
         }
         other => Err(format!(
             "unknown effect '{other}' (want error(msg)/notimplemented/notconnected/\
-             delay(MS)/delaythenerror(MS,msg)/stall/backlash(N)/unplug[(reorder)]/runaway(...)/externalslew(RA,DEC,DELAY))"
+             delay(MS)/delaythenerror(MS,msg)/stall/unsafe/backlash(N)/unplug[(reorder)]/runaway(...)/externalslew(RA,DEC,DELAY))"
         )),
     }
 }
@@ -1052,6 +1087,25 @@ mod tests {
                 "'{bad}' parsed successfully but is not a valid spec"
             );
         }
+    }
+
+    /// The sky turning bad: the monitor reads unsafe from the firing call on.
+    #[tokio::test]
+    async fn unsafe_latches_until_rearmed() {
+        const KEY: &str = "test_unsafe.status";
+        let key = KEY;
+        let _guard = Guard::new(&[KEY]).await;
+        let specs = parse_spec_list("safetymonitor.status=after(2):unsafe").unwrap();
+        assert_eq!(specs[0].1.effect, Effect::Unsafe);
+        arm(key, FaultSpec::new(Trigger::AfterCalls(1), Effect::Unsafe));
+        assert!(check(key).await.is_ok());
+        assert!(!is_unsafe(key));
+        assert!(check(key).await.is_ok());
+        assert!(is_unsafe(key), "fires on the second call and latches");
+        assert!(check(key).await.is_ok());
+        assert!(is_unsafe(key));
+        clear(key);
+        assert!(!is_unsafe(key));
     }
 
     /// The hub dropout: an unplug fires once per arming, and only the first

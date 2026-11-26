@@ -171,6 +171,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   final solver = ref.watch(nightSolverStatusProvider);
   final projection = ref.watch(nightDiskProjectionProvider);
   final freeBytes = ref.watch(nightCaptureFreeBytesProvider);
+  final folderMissing = ref.watch(captureFolderMissingProvider);
   final conditions = ref.watch(nightConditionsSourceProvider);
   final safety = ref.watch(nightSafetyReadingProvider);
   final planUnparks = ref.watch(nightPlanUnparksMountProvider);
@@ -339,6 +340,17 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
         ChecklistItemState.blocked,
         'nightSessionCheckDisk',
         detail: const NightText('nightSessionCheckDiskNoFolder'),
+        actionKey: 'nightSessionActionChoose',
+        route: _folderRoute,
+      ),
+    );
+  } else if (folderMissing) {
+    rows.add(
+      _row(
+        ChecklistItemId.disk,
+        ChecklistItemState.blocked,
+        'nightSessionCheckDisk',
+        detail: const NightText('nightSessionCheckDiskFolderMissing'),
         actionKey: 'nightSessionActionChoose',
         route: _folderRoute,
       ),

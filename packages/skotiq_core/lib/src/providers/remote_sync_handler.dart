@@ -10,7 +10,7 @@ import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/backend/host_mutation_event.dart';
 import '../models/backend/host_runtime_update.dart';
 import '../models/imaging/imaging_models.dart'
-    show CapturePreviewSource, ExposureSettings, FramePurpose;
+    show CapturePreviewSource, ExposureSettings, FramePurpose, FrameType;
 import '../services/capture_preview_loader.dart'
     show capturedImageDataFromResult;
 import '../services/imaging_service.dart'
@@ -19,6 +19,8 @@ import '../utils/device_id.dart' show kPhd2CanonicalId, kPhd2DisplayName;
 import '../utils/utc_timestamp.dart';
 import 'current_frame_analysis_provider.dart' show hostFrameSolvesProvider;
 import 'database_provider.dart';
+import '../database/database.dart' show DbCapturedImage;
+import '../services/local_imaging_records.dart' show imagingRecordsProvider;
 import 'host_settings/host_settings_providers.dart'
     show hostSettingsStoreProvider;
 import 'host_reread.dart';

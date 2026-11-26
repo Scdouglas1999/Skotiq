@@ -72,6 +72,38 @@ void main() {
 
       expect(ApiErrorBody.tryParse({'status': 'ok'}), isNull);
     });
+
+    // The host merges details into the top level; a client read only a
+    // `details` key, so every detail was lost on the way (the missing capture
+    // folder's kind, the guider's reason).
+    test('details the host writes come back to the client', () {
+      for (final layout in [
+        ApiErrorLayout.codeAsError,
+        ApiErrorLayout.messageAsError,
+        ApiErrorLayout.errorAsCode,
+      ]) {
+        final written = ApiErrorBody(
+          code: 'disk_query_failed',
+          message: 'Path does not exist; cannot query free space',
+          layout: layout,
+          details: const {'path': '/mnt/astro', 'kind': 'pathMissing'},
+        ).toJson();
+        final read = ApiErrorBody.tryParse(
+          Map<String, dynamic>.from(written),
+          httpStatus: 500,
+        )!;
+        expect(read.details, {
+          'path': '/mnt/astro',
+          'kind': 'pathMissing',
+        }, reason: '$layout');
+      }
+      final plain = ApiErrorBody.tryParse({
+        'error': 'Too slow',
+        'code': 'handler_timeout',
+        'message': 'Too slow',
+      })!;
+      expect(plain.details, isNull);
+    });
   });
 
   group('sequence library rows', () {

@@ -860,13 +860,28 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                                   viewportSize.width,
                                 ),
                               ),
-                              child: const Column(
+                              // Only what the operator turned on, or what has
+                              // no other place on screen: the science chip
+                              // rides with the science HUD, and below the shell
+                              // breakpoint the guiding RMS is in the status
+                              // strip over the frame, not on it.
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  FrameScienceChip(),
-                                  SizedBox(height: SkotiqTokens.spaceXs),
-                                  GuidingActiveChip(),
+                                  if (scienceMode.scienceHudVisible) ...[
+                                    const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: FrameScienceChip(),
+                                    ),
+                                    const SizedBox(
+                                      height: SkotiqTokens.spaceXs,
+                                    ),
+                                  ],
+                                  if (MediaQuery.sizeOf(context).width >=
+                                      ShellChromeMetrics.shellLayoutBreakpoint)
+                                    const GuidingActiveChip(),
                                 ],
                               ),
                             ),

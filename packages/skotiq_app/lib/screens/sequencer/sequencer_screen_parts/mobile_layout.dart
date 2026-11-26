@@ -96,9 +96,10 @@ class _MobileBuilderLayout extends ConsumerWidget {
 
               MobilePlaybackBar(colors: colors),
 
-              // Live telemetry while executing — a wrapping stat strip so the
-              // dense readout reflows instead of overflowing a phone column.
-              if (isRunning) _MobileTelemetryStrip(colors: colors),
+              // Live telemetry while executing: the one-line strip Imaging
+              // shows, so a phone has one status bar and the plan keeps the
+              // height a two-row stat grid took.
+              if (isRunning) const ImagingStatusStrip(),
 
               // The run's progress bar is the screen's own, under the tabs, so
               // it shows on every tab; a second one here shared its key.
@@ -110,12 +111,12 @@ class _MobileBuilderLayout extends ConsumerWidget {
                     final wideLandscape =
                         constraints.maxWidth > constraints.maxHeight &&
                             constraints.maxWidth >= _kSequencerSplitMinWidth;
-                    // Show the split whenever there's real width to
-                    // spare, even with nothing selected — the properties pane
-                    // renders its "Select a node to edit" hint, which teaches
-                    // the affordance proactively instead of hiding it until a
-                    // first selection.
-                    if (wideLandscape) {
+                    // The split only while a step is selected: an empty
+                    // "Select a node to edit" pane took 40% of a phone on
+                    // its side and left the plan too narrow for the ledger.
+                    // Its close button (or tapping the step again) gives the
+                    // width back.
+                    if (wideLandscape && selectedNodeId != null) {
                       return TwoPane(
                         startFlex: 3,
                         endFlex: 2,
@@ -203,105 +204,10 @@ class _LandscapePropertiesPane extends ConsumerWidget {
               // use the mobile-sheet rendering, which is built to reflow/scroll
               // at small widths instead of the desktop sidebar's fixed rows.
               isMobileSheet: true,
+              onClose: () =>
+                  ref.read(selectedNodeIdProvider.notifier).state = null,
             ),
     );
     return pane;
-  }
-}
-
-/// Live equipment telemetry for the phone builder, rendered with
-/// [ResponsiveStatStrip] so the dense readout wraps to two columns / one column
-/// on narrow widths instead of overflowing the fixed-width horizontal strip the
-/// desktop layout uses.
-class _MobileTelemetryStrip extends ConsumerWidget {
-  final SkotiqColors colors;
-
-  const _MobileTelemetryStrip({required this.colors});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final camera = ref.watch(cameraStateProvider);
-    final mount = ref.watch(mountStateProvider);
-    final focuser = ref.watch(focuserStateProvider);
-    final filterWheel = ref.watch(filterWheelStateProvider);
-    final guider = ref.watch(guiderStateProvider);
-
-    bool connected(DeviceConnectionState s) =>
-        s == DeviceConnectionState.connected;
-
-    final stats = <ResponsiveStat>[
-      if (connected(camera.connectionState))
-        ResponsiveStat(
-          label: 'Cam',
-          icon: LucideIcons.thermometer,
-          value: camera.temperature != null
-              ? formatCelsius(camera.temperature!)
-              : '--',
-        ),
-      if (connected(focuser.connectionState))
-        ResponsiveStat(
-          label: 'Focus',
-          icon: LucideIcons.focus,
-          value: focuser.position?.toString() ?? '--',
-          valueColor: focuser.isMoving ? colors.warning : null,
-        ),
-      if (connected(filterWheel.connectionState))
-        ResponsiveStat(
-          label: 'Filter',
-          icon: LucideIcons.filter,
-          value: filterWheel.currentFilterName ??
-              'Pos ${filterWheel.currentPosition ?? '?'}',
-          valueColor: filterWheel.isMoving ? colors.warning : null,
-        ),
-      if (connected(guider.connectionState))
-        ResponsiveStat(
-          label: 'RMS',
-          icon: LucideIcons.crosshair,
-          value: guider.isGuiding
-              ? (guider.rmsTotal != null
-                  ? guideDistanceText(
-                      guider.rmsTotal!,
-                      ref.watch(guideScaleProvider),
-                    )
-                  : 'Guiding')
-              : 'Idle',
-          accent: guider.isGuiding
-              ? (guider.rmsTotal != null && guider.rmsTotal! < 1.0
-                  ? colors.success
-                  : colors.warning)
-              : colors.textMuted,
-        ),
-      if (connected(mount.connectionState))
-        ResponsiveStat(
-          label: 'Mount',
-          icon: LucideIcons.locateFixed,
-          value: mount.isSlewing
-              ? 'Slewing'
-              : mount.isTracking
-                  ? 'Tracking'
-                  : mount.isParked
-                      ? 'Parked'
-                      : 'Idle',
-          accent: mount.isSlewing
-              ? colors.warning
-              : mount.isTracking
-                  ? colors.success
-                  : mount.isParked
-                      ? colors.textMuted
-                      : colors.error,
-        ),
-    ];
-
-    if (stats.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: colors.surfaceAlt,
-        border: Border(bottom: BorderSide(color: colors.border)),
-      ),
-      child: ResponsiveStatStrip(stats: stats, minCellWidth: 96),
-    );
   }
 }

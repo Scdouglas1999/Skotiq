@@ -1647,6 +1647,12 @@ async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera(
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
     let status = state().read().await.last_status.clone();
+    let orthogonality = state()
+        .read()
+        .await
+        .calibration
+        .as_ref()
+        .map(|c| c.orthogonality_deg);
     let _ = stop().await;
     let _ = disconnect().await;
     get_state().set_profile(None).await;
@@ -1654,6 +1660,13 @@ async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera(
         let _ = manager.disconnect_device(id).await;
     }
     assert!(guiding, "never reached steady guiding: {status:?}");
+    // The simulated axes are exactly perpendicular, so the measured ones
+    // should be too; single-pulse legs measured seeing as much as motion.
+    let orthogonality = orthogonality.expect("calibrated");
+    assert!(
+        (orthogonality - 90.0).abs() < 10.0,
+        "calibration axes {orthogonality:.1} degrees apart"
+    );
     assert!(
         status.rms_total.is_finite() && status.rms_total < 2.0,
         "guiding RMS on the guide camera: {status:?}"

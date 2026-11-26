@@ -7,9 +7,13 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart'
+    show SequenceRepository, SequenceSummary;
 import '../../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _MockSequenceRepository extends Mock implements SequenceRepository {}
 
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
@@ -24,6 +28,69 @@ void main() {
   });
 
   group('remoteSequenceEditorSyncProvider', () {
+    // Night test 2026-11-25: each plan built from Best tonight was filed as
+    // one more "NGC1313 Plan"; the library held three alike.
+    test('a new plan is filed under a free name, and the editor takes it', () {
+      fakeAsync((async) {
+        final backend = _MockNetworkBackend();
+        when(
+          () => backend.eventStream,
+        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+        final repository = _MockSequenceRepository();
+        when(() => repository.loadSequenceSummaries()).thenAnswer(
+          (_) async => [
+            SequenceSummary(
+              id: 4,
+              name: 'NGC1313 Plan',
+              nodeCount: 3,
+              targetCount: 1,
+              exposureCount: 10,
+              totalIntegrationSecs: 550,
+              primaryTargetName: 'NGC1313',
+              lastRunAt: null,
+              runCount: 0,
+              tags: const [],
+              isFavorite: false,
+              createdAt: DateTime.utc(2026, 11, 25),
+              modifiedAt: DateTime.utc(2026, 11, 25),
+            ),
+          ],
+        );
+        final saved = <String>[];
+        when(() => repository.saveSequence(any())).thenAnswer((call) async {
+          saved.add((call.positionalArguments.first as Sequence).name);
+          return 12;
+        });
+
+        final container = ProviderContainer(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+            sequenceRepositoryProvider.overrideWithValue(repository),
+          ],
+        );
+
+        container.read(remoteSequenceEditorSyncProvider);
+        final editor = container.read(currentSequenceProvider.notifier);
+        editor.createSequence(name: 'NGC1313 Plan');
+        editor.addNode(
+          InstructionSetNode(id: 'lights', name: 'Lights'),
+          parentId: editor.state!.rootNodeId!,
+        );
+
+        async.elapse(remoteSequenceAutoSaveDebounce);
+        async.flushMicrotasks();
+
+        expect(saved, ['NGC1313 Plan 2']);
+        expect(editor.state!.name, 'NGC1313 Plan 2');
+        expect(editor.state!.databaseId, 12);
+
+        container.dispose();
+      });
+    });
+
     test('debounces saveFullSequence until edits settle', () {
       fakeAsync((async) {
         final backend = _MockNetworkBackend();

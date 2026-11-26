@@ -19,6 +19,7 @@ import 'package:skotiq_app/utils/confirm_dialog.dart';
 import '../../tours/tour_target.dart';
 import 'widgets/brain_settings_panel.dart';
 import 'widgets/guide_graph_advanced.dart';
+import '../../widgets/builtin_guider_config_form.dart';
 import '../../widgets/guide_star_view.dart';
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/guide_distance.dart';

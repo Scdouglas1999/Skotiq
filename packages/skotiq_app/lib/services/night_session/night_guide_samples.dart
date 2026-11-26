@@ -45,7 +45,12 @@ class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
       hostNightHistoryProvider,
       (_, next) {
         final history = next.valueOrNull;
-        if (history != null) mergeHostHistory(history.guideSamples);
+        // As the night's events: merged after the build that delivered it.
+        if (history != null) {
+          scheduleMicrotask(() {
+            if (mounted) mergeHostHistory(history.guideSamples);
+          });
+        }
       },
       fireImmediately: true,
     );

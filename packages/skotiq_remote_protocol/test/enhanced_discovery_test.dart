@@ -215,6 +215,18 @@ void main() {
       expect(server.copyWith(scheme: 'http').webUrl, 'http://100.64.0.5:8443');
     });
 
+    // A token the host refused is dropped so the next connect pairs.
+    test('copyWith can drop the auth token', () {
+      final server = DiscoveredServer(
+        host: '10.0.2.2',
+        webPort: 8080,
+        name: 'home',
+        authToken: 'stale',
+      );
+      expect(server.copyWith().authToken, 'stale');
+      expect(server.copyWith(clearAuthToken: true).authToken, isNull);
+    });
+
     test('webUrl brackets IPv6 literals', () {
       final server = DiscoveredServer(
         host: 'fd7a:115c:a1e0::1',

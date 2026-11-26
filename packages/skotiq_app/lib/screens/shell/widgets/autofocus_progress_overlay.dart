@@ -95,8 +95,12 @@ class _AutofocusProgressOverlayState
     _offsetInitialized = true;
     final useBottomNav =
         ShellChrome.useBottomNavigation(MediaQuery.sizeOf(context).width);
+    // With the bottom nav the pill starts bottom-LEFT: bottom-right is where
+    // a screen's floating add button sits (Sequencer), and the pill now sits
+    // as low as it.
+    final screenWidth = MediaQuery.sizeOf(context).width;
     _offset = Offset(
-      16,
+      useBottomNav ? math.max(16.0, screenWidth - _minimizedWidth - 16) : 16,
       ShellChromeMetrics.floatingOverlayBottomInset(
         context,
         useBottomNav: useBottomNav,
@@ -140,7 +144,8 @@ class _AutofocusProgressOverlayState
     );
 
     return Positioned(
-      right: _offset.dx,
+      // Kept on screen when the pill opens wider than where it was dragged.
+      right: _offset.dx.clamp(0.0, math.max(0.0, screenWidth - width)),
       bottom: _offset.dy,
       child: GestureDetector(
         onPanUpdate: (details) {

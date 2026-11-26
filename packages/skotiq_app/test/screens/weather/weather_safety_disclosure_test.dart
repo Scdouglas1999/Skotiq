@@ -155,4 +155,16 @@ void main() {
       );
     });
   });
+
+  test('weather safety off with a safety monitor says the monitor still guards',
+      () {
+    expect(
+      weatherSafetyStatusText(
+        status: WeatherSafetyStatus.safe,
+        monitoring: false,
+        safetyMonitor: true,
+      ),
+      contains('safety monitor still stops a run'),
+    );
+  });
 }

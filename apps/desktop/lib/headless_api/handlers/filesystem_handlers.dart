@@ -202,7 +202,7 @@ class FileSystemHandlers implements RouteSource {
           'message':
               'The imaging host lets a linked computer use only folders inside '
               'its Documents, backup, capture, sequence and log folders, and '
-              'any its setup adds (SKOTIQ_BROWSE_ROOTS).',
+              'any added with SKOTIQ_BROWSE_ROOTS.',
           'valid': false,
           'exists': false,
           'writable': false,

@@ -245,6 +245,10 @@ class SequenceMapPainter extends CustomPainter {
   /// Blocks sit under the viewport indicator, so they are drawn softened.
   static const double _blockAlpha = 0.6;
 
+  /// In red night every block is the same red, and at [_blockAlpha] a short
+  /// plan paints the strip as one bright bar beside the rows.
+  static const double _redNightBlockAlpha = 0.3;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (entries.isEmpty) return;
@@ -292,7 +296,9 @@ class SequenceMapPainter extends CustomPainter {
       canvas.drawRect(
         rect,
         Paint()
-          ..color = blockColor.withValues(alpha: _blockAlpha)
+          ..color = blockColor.withValues(
+            alpha: colors.isRedNight ? _redNightBlockAlpha : _blockAlpha,
+          )
           ..style = PaintingStyle.fill,
       );
 

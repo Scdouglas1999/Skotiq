@@ -69,8 +69,10 @@ class NightFramesView extends ConsumerWidget {
                         'light': '$lights',
                         'calibration': '${images.length - lights}',
                       },
-                    )}. Quality badges are advisory. Right-click or '
-                    'long-press a frame to reject or restore it.',
+                    )}. Quality badges are advisory. '
+                    // A phone has no right button to click.
+                    '${platformExpectsKeyboard() ? 'Right-click or long-press' : 'Long-press'} '
+                    'a frame to reject or restore it.',
                     style: SkotiqTypography.bodySm
                         .copyWith(color: colors.textSecondary),
                   ),

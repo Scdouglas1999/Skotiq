@@ -98,7 +98,12 @@ LedgerColumns ledgerColumnsFor(
 
   if (node is ExposureNode) {
     return LedgerColumns(
-      filterExp: _filterExp(node.filter, node.durationSecs),
+      // A dark or bias is taken with the cover on, wherever the wheel sits,
+      // so it reads as its frame type, as the Tonight header does.
+      filterExp: _filterExp(
+        node.frameType.coverOnLabel ?? node.filter,
+        node.durationSecs,
+      ),
       count: '${node.count}',
       duration: durationText,
       eta: etaText,

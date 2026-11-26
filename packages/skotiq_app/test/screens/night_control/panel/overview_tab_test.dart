@@ -148,6 +148,59 @@ void main() {
     expect(container.read(nightPanelTabProvider), NightPanelTab.camera);
   });
 
+  // Mobile rework T10: after a run, what would keep the next one from
+  // starting stays on Overview with its fix; warnings do not.
+  testWidgets('a finished night keeps what blocks the next run',
+      (tester) async {
+    final f = NightFixtures.finished();
+    final board = NightBoard(
+      phase: f.phase,
+      header: f.header,
+      timeline: f.timeline,
+      target: f.target,
+      plan: f.plan,
+      steps: f.steps,
+      upcoming: f.upcoming,
+      frames: f.frames,
+      frameSeries: f.frameSeries,
+      guideSeries: f.guideSeries,
+      temperatureSeries: f.temperatureSeries,
+      lastFrame: f.lastFrame,
+      session: f.session,
+      equipment: f.equipment,
+      conditions: f.conditions,
+      log: f.log,
+      checklist: const <ChecklistItemVm>[
+        ChecklistItemVm(
+          id: ChecklistItemId.camera,
+          state: ChecklistItemState.blocked,
+          title: NightText.literal('Camera'),
+          detail: NightText.literal('Not connected'),
+          actionLabel: NightText.literal('Connect'),
+          route: '/equipment',
+        ),
+        ChecklistItemVm(
+          id: ChecklistItemId.weather,
+          state: ChecklistItemState.attention,
+          title: NightText.literal('Weather'),
+          detail: NightText.literal('No source'),
+        ),
+      ],
+      actions: f.actions,
+      actionState: f.actionState,
+    );
+    await pumpPanel(
+      tester,
+      child: const NightOverviewTab(),
+      overrides: panelOverrides(board: board),
+    );
+    expect(find.text('After the run'), findsOneWidget);
+    expect(find.text('Before you start'), findsOneWidget);
+    expect(find.text('Connect'), findsOneWidget);
+    expect(find.text('No source'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a running night has no After the run block', (tester) async {
     await pumpPanel(
       tester,

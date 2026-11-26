@@ -236,11 +236,10 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
     final coverCalibrators =
         discovery.getDevicesByType(DeviceType.coverCalibrator);
 
-    // Fire-and-forget backend scan; the watch on unifiedDiscoveryProvider above
-    // rebuilds this section (and its dropdowns) when results arrive.
-    void onScan() {
-      ref.read(unifiedDiscoveryProvider.notifier).discoverAll();
-    }
+    // The watch on unifiedDiscoveryProvider above rebuilds this section (and
+    // its dropdowns) when results arrive; the list that asked reopens then.
+    Future<void> onScan() =>
+        ref.read(unifiedDiscoveryProvider.notifier).discoverAll();
 
     return _SectionBlock(
       title: 'Devices',

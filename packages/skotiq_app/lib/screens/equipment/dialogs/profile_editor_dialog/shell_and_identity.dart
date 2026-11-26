@@ -182,10 +182,12 @@ extension _ProfileEditorShellAndIdentity on _ProfileEditorDialogState {
                   onTap: () => setState(() => _selectedColor = null),
                   colors: colors,
                 ),
-                ..._ProfileEditorDialogState._accentColors.map((color) {
+                ..._ProfileEditorDialogState._accentColors.map((accent) {
+                  final (color, name) = accent;
                   final isSelected = _selectedColor == color;
                   return _ColorOption(
                     color: color,
+                    name: name,
                     isSelected: isSelected,
                     onTap: () => setState(() => _selectedColor = color),
                     colors: colors,

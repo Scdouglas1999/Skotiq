@@ -39,6 +39,7 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
     sequenceProgressProvider.select((p) => p.estimatedRemainingSecs),
   );
   final freeBytes = ref.watch(nightCaptureFreeBytesProvider);
+  final folderMissing = ref.watch(captureFolderMissingProvider);
   final now = ref.watch(nightSessionNowProvider);
 
   final runStart = session.isActive ? session.startTime : live?.startTime;
@@ -115,7 +116,14 @@ final nightSessionStatsProvider = Provider<NightSessionVm>((ref) {
           value: '${live.ditherCount}',
         ),
       ],
-      if (freeBytes != null)
+      // A dash in the warning tone: the folder is gone, so there is no free
+      // space to give. Before you start names the cause.
+      if (folderMissing)
+        const MetricVm(
+          label: NightText('nightSessionStatDisk'),
+          valueTone: MetricGridTone.warning,
+        )
+      else if (freeBytes != null)
         MetricVm(
           label: const NightText('nightSessionStatDisk'),
           value: ByteFormat.size(freeBytes),

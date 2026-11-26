@@ -72,7 +72,18 @@ class NightOverviewTab extends ConsumerWidget {
           const NightActivityPanel(),
           NightLastFrameSection(frame: ref.watch(nightLastFrameProvider)),
           NightSessionSection(session: ref.watch(nightSessionStatsProvider)),
-          if (phase == NightRunPhase.finished) const NightAfterRunSection(),
+          if (phase == NightRunPhase.finished) ...<Widget>[
+            const NightAfterRunSection(),
+            // What would keep the next run from starting, with its fix one
+            // tap away: hidden after a run, the cause of a failed one was a
+            // trip to another screen (mobile rework T10).
+            if (_needsALook(ref.watch(nightBeforeYouStartProvider))
+                case final open?)
+              NightChecklistSection(
+                items: open,
+                onAction: (item) => _runChecklistAction(context, ref, item),
+              ),
+          ],
           ..._runSections(ref),
         ],
         if (ref.watch(liveBroadcastProvider) case final broadcast?)
@@ -89,6 +100,15 @@ class NightOverviewTab extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  /// The rows that would stop the next run starting, or null when none
+  /// would. A warning ("guider not looping") is the normal state after a run
+  /// and would only be noise here.
+  static List<ChecklistItemVm>? _needsALook(List<ChecklistItemVm> items) {
+    final open =
+        items.where((i) => i.state == ChecklistItemState.blocked).toList();
+    return open.isEmpty ? null : open;
   }
 
   /// The blocks of the plan's optional parts, each only while the run uses

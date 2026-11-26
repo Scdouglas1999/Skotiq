@@ -55,7 +55,7 @@ class _FailingFileService extends SequenceFileService {
 Finder _saveButton() => find.byWidgetPredicate(
       (widget) =>
           widget is SkotiqIconButton &&
-          widget.tooltip == 'Save to the library (Ctrl+S)',
+          widget.tooltip.startsWith('Save to the library'),
       description: 'the canvas bar\'s save button',
     );
 

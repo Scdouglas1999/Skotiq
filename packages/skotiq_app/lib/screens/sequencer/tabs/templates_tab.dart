@@ -287,6 +287,15 @@ class _CatalogCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    // One node per card: a screen reader steps card by card instead of
+    // hearing every starter's text as one block.
+    return Semantics(
+      container: true,
+      child: _panel(colors),
+    );
+  }
+
+  Widget _panel(SkotiqColors colors) {
     return DecoratedBox(
       decoration: SkotiqDecorations.panel(colors),
       child: Padding(

@@ -1,6 +1,8 @@
 // Settings that features keep in the `app_settings` key/value store must read
 // and write the same rows as the build these declarations were moved from
 // (ed612800d), and stay on the same machine when a client is linked.
+// The annotation overlays (compass, scale bar) default off since the 9.3
+// night test (F14), so those pins read false where the base build read true.
 //
 // `test/fixtures/settings/base_store_settings.json` was produced by that build
 // with `SKOTIQ_STORE_PINS_UPDATE=1`: for each feature, what it read from a set

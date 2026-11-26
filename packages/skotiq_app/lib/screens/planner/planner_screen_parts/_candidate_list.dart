@@ -376,13 +376,22 @@ class _PlannerCandidateRow extends ConsumerWidget {
               isLoading: imageTonightBusy,
               onPressed: imageTonightBusy ? null : onImageTonight,
             )
+          // Once the target is on a list the button says so; it still
+          // opens the dialog, to add it to another list.
           : SkotiqButton(
-              label: l10n.text('plannerAddTarget'),
+              label: _isListed(ref) ? 'Listed' : l10n.text('plannerAddTarget'),
+              icon: _isListed(ref) ? LucideIcons.check : null,
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,
               onPressed: () => _addToObservingList(context, ref, colors),
             ),
     );
+  }
+
+  bool _isListed(WidgetRef ref) {
+    final listed = ref.watch(listedCatalogIdsProvider).valueOrNull;
+    if (listed == null) return false;
+    return listed.contains(suggestion.catalogId ?? suggestion.targetName);
   }
 
   Future<void> _addToObservingList(

@@ -308,8 +308,10 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               items: FrameType.values,
               // Sentence case, like every other label on the screen: a
               // dropdown value is a word, not a shout.
-              labelBuilder: (t) =>
-                  t.name[0].toUpperCase() + t.name.substring(1),
+              labelBuilder: (t) => switch (t) {
+                FrameType.darkFlat => 'Dark flat',
+                _ => t.name[0].toUpperCase() + t.name.substring(1),
+              },
               onChanged: (value) {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(frameType: value),

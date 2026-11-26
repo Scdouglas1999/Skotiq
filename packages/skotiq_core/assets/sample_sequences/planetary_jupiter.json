@@ -61,7 +61,7 @@
       "gain": 350,
       "offset": 30,
       "binning": "one",
-      "ditherEvery": null
+      "ditherEvery": 0
     }
   }
 }

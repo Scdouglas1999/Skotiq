@@ -27,6 +27,11 @@ class StarCatalogFallbackBanner extends ConsumerWidget {
     // own catalog folder, so a fresh one shows the built-in list while the
     // host it is linked to has the full sky.
     final host = ref.watch(linkedHostLinkProvider)?.serverHost;
+    // A phone or tablet is not "this computer".
+    final here = switch (Theme.of(context).platform) {
+      TargetPlatform.android || TargetPlatform.iOS => 'this device',
+      _ => 'this computer',
+    };
 
     // Glass under the banner: its fill is a hairline tint, unreadable over
     // the bright parts of the sky.
@@ -36,12 +41,12 @@ class StarCatalogFallbackBanner extends ConsumerWidget {
         tone: BannerTone.warning,
         title: host == null
             ? 'Star catalog not installed.'
-            : 'Star catalog not installed on this computer.',
+            : 'Star catalog not installed on $here.',
         message: host == null
             ? 'Showing the $count-star built-in list. Most stars, and every '
                 'catalog search that depends on them, are missing until you '
                 'install the HYG catalog.'
-            : 'This sky comes from this computer\'s catalogs, not from the '
+            : 'This sky comes from $here\'s catalogs, not from the '
                 'imaging host ($host). Showing the $count-star built-in list '
                 'until you install the HYG catalog here.',
         action: SkotiqButton(

@@ -18,6 +18,9 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/bridge_events.dart' as sk_events;
 import 'package:skotiq_core/backend.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _OtherRig extends Mock implements NetworkBackend {}
 
 class _FakeAppSettingsNotifier extends AppSettingsNotifier {
   _FakeAppSettingsNotifier(this._initial);
@@ -112,6 +115,23 @@ void main() {
         for (final e in container.read(runDashboardCriticalEventsProvider))
           e.message,
       ];
+
+  // A phone that moves to another rig must not keep the last rig's faults:
+  // it showed "Run paused - the mount is parked" over a fresh host with no
+  // run and no mount.
+  test('linking to another host clears the banner', () async {
+    final container = await wiredContainer();
+    await emit(container, _flipFailed(_t0, _pierError));
+    expect(bannerMessages(container), hasLength(1));
+
+    final other = _OtherRig();
+    when(() => other.eventStream).thenAnswer((_) => const Stream.empty());
+    // ignore: invalid_use_of_protected_member
+    container.read(backendProvider.notifier).state = other;
+    await Future<void>.delayed(Duration.zero);
+
+    expect(bannerMessages(container), isEmpty);
+  });
 
   test('a newer flip failure replaces the older one in the banner', () async {
     final container = await wiredContainer();

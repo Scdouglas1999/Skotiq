@@ -68,7 +68,22 @@ final schedulerStartReadinessProvider = Provider<SchedulerStartReadiness>((
   }
 
   final weather = ref.watch(weatherSafetyProvider);
-  if (!weather.monitoringEnabled) {
+  // With weather safety off, a connected safety monitor still guards the run:
+  // the standard Weather Unsafe trigger reads it on its own.
+  final monitor = readSafetyMonitorSource(
+    ref.watch(safetyMonitorStateProvider),
+  );
+  if (!weather.monitoringEnabled && monitor == SafetySourceReading.unsafe) {
+    issues.add(
+      const SchedulerReadinessIssue(
+        id: SchedulerReadinessIssueId.weather,
+        severity: SchedulerReadinessSeverity.blocker,
+        title: 'Safety monitor reads unsafe',
+        detail: 'The run would park as soon as it starts.',
+      ),
+    );
+  } else if (!weather.monitoringEnabled &&
+      monitor != SafetySourceReading.safe) {
     issues.add(
       const SchedulerReadinessIssue(
         id: SchedulerReadinessIssueId.weather,
@@ -154,6 +169,32 @@ final schedulerStartReadinessProvider = Provider<SchedulerStartReadiness>((
       }
     },
   );
+
+  // The autopilot takes the editor slot and starts its own run; with the
+  // operator's sequence still running it would start a second one over it.
+  final runState = ref.watch(sequenceExecutionStateProvider);
+  final operatorRun = switch (runState) {
+    SequenceExecutionState.running ||
+    SequenceExecutionState.paused ||
+    SequenceExecutionState.recovering ||
+    SequenceExecutionState.stopping ||
+    SequenceExecutionState.finalizing =>
+      ref.read(currentSequenceProvider.notifier).activeOwner !=
+          ActivePlanOwner.autopilot,
+    _ => false,
+  };
+  if (operatorRun) {
+    issues.add(
+      const SchedulerReadinessIssue(
+        id: SchedulerReadinessIssueId.activeRun,
+        severity: SchedulerReadinessSeverity.blocker,
+        title: 'A sequence is running',
+        detail:
+            'Stop the running sequence before handing the night to the '
+            'autopilot.',
+      ),
+    );
+  }
 
   final settings = ref.watch(appSettingsProvider).valueOrNull;
   if (settings == null || !settings.parkBeforeDawn) {

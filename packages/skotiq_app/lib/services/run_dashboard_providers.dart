@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/backend.dart' show SkotiqBackend;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
@@ -259,8 +260,8 @@ final runDashboardFilterTotalsProvider =
 enum RunDashboardEventSeverity { info, warning, error, critical }
 
 /// What a feed row stands for, as the feed's folds read it: one stop of a
-/// run, one run's completion, or any other event.
-enum RunDashboardRowKind { stop, completion, other }
+/// run, one run's completion, a cooler set-point, or any other event.
+enum RunDashboardRowKind { stop, completion, coolerSetpoint, other }
 
 /// A normalised event entry for the trigger feed.
 class RunDashboardEvent {
@@ -376,7 +377,18 @@ List<RunDashboardEvent> collapseRepeatedEvents(
         last.severity == event.severity &&
         (chainPreviousTime ?? last.time).difference(event.time).abs() <=
             _collapseWindow;
-    if (isRepeat) {
+    // A warm-up ramp moves the set-point a third of a degree every ten
+    // seconds, about ninety rows that buried everything else in the log.
+    // Adjacent set-points fold into the newest, without a count: only the
+    // set-point now in force matters.
+    final isSetpointStep = last != null &&
+        event.kind == RunDashboardRowKind.coolerSetpoint &&
+        last.kind == RunDashboardRowKind.coolerSetpoint &&
+        (chainPreviousTime ?? last.time).difference(event.time).abs() <=
+            _collapseWindow;
+    if (isSetpointStep) {
+      chainPreviousTime = event.time;
+    } else if (isRepeat) {
       out[out.length - 1] = last.withRepeatCount(last.repeatCount + 1);
       chainPreviousTime = event.time;
     } else {
@@ -710,16 +722,21 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
   // path below already refuses to treat an Info event as critical, and the two
   // must not disagree about the same event.
   final isCritical = sk_events.isCriticalEvent(event) && _isAtLeastError(event);
+  final stopWords = _guidingStopWords(event);
   return RunDashboardEvent(
     eventId: event.eventId,
     time: DateTime.fromMillisecondsSinceEpoch(ms),
     severity: isCritical ? RunDashboardEventSeverity.critical : severity,
     category: _categoryLabel(event.category),
-    title: sk_events.skotiqEventDisplayTitle(event),
-    message: _nameDepthGoal(
-      humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
-      event,
-    ),
+    // A guiding stop's reason is a whole sentence ("Guiding stopped because
+    // the run was stopped"), so it is the row.
+    title: stopWords ?? sk_events.skotiqEventDisplayTitle(event),
+    message: stopWords != null
+        ? ''
+        : _nameDepthGoal(
+            humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
+            event,
+          ),
     isCritical: isCritical,
     faultKey: _faultKey(event),
     isRunFault: _isRunFault(event),
@@ -727,9 +744,27 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
   );
 }
 
+/// Why guiding stopped, in words: the event carries the wire code
+/// (`run_stopped`), and the log printed it as it came.
+String? _guidingStopWords(sk_events.SkotiqEvent event) =>
+    switch (event.payload) {
+      sk_events.EventPayload_Guiding(
+        field0: sk_events.GuidingEvent_StopReason(:final reason?)
+      ) =>
+        GuidingStopReason.fromWire(reason)?.text,
+      _ => null,
+    };
+
 RunDashboardRowKind _rowKind(sk_events.SkotiqEvent event) =>
-    switch (_sequencerEvent(event)) {
-      sk_events.SequencerEvent_Completed() => RunDashboardRowKind.completion,
+    switch (event.payload) {
+      sk_events.EventPayload_Sequencer(
+        field0: sk_events.SequencerEvent_Completed()
+      ) =>
+        RunDashboardRowKind.completion,
+      sk_events.EventPayload_Equipment(
+        field0: sk_events.EquipmentEvent_CameraCoolingStarted()
+      ) =>
+        RunDashboardRowKind.coolerSetpoint,
       _ => RunDashboardRowKind.other,
     };
 
@@ -891,7 +926,19 @@ List<RunDashboardEvent> runDashboardFeedRows(
 /// them. [runCriticalAlertsProvider] fills it.
 class RunDashboardCriticalEventsNotifier
     extends StateNotifier<List<RunDashboardEvent>> {
-  RunDashboardCriticalEventsNotifier(this._ref) : super(const []);
+  RunDashboardCriticalEventsNotifier(this._ref) : super(const []) {
+    // One rig's faults say nothing about another: linking to a different
+    // host (or back to this computer) clears them. A phone that moved to a
+    // fresh rig kept "Run paused - the mount is parked" from the last one.
+    _ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
+      if (identical(previous, next)) return;
+      scheduleMicrotask(() {
+        if (!mounted) return;
+        state = const [];
+        _ref.read(runDashboardDroppedCriticalCountProvider.notifier).state = 0;
+      });
+    });
+  }
 
   final Ref _ref;
 
@@ -1095,6 +1142,15 @@ bool _routerPagesItself(
   );
 }
 
+/// True for the mount motion guard's faults, which the mount guard banner
+/// shows.
+bool _isMountGuardFault(sk_events.SkotiqEvent event) => switch (event.payload) {
+      sk_events.EventPayload_Safety(field0: final v) =>
+        v is sk_events.SafetyEvent_MountMotionFault ||
+            v is sk_events.SafetyEvent_MountPositionUnknown,
+      _ => false,
+    };
+
 /// True for the event that opens a run, which resets the per-run ledger of
 /// already-escalated failure reasons.
 bool _isSequencerRunStart(sk_events.SkotiqEvent event) {
@@ -1229,7 +1285,12 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
           continue;
         }
         final row = _toDashboardEvent(event);
-        ref.read(runDashboardCriticalEventsProvider.notifier).add(row);
+        // A mount guard fault has its own banner above this one, with the
+        // operator's actions, until the mount is checked: listed here as
+        // well it read twice (mobile rework P2-14). It still sounds below.
+        if (!_isMountGuardFault(event)) {
+          ref.read(runDashboardCriticalEventsProvider.notifier).add(row);
+        }
         // An alert the host raised before this window linked to it is shown
         // with the night so far. It has already sounded and paged where it
         // was raised.

@@ -210,6 +210,21 @@ fn a_fast_dive_below_the_horizon_is_a_fault() {
 }
 
 #[test]
+fn a_site_change_under_a_still_mount_is_not_a_dive() {
+    let mut rig = Rig::new(IDLE);
+    let mut a = at(0.0, 0.0, 0.0);
+    a.parked = true;
+    a.altitude_deg = Some(12.0);
+    let mut b = a;
+    b.t = 5.0;
+    b.altitude_deg = Some(-34.9);
+    let mut c = b;
+    c.t = 10.0;
+    let findings = rig.feed_all([a, b, c]);
+    assert!(findings.is_empty(), "{findings:?}");
+}
+
+#[test]
 fn a_target_setting_slowly_is_not_a_dive() {
     let mut rig = Rig::new(RUN);
     let findings = rig.feed_all((0..20).map(|i| {

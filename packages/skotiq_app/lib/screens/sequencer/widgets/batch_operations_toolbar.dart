@@ -197,10 +197,10 @@ class BatchOperationsToolbar extends ConsumerWidget {
     // keyboard focus inside the builder subtree, the Undo button never does.
     final body = descendants == 0
         ? 'This will remove the selected node${count == 1 ? '' : 's'}. '
-            'Recover them with Undo in the toolbar (or Ctrl+Z).'
+            'Recover them with Undo in the toolbar${shortcutSuffix('Z', or: true)}.'
         : 'This will remove $count node${count == 1 ? '' : 's'} plus their '
             '$descendants descendant${descendants == 1 ? '' : 's'}. '
-            'Recover them with Undo in the toolbar (or Ctrl+Z).';
+            'Recover them with Undo in the toolbar${shortcutSuffix('Z', or: true)}.';
 
     showDialog(
       context: context,

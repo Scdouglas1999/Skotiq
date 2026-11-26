@@ -78,3 +78,20 @@ String? targetWaitMessage(String? stepReading) =>
     stepReading != null && stepReading.startsWith(kTargetWaitMessagePrefix)
     ? stepReading
     : null;
+
+/// How the run's message begins while it holds an exposure for a meridian
+/// flip that would cut the frame short. Must stay byte-identical to the
+/// message in `center.rs` (`Waiting for the meridian flip before ...`).
+const String kFlipWaitMessagePrefix = 'Waiting for the meridian flip';
+
+/// What a one-line header shows while the run holds a frame for a flip. Short
+/// enough to fit a phone's header after "target 1 of 2 ·".
+const String kFlipWaitShort = 'Waiting for the flip';
+
+/// [kFlipWaitShort] while the run holds a frame for a flip, otherwise null.
+/// The run's own message goes on with the hour angle and trigger threshold,
+/// which a one-line header has no room for.
+String? flipWaitMessage(String? runMessage) =>
+    runMessage != null && runMessage.startsWith(kFlipWaitMessagePrefix)
+    ? kFlipWaitShort
+    : null;

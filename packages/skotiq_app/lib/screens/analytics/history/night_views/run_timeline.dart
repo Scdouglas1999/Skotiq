@@ -591,20 +591,45 @@ class _EventLogList extends StatelessWidget {
         style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
       );
     }
-    final start = markers.length > _shown ? markers.length - _shown : 0;
+    // Frames are numbered in the order the run took them; the database id
+    // ("Frame 59") means nothing to the operator. A rejected frame whose
+    // rejection the engine logged (with its reason) within a few seconds is
+    // left to that entry rather than listed twice.
+    final rows = <({ReplayMarker marker, int? ordinal})>[];
+    var ordinal = 0;
+    for (final marker in markers) {
+      if (marker is ReplayFrameMarker) {
+        ordinal++;
+        if (!marker.isAccepted && _rejectionLogged(marker)) continue;
+        rows.add((marker: marker, ordinal: ordinal));
+      } else {
+        rows.add((marker: marker, ordinal: null));
+      }
+    }
+    final start = rows.length > _shown ? rows.length - _shown : 0;
     return Column(
       children: [
-        for (var i = markers.length - 1; i >= start; i--)
-          _MarkerRow(marker: markers[i]),
+        for (var i = rows.length - 1; i >= start; i--)
+          _MarkerRow(marker: rows[i].marker, frameNumber: rows[i].ordinal),
       ],
     );
   }
+
+  bool _rejectionLogged(ReplayFrameMarker frame) => markers.any(
+        (m) =>
+            m is ReplayEventMarker &&
+            m.source == DecisionCategory.frameRejected.displayLabel &&
+            (m.offsetMs - frame.offsetMs).abs() <= 5000,
+      );
 }
 
 class _MarkerRow extends StatelessWidget {
   final ReplayMarker marker;
 
-  const _MarkerRow({required this.marker});
+  /// The frame's place in the run, for a frame marker.
+  final int? frameNumber;
+
+  const _MarkerRow({required this.marker, this.frameNumber});
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +642,7 @@ class _MarkerRow extends StatelessWidget {
         ),
       ReplayFrameMarker f => (
           [
-            'Frame ${f.frameId}',
+            'Frame ${frameNumber ?? f.frameId}',
             if (f.filter != null) f.filter!,
             if (f.hfr != null) 'HFR ${f.hfr!.toStringAsFixed(2)}',
             if (!f.isAccepted) 'rejected',

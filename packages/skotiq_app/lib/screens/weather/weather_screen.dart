@@ -178,6 +178,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
               _WeatherHeader(
                 status: safetyState.status,
                 monitoring: safetyState.monitoringEnabled,
+                monitor: safetyState.safetyMonitorReading,
                 onRefresh: _refreshWeatherData,
                 onSettingsTap: () =>
                     openSettings(context, SettingsSectionId.weatherSafety),

@@ -381,6 +381,26 @@ void _applyRecoveryEvent(Ref ref, RecoveryEventEnvelope envelope) {
       // the flip controller. It is still waiting, not recovered or failed.
       // State events own that transition and preserve an operator pause.
       if (envelope.context.isWaiting) break;
+      // The loop ended by handing the run to the operator as a pause (the
+      // engine sends Paused, then this to close the banner). Not a recovery:
+      // the run waits, and saying "recovered, imaging resumed" (and showing
+      // it running) left the phone with a Pause button for a held run.
+      if (envelope.context.isGaveUp) {
+        historyNotifier.append(
+          RecoveryHistoryEntry(
+            startedAt: envelope.context.startedAt,
+            endedAt: DateTime.now().toUtc(),
+            cause: envelope.context.cause,
+            attempts: envelope.context.attemptCount,
+            recovered: false,
+            abortedByUser: false,
+            lastError: envelope.context.lastError,
+            pausedForOperator: true,
+          ),
+        );
+        progressNotifier.showPhase(SequenceExecutionState.paused);
+        break;
+      }
       historyNotifier.append(
         RecoveryHistoryEntry(
           startedAt: envelope.context.startedAt,
@@ -520,6 +540,10 @@ final recoveryPushBridgeProvider = Provider<void>((ref) {
     final prevLen = previous?.length ?? 0;
     if (next.length <= prevLen) return; // only on growth (a new exit)
     for (final entry in next.sublist(prevLen)) {
+      // A loop handed to the operator ends in the engine's own "run paused"
+      // alert, which already carries what to do; a second push with the
+      // same words is noise on a lock screen.
+      if (entry.pausedForOperator) continue;
       enqueue(
         title: _recoveryExitTitle(entry),
         body: _recoveryExitBody(entry),

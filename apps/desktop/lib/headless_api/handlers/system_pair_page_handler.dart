@@ -172,8 +172,8 @@ const String _pairPageHtml = r'''
     <!-- code-required flow -->
     <div id="code-required" class="hidden">
       <p>This appliance requires a pairing code. Click below to start pairing,
-        then read the code from the appliance's log
-        (<code>journalctl -fu skotiq-headless</code>) and enter it here.</p>
+        then open <code>pairing-code.txt</code> in Skotiq's data folder on the
+        appliance (its log says where) and enter the code here.</p>
       <button id="start-btn" type="button">Start pairing</button>
       <div id="code-entry" class="hidden">
         <input id="code-input" type="text"

@@ -11,6 +11,7 @@
 // command-bar control, then assert on rendered state (which tab the panel's
 // controller is on, which node holds primary focus, and that typed text
 // actually reaches the field).
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,6 +59,8 @@ Future<void> _withPlanetarium(
   // "Search ⌘K" entry) rather than the phone sheets.
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(1600, 900);
+  // The keycap is a desktop affordance; a phone or tablet hides it.
+  debugDefaultTargetPlatformOverride = TargetPlatform.linux;
 
   final priorOnError = FlutterError.onError;
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -104,6 +107,7 @@ Future<void> _withPlanetarium(
     });
     _rethrowRealFailures(tester);
   } finally {
+    debugDefaultTargetPlatformOverride = null;
     FlutterError.onError = priorOnError;
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();

@@ -11,10 +11,17 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
+import 'package:skotiq_core/src/database/database.dart' show DbCapturedImage;
+import 'package:skotiq_core/src/services/local_imaging_records.dart'
+    show imagingRecordsProvider;
+import 'package:skotiq_core/src/backend/roles/host_data/imaging_records.dart';
+
 import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/utils.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _MockImagingRecords extends Mock implements ImagingRecords {}
 
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
@@ -145,4 +152,72 @@ void main() {
       );
     },
   );
+
+  // Night test 2026-11-26: after the phone app reopened, the host's last
+  // frame, a dark, read "L 55 s": with no capture event to go by, the
+  // frame took the phone's own exposure controls and the wheel's filter.
+  test('a frame with no capture event takes what the host recorded', () async {
+    final (:backend, :container) = _setUp();
+    final records = _MockImagingRecords();
+    // The shown frame (08:43:29, as `_frame` carries) is a dark; four newer
+    // lights were saved after it, as when the app reopens mid-run.
+    DbCapturedImage row(int id, String type, DateTime at) => DbCapturedImage(
+      id: id,
+      sessionId: 7,
+      filePath: '/host/f$id.fits',
+      fileName: 'f$id.fits',
+      fileFormat: 'fits',
+      frameType: type,
+      exposureDuration: 2,
+      gain: 100,
+      offset: 50,
+      binX: 1,
+      binY: 1,
+      filter: 'L',
+      capturedAt: at,
+      createdAt: at,
+      isAccepted: true,
+      isPlateSolved: false,
+    );
+    final shownAt = DateTime.utc(2026, 10, 21, 8, 43, 29);
+    final rows = [
+      row(185, 'light', shownAt.subtract(const Duration(seconds: 3))),
+      row(186, 'dark', shownAt),
+      for (var i = 1; i <= 4; i++)
+        row(186 + i, 'light', shownAt.add(Duration(seconds: 3 * i + 3))),
+    ];
+    when(
+      () => records.getRecentImagesForSession(
+        7,
+        limit: any(named: 'limit'),
+        atOrBefore: any(named: 'atOrBefore'),
+      ),
+    ).thenAnswer((call) async {
+      final limit = call.namedArguments[#limit] as int;
+      final atOrBefore = call.namedArguments[#atOrBefore] as DateTime?;
+      final kept =
+          rows
+              .where(
+                (r) => atOrBefore == null || !r.capturedAt.isAfter(atOrBefore),
+              )
+              .toList()
+            ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+      return kept.take(limit).toList();
+    });
+    final scoped = ProviderContainer(
+      parent: container,
+      overrides: [imagingRecordsProvider.overrideWithValue(records)],
+    );
+    addTearDown(scoped.dispose);
+    scoped
+        .read(sessionStateProvider.notifier)
+        .mirrorHostSession(const SessionState(isActive: true, dbSessionId: 7));
+
+    await _hydrate(scoped, backend, refreshCurrentFrame: true);
+
+    final shown = scoped.read(currentImageProvider);
+    expect(shown, isNotNull);
+    expect(shown!.settings.frameType, FrameType.dark);
+    expect(shown.settings.gain, 100);
+  });
 }

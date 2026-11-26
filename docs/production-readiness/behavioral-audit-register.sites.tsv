@@ -147,7 +147,6 @@ apps/mobile/lib/main_parts/mobile_discovery_ops.dart	_connectViaTailscale	commen
 apps/mobile/lib/main_parts/mobile_discovery_ops.dart	_showRelayConnectDialog	literal_null_coalesce	1	V0148	initialApplianceId = s.relayApplianceId ?? '';
 apps/mobile/lib/main_parts/mobile_discovery_ops.dart	_showRelayConnectDialog	literal_null_coalesce	1	V0148	initialRelayUrl = s.relayUrl ?? '';
 apps/mobile/lib/main_parts/mobile_discovery_ops.dart	build	literal_null_coalesce	1	V0148	onChanged: (v) => setState(() => _allowInsecure = v ?? false),
-apps/mobile/lib/main_parts/mobile_discovery_ops.dart	build	literal_null_coalesce	1	V0148	setState(() => _requestAdmin = value ?? false);
 apps/mobile/lib/main_parts/mobile_discovery_ops.dart	initState	literal_null_coalesce	1	V0148	_codeController = TextEditingController(text: widget.initialCode ?? '');
 apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_MobileReconnectOps	comment_best_effort	1	V0149	/// Best-effort: a persistence failure must not drop the live session, so we
 apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_closeActiveRelayTunnel	comment_best_effort	1	V0149	// Best-effort teardown only.
@@ -1785,7 +1784,7 @@ packages/skotiq_app/lib/screens/planner/targets/group_dialogs.dart	build	literal
 packages/skotiq_app/lib/screens/planner/targets/group_menu.dart	build	literal_null_coalesce	1	O7-06	final unused = ref.watch(unusedTargetsCountProvider).valueOrNull ?? 0;
 packages/skotiq_app/lib/screens/planner/targets/target_detail.dart	build	literal_null_coalesce	1	O7-06	if (target.constellation?.isNotEmpty ?? false) target.constellation!,
 packages/skotiq_app/lib/screens/planner/targets/target_detail.dart	build	literal_null_coalesce	1	O7-06	if (target.objectType?.isNotEmpty ?? false) target.objectType!,
-packages/skotiq_app/lib/screens/planner/targets/target_list.dart	_nextLine	literal_null_coalesce	1	O7-06	(r.window?.start?.isAfter(now) ?? false))
+packages/skotiq_app/lib/screens/planner/targets/target_list.dart	_waitingUntil	literal_null_coalesce	1	V0002	(r.window?.start?.isAfter(now) ?? false))
 packages/skotiq_app/lib/screens/planner/targets/target_list.dart	build	literal_null_coalesce	1	O7-06	if (target.objectType?.isNotEmpty ?? false) target.objectType!,
 packages/skotiq_app/lib/screens/planner/targets/target_list.dart	upTonight	literal_null_coalesce	1	O7-06	bool get upTonight => window?.isUp ?? false;
 packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen.dart	build	literal_null_coalesce	1	V0002	final wasRunning = prev?.isRunning ?? false;
@@ -1993,7 +1992,7 @@ packages/skotiq_app/lib/screens/shell/app_shell.dart	_getCurrentLocation	empty_c
 packages/skotiq_app/lib/screens/shell/app_shell.dart	_onCloseRequested	literal_null_coalesce	1	V0008	(cameraState.coolerPower ?? 0) > 2,
 packages/skotiq_app/lib/screens/shell/app_shell.dart	_performCheckpointCheck	literal_null_coalesce	1	V0008	return current?.canResume ?? false;
 packages/skotiq_app/lib/screens/shell/app_shell_parts/_startup_checkpoint.dart	runAppCheckpointRecovery	empty_catch	1	V0527	} catch (_) {
-packages/skotiq_app/lib/screens/shell/app_shell_parts/_startup_checkpoint.dart	checkpointAgeSeconds	guessed_now_timestamp	1	V0528	final age = (now ?? DateTime.now())
+packages/skotiq_app/lib/screens/shell/checkpoint_recovery_rule.dart	checkpointAgeSeconds	guessed_now_timestamp	1	V0528	final age = (now ?? DateTime.now())
 packages/skotiq_app/lib/screens/shell/widgets/notification_toast_overlay.dart	signatureFor	literal_null_coalesce	1	V0532	title: n.title ?? '',
 packages/skotiq_app/lib/screens/shell/widgets/rig_card.dart	-	empty_catch	1	V0808	} catch (_) {
 packages/skotiq_app/lib/screens/shell/widgets/rig_card.dart	_go	empty_catch	1	V0807	} catch (_) {
@@ -2148,6 +2147,7 @@ packages/skotiq_core/lib/src/backend/network_backend/host_data/wire_rows.dart	im
 packages/skotiq_core/lib/src/backend/network_backend/host_data/wire_rows.dart	imagingSessionFromWireJson	literal_null_coalesce	1	V0465	successfulExposures: json['successfulExposures'] as int? ?? 0,
 packages/skotiq_core/lib/src/backend/network_backend/host_data/wire_rows.dart	imagingSessionFromWireJson	literal_null_coalesce	1	V0464	totalExposures: json['totalExposures'] as int? ?? 0,
 packages/skotiq_core/lib/src/backend/network_backend/host_files.dart	getHostCaptureDiskSpace	literal_null_coalesce	1	V0121	DateTime.tryParse(json['sampledAt'] as String? ?? '')?.toLocal() ??
+packages/skotiq_core/lib/src/backend/network_backend/host_files.dart	getHostCaptureDiskSpace	literal_null_coalesce	1	V0001	details['path'] as String? ?? '',
 packages/skotiq_core/lib/src/backend/network_backend/host_files.dart	getHostCaptureDiskSpace	literal_null_coalesce	1	V0121	freeBytes: (json['freeBytes'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/backend/network_backend/host_files.dart	getHostCaptureDiskSpace	literal_null_coalesce	1	V0121	path: json['path'] as String? ?? '',
 packages/skotiq_core/lib/src/backend/network_backend/host_files.dart	getHostCaptureDiskSpace	literal_null_coalesce	1	V0121	totalBytes: (json['totalBytes'] as num?)?.toInt() ?? 0,
@@ -2300,8 +2300,10 @@ packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationMarke
 packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationMarkerStyleFromJson	literal_null_coalesce	1	V0014	starColor: (json['starColor'] as num?)?.toInt() ?? 0xFFFFFFFF,
 packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationPresetFromJson	literal_null_coalesce	1	V0014	isBuiltIn: json['isBuiltIn'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationSettingsFromJson	literal_null_coalesce	1	V0014	(json['catalogBboxPaddingFraction'] as num?)?.toDouble() ?? 0.05,
+packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationSettingsFromJson	literal_null_coalesce	1	V0014	compassEnabled: json['compassEnabled'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationSettingsFromJson	literal_null_coalesce	1	V0014	hoverOpacity: (json['hoverOpacity'] as num?)?.toDouble() ?? 0.8,
 packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationSettingsFromJson	literal_null_coalesce	1	V0014	idleOpacity: (json['idleOpacity'] as num?)?.toDouble() ?? 0.2,
+packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationSettingsFromJson	literal_null_coalesce	1	V0014	scaleBarEnabled: json['scaleBarEnabled'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationSettingsFromJson	literal_null_coalesce	1	V0014	showMagnitudes: json['showMagnitudes'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$AnnotationSettingsFromJson	literal_null_coalesce	1	V0014	showSolveResiduals: json['showSolveResiduals'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/annotation_settings.g.dart	_$CustomAnnotationFromJson	literal_null_coalesce	1	V0014	color: (json['color'] as num?)?.toInt() ?? 0xFFFF6B6B,
@@ -3225,6 +3227,7 @@ packages/skotiq_core/lib/src/services/night_end/night_end_run.dart	NightEndRun.f
 packages/skotiq_core/lib/src/services/night_end/night_end_settings.dart	load	literal_null_coalesce	1	V0843	await dao.getSetting(minRetainedAreaKey) ?? '',
 packages/skotiq_core/lib/src/services/notification/notification_router.dart	prune	guessed_now_timestamp	1	V0105	final cutoff = (now ?? DateTime.now()).subtract(maxAge);
 packages/skotiq_core/lib/src/services/notification/notification_router.dart	_routeStopped	literal_null_coalesce	1	V0105	runId: int.tryParse(contextValues[kStopRunIdContextKey] ?? ''),
+packages/skotiq_core/lib/src/services/notification/notification_router.dart	wouldShowInApp	literal_null_coalesce	1	V0105	return _transports[NotificationTransportKind.inApp]?.isConfigured ?? false;
 packages/skotiq_core/lib/src/services/notification/secrets_store.dart	SecretsStore	comment_best_effort	1	V0106	/// Best-effort: if a single transport's blob is malformed, the
 packages/skotiq_core/lib/src/services/notification/secrets_store.dart	read	literal_null_coalesce	1	V0106	return v ?? '';
 packages/skotiq_core/lib/src/services/notification/transports/email_transport.dart	_runSmtpSession	empty_catch	1	V0103	} catch (_) {
@@ -3291,6 +3294,7 @@ packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	_
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	_profileFromExportJson	literal_null_coalesce	1	V0121	focalLength: _profileDouble(json['focalLength'], 'focalLength') ?? 0.0,
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	U2-20	final aLast = a.lastImagedAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	U2-20	final bLast = b.lastImagedAt?.millisecondsSinceEpoch ?? 0;
+packages/skotiq_core/lib/src/services/restored_frame_path.dart	restoredFramePath	literal_null_coalesce	1	V0105	final configured = rejectFolder?.trim() ?? '';
 packages/skotiq_core/lib/src/services/science/default_science_backend.dart	_recordSolveFailure	empty_catch	1	V0161	} catch (_) {
 packages/skotiq_core/lib/src/services/science/default_science_backend.dart	calibrateFramePhotometry	literal_null_coalesce	1	V0161	calibrationRms: fit.rms ?? 0.0,
 packages/skotiq_core/lib/src/services/science/default_science_backend.dart	solveForScience	literal_null_coalesce	1	V0161	final forceBlind = settings?.blindSolve ?? false;

@@ -23,3 +23,18 @@ String shortcutModifierLabel() {
 /// The badge text for a primary-modifier shortcut, e.g. `⌘K` on macOS and
 /// `Ctrl+K` everywhere else.
 String shortcutLabel(String key) => '${shortcutModifierLabel()}$key';
+
+/// A shortcut named after a label: " (Ctrl+Z)", or " (or Ctrl+Z)" with [or].
+/// Empty on a phone or tablet, where a keyboard is the exception and a touch
+/// tooltip naming one is noise.
+String shortcutSuffix(String key, {bool or = false}) =>
+    platformExpectsKeyboard()
+    ? ' (${or ? 'or ' : ''}${shortcutLabel(key)})'
+    : '';
+
+/// Whether this platform is one a keyboard comes with: false on a phone or
+/// tablet, where naming a shortcut is noise.
+bool platformExpectsKeyboard() => switch (defaultTargetPlatform) {
+  TargetPlatform.android || TargetPlatform.iOS => false,
+  _ => true,
+};

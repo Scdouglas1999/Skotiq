@@ -33,6 +33,8 @@ import '../../discover/mosaic/mosaic_format.dart';
 import '../../discover/mosaic/mosaic_project_controller.dart';
 import '../../discover/mosaic/mosaic_project_screen.dart'
     show mosaicProjectStatusLabel;
+import '../../../router/sequencer_route.dart';
+import '../../sequencer/sequencer_screen.dart';
 import '../../sequencer/widgets/mosaic_wizard_dialog.dart';
 import '../../sequencer/widgets/smart_night_dialog.dart';
 import '../editors/integration_goals_editor.dart';

@@ -19,9 +19,13 @@ class _BuilderContent extends ConsumerWidget {
     // desktop path. Branching on the short side avoids both.
     return LayoutBuilder(
       builder: (context, constraints) {
-        final shortSide = constraints.maxWidth < constraints.maxHeight
-            ? constraints.maxWidth
-            : constraints.maxHeight;
+        // The DEVICE's short side, not this region's: under the header, the
+        // tabs and a running plan's progress band a tablet or an unfolded
+        // Fold in landscape has less than 600 dp of height left, and read
+        // as a phone held sideways it got a fixed tree / "Select a node"
+        // split with phone cards instead of the builder its size can hold.
+        final screen = MediaQuery.sizeOf(context);
+        final shortSide = screen.shortestSide;
         if (BreakpointTokens.isPhone(shortSide)) {
           return _MobileBuilderLayout(colors: colors);
         }
@@ -244,11 +248,48 @@ class _DesktopBuilderLayout extends ConsumerWidget {
               final effectivePropertiesCollapsed = propertiesCollapsed ||
                   (autoCollapseProperties && !propertiesForceOpen);
 
-              return Row(
+              // On a touch screen below the desktop breakpoint (a tablet, an
+              // unfolded phone) an open side panel slides OVER the plan instead of squeezing it:
+              // docked, it left a canvas too narrow for the ledger, which fell
+              // back to cards. Tapping the plan beside it closes it.
+              final overlayPanels = SkotiqTouchTarget.isTouch(context) &&
+                  availableWidth < SkotiqTokens.breakpointDesktop;
+
+              void closeToolbox() {
+                ref.read(sequencerToolboxForceOpenProvider.notifier).state =
+                    false;
+                // The overlay is opened per use; the docked preference stays
+                // as the operator set it on a wide screen.
+                if (!overlayPanels) {
+                  ref.read(sequencerToolboxCollapsedProvider.notifier).state =
+                      true;
+                }
+              }
+
+              void closeProperties() {
+                ref.read(sequencerPropertiesForceOpenProvider.notifier).state =
+                    false;
+                if (overlayPanels) {
+                  // Closing the sheet ends the edit; the next step tapped
+                  // opens it again.
+                  ref.read(selectedNodeIdProvider.notifier).state = null;
+                } else {
+                  ref
+                      .read(sequencerPropertiesCollapsedProvider.notifier)
+                      .state = true;
+                }
+              }
+
+              // Whether both docked panels can be open and still leave the
+              // plan its comfortable width.
+              final bothFit = availableWidth - leftWidth - rightWidth >=
+                  comfortableCenterWidth;
+
+              final docked = Row(
                 children: [
                   _CollapsiblePanel(
                     colors: colors,
-                    isCollapsed: effectiveToolboxCollapsed,
+                    isCollapsed: overlayPanels || effectiveToolboxCollapsed,
                     collapsedWidth: collapsedPanelWidth,
                     expandedWidth: leftWidth,
                     minExpandedWidth: dims.leftMin,
@@ -260,13 +301,20 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                     // when the pane is only collapsed because the layout
                     // derived it, reading the pref made "open it" a no-op.
                     onToggle: () {
-                      final opening = effectiveToolboxCollapsed;
+                      final opening =
+                          overlayPanels || effectiveToolboxCollapsed;
                       ref
                           .read(sequencerToolboxCollapsedProvider.notifier)
                           .state = !opening;
                       ref
                           .read(sequencerToolboxForceOpenProvider.notifier)
                           .state = opening;
+                      // Docked panels share the width: opening one where both
+                      // would crush the plan closes the other.
+                      // Overlays take turns: one over the plan at a time.
+                      if (opening && (overlayPanels || !bothFit)) {
+                        closeProperties();
+                      }
                     },
                     // Persist a drag so it survives the next layout pass
                     // instead of snapping back to the derived width.
@@ -276,46 +324,51 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                     child: _ToolboxPanel(
                       key: TourTarget.sequencerNodePalette.key,
                       colors: colors,
-                      onCollapse: () {
-                        ref
-                            .read(sequencerToolboxCollapsedProvider.notifier)
-                            .state = true;
-                        ref
-                            .read(sequencerToolboxForceOpenProvider.notifier)
-                            .state = false;
-                      },
+                      onCollapse: closeToolbox,
                     ),
                   ),
-
                   // Center - the canvas: its own 44 px bar, then the tree.
+                  // A minWidth inside an Expanded is not enforced: while one
+                  // panel slides shut and the other open, the plan was laid
+                  // out at a few pixels and every row overflowed. It keeps its
+                  // floor and is clipped for those frames instead.
                   Expanded(
-                    child: ConstrainedBox(
-                      constraints:
-                          const BoxConstraints(minWidth: minCenterWidth),
-                      child: Column(
-                        children: [
-                          SequenceToolbar(
-                            key: TourTarget.sequencerToolbar.key,
-                            colors: colors,
-                          ),
-                          Expanded(
-                            child: SequenceTree(
-                              key: TourTarget.sequencerCanvas.key,
-                              colors: colors,
+                    child: ClipRect(
+                      child: LayoutBuilder(
+                        builder: (context, slot) {
+                          final width = slot.maxWidth < minCenterWidth
+                              ? minCenterWidth
+                              : slot.maxWidth;
+                          return OverflowBox(
+                            alignment: Alignment.centerLeft,
+                            minWidth: width,
+                            maxWidth: width,
+                            child: Column(
+                              children: [
+                                SequenceToolbar(
+                                  key: TourTarget.sequencerToolbar.key,
+                                  colors: colors,
+                                ),
+                                Expanded(
+                                  child: SequenceTree(
+                                    key: TourTarget.sequencerCanvas.key,
+                                    colors: colors,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ),
                   ),
-
                   // Right panel - Properties. The panel expands with an empty
                   // state, so the toggle is always live and the affordance is
                   // discoverable before a node is selected — the panel renders
                   // NodePropertiesPanel's own "select a node" empty state.
                   _CollapsiblePanel(
                     colors: colors,
-                    isCollapsed: effectivePropertiesCollapsed,
+                    isCollapsed: overlayPanels || effectivePropertiesCollapsed,
                     collapsedWidth: collapsedPanelWidth,
                     expandedWidth: rightWidth,
                     minExpandedWidth: dims.rightMin,
@@ -324,13 +377,17 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                     collapsedIcon: LucideIcons.settings2,
                     collapsedTooltip: 'Show Properties',
                     onToggle: () {
-                      final opening = effectivePropertiesCollapsed;
+                      final opening =
+                          overlayPanels || effectivePropertiesCollapsed;
                       ref
                           .read(sequencerPropertiesCollapsedProvider.notifier)
                           .state = !opening;
                       ref
                           .read(sequencerPropertiesForceOpenProvider.notifier)
                           .state = opening;
+                      if (opening && (overlayPanels || !bothFit)) {
+                        closeToolbox();
+                      }
                     },
                     onWidthChanged: (w) => ref
                         .read(sequencerRightPanelWidthProvider.notifier)
@@ -338,16 +395,71 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                     child: NodePropertiesPanel(
                       key: TourTarget.sequencerPropertiesPanel.key,
                       colors: colors,
-                      onCollapse: () {
-                        ref
-                            .read(sequencerPropertiesCollapsedProvider.notifier)
-                            .state = true;
-                        ref
-                            .read(sequencerPropertiesForceOpenProvider.notifier)
-                            .state = false;
-                      },
+                      onCollapse: closeProperties,
                     ),
                   ),
+                ],
+              );
+              // As overlays the panels follow what the operator is doing, not
+              // the docked preference: the toolbox while its rail was tapped,
+              // the inspector while a step is selected (or its rail tapped).
+              final propertiesOpen =
+                  overlayPanels && (hasSelection || propertiesForceOpen);
+              // One overlay at a time: a step selected (tapped, or just
+              // added) shows its inspector in place of the toolbox.
+              final toolboxOpen =
+                  overlayPanels && toolboxForceOpen && !propertiesOpen;
+              if (!toolboxOpen && !propertiesOpen) return docked;
+              final sheetWidth = (availableWidth - collapsedPanelWidth * 2)
+                  .clamp(dims.rightMin, 420.0);
+              return Stack(
+                children: [
+                  docked,
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        if (toolboxOpen) closeToolbox();
+                        if (propertiesOpen) closeProperties();
+                      },
+                      child: ColoredBox(
+                        color: ImageOverlayColors.shadow.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ),
+                  if (toolboxOpen)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: (availableWidth - collapsedPanelWidth * 2)
+                          .clamp(dims.leftMin, 320.0),
+                      child: Material(
+                        elevation: 8,
+                        color: colors.surface,
+                        child: _ToolboxPanel(
+                          key: TourTarget.sequencerNodePalette.key,
+                          colors: colors,
+                          onCollapse: closeToolbox,
+                        ),
+                      ),
+                    ),
+                  if (propertiesOpen)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: sheetWidth,
+                      child: Material(
+                        elevation: 8,
+                        color: colors.surface,
+                        child: NodePropertiesPanel(
+                          key: TourTarget.sequencerPropertiesPanel.key,
+                          colors: colors,
+                          onCollapse: closeProperties,
+                        ),
+                      ),
+                    ),
                 ],
               );
             },

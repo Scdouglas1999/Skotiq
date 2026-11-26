@@ -45,6 +45,14 @@ final captureDirDiskSpaceProvider = StreamProvider.autoDispose<DiskSpaceInfo?>((
   return ref.watch(_captureDiskSamplesProvider)(ref);
 });
 
+/// The capture folder is set but is not on the imaging computer: a drive
+/// that is not mounted, or a folder removed since. A run refuses to start.
+final captureFolderMissingProvider = Provider<bool>((ref) {
+  final error = ref.watch(captureDirDiskSpaceProvider).error;
+  return error is DiskSpaceException &&
+      error.kind == DiskSpaceFailureKind.pathMissing;
+});
+
 Stream<T> _cancellablePollStream<T>({
   required Ref ref,
   required Duration interval,
@@ -269,11 +277,17 @@ Future<DiskSpaceProjection?> projectCurrentSequence(Ref ref) async {
     capabilities = await ref.read(cameraCapabilitiesProvider(cameraId).future);
   }
   final sample = ref.read(captureDirDiskSpaceProvider).valueOrNull;
-  final linked = ref.read(remoteHostProvider) != null;
-  final usable = sample != null && diskSampleCoversPath(sample, path)
+  final host = ref.read(remoteHostProvider);
+  var usable = sample != null && diskSampleCoversPath(sample, path)
       ? sample
       : null;
-  if (linked && usable == null) return null;
+  if (host != null && usable == null) {
+    // No sample for this folder yet: ask the host now, so a folder it does
+    // not have is reported (the query throws) instead of skipped.
+    final fresh = await host.files.getHostCaptureDiskSpace();
+    if (fresh == null || !diskSampleCoversPath(fresh, path)) return null;
+    usable = fresh;
+  }
   final guard = ref.read(diskSpaceGuardProvider);
   return guard.projectSequence(
     capturePath: path,

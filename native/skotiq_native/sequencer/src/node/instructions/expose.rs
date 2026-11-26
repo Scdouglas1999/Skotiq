@@ -187,14 +187,22 @@ impl InstructionNode for ExposeInstruction {
         // what lets the frame loop honour a Pause. `status` gives an in-burst
         // hold (the meridian gate) a way to say so, instead of the run
         // appearing stalled at 0/N with no explanation.
+        //
+        // The hold goes out as instruction progress, not a bare lifecycle
+        // message: only instruction progress becomes an event, so a lifecycle
+        // message reached the native status and no client. It keeps the
+        // burst's last percent so the step's bar does not drop to zero.
         let status_cb = context.progress_callback.clone();
         let status_node_id = node_id.to_string();
+        let last_percent = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0f64.to_bits()));
+        let status_percent = last_percent.clone();
         let status_fn = move |message: &str| {
             if let Some(cb) = status_cb.as_ref() {
-                cb(ProgressUpdate::lifecycle(
+                cb(ProgressUpdate::instruction_progress(
                     status_node_id.clone(),
-                    NodeStatus::Running,
-                    message.to_string(),
+                    "Exposure",
+                    f64::from_bits(status_percent.load(Ordering::Relaxed)),
+                    ProgressDetail::Generic(message.to_string()),
                 ));
             }
         };
@@ -222,6 +230,7 @@ impl InstructionNode for ExposeInstruction {
                         } else {
                             0.0
                         };
+                        last_percent.store(percent.to_bits(), Ordering::Relaxed);
                         // Per-frame structured Exposure progress. current_frame /
                         // total_frames must remain populated because the executor's
                         // progress callback uses them to synthesize ExposureStarted

@@ -47,16 +47,23 @@ class FilterOffsetNotifier extends StateNotifier<FilterOffsetState> {
     : super(const FilterOffsetState(isLoading: true)) {
     _initFuture = _init();
     unawaited(_initFuture);
+    // These fire while other providers rebuild from the same change, and
+    // the load marks this one loading at once; a provider may not change
+    // another during its build, so the load starts on the next microtask.
     _ref.listen(activeEquipmentProfileProvider, (_, __) {
       if (!mounted) return;
       _mutationGeneration++;
-      unawaited(_loadOffsetsForActiveProfile());
+      scheduleMicrotask(() {
+        if (mounted) unawaited(_loadOffsetsForActiveProfile());
+      });
     });
     _ref.listen(focusHistoryProvider, (previous, next) {
       if (!mounted || identical(previous, next)) return;
       _authorityGeneration++;
       _mutationGeneration++;
-      unawaited(_loadOffsetsForActiveProfile());
+      scheduleMicrotask(() {
+        if (mounted) unawaited(_loadOffsetsForActiveProfile());
+      });
     });
   }
 

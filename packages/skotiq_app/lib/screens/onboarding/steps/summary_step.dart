@@ -149,7 +149,13 @@ class _OnboardingSummaryStepState extends ConsumerState<OnboardingSummaryStep> {
             label: 'Capture',
             rows: [
               ('Capture defaults', _captureDefaults(draft)),
-              ('Capture folder', draft.captureDirectory),
+              (
+                'Capture folder',
+                switch (draft.captureDirectory?.trim()) {
+                  null || '' => 'None: runs will not start until one is set',
+                  final path => path,
+                },
+              ),
               ('Site', siteValue),
             ],
           ),

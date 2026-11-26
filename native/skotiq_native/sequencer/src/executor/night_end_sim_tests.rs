@@ -1226,3 +1226,81 @@ fn a_new_run_does_not_inherit_the_last_runs_tracking_baseline() {
         "the first poll of a new run is not a loss"
     );
 }
+
+fn short_plan() -> SequenceDefinition {
+    let step = node(
+        "wait",
+        "Wait",
+        NodeType::Delay(DelayConfig { seconds: 0.1 }),
+    );
+    let mut root = node(
+        "root",
+        "Night",
+        NodeType::Loop(LoopConfig {
+            iterations: Some(1),
+            condition: LoopCondition::Count,
+            ..Default::default()
+        }),
+    );
+    root.children = vec![step.id.clone()];
+    let mut sequence = SequenceDefinition::new("Night".into());
+    sequence.root_node_id = Some("root".into());
+    sequence.nodes = vec![root, step];
+    sequence
+}
+
+/// Night test 2026-11-26: the park's "paused while the mount moves" read on
+/// the guider after the run had ended. A run that ends with the guider
+/// stopped leaves no reason behind; a guider still guiding keeps its own.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_finished_run_clears_a_stale_guiding_hold() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guiding.store(false, Ordering::SeqCst);
+    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), short_plan()).await;
+    assert_eq!(
+        wait_until_finished(&executor).await,
+        super::ExecutorState::Completed
+    );
+    let calls = ops.calls();
+    assert_eq!(
+        calls
+            .iter()
+            .rfind(|c| c.starts_with("guider_stop_reason:"))
+            .map(String::as_str),
+        Some("guider_stop_reason:none"),
+        "calls={calls:?}"
+    );
+
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), short_plan()).await;
+    assert_eq!(
+        wait_until_finished(&executor).await,
+        super::ExecutorState::Completed
+    );
+    let calls = ops.calls();
+    assert!(
+        !calls.iter().any(|c| c == "guider_stop_reason:none"),
+        "calls={calls:?}"
+    );
+
+    // A failed run keeps whatever reason may explain it.
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.guiding.store(false, Ordering::SeqCst);
+    let mut plan = night_plan(node("park", "Park mount", NodeType::Park));
+    for n in &mut plan.nodes {
+        if n.id == "imaging" {
+            *n = flip_step();
+            n.id = "imaging".into();
+        }
+    }
+    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    assert_eq!(
+        wait_until_finished(&executor).await,
+        super::ExecutorState::Failed
+    );
+    let calls = ops.calls();
+    assert!(
+        !calls.iter().any(|c| c == "guider_stop_reason:none"),
+        "calls={calls:?}"
+    );
+}

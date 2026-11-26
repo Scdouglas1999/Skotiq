@@ -170,7 +170,17 @@ class MdnsServiceRegistration {
           'closing the avahi publisher stdin failed: $e',
         );
       }
-      publisher.kill();
+      // Let the shell run its own `kill` first: a SIGTERM straight after
+      // the close landed while `cat` was still reading, the shell died
+      // without reaching it, and the publisher outlived the host,
+      // advertising an address nobody answered on.
+      await publisher.exitCode.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {
+          publisher.kill();
+          return -1;
+        },
+      );
       _started = false;
       return;
     }
@@ -208,7 +218,8 @@ class MdnsServiceRegistration {
   ///
   /// The publisher runs under a shell that exits when its stdin closes, which
   /// happens when this process exits for any reason, so a crashed host never
-  /// leaves an orphan advertising an address nobody answers on.
+  /// leaves an orphan advertising an address nobody answers on. A signal to
+  /// the shell ends the publisher the same way.
   Future<void> _startAvahi() async {
     final args = <String>[
       name,
@@ -226,6 +237,8 @@ class MdnsServiceRegistration {
         '-c',
         'command -v avahi-publish-service >/dev/null 2>&1 || exit 127; '
             'avahi-publish-service $quoted >/dev/null 2>&1 & child=\$!; '
+            // A signal to the shell ends the publisher too.
+            'trap \'kill \$child 2>/dev/null; exit 0\' TERM HUP INT; '
             'cat >/dev/null; kill \$child 2>/dev/null',
       ]);
       // Give a missing tool or a dead daemon a moment to show itself.

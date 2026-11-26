@@ -235,7 +235,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'weatherSafetyAutoParkDesc':
         'Park the mount and close the cover and dome when a weather device '
             'or safety monitor at the site reports unsafe. An internet '
-            'forecast never parks. When off, imaging stops and nothing is '
+            'forecast never parks. Parking ends the run; start it again '
+            'once the sky clears. When off, imaging stops and nothing is '
             'parked or closed',
     'weatherSafetyForecastHolds': 'Forecast clouds hold the run',
     'weatherSafetyForecastHoldsDesc':
@@ -720,6 +721,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckDisk': 'Disk',
     'nightSessionCheckDiskFree': '{free} free',
     'nightSessionCheckDiskNoFolder': 'no capture folder chosen',
+    'nightSessionCheckDiskFolderMissing':
+        'the capture folder is not on the imaging computer',
     'nightSessionCheckDiskPlan': '{free} free · plan needs {need}',
     'nightSessionCheckFilter': 'Filter',
     'nightSessionCheckFilterSlots': '{count} slots',
@@ -843,6 +846,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActivityPaused': 'Paused',
     'nightActivityStopping': 'Stopping',
     'nightActivityFinished': 'Sequence finished',
+    'nightActivityCompleted': 'Sequence completed',
+    'nightActivityStopped': 'Sequence stopped',
+    'nightActivityEnded': 'Sequence ended',
     'nightActivityFailed': 'Sequence failed',
     'nightActivityRecovery': 'Recovering',
     'nightActivityDownloading': 'Downloading frame',
@@ -1114,7 +1120,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlPillRunning': 'Running',
     'nightCtlPillPaused': 'Paused',
     'nightCtlPillStopping': 'Stopping',
-    'nightCtlPillFinished': 'Finished',
+    'nightCtlPillFinished': 'Ended',
     'nightCtlPillStopped': 'Stopped',
     'nightCtlPillCompleted': 'Completed',
     'nightCtlPillFailed': 'Failed',
@@ -1900,7 +1906,9 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Aparcar la montura y cerrar la tapa y la c\u00FApula cuando una '
             'estaci\u00F3n meteorol\u00F3gica o un monitor de seguridad '
             'indique condiciones inseguras. Una previsi\u00F3n de internet '
-            'nunca aparca. Desactivado, se detiene la captura sin aparcar ni '
+            'nunca aparca. Aparcar termina la sesi\u00F3n; vuelve a '
+            'iniciarla cuando el cielo se despeje. Desactivado, se detiene la '
+            'captura sin aparcar ni '
             'cerrar nada',
     'weatherSafetyForecastHolds': 'Las nubes previstas pausan la sesi\u00F3n',
     'weatherSafetyForecastHoldsDesc':
@@ -2388,6 +2396,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckDisk': 'Disco',
     'nightSessionCheckDiskFree': '{free} libres',
     'nightSessionCheckDiskNoFolder': 'no hay carpeta de captura elegida',
+    'nightSessionCheckDiskFolderMissing':
+        'la carpeta de captura no est\u00E1 en el ordenador de captura',
     'nightSessionCheckDiskPlan': '{free} libres · el plan necesita {need}',
     'nightSessionCheckFilter': 'Filtro',
     'nightSessionCheckFilterSlots': '{count} posiciones',
@@ -2512,6 +2522,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActivityPaused': 'En pausa',
     'nightActivityStopping': 'Deteniendo',
     'nightActivityFinished': 'Secuencia finalizada',
+    'nightActivityCompleted': 'Secuencia completada',
+    'nightActivityStopped': 'Secuencia detenida',
+    'nightActivityEnded': 'Secuencia terminada',
     'nightActivityFailed': 'Secuencia fallida',
     'nightActivityRecovery': 'Recuperando',
     'nightActivityDownloading': 'Descargando imagen',

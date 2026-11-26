@@ -230,7 +230,15 @@ class _NodeTextInputState extends State<NodeTextInput> {
           hintStyle: SkotiqTypography.bodySm.copyWith(
             color: widget.colors.textMuted,
           ),
+          // The container draws the field's one outline; the theme's
+          // enabled/focused borders would draw a second inside it.
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          filled: false,
           isDense: true,
           contentPadding: EdgeInsets.symmetric(vertical: inputPaddingV),
           suffixIcon: variables == null
@@ -469,7 +477,15 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
                   // Expanded field it took half the row, so a 290 px inspector
                   // showed "02" for an RA of 2.702.
                   decoration: InputDecoration(
+                    // The container draws the field's one outline; the theme's
+                    // enabled/focused borders would draw a second inside it.
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    filled: false,
                     isDense: true,
                     contentPadding:
                         EdgeInsets.symmetric(vertical: inputPaddingV),
@@ -688,12 +704,18 @@ class _NodeDangerButtonState extends State<NodeDangerButton> {
                     : widget.colors.textSecondary,
               ),
               SizedBox(width: Responsive.spacing(context, 8)),
-              Text(
-                widget.label,
-                style: SkotiqTypography.buttonSm.copyWith(
-                  color: _isHovered
-                      ? widget.colors.error
-                      : widget.colors.textSecondary,
+              // Flexible: in a narrow inspector the button is the width its
+              // column gives it, and the label shortens rather than spill.
+              Flexible(
+                child: Text(
+                  widget.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: SkotiqTypography.buttonSm.copyWith(
+                    color: _isHovered
+                        ? widget.colors.error
+                        : widget.colors.textSecondary,
+                  ),
                 ),
               ),
             ],

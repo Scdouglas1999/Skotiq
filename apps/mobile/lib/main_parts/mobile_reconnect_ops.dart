@@ -392,7 +392,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         }
       }
 
-      final isReachable = await EnhancedSkotiqDiscovery.testServerConnection(
+      final outcome = await EnhancedSkotiqDiscovery.probeServer(
         enrichedServer.host,
         enrichedServer.webPort,
         authToken: authToken,
@@ -403,6 +403,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         scheme: enrichedServer.scheme,
       );
       if (!_isCurrentConnectionOperation(operationGeneration)) return false;
+      final isReachable = outcome == ServerProbeOutcome.reachable;
 
       if (isReachable) {
         Log.info('Connection successful!', source: 'Discovery');
@@ -521,6 +522,18 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           ref.invalidate(equipmentProfilesProvider);
         });
         return true;
+      } else if (outcome == ServerProbeOutcome.authRejected) {
+        // The host answered and refused this phone's token: its pairings were
+        // reset (a reinstall, a cleared database). That is "pair again", with
+        // the Pair button, not "may be offline".
+        setState(() {
+          _isDiscovering = false;
+          _statusMessage = '';
+          _error =
+              'The imaging computer "${enrichedServer.name}" no longer '
+              'knows this phone. Pair again.';
+          _unpairedHost = enrichedServer.copyWith(clearAuthToken: true);
+        });
       } else {
         final authMessage =
             enrichedServer.authRequired &&
@@ -609,7 +622,10 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         }
 
         final info = await executor.getCheckpointInfo();
-        if (info == null || !info.canResume) return;
+        // The desktop's rule: only a run the app died under, with frames to
+        // recover, inside the Continue Session window. A stopped run is
+        // continued from History, not raised as an interruption.
+        if (info == null || !offersCheckpointRecovery(info)) return;
         // The dialog needs a context under the app's MaterialApp; this State
         // sits above it ("No MaterialLocalizations found" on every check).
         // Right after connecting, the router's navigator is not built yet.

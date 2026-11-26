@@ -552,28 +552,46 @@ void main() {
     await _drainValidationDebounce(tester);
   });
 
-  testWidgets('a canvas below the column floor falls back to compact rows',
-      (tester) async {
-    final built = _threeLevelSequence([
-      ExposureNode(
-        name: 'L subs',
-        filter: 'L',
-        durationSecs: 60,
-        count: 10,
-      ),
-    ]);
-    // 530 - 2x20 padding = 490 < 500: the density preference is still ledger,
-    // but the tree must not draw columns that leave the name no room.
-    await _pumpTree(tester, built.sequence, size: const Size(530, 900));
+  // Touch (the test platform): marker, chevron, icon, gap, the 48 px actions
+  // slot, the badge gutter and a 96 px name floor cost 207 px before any
+  // column; the tree pads 20 px a side.
+  for (final (width, columns) in <(double, List<String>?)>[
+    (560, ['Filter / exp', 'Count', 'Duration', 'ETA']),
+    (480, ['Filter / exp', 'Count', 'ETA']),
+    (410, ['Filter / exp', 'Count']),
+    (360, null),
+  ]) {
+    testWidgets(
+        'a ${width.toInt()} px canvas shows '
+        '${columns?.join(', ') ?? 'compact rows'}', (tester) async {
+      final built = _threeLevelSequence([
+        ExposureNode(
+          name: 'L subs',
+          filter: 'L',
+          durationSecs: 60,
+          count: 10,
+        ),
+      ]);
+      await _pumpTree(tester, built.sequence, size: Size(width, 900));
 
-    expect(find.text('Filter / exp'), findsNothing);
-    expect(find.text('Step'), findsNothing);
-    // The row is a compact card row, not a stripped ledger line.
-    expect(find.text('L subs'), findsOneWidget);
-    expect(_rowShellOf(find.text('L subs')), findsNothing);
-    expect(tester.takeException(), isNull);
-    await _drainValidationDebounce(tester);
-  });
+      expect(find.text('L subs'), findsOneWidget);
+      if (columns == null) {
+        expect(find.text('Step'), findsNothing);
+        expect(_rowShellOf(find.text('L subs')), findsNothing);
+      } else {
+        expect(find.text('Step'), findsOneWidget);
+        for (final label in ['Filter / exp', 'Count', 'Duration', 'ETA']) {
+          expect(
+            find.text(label),
+            columns.contains(label) ? findsOneWidget : findsNothing,
+            reason: label,
+          );
+        }
+      }
+      expect(tester.takeException(), isNull);
+      await _drainValidationDebounce(tester);
+    });
+  }
 
   testWidgets('long-press drag reorders a ledger row', (tester) async {
     final target = TargetHeaderNode(

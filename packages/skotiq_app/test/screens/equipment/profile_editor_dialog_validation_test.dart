@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/dialogs/profile_editor_dialog.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -53,6 +54,36 @@ Finder _millimetreFieldWithHint(String hint) => find.descendant(
 
 Finder get _focalLengthField => _millimetreFieldWithHint('e.g., 550');
 Finder get _apertureField => _millimetreFieldWithHint('e.g., 100');
+
+/// A scan that clears the list, then lands one rotator, as a real one does.
+class _ScanLandsRotator extends UnifiedDiscoveryNotifier {
+  _ScanLandsRotator(super.ref);
+
+  @override
+  Future<void> discoverAll(
+      {bool includeIndi = true, bool includeAlpaca = true}) async {
+    state = const UnifiedDiscoveryState();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    const info = DeviceInfo(
+      id: 'sim_rotator_1',
+      name: 'Simulated Rotator',
+      deviceType: DeviceType.rotator,
+      driverType: DriverType.simulator,
+      description: '',
+      driverVersion: '',
+    );
+    state = UnifiedDiscoveryState(
+      groupedDevices: [
+        UnifiedDevice(
+          canonicalName: 'simulated rotator',
+          displayName: 'Simulated Rotator',
+          type: DeviceType.rotator,
+          availableBackends: {DriverType.simulator: info},
+        ),
+      ],
+    );
+  }
+}
 
 void main() {
   /// Pump a launcher that opens [ProfileEditorDialog] as a real pushed route
@@ -107,6 +138,67 @@ void main() {
 
     return () => completed ? result : null;
   }
+
+  // Every accent swatch read "Accent color"; each now names its color.
+  testWidgets('each accent swatch is named for a screen reader',
+      (tester) async {
+    final db = mockDatabase();
+    addTearDown(db.close);
+    await openEditor(tester,
+        overrides: [databaseProvider.overrideWithValue(db)]);
+    expect(find.bySemanticsLabel('No accent color'), findsOneWidget);
+    expect(find.bySemanticsLabel('Accent color: Pink'), findsOneWidget);
+    expect(
+        find.bySemanticsLabel(RegExp(r'^Accent color: \w')), findsNWidgets(9));
+  });
+
+  // A scan from a device list closed the list and said nothing; it reopens
+  // with what the scan found (fresh-install walk, 2026-11-26).
+  testWidgets('a scan from a device list reopens it with the results',
+      (tester) async {
+    final db = mockDatabase();
+    addTearDown(db.close);
+    await openEditor(tester, overrides: [
+      databaseProvider.overrideWithValue(db),
+      unifiedDiscoveryProvider.overrideWith(_ScanLandsRotator.new),
+    ]);
+    final rotator = find.bySemanticsLabel('Rotator: choose a device');
+    await tester.ensureVisible(rotator);
+    await tester.pumpAndSettle();
+    await tester.tap(rotator);
+    await tester.pumpAndSettle();
+    expect(find.text('Simulated Rotator'), findsNothing);
+    await tester.tap(find.text('Scan for devices'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 10));
+    expect(find.text('Scanning…'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('Simulated Rotator'), findsOneWidget);
+  });
+
+  testWidgets('a scan that lands after the operator moved on stays closed',
+      (tester) async {
+    final db = mockDatabase();
+    addTearDown(db.close);
+    await openEditor(tester, overrides: [
+      databaseProvider.overrideWithValue(db),
+      unifiedDiscoveryProvider.overrideWith(_ScanLandsRotator.new),
+    ]);
+    final rotator = find.bySemanticsLabel('Rotator: choose a device');
+    await tester.ensureVisible(rotator);
+    await tester.pumpAndSettle();
+    await tester.tap(rotator);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Scan for devices'));
+    await tester.pump();
+    // Back to typing before the scan lands.
+    final name = find.byType(TextField).first;
+    await tester.ensureVisible(name);
+    await tester.tap(name);
+    await tester.pumpAndSettle();
+    expect(find.text('Simulated Rotator'), findsNothing);
+    expect(find.text('Scan for devices'), findsNothing);
+  });
 
   testWidgets('blank name blocks the save: dialog stays open, no row written',
       (tester) async {

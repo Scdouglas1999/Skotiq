@@ -261,8 +261,15 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
   ref.listen<Sequence?>(currentSequenceProvider, (previous, next) {
     if (!ref.read(isRemoteModeProvider)) return;
-    if (!identical(next, syncState.appliedFromHost) &&
-        ref.read(canEditSequenceProvider)) {
+    // The plan the host just sent is not written back to it. Identity alone
+    // is not that test: an undo restores the very object the host sent
+    // before this client's edit, and skipping it left the host on the edit,
+    // whose next mirror frame put the undone step back.
+    final fromHost =
+        identical(next, syncState.appliedFromHost) &&
+        sequenceFingerprint(ref.read(sequenceFileServiceProvider), next) ==
+            syncState.hostFingerprint;
+    if (!fromHost && ref.read(canEditSequenceProvider)) {
       syncState.writePending = true;
       scheduleWriteThrough();
     }
@@ -297,13 +304,17 @@ Future<bool> _persistRemoteSequence(
   final repository = ref.read(sequenceRepositoryProvider);
 
   try {
-    final savedId = await repository.saveSequence(sequence);
+    // A plan built from Best tonight files under a free name, not as one
+    // more "NGC1313 Plan" (night test 2026-11-25: three alike in the list).
+    final toSave = await withFreeNameForFirstSave(repository, sequence);
+    final savedId = await repository.saveSequence(toSave);
     if (!isActive()) return true;
     if (ref.backendScopeOver(backend).isStale) return true;
 
     final markedClean = editor.applyRemoteSave(
       savedId,
       expectedSnapshot: sequence,
+      savedName: toSave.name,
     );
     ref.invalidate(savedSequencesProvider);
     ref.invalidate(savedSequenceSummariesProvider);

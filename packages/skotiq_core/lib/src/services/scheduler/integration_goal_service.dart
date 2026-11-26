@@ -164,6 +164,9 @@ class IntegrationGoalService {
   }
 
   Future<List<IntegrationGoal>> listForTarget(int targetId) async {
+    // A catalog suggestion that was never saved as a target has no row id
+    // (0) and so no goals. The host refuses an id below 1.
+    if (targetId < 1) return const [];
     final remote = _remote;
     if (remote != null) {
       return remote.getIntegrationGoals(targetId: targetId);

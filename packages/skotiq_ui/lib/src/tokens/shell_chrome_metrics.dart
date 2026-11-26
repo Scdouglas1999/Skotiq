@@ -121,15 +121,19 @@ abstract final class ShellChromeMetrics {
   }
 
   /// Minimum bottom offset for floating overlays in the content stack
-  /// (autofocus progress, mobile sequence controls, etc.).
+  /// (autofocus progress, polar alignment).
+  ///
+  /// The content stack already ends above the bottom nav (which takes the
+  /// system inset) or the instrument bar, so neither is added again: adding
+  /// them floated a minimized pill some 130 px above the nav on a phone.
+  /// Without a bottom nav the stack can reach the screen's foot, so the
+  /// system inset is kept there.
   static double floatingOverlayBottomInset(
     BuildContext context, {
     required bool useBottomNav,
     double margin = 16.0,
   }) {
-    return MediaQuery.paddingOf(context).bottom +
-        contentStackBottomChromeHeight(useBottomNav: useBottomNav) +
-        margin;
+    return (useBottomNav ? 0.0 : MediaQuery.paddingOf(context).bottom) + margin;
   }
 
   /// Scales [statusPillValueMaxWidth] for viewport size with sane bounds.

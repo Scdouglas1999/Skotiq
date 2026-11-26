@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -201,16 +203,18 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   /// The icon choices: none (the default aperture), then every glyph.
   static final List<String> _availableIcons = ['', ...profileGlyphs.keys];
 
-  static const List<Color> _accentColors = [
-    EquipmentProfileColors.defaultProfile, // Cyan-blue (default)
-    EquipmentProfileColors.sky, // Sky
-    EquipmentProfileColors.pink, // Pink
-    SciencePlotColors.clipHigh, // Red
-    EquipmentProfileColors.orange, // Orange
-    EquipmentProfileColors.yellow, // Yellow
-    SciencePlotColors.highConfidence, // Green
-    EquipmentProfileColors.cyan, // Cyan
-    EquipmentProfileColors.blue, // Blue
+  /// Each accent with the name a screen reader says for its swatch: nine
+  /// swatches all read "Accent color" (mobile rework fresh-install walk).
+  static const List<(Color, String)> _accentColors = [
+    (EquipmentProfileColors.defaultProfile, 'Steel blue'),
+    (EquipmentProfileColors.sky, 'Sky blue'),
+    (EquipmentProfileColors.pink, 'Pink'),
+    (SciencePlotColors.clipHigh, 'Red'),
+    (EquipmentProfileColors.orange, 'Orange'),
+    (EquipmentProfileColors.yellow, 'Yellow'),
+    (SciencePlotColors.highConfidence, 'Green'),
+    (EquipmentProfileColors.cyan, 'Cyan'),
+    (EquipmentProfileColors.blue, 'Blue'),
   ];
 
   @override

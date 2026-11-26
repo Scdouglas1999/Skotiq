@@ -630,12 +630,15 @@ Future<bool> loadPlanTonightSequenceIntoEditor({
   );
 
   try {
-    notifier.addTargetHeader(newHeader);
-    notifier.mergeTemplateNodes(
-      templateNodes: result.sequence.nodes,
-      templateRootId: templateHeader.id,
-      targetId: newHeaderId,
-    );
+    // One edit, so one Undo takes the whole target back out.
+    notifier.withUndoGroup(() {
+      notifier.addTargetHeader(newHeader);
+      notifier.mergeTemplateNodes(
+        templateNodes: result.sequence.nodes,
+        templateRootId: templateHeader.id,
+        targetId: newHeaderId,
+      );
+    });
     return true;
   } on NoActiveSequenceException {
     return loadReplacing();

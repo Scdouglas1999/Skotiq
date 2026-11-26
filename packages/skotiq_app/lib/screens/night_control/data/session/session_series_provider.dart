@@ -27,7 +27,13 @@ final nightSessionRangeProvider = Provider<({DateTime from, DateTime to})?>((
   final rows = ref.watch(nightSessionLightRowsProvider);
   final session = ref.watch(sessionStateProvider);
   final start = session.isActive ? session.startTime : null;
-  final from = start ?? (rows.isEmpty ? null : rows.first.capturedAt);
+  final first = rows.isEmpty ? null : rows.first.capturedAt;
+  // The night's frames stay on the chart when a later run of the same night
+  // (the end-of-night darks) opens with its own start time: the earlier of
+  // the two, not the session's alone, which cut every light frame off.
+  final from = start == null
+      ? first
+      : (first != null && first.isBefore(start) ? first : start);
   if (from == null) return null;
   final to = session.isActive
       ? ref.watch(nightSessionNowProvider)

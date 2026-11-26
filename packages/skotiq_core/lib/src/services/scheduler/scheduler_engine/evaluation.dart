@@ -206,7 +206,7 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
 
     if (eligible.isEmpty) {
       final reasons = <String>[
-        'No eligible candidates at ${_hms(now.toLocal())} ($reason)',
+        'No eligible candidates ($reason)',
         ...scored
             .where((s) => s.rejectionReasons.isNotEmpty)
             .take(3)
@@ -297,7 +297,7 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
 
     final reasoning = <String>[];
     reasoning.add(
-      'Chose ${winner.targetName} (score ${winner.totalScore.toStringAsFixed(3)}) at ${_hms(now.toLocal())} ($reason)',
+      'Chose ${winner.targetName} (score ${winner.totalScore.toStringAsFixed(3)}) ($reason)',
     );
     for (final f in winner.factors) {
       reasoning.add(
@@ -535,10 +535,4 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
       _decisionController.add(decision);
     }
   }
-}
-
-/// `HH:mm:ss` for a decision line the operator reads.
-String _hms(DateTime t) {
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
 }

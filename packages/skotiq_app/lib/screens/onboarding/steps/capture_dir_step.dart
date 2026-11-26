@@ -566,6 +566,19 @@ class _OnboardingCaptureDirStepState
           ),
         );
 
+    // Continue without a folder is allowed; it should not be a surprise later.
+    // A typed folder that failed its check says so instead, below.
+    if (_check == null && (draftPath == null || draftPath.trim().isEmpty)) {
+      return [
+        line(
+          SkotiqIcons.info,
+          colors.warning,
+          'No folder chosen. Runs will not start until one is set; you can '
+          'choose it later in Settings > Files & storage.',
+        ),
+      ];
+    }
+
     switch (_check) {
       case _FolderCheck.failed:
         return [

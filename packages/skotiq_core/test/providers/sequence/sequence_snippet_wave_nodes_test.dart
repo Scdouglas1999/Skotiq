@@ -109,7 +109,9 @@ void main() {
       expect(rotator.relative, isTrue);
 
       final wait = inserted.nodes.values.whereType<WaitTimeNode>().single;
-      expect(wait.waitUntil, waitUntil);
+      // The same instant; a document reads times back on local time, as the
+      // database does.
+      expect(wait.waitUntil!.isAtSameMomentAs(waitUntil), isTrue);
       expect(wait.waitForTwilight, TwilightType.astronomical);
 
       final script = inserted.nodes.values.whereType<ScriptNode>().single;

@@ -157,7 +157,9 @@ class SkotiqApp extends ConsumerWidget {
             // Everything below inherits the app's text scale and theme;
             // a prompt raised from outside this builder would render
             // unscaled on high-DPI displays.
-            Widget result = StartupPrompts(child: scaledChild);
+            Widget result = UnfocusOnKeyboardClose(
+              child: StartupPrompts(child: scaledChild),
+            );
 
             // Desktop and Android both install Skotiq from its
             // GitHub releases, so both can update in place. (The old

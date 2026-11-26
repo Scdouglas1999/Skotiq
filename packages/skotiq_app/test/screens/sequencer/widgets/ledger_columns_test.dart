@@ -104,6 +104,33 @@ void main() {
       expect(columns.count, '5');
     });
 
+    // Night test 2026-11-26: a dark step read "55s", like an unfiltered
+    // light, while the Tonight header called it "Dark 55 s".
+    test('a dark or bias reads as its frame type, not the wheel filter', () {
+      for (final (type, label) in [
+        (FrameType.dark, 'Dark 55s'),
+        (FrameType.bias, 'Bias 55s'),
+        (FrameType.darkFlat, 'Dark flat 55s'),
+        (FrameType.light, 'G 55s'),
+      ]) {
+        final exposure = ExposureNode(
+          durationSecs: 55,
+          count: 10,
+          filter: 'G',
+          frameType: type,
+        );
+        final sequence = Sequence.create(
+          name: 'T',
+          nodes: {exposure.id: exposure},
+          rootNodeId: exposure.id,
+        );
+        expect(
+          ledgerColumnsFor(exposure, sequence, rollup: Duration.zero).filterExp,
+          label,
+        );
+      }
+    });
+
     test('fractional exposure keeps one decimal', () {
       final exposure = ExposureNode(
         filter: 'L',

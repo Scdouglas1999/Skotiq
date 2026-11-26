@@ -161,7 +161,7 @@ void main() {
         final service = AutoSaveService(
           sequenceRepository: repository,
           backupService: _MockBackupService(),
-          onSequenceSaved: (sequence, _) => saved.add(sequence),
+          onSequenceSaved: (sequence, _, _) => saved.add(sequence),
         );
 
         service.markSequenceChanged(first);
@@ -178,6 +178,49 @@ void main() {
         service.dispose();
       },
     );
+
+    // Night test 2026-11-25: plans built for one target piled up in the
+    // library as "NGC1313 Plan", "NGC1313 Plan", "NGC1313 Plan".
+    test('a first save takes a name no saved plan uses', () async {
+      final repository = _MockSequenceRepository();
+      when(() => repository.loadSequenceSummaries()).thenAnswer(
+        (_) async => [
+          SequenceSummary(
+            id: 4,
+            name: 'NGC1313 Plan',
+            nodeCount: 3,
+            targetCount: 1,
+            exposureCount: 10,
+            totalIntegrationSecs: 550,
+            primaryTargetName: 'NGC1313',
+            lastRunAt: null,
+            runCount: 0,
+            tags: const [],
+            isFavorite: false,
+            createdAt: DateTime.utc(2026, 11, 25),
+            modifiedAt: DateTime.utc(2026, 11, 25),
+          ),
+        ],
+      );
+      final filedAs = <String>[];
+      when(() => repository.saveSequence(any())).thenAnswer((call) async {
+        filedAs.add((call.positionalArguments.single as Sequence).name);
+        return 8;
+      });
+      final reported = <String>[];
+      final service = AutoSaveService(
+        sequenceRepository: repository,
+        backupService: _MockBackupService(),
+        onSequenceSaved: (_, _, savedName) => reported.add(savedName),
+      );
+
+      service.markSequenceChanged(_sequence('NGC1313 Plan'));
+      await service.saveNow();
+
+      expect(filedAs, ['NGC1313 Plan 2']);
+      expect(reported, ['NGC1313 Plan 2']);
+      service.dispose();
+    });
 
     test('overlapping saveNow calls share one repository save', () async {
       final repository = _MockSequenceRepository();

@@ -61,7 +61,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.textContaining('Star catalog not installed on this computer.'),
+      find.textContaining('Star catalog not installed on this device.'),
       findsOneWidget,
     );
     expect(

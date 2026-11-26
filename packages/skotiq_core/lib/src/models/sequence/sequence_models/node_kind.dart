@@ -339,19 +339,20 @@ final class _Texts extends FieldCodec<List<String>> {
       (raw as List).map((e) => e.toString()).toList(growable: false);
 }
 
-/// The database stores milliseconds since the epoch; documents store ISO 8601.
-/// Either reads both.
+/// The database stores milliseconds since the epoch; documents store ISO 8601
+/// in UTC. Either reads both. A document crosses to a linked host whose clock
+/// may be set to another time zone, so it never carries a bare local time.
 final class _Instant extends FieldCodec<DateTime?> {
   const _Instant();
   @override
   Object? encode(DateTime? value, NodeStore store) => switch (store) {
     NodeStore.database => value?.millisecondsSinceEpoch,
-    NodeStore.document => value?.toIso8601String(),
+    NodeStore.document => value?.toUtc().toIso8601String(),
   };
   @override
   DateTime? decode(Object raw, NodeStore store) => switch (raw) {
     int() => DateTime.fromMillisecondsSinceEpoch(raw),
-    String() => DateTime.parse(raw),
+    String() => DateTime.parse(raw).toLocal(),
     _ => null,
   };
 }

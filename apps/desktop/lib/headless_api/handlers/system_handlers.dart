@@ -199,7 +199,7 @@ class SystemHandlers implements RouteSource {
       return jsonError(
         code: 'disk_query_failed',
         message: e.message,
-        details: {'path': path},
+        details: {'path': path, 'kind': e.kind.name},
       );
     }
   }

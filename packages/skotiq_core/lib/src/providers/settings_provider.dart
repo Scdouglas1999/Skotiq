@@ -31,6 +31,8 @@ import '../models/focuser_backlash_calibration.dart'
 import '../database/daos/settings_dao.dart';
 import '../models/backend/backend_types.dart';
 import 'plate_solve_service_provider.dart';
+import 'plate_solver_provider.dart'
+    show plateSolverDetectionProvider, plateSolverPreferenceProvider;
 import '../utils/logging_service.dart';
 
 // Section parts: AppSettingsNotifier is one notifier split across `part` files

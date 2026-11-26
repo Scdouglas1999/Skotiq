@@ -674,9 +674,14 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
           context.showSuccessSnackBar(
             'Coordinates set to ${detection.where}. '
             '${detection.fix.explanation} '
-            '${detection.keptElevation ? 'Elevation kept at '
-                '${elevation.toStringAsFixed(0)} m.' : 'Elevation cleared to '
-                '0 m. Enter the elevation for this site.'} '
+            '${switch (detection.measuredElevation) {
+              final m? => 'Elevation set to ${m.toStringAsFixed(0)} m from '
+                  'the GPS fix.',
+              null => detection.keptElevation
+                  ? 'Elevation kept at ${elevation.toStringAsFixed(0)} m.'
+                  : 'Elevation cleared to 0 m. Enter the elevation for this '
+                      'site.',
+            }} '
             '${_refinementNudge(detection.attempt)}',
           );
       }

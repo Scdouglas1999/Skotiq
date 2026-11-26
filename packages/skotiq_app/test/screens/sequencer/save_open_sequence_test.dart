@@ -148,7 +148,7 @@ void main() {
 
     await tester.tap(find.byWidgetPredicate((widget) =>
         widget is SkotiqIconButton &&
-        widget.tooltip == 'Save to the library (Ctrl+S)'));
+        widget.tooltip.startsWith('Save to the library')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 

@@ -235,8 +235,9 @@ void main() {
       expect(exposures, hasLength(1));
       expect(exposures.first.count, 200);
       expect(exposures.first.durationSecs, 0.005);
-      // No dithering for lunar work.
-      expect(exposures.first.ditherEvery, isNull);
+      // No dithering for lunar work. Null would mean "the global dither
+      // setting", so the starter dithered whenever dithering was on.
+      expect(exposures.first.ditherEvery, 0);
 
       // No StartGuiding nodes should be present.
       expect(
@@ -259,6 +260,8 @@ void main() {
 
       // No calibration frame types.
       expect(exposures.where((e) => e.frameType != FrameType.light), isEmpty);
+      // Lucky imaging never dithers, whatever the global setting says.
+      expect(exposures.first.ditherEvery, 0);
     });
 
     test('cloneForUse regenerates ids and preserves tree structure', () async {

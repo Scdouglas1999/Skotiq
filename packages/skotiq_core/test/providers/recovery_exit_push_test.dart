@@ -25,6 +25,9 @@ import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/sequencer/recovery_status.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/recovery_provider.dart';
+import 'package:skotiq_core/src/providers/sequence/run_record.dart';
+import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
+    show SequenceExecutionState;
 import 'package:skotiq_core/src/providers/push_notification_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/push_notification_service.dart';
@@ -201,6 +204,54 @@ void main() {
         expect(container.read(currentRecoveryProvider), isNull);
         expect(container.read(recoveryHistoryProvider), isEmpty);
         expect(mock.delivered, isEmpty);
+      },
+    );
+
+    // The engine closes a loop it handed to the operator (a parked mount it
+    // will not un-park) with a Completed whose phase is GaveUp, right after
+    // pausing the run. That is neither a recovery nor a stop.
+    test(
+      'a loop handed to the operator leaves the run paused, not recovered',
+      () async {
+        const why =
+            'Mount sim_mount_1 is parked, so its tracking stopped. '
+            'Recovery does not un-park a mount on its own; the run is paused. '
+            'Un-park the mount and resume.';
+        final status = _status(
+          RecoveryCause.mountTrackingLost(),
+          attemptCount: 1,
+          phase: RecoveryPhase.gaveUp,
+        );
+        applyRecoveryEventForTest(
+          ref,
+          RecoveryEventEnvelope(
+            kind: RecoveryEventKind.completed,
+            context: RecoveryStatus(
+              startedAt: status.startedAt,
+              cause: status.cause,
+              lastAttemptAt: status.lastAttemptAt,
+              attemptCount: status.attemptCount,
+              maxAttempts: status.maxAttempts,
+              retryIntervalSecs: status.retryIntervalSecs,
+              maxDurationSecs: status.maxDurationSecs,
+              phase: status.phase,
+              lastError: why,
+            ),
+            abortedByUser: null,
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        // No second push: the engine's run-held alert already says this.
+        expect(mock.delivered, isEmpty);
+        final entry = container.read(recoveryHistoryProvider).single;
+        expect(entry.recovered, isFalse);
+        expect(entry.pausedForOperator, isTrue);
+        expect(
+          container.read(runRecordProvider).progress.state,
+          SequenceExecutionState.paused,
+        );
       },
     );
 

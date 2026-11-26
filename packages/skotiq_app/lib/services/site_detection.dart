@@ -70,19 +70,23 @@ final class SiteEstimated extends SiteDetection {
       '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
 }
 
-/// The site is now [latitude], [longitude]. [keptElevation] is false when the
-/// stored elevation was cleared because it belonged to a different place.
+/// The site is now [latitude], [longitude]. [measuredElevation] is the GPS
+/// height stored with it, when the fix had one; otherwise [keptElevation] is
+/// false when the stored elevation was cleared because it belonged to a
+/// different place.
 final class SiteDetected extends SiteDetection {
   const SiteDetected(
     super.attempt, {
     required this.latitude,
     required this.longitude,
     required this.keptElevation,
+    this.measuredElevation,
   });
 
   final double latitude;
   final double longitude;
   final bool keptElevation;
+  final double? measuredElevation;
 
   PositioningResult get fix => attempt.fix!;
 
@@ -175,13 +179,15 @@ Future<SiteDetected?> _store(
   // while the consent dialog is up.
   final stored = await ref.read(appSettingsProvider.future);
   if (host.isStale) return null;
-  final keptElevation = !stored.hasObserverLocation ||
-      _kmBetween(stored.latitude, stored.longitude, latitude, longitude) <=
-          sameSiteRadiusKm;
+  final measured = siteElevationFromFix(attempt.fix);
+  final keptElevation = measured == null &&
+      (!stored.hasObserverLocation ||
+          _kmBetween(stored.latitude, stored.longitude, latitude, longitude) <=
+              sameSiteRadiusKm);
   await ref.read(appSettingsProvider.notifier).updateLocation(
         latitude: latitude,
         longitude: longitude,
-        elevation: keptElevation ? null : 0,
+        elevation: measured ?? (keptElevation ? null : 0),
       );
   if (host.isStale) return null;
   return SiteDetected(
@@ -189,7 +195,17 @@ Future<SiteDetected?> _store(
     latitude: latitude,
     longitude: longitude,
     keptElevation: keptElevation,
+    measuredElevation: measured,
   );
+}
+
+/// The elevation a fix measured, to the metre, or null when it measured
+/// none. A GPS height is above the ellipsoid, within a few tens of metres of
+/// sea level: close enough for refraction, and better than 0 m.
+double? siteElevationFromFix(PositioningResult? fix) {
+  final altitude = fix?.altitudeMetres;
+  if (altitude == null || !altitude.isFinite) return null;
+  return altitude.roundToDouble();
 }
 
 double _kmBetween(double lat1, double lon1, double lat2, double lon2) {

@@ -135,6 +135,29 @@ void main() {
     expect(editor.canUndo, isTrue);
   });
 
+  // An undo restores the very plan object the host sent before this
+  // client's edit. Skipping it as "the host's own plan" left the host on the
+  // edit, and its next mirror frame put the undone step back.
+  test('an undo back to the host\'s plan is written to the host', () async {
+    final files = container.read(sequenceFileServiceProvider);
+    final editor = container.read(currentSequenceProvider.notifier);
+    showHostOpenPlan(container, _hostCanvas(files, _plan('M13')));
+    expect(written, isEmpty);
+
+    editor.setName('M13 edited');
+    await _settle();
+    expect(written.single?['name'], 'M13 edited');
+
+    editor.undo();
+    await _settle();
+    expect(written, hasLength(2));
+    expect(written.last?['name'], 'M13');
+
+    // The host's echo of the undone plan changes nothing here.
+    showHostOpenPlan(container, _hostCanvas(files, _plan('M13')));
+    expect(container.read(currentSequenceProvider)?.name, 'M13');
+  });
+
   test(
     'a saved plan opened here is written to the host and stays open',
     () async {

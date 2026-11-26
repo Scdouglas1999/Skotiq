@@ -73,16 +73,61 @@ const List<String> _ledgerColumnLabels = <String>[
   'ETA',
 ];
 
-/// The narrowest canvas that can hold the four columns AND a usable name.
-///
-/// Marker (2) + chevron (18) + icon (13) + the icon gap (8) + the reserved
-/// actions (108) + the columns (266) + the badge gutter (22) already cost
-/// 437 px at depth 1 and grow 18 px a level, so this leaves the name ~63 px
-/// there and proportionally less deeper in. `SequenceTree` reads it once —
-/// below it the whole tree falls back to compact rows rather than shipping a
-/// ledger with its columns stripped, so a ledger row itself never has to
-/// decide whether it can afford them.
-const double _ledgerColumnsMinWidth = 500.0;
+/// The narrowest name slot a ledger row is drawn with, at depth 1: about a
+/// dozen characters, so a phone keeps "Cool camera" whole and drops a column
+/// for it.
+const double _ledgerNameFloor = 96.0;
+
+/// Which of the four columns the canvas shows, by index into
+/// [_ledgerColumnWidths]. A canvas too narrow for all four drops Duration
+/// first and then ETA, so a phone held upright still gets ledger rows with
+/// Filter / exp and Count, rather than leaving the Ledger choice for compact
+/// rows. Empty when not even those two fit: the tree then draws compact rows.
+List<int> _ledgerColumnSetFor(BuildContext context, double contentWidth) {
+  final fixed = _ledgerRunningMarkerWidth +
+      _ledgerChevronWidth +
+      13 + // icon
+      SkotiqTokens.spaceSm + // icon gap
+      _ledgerActionsSlotWidth(context) +
+      _ledgerBadgeGutter +
+      _ledgerNameFloor;
+  for (final set in _ledgerColumnSets) {
+    var width = fixed;
+    for (final i in set) {
+      width += _ledgerColumnWidths[i];
+    }
+    if (width <= contentWidth) return set;
+  }
+  return const <int>[];
+}
+
+const List<List<int>> _ledgerColumnSets = <List<int>>[
+  <int>[0, 1, 2, 3],
+  <int>[0, 1, 3],
+  <int>[0, 1],
+];
+
+/// Index of the ETA column, which can be tinted on its own.
+const int _ledgerEtaColumn = 3;
+
+/// Hands the canvas's column set to every ledger row and the header, so they
+/// lay out the same cells.
+class _LedgerColumnSet extends InheritedWidget {
+  const _LedgerColumnSet({required this.columns, required super.child});
+
+  final List<int> columns;
+
+  static List<int> of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_LedgerColumnSet>()?.columns ??
+      _ledgerColumnSets.first;
+
+  @override
+  bool updateShouldNotify(_LedgerColumnSet oldWidget) =>
+      !listEquals(columns, oldWidget.columns);
+}
+
+/// The name slot below which a ledger row shows the step's name alone.
+const double _ledgerRoomyNameSlot = 220.0;
 
 /// The width every ledger row — and the header above it — reserves for its
 /// actions block: the trio + kebab on a pointer platform, the touch-target
@@ -95,9 +140,8 @@ double _ledgerActionsSlotWidth(BuildContext context) =>
 /// The column header, rendered once above the tree in Ledger mode.
 ///
 /// Lives INSIDE the tree's scroll view so it takes the same horizontal padding
-/// the rows do and its labels sit over the columns they name. It only exists
-/// at or above [_ledgerColumnsMinWidth] — the tree falls back to compact rows
-/// below it, header and all.
+/// the rows do and its labels sit over the columns they name, the same
+/// [_LedgerColumnSet] the rows use.
 class _LedgerColumnHeader extends StatelessWidget {
   final SkotiqColors colors;
 
@@ -121,7 +165,7 @@ class _LedgerColumnHeader extends StatelessWidget {
               ),
             ),
             SizedBox(width: _ledgerActionsSlotWidth(context)),
-            for (var i = 0; i < _ledgerColumnLabels.length; i++)
+            for (final i in _LedgerColumnSet.of(context))
               SizedBox(
                 width: _ledgerColumnWidths[i],
                 child: Text(
@@ -689,71 +733,79 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
         const SizedBox(width: SkotiqTokens.spaceSm),
         Expanded(
           child: ExcludeSemantics(
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    node.name,
-                    style: SkotiqTypography.bodySm.copyWith(
-                      fontWeight: widget.isContainer
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                      color: nameColor,
-                      decoration:
-                          isStruckThrough ? TextDecoration.lineThrough : null,
-                      decorationColor: isStruckThrough ? nameColor : null,
-                    ),
-                    softWrap: false,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (isRunning) ...[
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  Flexible(
-                    child: _LedgerChip(
-                      colors: colors,
-                      label: 'Running',
-                      tone: colors.primary,
-                    ),
-                  ),
-                ],
-                // A target's pointing is what distinguishes it from every
-                // other target, and Ledger has no card to put it on.
-                //
-                // Flexible, because the chips are fixed-width and the name is
-                // not: at the canvas's narrow floor the name shrinks to nothing
-                // and the two coordinates then run past the row's edge. They
-                // give ground the same way the name does instead.
-                if (node is TargetHeaderNode)
-                  for (final chip in _targetCoordinateChips(node, colors)) ...[
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    Flexible(child: chip),
-                  ],
-                // Flexible for the same reason the coordinate chips are: on a
-                // narrow canvas the badge is the widest fixed thing on a
-                // trigger row, and given an unbounded slot it ran straight
-                // past the row's edge.
-                if (node.category == NodeCategory.trigger) ...[
-                  const SizedBox(width: SkotiqTokens.spaceSm),
-                  Flexible(child: _WatchdogBadge(colors: colors)),
-                ],
-                if (summary.isNotEmpty) ...[
-                  const SizedBox(width: SkotiqTokens.spaceSm),
+            child: LayoutBuilder(builder: (context, slot) {
+              // On a narrow canvas (a tablet, an unfolded phone) the name is
+              // what the row is read by, so it keeps the slot: the Running chip
+              // repeats the row's marker, and a target's RA / Dec and a step's
+              // summary are in its inspector.
+              final roomy = slot.maxWidth >= _ledgerRoomyNameSlot;
+              return Row(
+                children: [
                   Flexible(
                     child: Text(
-                      summary,
-                      style: SkotiqTypography.labelQuiet.copyWith(
-                        color: colors.textMuted,
+                      node.name,
+                      style: SkotiqTypography.bodySm.copyWith(
+                        fontWeight: widget.isContainer
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: nameColor,
+                        decoration:
+                            isStruckThrough ? TextDecoration.lineThrough : null,
+                        decorationColor: isStruckThrough ? nameColor : null,
                       ),
                       softWrap: false,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (isRunning && roomy) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    Flexible(
+                      child: _LedgerChip(
+                        colors: colors,
+                        label: 'Running',
+                        tone: colors.primary,
+                      ),
+                    ),
+                  ],
+                  // A target's pointing is what distinguishes it from every
+                  // other target, and Ledger has no card to put it on.
+                  //
+                  // Flexible, because the chips are fixed-width and the name is
+                  // not: at the canvas's narrow floor the name shrinks to nothing
+                  // and the two coordinates then run past the row's edge. They
+                  // give ground the same way the name does instead.
+                  if (node is TargetHeaderNode && roomy)
+                    for (final chip
+                        in _targetCoordinateChips(node, colors)) ...[
+                      const SizedBox(width: SkotiqTokens.spaceSm),
+                      Flexible(child: chip),
+                    ],
+                  // Flexible for the same reason the coordinate chips are: on a
+                  // narrow canvas the badge is the widest fixed thing on a
+                  // trigger row, and given an unbounded slot it ran straight
+                  // past the row's edge.
+                  if (node.category == NodeCategory.trigger) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    Flexible(child: _WatchdogBadge(colors: colors)),
+                  ],
+                  if (summary.isNotEmpty && roomy) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    Flexible(
+                      child: Text(
+                        summary,
+                        style: SkotiqTypography.labelQuiet.copyWith(
+                          color: colors.textMuted,
+                        ),
+                        softWrap: false,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
-            ),
+              );
+            }),
           ),
         ),
         _buildActions(context),
@@ -1031,15 +1083,13 @@ class _LedgerColumnCells extends StatelessWidget {
     return ExcludeSemantics(
       child: Row(
         children: [
-          for (var i = 0; i < _ledgerColumnWidths.length; i++)
+          for (final i in _LedgerColumnSet.of(context))
             SizedBox(
               width: _ledgerColumnWidths[i],
               child: Text(
                 values[i],
                 style: SkotiqTypography.readoutXs.copyWith(
-                  color: i == _ledgerColumnWidths.length - 1
-                      ? (etaColor ?? color)
-                      : color,
+                  color: i == _ledgerEtaColumn ? (etaColor ?? color) : color,
                 ),
                 textAlign: TextAlign.right,
                 maxLines: 1,

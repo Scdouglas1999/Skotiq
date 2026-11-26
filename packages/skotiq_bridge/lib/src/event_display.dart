@@ -161,7 +161,9 @@ String _equipmentTitle(EquipmentEvent v, EventSeverity severity) {
     EquipmentEvent_FilterChanged() => 'Filter changed',
     EquipmentEvent_RotatorMoveStarted() => 'Rotator move started',
     EquipmentEvent_RotatorMoveCompleted() => 'Rotator move complete',
-    EquipmentEvent_CameraCoolingStarted() => 'Cooling started',
+    // Sent for every set-point, a warm-up ramp's steps included, so it
+    // does not say the cooling started.
+    EquipmentEvent_CameraCoolingStarted() => 'Cooler set',
     EquipmentEvent_CameraCoolingReached() => 'Cooling reached target',
     EquipmentEvent_CameraWarmingStarted() => 'Warming started',
     EquipmentEvent_CameraWarmingCompleted() => 'Warming complete',
@@ -475,6 +477,11 @@ String _sequencerTitle(SequencerEvent v) {
     // other adaptive-exposure events that haven't been wired into this
     // label switch yet. Fallback to the generic class-name discriminant
     // until each is given a hand-written label.
+    // The run reports a decision for every frame, adaptive exposure off
+    // included; one that leaves the length as planned is not an adjustment.
+    SequencerEvent_ExposureAdjusted(nominalSecs: final o, adaptedSecs: final a)
+        when (a - o).abs() < 0.05 =>
+      'Exposure unchanged',
     SequencerEvent_ExposureAdjusted() => 'Exposure adjusted',
     SequencerEvent_PluginNodeRequested() => 'Plugin node requested',
     SequencerEvent_PluginNodeProgress() => 'Plugin node progress',

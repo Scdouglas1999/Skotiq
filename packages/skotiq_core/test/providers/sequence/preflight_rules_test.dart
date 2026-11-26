@@ -381,6 +381,58 @@ void main() {
       );
     });
 
+    // Night test 2026-11-26: a plan with its own 55 s dark step was told
+    // "Missing Dark Frames" for 55 s darks.
+    test('darks the plan takes itself cover their lights', () async {
+      final container = await _buildContainer(
+        settings: _settings(),
+        camera: const CameraStateSnapshot(targetTemp: -10.0),
+      );
+      final rule = DarkLibraryCoverageRule();
+      final s = _sequenceWith([
+        _exposure(),
+        _exposure(frameType: FrameType.dark, count: 20),
+      ]);
+      final issues = await _withRef(container, (ref) async {
+        return rule.validate(s, ValidationContext(ref));
+      });
+      expect(issues, isEmpty);
+    });
+
+    test('a plan dark step short of the quorum covers nothing', () async {
+      final container = await _buildContainer(
+        settings: _settings(),
+        camera: const CameraStateSnapshot(targetTemp: -10.0),
+      );
+      final rule = DarkLibraryCoverageRule();
+      final s = _sequenceWith([
+        _exposure(),
+        _exposure(frameType: FrameType.dark, count: 1),
+      ]);
+      final issues = await _withRef(container, (ref) async {
+        return rule.validate(s, ValidationContext(ref));
+      });
+      expect(issues, isNotEmpty);
+    });
+
+    test('darks taken after the warm-up cover no cooled light', () async {
+      final container = await _buildContainer(
+        settings: _settings(),
+        camera: const CameraStateSnapshot(targetTemp: -10.0),
+      );
+      final rule = DarkLibraryCoverageRule();
+      final s = _sequenceWith([
+        _exposure(),
+        WarmCameraNode(),
+        _exposure(frameType: FrameType.dark, count: 20),
+      ]);
+      final issues = await _withRef(container, (ref) async {
+        return rule.validate(s, ValidationContext(ref));
+      });
+      expect(issues, isNotEmpty);
+      expect(issues.first.title, 'Missing Dark Frames');
+    });
+
     test('clean when the library holds darks at the cooled setpoint', () async {
       final container = await _buildContainer(
         settings: _settings(),

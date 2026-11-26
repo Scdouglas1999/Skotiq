@@ -10,6 +10,7 @@ import '../../../models/sequence/autofocus_run.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/settings/app_settings.dart' show SafetyFailMode;
 import '../../../services/imaging_service.dart' show ImagingService;
+import '../../equipment/filter_wheel_state_provider.dart';
 import '../../clock_provider.dart';
 import '../../equipment_provider.dart';
 import '../../imaging_provider.dart' show namingPatternProvider;
@@ -360,7 +361,12 @@ class SequenceSerializer {
       );
       return null;
     }
-    final filterNames = profile.filterNames;
+    // A profile made without slot names (the phone's editor sets none) still
+    // has the names the connected wheel reports, which are what the host
+    // moves the wheel by; warn only when neither has any.
+    final filterNames = profile.filterNames.isNotEmpty
+        ? profile.filterNames
+        : _ref.read(filterWheelStateProvider).filterNames;
     if (filterNames.isEmpty) {
       _surfaceFilterLookupWarning(
         'Active profile has no filter list configured; node will use '

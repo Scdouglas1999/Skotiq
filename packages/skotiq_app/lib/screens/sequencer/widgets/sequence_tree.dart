@@ -39,7 +39,6 @@ import '../../../utils/snackbar_helper.dart';
 import 'node_status_color.dart';
 
 part 'sequence_tree/auto_collapse.dart';
-part 'sequence_tree/gutter_map.dart';
 part 'sequence_tree/sticky_ancestors.dart';
 part 'sequence_tree/node_tree_view.dart';
 part 'sequence_tree/node_item.dart';
@@ -467,42 +466,6 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
     });
   }
 
-  /// Index into [_visibleOrder] of the row that covers [contentOffset] pixels
-  /// down the scroll content, or null while no row's box is mounted.
-  ///
-  /// The gutter's blocks are evenly spaced and the tree's rows are not (a
-  /// container's children area, the ledger's column header and the scroll
-  /// padding all take content pixels that no block stands for), so a gutter
-  /// position can only be turned into a row by asking the rows themselves
-  /// where they are. Same mapping the viewport rectangle uses — content
-  /// pixels — which is what makes a tap on the rectangle's top edge select the
-  /// row at the top of the viewport.
-  int? _rowAtContentOffset(double contentOffset) {
-    final viewport = _viewportKey.currentContext?.findRenderObject();
-    if (viewport is! RenderBox || !viewport.hasSize) return null;
-    if (!_scrollController.hasClients) return null;
-    final contentTop =
-        viewport.localToGlobal(Offset.zero).dy - _scrollController.offset;
-
-    int? found;
-    int? first;
-    for (var i = 0; i < _visibleOrder.length; i++) {
-      final bounds = _rowBounds(_visibleOrder[i].id);
-      if (bounds == null) continue;
-      first ??= i;
-      // Rows are walked in draw order, so the first one that starts below the
-      // target ends the search — everything after it starts lower still.
-      if (bounds.top - contentTop > contentOffset) break;
-      found = i;
-    }
-    // An offset ABOVE the first row is still a place in the tree: the ledger's
-    // column header and the scroll view's top padding take content pixels that
-    // no row starts in, and a gutter tap in that band is unmistakably a tap at
-    // the top of the night. Returning null there sent it to the block-grid
-    // estimate instead, which names a different row.
-    return found ?? first;
-  }
-
   /// A row's global top and bottom edge, or null while its box is not mounted.
   ({double top, double bottom})? _rowBounds(String nodeId) {
     final rowContext = _nodeKeyRegistry[nodeId]?.currentContext;
@@ -691,10 +654,9 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
     final sequence = ref.watch(currentSequenceProvider);
     final progress = ref.watch(sequenceStepProgressProvider);
     final validation = ref.watch(liveValidationProvider);
-    final density = effectiveSequencerDensity(
-      ref.watch(sequencerDensityProvider),
-      isMobile: widget.isMobile,
-    );
+    // Every builder follows the stored density; a canvas too narrow for the
+    // ledger's columns (a phone held upright) draws compact rows instead.
+    final density = ref.watch(sequencerDensityProvider);
     // Cached for the post-frame sticky pass and for the gutter's row mapping.
     // See [_visibleOrder]: watching here is what keeps the autoDispose order
     // alive between scroll frames.
@@ -792,13 +754,12 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
               if (constraints.hasBoundedHeight && constraints.maxHeight < 80) {
                 return const SizedBox.expand();
               }
-              // The one width decision the ledger rows rely on: below
-              // `_ledgerColumnsMinWidth` the four columns cannot leave the
-              // step names any room, so the whole tree falls back to compact
-              // rows — the preference says which density is wanted, this says
-              // which the canvas can actually host. Rows read the resolved
-              // density, so a ledger row never has to wonder whether it can
-              // afford its own columns.
+              // The one width decision the ledger rows rely on: a narrower
+              // canvas drops Duration and then ETA, and only when not even
+              // Filter / exp and Count leave the step names room does the tree
+              // fall back to compact rows. Rows read the column set from
+              // [_LedgerColumnSet], so a ledger row never has to wonder
+              // whether it can afford its own columns.
               final contentWidth = constraints.maxWidth -
                   (widget.isMobile
                       ? SkotiqTokens.spaceMd * 2
@@ -806,10 +767,11 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
               // The gutter comes out of the same width as the columns, so it
               // is part of the affordability test: a canvas that fits the
               // columns only by taking the gutter's 34 px cannot host Ledger.
-              final canvasDensity = density == SequencerDensity.ledger &&
-                      contentWidth - _gutterMapWidth < _ledgerColumnsMinWidth
-                  ? SequencerDensity.compact
-                  : density;
+              final ledgerColumns = _ledgerColumnSetFor(context, contentWidth);
+              final canvasDensity =
+                  density == SequencerDensity.ledger && ledgerColumns.isEmpty
+                      ? SequencerDensity.compact
+                      : density;
               // Whether the canvas is overruling the preference. A clamp is a
               // resize, and a resize must not cross-fade: see
               // [densityCrossfade].
@@ -848,152 +810,135 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
               // first two rows of where you are.
               final reservedTop = _reservedPinHeight;
 
-              return Column(
-                children: [
-                  // No header row: the canvas bar above the tree carries the
-                  // sequence's name, its issue counts and its view toggles.
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: Stack(
-                            // Tight constraints for the scroll view, exactly
-                            // as the Expanded it replaced gave it: a loose
-                            // Stack would let a short tree shrink the viewport
-                            // and break the scroll maths under it.
-                            fit: StackFit.expand,
-                            children: [
-                              // Animated on the same token as the pins'
-                              // entrance, so the rows travel down WITH the
-                              // stack sliding in over them.
-                              AnimatedPadding(
-                                padding: EdgeInsets.only(top: reservedTop),
-                                duration: animationDuration(
-                                  context,
-                                  SkotiqTokens.durationQuick,
-                                ),
-                                curve: SkotiqTokens.curveStandard,
-                                child: SingleChildScrollView(
-                                  key: _viewportKey,
-                                  controller: _scrollController,
-                                  padding: scrollPadding,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      // The ledger's column headings ride
-                                      // inside the scroll view so they take
-                                      // the same horizontal padding the rows
-                                      // do and sit over the columns they name.
-                                      // Through the SAME cross-fade the rows
-                                      // take, so the header does not blink out
-                                      // ahead of the tree it labels (spec §9).
-                                      // An empty sequence has no columns to
-                                      // name: the header would sit over the
-                                      // lone drop line and read as a table
-                                      // with its rows missing.
-                                      densityCrossfade(
-                                        context: context,
-                                        density: canvasDensity,
-                                        animate: !densityClamped,
-                                        child: canvasDensity ==
-                                                    SequencerDensity.ledger &&
-                                                sequence
-                                                    .getChildren(rootNode.id)
-                                                    .isNotEmpty
-                                            ? _LedgerColumnHeader(
-                                                colors: widget.colors)
-                                            : const SizedBox.shrink(),
-                                      ),
-                                      _NodeTreeView(
-                                        colors: widget.colors,
-                                        sequence: sequence,
-                                        nodeId: rootNode.id,
-                                        progress: progress,
-                                        validation: validation,
-                                        depth: 0,
-                                        density: canvasDensity,
-                                        densityClamped: densityClamped,
-                                        isMobile: widget.isMobile,
-                                        onNodeTap: widget.onNodeTap,
-                                        keyRegistry: _nodeKeyRegistry,
-                                      ),
-                                    ],
+              return _LedgerColumnSet(
+                columns: ledgerColumns,
+                child: Column(
+                  children: [
+                    // No header row: the canvas bar above the tree carries the
+                    // sequence's name, its issue counts and its view toggles.
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: Stack(
+                              // Tight constraints for the scroll view, exactly
+                              // as the Expanded it replaced gave it: a loose
+                              // Stack would let a short tree shrink the viewport
+                              // and break the scroll maths under it.
+                              fit: StackFit.expand,
+                              children: [
+                                // Animated on the same token as the pins'
+                                // entrance, so the rows travel down WITH the
+                                // stack sliding in over them.
+                                AnimatedPadding(
+                                  padding: EdgeInsets.only(top: reservedTop),
+                                  duration: animationDuration(
+                                    context,
+                                    SkotiqTokens.durationQuick,
                                   ),
-                                ),
-                              ),
-                              if (_stickyEnabled &&
-                                  (_pinnedAncestors.isNotEmpty ||
-                                      _pinStackDraining))
-                                Positioned(
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: _StickyAncestorStack(
-                                    key: sequenceStickyAncestorsKey,
-                                    colors: widget.colors,
-                                    sequence: sequence,
-                                    progress: progress,
-                                    pinned: _pinnedAncestors,
-                                    density: canvasDensity,
+                                  curve: SkotiqTokens.curveStandard,
+                                  child: SingleChildScrollView(
+                                    key: _viewportKey,
+                                    controller: _scrollController,
                                     padding: scrollPadding,
-                                    onTap: _scrollToPinnedRow,
-                                    onEmptied: () {
-                                      if (!mounted || !_pinStackDraining) {
-                                        return;
-                                      }
-                                      setState(() => _pinStackDraining = false);
-                                    },
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        // The ledger's column headings ride
+                                        // inside the scroll view so they take
+                                        // the same horizontal padding the rows
+                                        // do and sit over the columns they name.
+                                        // Through the SAME cross-fade the rows
+                                        // take, so the header does not blink out
+                                        // ahead of the tree it labels (spec §9).
+                                        // An empty sequence has no columns to
+                                        // name: the header would sit over the
+                                        // lone drop line and read as a table
+                                        // with its rows missing.
+                                        densityCrossfade(
+                                          context: context,
+                                          density: canvasDensity,
+                                          animate: !densityClamped,
+                                          child: canvasDensity ==
+                                                      SequencerDensity.ledger &&
+                                                  sequence
+                                                      .getChildren(rootNode.id)
+                                                      .isNotEmpty
+                                              ? _LedgerColumnHeader(
+                                                  colors: widget.colors)
+                                              : const SizedBox.shrink(),
+                                        ),
+                                        _NodeTreeView(
+                                          colors: widget.colors,
+                                          sequence: sequence,
+                                          nodeId: rootNode.id,
+                                          progress: progress,
+                                          validation: validation,
+                                          depth: 0,
+                                          density: canvasDensity,
+                                          densityClamped: densityClamped,
+                                          isMobile: widget.isMobile,
+                                          onNodeTap: widget.onNodeTap,
+                                          keyRegistry: _nodeKeyRegistry,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                            ],
+                                if (_stickyEnabled &&
+                                    (_pinnedAncestors.isNotEmpty ||
+                                        _pinStackDraining))
+                                  Positioned(
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: _StickyAncestorStack(
+                                      key: sequenceStickyAncestorsKey,
+                                      colors: widget.colors,
+                                      sequence: sequence,
+                                      progress: progress,
+                                      pinned: _pinnedAncestors,
+                                      density: canvasDensity,
+                                      padding: scrollPadding,
+                                      onTap: _scrollToPinnedRow,
+                                      onEmptied: () {
+                                        if (!mounted || !_pinStackDraining) {
+                                          return;
+                                        }
+                                        setState(
+                                            () => _pinStackDraining = false);
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                        // Ledger's overview lives beside the rows it maps
-                        // (spec §7); the other two densities put the same map
-                        // in the strip below. It fades with the rows rather
-                        // than snapping away from beside them (spec §9), and
-                        // the rows take back its width when it is off.
-                        densityCrossfade(
-                          context: context,
-                          density: canvasDensity,
-                          animate: !densityClamped,
-                          child: canvasDensity == SequencerDensity.ledger
-                              ? _GutterMapSlot(
-                                  visible: showOverview,
-                                  colors: widget.colors,
-                                  scrollController: _scrollController,
-                                  rowAtContentOffset: _rowAtContentOffset,
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final showTimeline = ref.watch(timelineVisibleProvider);
-                      if (!showTimeline || widget.isMobile) {
-                        return const SizedBox.shrink();
-                      }
-                      return VisualTimeline(colors: widget.colors);
-                    },
-                  ),
-
-                  // The overview's strip shape, toggled by the same canvas-bar
-                  // control the gutter answers to. Ledger has the gutter
-                  // instead, so the strip would be a second copy of the map
-                  // already beside the rows.
-                  if (showOverview &&
-                      !widget.isMobile &&
-                      canvasDensity != SequencerDensity.ledger)
-                    SequenceMinimap(
-                      colors: widget.colors,
-                      scrollController: _scrollController,
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final showTimeline = ref.watch(timelineVisibleProvider);
+                        if (!showTimeline || widget.isMobile) {
+                          return const SizedBox.shrink();
+                        }
+                        return VisualTimeline(colors: widget.colors);
+                      },
                     ),
-                ],
+
+                    // The overview strip, off by default and never in Ledger.
+                    if (showOverview &&
+                        !widget.isMobile &&
+                        canvasDensity != SequencerDensity.ledger)
+                      SequenceMinimap(
+                        colors: widget.colors,
+                        scrollController: _scrollController,
+                      ),
+                  ],
+                ),
               );
             },
           ),

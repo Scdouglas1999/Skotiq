@@ -458,16 +458,39 @@ impl ProgressDetail {
                 sky_brightness_mag,
                 reason,
                 ..
-            } => match sky_brightness_mag {
-                Some(mag) => format!(
-                    "{:.1}s (nominal {:.1}s, sky {:.2} mag/arcsec², {})",
-                    adapted_secs, nominal_secs, mag, reason
-                ),
-                None => format!(
-                    "{:.1}s (nominal {:.1}s, {})",
-                    adapted_secs, nominal_secs, reason
-                ),
-            },
+            } => {
+                // Read by the operator on the plan's progress line: the
+                // length the frames are taken at, and why it differs from the
+                // plan only when it does. `reason` is the wire token
+                // (`disabled`, `clamped_min`, ...), not prose.
+                let secs = |s: &f64| {
+                    let rounded = (s * 10.0).round() / 10.0;
+                    if rounded.fract() == 0.0 {
+                        format!("{rounded:.0} s")
+                    } else {
+                        format!("{rounded:.1} s")
+                    }
+                };
+                let adapted = secs(adapted_secs);
+                if (adapted_secs - nominal_secs).abs() < 0.05 {
+                    format!("{adapted} exposures")
+                } else {
+                    let why = match reason.as_str() {
+                        "clamped_min" => ", the shortest allowed".to_string(),
+                        "clamped_max" => ", the longest allowed".to_string(),
+                        _ => match sky_brightness_mag {
+                            Some(mag) => {
+                                format!(" for the sky ({mag:.1} mag/arcsec²)")
+                            }
+                            None => String::new(),
+                        },
+                    };
+                    format!(
+                        "{adapted} exposures, adjusted from {}{why}",
+                        secs(nominal_secs)
+                    )
+                }
+            }
             // A plugin node's words are its id and its payload, compact.
             ProgressDetail::PluginNode {
                 plugin_id,

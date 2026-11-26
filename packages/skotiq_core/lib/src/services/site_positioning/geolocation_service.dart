@@ -530,6 +530,11 @@ class GeolocationService {
         source: PositioningSource.platformService,
         provider: _platformServiceName,
         accuracyMetres: accuracy,
+        // geolocator reports altitude 0 with accuracy 0 when there was no
+        // vertical measurement; only a measured height is the site's.
+        altitudeMetres: position.altitudeAccuracy > 0
+            ? position.altitude
+            : null,
       );
       return (
         fix,

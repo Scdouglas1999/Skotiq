@@ -315,9 +315,15 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     return (parentId: null, index: resolvedIndex);
   }
 
-  /// Add a target header node, adopting any orphan instructions.
-  /// If there are existing instruction nodes directly under the root (not wrapped
-  /// in a target), those instructions will become children of the new target.
+  /// Add a target header node.
+  ///
+  /// In a plan with no target yet, the instructions directly under the root
+  /// become the new target's children: they were the frames for a target not
+  /// named until now. In a plan that already has a target, the root's other
+  /// steps are the night's own (cool, unpark, warm, park, darks), so nothing
+  /// is adopted and the new target goes after the last target, before the
+  /// shutdown steps. Adopting there moved the whole shutdown inside the new
+  /// target, ahead of its slew.
   ///
   /// Throws [NoActiveSequenceException] when no sequence is loaded; UI callers
   /// catch and prompt (e.g. "Create a new sequence named
@@ -340,20 +346,23 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
 
     final orphanIds = <String>[];
     final remainingRootChildren = <String>[];
+    final lastTarget = root.childIds.lastIndexWhere(
+      (id) => newNodes[id] is TargetHeaderNode,
+    );
 
-    for (final childId in root.childIds) {
-      final child = newNodes[childId];
-      if (child != null && child is! TargetHeaderNode) {
-        orphanIds.add(childId);
-      } else {
-        remainingRootChildren.add(childId);
-      }
+    if (lastTarget >= 0) {
+      remainingRootChildren
+        ..addAll(root.childIds)
+        ..insert(lastTarget + 1, targetNode.id);
+    } else {
+      orphanIds.addAll(root.childIds.where((id) => newNodes[id] != null));
+      remainingRootChildren.add(targetNode.id);
     }
 
     final targetWithChildren = targetNode.copyWith(
       parentId: rootNodeId,
       childIds: orphanIds,
-      orderIndex: remainingRootChildren.length,
+      orderIndex: remainingRootChildren.indexOf(targetNode.id),
     );
     newNodes[targetNode.id] = targetWithChildren;
 
@@ -367,7 +376,14 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
       }
     }
 
-    remainingRootChildren.add(targetNode.id);
+    for (var i = 0; i < remainingRootChildren.length; i++) {
+      final id = remainingRootChildren[i];
+      if (id == targetNode.id) continue;
+      final node = newNodes[id];
+      if (node != null && node.orderIndex != i) {
+        newNodes[id] = node.copyWith(orderIndex: i);
+      }
+    }
     newNodes[rootNodeId] = root.copyWith(childIds: remainingRootChildren);
 
     _currentSequence = _currentSequence!.copyWith(

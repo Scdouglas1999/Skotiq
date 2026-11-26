@@ -265,9 +265,19 @@ Future<void> _publishRemoteCurrentFrame(
         hint.width == result.width &&
         hint.height == result.height;
     if (hinted && hint.capturedAt != null) capturedAt = hint.capturedAt!;
+    // With no capture event to go by (the app just opened), the host's own
+    // record of the frame says what it was: a dark read "L 55 s" from the
+    // wheel and the operator's controls (night test 2026-11-26).
+    final recorded = hinted && hint.settings != null
+        ? null
+        : await _recordedFrameSettings(container, capturedAt, settings);
+    if (container.backendScopeOver(backend).isStale) return;
+    if (generation != fetchState.generation) return;
     final imageData = capturedImageDataFromResult(
       capturedImage: result,
-      settings: hinted && hint.settings != null ? hint.settings! : settings,
+      settings: hinted && hint.settings != null
+          ? hint.settings!
+          : recorded ?? settings,
       capturedAt: capturedAt,
       targetName: hinted ? hint.targetName : null,
       filePath: hinted ? hint.filePath : null,
@@ -316,4 +326,45 @@ Future<void> _publishRemoteCurrentFrame(
       unawaited(_publishRemoteCurrentFrame(container, pendingBackend));
     }
   }
+}
+
+/// The settings the host recorded for the frame captured at [capturedAt] in
+/// the open session; null when it has no such record or cannot be asked.
+/// The preview carries the same capture time as the row, so only a row
+/// within a few seconds is that frame (frames can be seconds apart).
+/// [controls] fills a value the row does not have.
+Future<ExposureSettings?> _recordedFrameSettings(
+  ProviderContainer container,
+  DateTime capturedAt,
+  ExposureSettings controls,
+) async {
+  final sessionId = container.read(sessionStateProvider).dbSessionId;
+  if (sessionId == null) return null;
+  const slack = Duration(seconds: 5);
+  final List<DbCapturedImage> rows;
+  try {
+    rows = await container
+        .read(imagingRecordsProvider)
+        .getRecentImagesForSession(
+          sessionId,
+          limit: 3,
+          atOrBefore: capturedAt.add(slack),
+        );
+  } on Object {
+    return null;
+  }
+  for (final row in rows) {
+    if (capturedAt.difference(row.capturedAt).abs() > slack) continue;
+    return ExposureSettings(
+      exposureTime: row.exposureDuration,
+      // A row without them keeps the controls' values rather than a made-up 0.
+      gain: row.gain ?? controls.gain,
+      offset: row.offset ?? controls.offset,
+      binningX: row.binX,
+      binningY: row.binY,
+      filter: row.filter,
+      frameType: FrameType.fromRecord(row.frameType) ?? FrameType.light,
+    );
+  }
+  return null;
 }

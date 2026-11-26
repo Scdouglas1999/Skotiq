@@ -197,18 +197,28 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
   /// assigned host id is applied but the dirty flag stays armed so the newer
   /// document is sent next. If another sequence was opened, the stale result
   /// is ignored completely.
-  bool applyRemoteSave(int databaseId, {required Sequence expectedSnapshot}) {
+  ///
+  /// [savedName] is the name the row was filed under when a first save took
+  /// a free one; the editor takes it unless the plan was renamed meanwhile.
+  bool applyRemoteSave(
+    int databaseId, {
+    required Sequence expectedSnapshot,
+    String? savedName,
+  }) {
     final current = state;
     if (current == null || current.id != expectedSnapshot.id) return false;
+    final name = savedName != null && current.name == expectedSnapshot.name
+        ? savedName
+        : current.name;
 
     if (identical(current, expectedSnapshot)) {
-      state = current.copyWith(databaseId: databaseId);
+      state = current.copyWith(databaseId: databaseId, name: name);
       _dirty = false;
       return true;
     }
 
     if (_dirty && current.databaseId == null) {
-      state = current.copyWith(databaseId: databaseId);
+      state = current.copyWith(databaseId: databaseId, name: name);
     }
     return false;
   }

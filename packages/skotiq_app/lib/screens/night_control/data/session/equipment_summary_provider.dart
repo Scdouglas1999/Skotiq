@@ -15,6 +15,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
 import '../../../../utils/guider_state_label.dart';
+import '../plan/night_run_phase_provider.dart';
 import 'session_format.dart';
 
 /// PHD2 states in which the guider is doing useful work.
@@ -253,6 +254,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
   final phd2 = ref.watch(phd2StateProvider);
   final guideStats = ref.watch(guideStatsProvider);
   final guideStopReason = ref.watch(guidingStopReasonProvider);
+  final runLive = ref.watch(nightRunPhaseProvider).isRunLive;
   final assigned = ref.watch(rigDevicesProvider).assigned.toSet();
   final reads = ref.watch(deviceReadHealthProvider);
   final heartbeats = ref.watch(deviceHeartbeatHealthProvider);
@@ -330,7 +332,10 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
       // The guider's state carries no readouts; its words come from the
       // guiding service.
       guider.withDetails(guiderDetails),
-      connectedStatus: _guiderWorking.contains(phd2)
+      // A stopped guider needs a look only while a run is live: before and
+      // after a night it is where a guider rests. A lost star always does.
+      connectedStatus: _guiderWorking.contains(phd2) ||
+              (phd2 != Phd2State.lostLock && !runLive)
           ? EquipmentStatus.ok
           : EquipmentStatus.attention,
     ),

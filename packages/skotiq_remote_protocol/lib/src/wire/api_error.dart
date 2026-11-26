@@ -57,15 +57,32 @@ class ApiErrorBody {
       layout = ApiErrorLayout.prose;
     }
 
+    // [toJson] merges details into the top level, so that is where they
+    // are; a `details` object is still read from a body that nests them.
     final rawDetails = json['details'];
+    final merged = <String, dynamic>{
+      for (final MapEntry(:key, :value) in json.entries)
+        if (!_bodyKeys.contains(key)) key: value,
+    };
     return ApiErrorBody(
       code: code,
       message: message,
       layout: layout,
       requestId: _nonEmpty(json['requestId']),
-      details: rawDetails is Map ? rawDetails.cast<String, dynamic>() : null,
+      details: rawDetails is Map
+          ? rawDetails.cast<String, dynamic>()
+          : merged.isEmpty
+          ? null
+          : merged,
     );
   }
+
+  static const Set<String> _bodyKeys = {
+    'error',
+    'code',
+    'message',
+    'requestId',
+  };
 
   /// The code of the 403 for a token the host does not know: the client has
   /// to pair again.

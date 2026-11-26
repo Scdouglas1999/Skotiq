@@ -521,7 +521,13 @@ class _AdaptiveTabButtonState extends State<_AdaptiveTabButton> {
       // `onTap` is non-nullable on this button, so the control is always live.
       enabled: true,
       selected: widget.isSelected,
-      label: tab.semanticLabel ?? tab.label,
+      // The label speaks for the tab; its visible text and count would read
+      // it a second time ("Builder Builder").
+      excludeSemantics: true,
+      label: [
+        tab.semanticLabel ?? tab.label,
+        if (tab.count != null) '${tab.count}',
+      ].join(', '),
       child: MouseRegion(
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),

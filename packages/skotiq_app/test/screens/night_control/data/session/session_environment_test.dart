@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
 import 'package:skotiq_app/services/night_actions/night_solver_status.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
@@ -109,6 +110,7 @@ List<Override> _readyRig({
       ),
       nightDiskProjectionProvider.overrideWithValue(null),
       nightCaptureFreeBytesProvider.overrideWithValue(639 * (1 << 30)),
+      captureFolderMissingProvider.overrideWithValue(false),
       nightSkyNowProvider.overrideWithValue(null),
       nightSafetyReadingProvider.overrideWithValue(
         const NightSafetyReading(monitoring: true, safe: true),
@@ -514,6 +516,20 @@ void main() {
       );
     });
 
+    test('a capture folder the host does not have blocks, with Choose',
+        () async {
+      final h = await sessionHarness(
+        overrides: [
+          ..._readyRig(),
+          captureFolderMissingProvider.overrideWithValue(true),
+        ],
+      );
+      final disk = _item(await _checklist(h), ChecklistItemId.disk);
+      expect(disk.state, ChecklistItemState.blocked);
+      expect(disk.detail!.key, 'nightSessionCheckDiskFolderMissing');
+      expect(disk.actionLabel!.key, 'nightSessionActionChoose');
+    });
+
     test('the dawn row names the park time the rule uses', () async {
       final h = await sessionHarness(overrides: _readyRig());
       final items = await _checklist(h);
@@ -604,11 +620,25 @@ void main() {
   });
 
   group('equipment', () {
-    test('an idle guider needs a look; an absent rotator reads none', () async {
+    test('a stopped guider needs a look while a run is live', () async {
+      final h = await sessionHarness(overrides: <Override>[
+        ..._readyRig(),
+        nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
+      ]);
+      final guider = h
+          .read(nightEquipmentProvider)
+          .firstWhere((r) => r.kind == EquipmentKind.guider);
+      expect(guider.status, EquipmentStatus.attention);
+    });
+
+    test('an idle guider rests between runs; an absent rotator reads none',
+        () async {
       final h = await sessionHarness(overrides: _readyRig());
       final rows = h.read(nightEquipmentProvider);
       final guider = rows.firstWhere((r) => r.kind == EquipmentKind.guider);
-      expect(guider.status, EquipmentStatus.attention);
+      // Night test 2026-11-26: after a finished run the row read "needs a
+      // look, Not guiding". The pre-run checklist asks for a loop instead.
+      expect(guider.status, EquipmentStatus.ok);
       expect(guider.details.first.key, 'nightScopeGuideStopped');
       final rotator = rows.firstWhere((r) => r.kind == EquipmentKind.rotator);
       expect(rotator.status, EquipmentStatus.absent);
@@ -800,6 +830,7 @@ void main() {
       final h = await sessionHarness(overrides: [
         ..._readyRig(),
         guidingStopReasonProvider.overrideWith((ref) => 'tracking_limit_hold'),
+        nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
       ]);
       final guider = h
           .read(nightEquipmentProvider)
@@ -823,6 +854,7 @@ void main() {
       final h = await sessionHarness(overrides: [
         ..._readyRig(),
         guidingStopReasonProvider.overrideWith((ref) => 'dome_closing'),
+        nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
       ]);
       final guider = h
           .read(nightEquipmentProvider)
@@ -909,6 +941,40 @@ void main() {
       final line = h.read(nightLogProvider).single.message.literal!;
       expect(line, contains('Simulated Rotator'));
       expect(line, isNot(contains('sim_rotator_1')));
+    });
+
+    // Night test 2026-11-26: "Guiding stopped" sat above "Guiding stopped
+    // because the run was stopped", the same stop said twice.
+    test('a guiding stop with its reason is one line', () async {
+      for (final (reason, words) in [
+        ('run_stopped', 'because the run was stopped'),
+        ('mount_fault', 'the mount moved on its own'),
+      ]) {
+        final h = await sessionHarness();
+        final keep = h.container.listen(nightLogProvider, (_, __) {});
+        addTearDown(keep.close);
+        sk_events.SkotiqEvent guiding(int id, sk_events.GuidingEvent event) =>
+            sk_events.SkotiqEvent(
+              eventId: BigInt.from(id),
+              timestamp: kNight.millisecondsSinceEpoch + id * 100,
+              severity: sk_events.EventSeverity.info,
+              category: sk_events.EventCategory.guiding,
+              payload: sk_events.EventPayload.guiding(event),
+            );
+        final history = h.container.read(eventHistoryProvider.notifier);
+        history.addEvent(
+            guiding(1, sk_events.GuidingEvent.stopReason(reason: reason)));
+        history.addEvent(
+            guiding(2, const sk_events.GuidingEvent.guidingStopped()));
+        await Future<void>.delayed(Duration.zero);
+        final lines = [
+          for (final entry in h.read(nightLogProvider)) entry.message.literal,
+        ];
+        expect(
+            lines.where((l) => l!.startsWith('Guiding stopped')), hasLength(1),
+            reason: '$lines');
+        expect(lines.single, contains(words));
+      }
     });
 
     // The log read "Property changed · Filter Wheel · FilterNames" after

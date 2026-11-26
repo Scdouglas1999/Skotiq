@@ -248,6 +248,23 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
         return;
       }
 
+      // So is a safety event it classifies, when its rules show it in the
+      // app: a mount fault was told as "Mount fault" and twice more as
+      // "Critical: Safety Error" (mobile rework P2-14).
+      if (event.category == core.EventCategory.safety &&
+          ref.exists(notificationRouterProvider)) {
+        final classified = NotificationEventClassifier.classify(event);
+        if (classified != null &&
+            ref
+                .read(notificationRouterProvider)
+                .wouldShowInApp(
+                  classified.category,
+                  severity: classified.severity,
+                )) {
+          return;
+        }
+      }
+
       // A Notification node that names its own transports is sent by the
       // notification router on exactly those, while it routes at all.
       if (systemEventOf(event) case final SystemEvent_Notification notification

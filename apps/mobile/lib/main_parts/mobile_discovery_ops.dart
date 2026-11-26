@@ -499,30 +499,9 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       });
       return;
     }
+    // connectToRig pairs when the host needs it: one tap on the home network,
+    // else the code dialog, the same as for a host found by searching.
     server = read.server;
-    // A host of another release is not paired with: connectToRig says which
-    // side to update.
-    if (problem == null &&
-        (authToken == null || authToken.isEmpty) &&
-        server.authRequired &&
-        server.pairingSupported) {
-      final paired = await _pairWithServer(
-        host: host,
-        serverName: server.name,
-        port: port,
-        // Use the scheme + identity the enriched /api/info reported so a
-        // TLS-fronted host pairs over https and the pre-flight pins the
-        // server before the code is sent.
-        scheme: server.scheme,
-        pinnedFingerprint: server.fingerprint,
-      );
-      if (paired == null) {
-        return;
-      }
-      authToken = paired;
-      server = server.copyWith(authToken: authToken);
-    }
-
     await connectToRig(server);
   }
 }
@@ -818,9 +797,13 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
           ),
           const SizedBox(height: 12),
           Text(
-            'No screen on the imaging computer? Open '
-            'http://${widget.host}:${widget.port}/pair in a browser to see '
-            'the code.',
+            // The page at /pair never shows a code, and on the same Wi-Fi
+            // this dialog does not come up at all: the phone pairs in one
+            // tap. It is here for a rig reached from away or set to require
+            // a code, where the code sits in a file on that computer.
+            'No screen on the imaging computer? On its Wi-Fi this phone '
+            'pairs without a code. From elsewhere, the code is in '
+            'pairing-code.txt in Skotiq\'s data folder on that computer.',
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize13,
               color: colors.textSecondary,

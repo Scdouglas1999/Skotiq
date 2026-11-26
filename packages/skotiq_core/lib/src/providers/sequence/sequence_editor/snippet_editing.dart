@@ -33,6 +33,24 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
     final newNodes = Map<String, SequenceNode>.from(_currentSequence!.nodes);
     final idMapping = <String, String>{};
 
+    // Only [templateRootId]'s subtree is merged. A caller that passes a
+    // target header inside a whole generated plan (Build sequence) would
+    // otherwise copy the plan's own root and its warm/park steps in with no
+    // parent: nodes the plan holds but never runs.
+    final subtree = <String>{};
+    void collect(String id) {
+      if (!subtree.add(id)) return;
+      for (final child in templateNodes[id]?.childIds ?? const <String>[]) {
+        collect(child);
+      }
+    }
+
+    collect(templateRootId);
+    templateNodes = {
+      for (final entry in templateNodes.entries)
+        if (subtree.contains(entry.key)) entry.key: entry.value,
+    };
+
     for (final entry in templateNodes.entries) {
       idMapping[entry.key] = const Uuid().v4();
     }

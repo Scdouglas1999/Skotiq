@@ -253,6 +253,39 @@ void main() {
       expect(find.textContaining('Elevation kept at 1234 m'), findsOneWidget);
     });
 
+    testWidgets('a GPS fix with a measured height stores that elevation', (
+      tester,
+    ) async {
+      final handle = await _pumpLocation(
+        tester,
+        settings: seattle,
+        locator: answering(
+          const PositioningAttempt(
+            fix: PositioningResult(
+              latitude: 35.1983,
+              longitude: -79.8766,
+              accuracyMetres: 6,
+              altitudeMetres: 187.6,
+              source: PositioningSource.platformService,
+              provider: 'Android location',
+            ),
+            outcomes: [],
+          ),
+        ),
+      );
+
+      await consentAndDetect(tester);
+
+      expect(
+        handle.container.read(appSettingsProvider).requireValue.elevation,
+        188,
+      );
+      expect(
+        find.textContaining('Elevation set to 188 m from the GPS fix'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('a Wi-Fi fix names its radius and how many networks placed it',
         (tester) async {
       await _pumpLocation(tester,

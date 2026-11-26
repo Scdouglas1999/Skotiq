@@ -7,6 +7,7 @@ part of '../weather_screen.dart';
 class _WeatherHeader extends StatelessWidget {
   final WeatherSafetyStatus status;
   final bool monitoring;
+  final SafetySourceReading monitor;
   final VoidCallback onRefresh;
   final VoidCallback onSettingsTap;
   final bool isLoading;
@@ -14,6 +15,7 @@ class _WeatherHeader extends StatelessWidget {
   const _WeatherHeader({
     required this.status,
     required this.monitoring,
+    required this.monitor,
     required this.onRefresh,
     required this.onSettingsTap,
     required this.isLoading,
@@ -22,8 +24,16 @@ class _WeatherHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chip = SkotiqChip(
-      label: weatherSafetyChipLabel(status: status, monitoring: monitoring),
-      tone: weatherSafetyChipTone(status: status, monitoring: monitoring),
+      label: weatherSafetyChipLabel(
+        status: status,
+        monitoring: monitoring,
+        monitor: monitor,
+      ),
+      tone: weatherSafetyChipTone(
+        status: status,
+        monitoring: monitoring,
+        monitor: monitor,
+      ),
       dot: true,
     );
     // Flexible only where the chip can run out of room: "Not monitored" plus

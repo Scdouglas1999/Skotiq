@@ -102,7 +102,11 @@ class NightRecentSolvesNotifier extends StateNotifier<List<NightSolveRecord>> {
       hostNightHistoryProvider,
       (_, next) {
         final history = next.valueOrNull;
-        if (history != null) _addEarlier(history.solves);
+        // The history can land while another provider is building (the
+        // focus panel watches this one), and a state change then is refused.
+        if (history != null) {
+          Future.microtask(() => _addEarlier(history.solves));
+        }
       },
       fireImmediately: true,
     );

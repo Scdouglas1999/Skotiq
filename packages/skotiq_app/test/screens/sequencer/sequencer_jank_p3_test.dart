@@ -463,9 +463,9 @@ void main() {
       // The canvas bar's glyphs. Every one is a SkotiqIconButton, whose
       // required tooltip doubles as its semantics label — which is what
       // stopped the old bar shipping thirteen unnamed tappable boxes.
-      for (final label in const [
-        'Undo (Ctrl+Z)',
-        'Redo (Ctrl+Y)',
+      for (final label in [
+        'Undo${shortcutSuffix('Z')}',
+        'Redo${shortcutSuffix('Y')}',
         'More actions',
       ]) {
         expect(

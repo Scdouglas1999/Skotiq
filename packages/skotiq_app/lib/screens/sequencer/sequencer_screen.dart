@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -41,13 +40,13 @@ import 'widgets/sequence_progress_bar.dart';
 import 'widgets/session_report_dialog.dart';
 import 'widgets/equipment_telemetry_strip.dart';
 import 'widgets/mobile_playback_bar.dart';
+import '../imaging/widgets/imaging_status_strip.dart';
 import 'widgets/target_queue_panel.dart';
 import 'tabs/sequence_library_tab.dart';
 import 'tabs/templates_tab.dart';
 import '../../router/analytics_route.dart';
 import '../../router/app_routes.dart';
 import '../../router/sequencer_route.dart';
-import '../../utils/guide_distance.dart';
 import 'widgets/tree_insert.dart';
 
 part 'sequencer_screen_parts/tab_bar.dart';
@@ -497,10 +496,13 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
         // and the body (short-side) disagreeing.
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final shortSide = constraints.maxWidth < constraints.maxHeight
-                ? constraints.maxWidth
-                : constraints.maxHeight;
-            final isPhone = BreakpointTokens.isPhone(shortSide);
+            // The device's short side, the same measure the builder picks
+            // its layout by: the header's run controls and the phone's
+            // playback bar must never both show (one tour key, two widgets)
+            // or both hide.
+            final isPhone = BreakpointTokens.isPhone(
+              MediaQuery.sizeOf(context).shortestSide,
+            );
             return Column(
               children: [
                 // The screen's one 56 px page header (06 §Sequencer).

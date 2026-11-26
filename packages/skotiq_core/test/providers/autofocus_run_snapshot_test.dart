@@ -167,6 +167,53 @@ void main() {
     );
     expect(host.container.read(autofocusOverlayProvider).currentPoint, 3);
   });
+
+  test('a viewer that joins after a finished run does not pop its result', () {
+    const result = AutofocusResult(
+      bestPosition: 25071,
+      bestHfr: 2.12,
+      focusData: [],
+      method: 'vcurve',
+      timestamp: 0,
+      curveFitQuality: 0.9,
+      backlashApplied: false,
+    );
+    const settled = AutofocusOverlayState(
+      status: 'Complete - HFR: 2.12 at position 25071',
+      result: result,
+      bestHfr: 2.12,
+    );
+    final viewer = _viewer();
+    void apply(AutofocusOverlayState s) => const AutofocusRunChannel().apply(
+      RuntimeApplyContext(viewer, networkBackend: _link()),
+      const AutofocusRunChannel().encode(s),
+    );
+
+    // Hours-old result in the first snapshot: kept for Tonight, not shown.
+    apply(settled);
+    var shown = viewer.read(autofocusOverlayProvider);
+    expect(shown.result?.bestHfr, 2.12);
+    expect(shown.isVisible, isFalse);
+
+    // A run that starts and finishes while the viewer watches does show.
+    apply(const AutofocusOverlayState(isRunning: true, status: 'Point 1/9'));
+    expect(viewer.read(autofocusOverlayProvider).isVisible, isTrue);
+    apply(settled);
+    shown = viewer.read(autofocusOverlayProvider);
+    expect(shown.isVisible, isTrue);
+    expect(shown.isMinimized, isTrue);
+  });
+
+  test('a result that lands after an empty first snapshot is shown', () {
+    final viewer = _viewer();
+    void apply(AutofocusOverlayState s) => const AutofocusRunChannel().apply(
+      RuntimeApplyContext(viewer, networkBackend: _link()),
+      const AutofocusRunChannel().encode(s),
+    );
+    apply(const AutofocusOverlayState());
+    apply(const AutofocusOverlayState(status: 'Autofocus failed'));
+    expect(viewer.read(autofocusOverlayProvider).isVisible, isTrue);
+  });
 }
 
 ProviderContainer _viewer() {

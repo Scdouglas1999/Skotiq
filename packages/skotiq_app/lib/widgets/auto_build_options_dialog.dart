@@ -103,34 +103,43 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
   final saved = raw == null
       ? <String, dynamic>{}
       : jsonDecode(raw) as Map<String, dynamic>;
+  // Read before the dialog opens: its builder runs again on every rebuild of
+  // the route, by which time the page that opened it may be gone.
+  final sensitivity = ref.read(cameraSensitivityProvider);
   final result = await showDialog<AutoBuildOptions>(
     context: context,
-    builder: (_) => AutoBuildOptionsDialog(
-      profile: profile,
-      cameraName: cameraName,
-      cameraPreset: preset,
-      sensitivity: ref.read(cameraSensitivityProvider),
-      filters: filters,
-      filterChoice: filterChoice,
-      initialSet: initialSet,
-      target: target,
-      saved: saved,
-      calculatedSeconds: calculatedSeconds,
-      onSave: (recipe) => dao.setSetting(key, jsonEncode(recipe)),
-      onFilterSetChosen: (set) async {
-        final prefs = ref.read(filterSetPreferencesProvider.notifier);
-        // A saved set keeps the shares it was last built with.
-        if (set.isCustom) {
-          await prefs.save(CustomFilterSet(
-              name: set.label, filters: set.filters, shares: set.shares));
-        }
-        await prefs.pick(target, set, filterChoice);
-      },
-      previewPlans: (options) async =>
-          (await buildPlanTonightTargetSequenceFromSuggestion(
-                  ref: ref, target: target, options: options))
-              .filterPlans,
-    ),
+    // The callbacks use the dialog's own ref: the page that opened it can be
+    // rebuilt or gone while the dialog is up.
+    builder: (_) => Consumer(
+        builder: (_, dialogRef, __) => AutoBuildOptionsDialog(
+              profile: profile,
+              cameraName: cameraName,
+              cameraPreset: preset,
+              sensitivity: sensitivity,
+              filters: filters,
+              filterChoice: filterChoice,
+              initialSet: initialSet,
+              target: target,
+              saved: saved,
+              calculatedSeconds: calculatedSeconds,
+              onSave: (recipe) => dao.setSetting(key, jsonEncode(recipe)),
+              onFilterSetChosen: (set) async {
+                final prefs =
+                    dialogRef.read(filterSetPreferencesProvider.notifier);
+                // A saved set keeps the shares it was last built with.
+                if (set.isCustom) {
+                  await prefs.save(CustomFilterSet(
+                      name: set.label,
+                      filters: set.filters,
+                      shares: set.shares));
+                }
+                await prefs.pick(target, set, filterChoice);
+              },
+              previewPlans: (options) async =>
+                  (await buildPlanTonightTargetSequenceFromSuggestion(
+                          ref: dialogRef, target: target, options: options))
+                      .filterPlans,
+            )),
   );
   if (!context.mounted ||
       (host.isStale ||

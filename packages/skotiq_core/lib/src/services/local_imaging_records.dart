@@ -1,6 +1,9 @@
 import '../models/imaging/session_status.dart';
 import '../database/rows/frame_type_record.dart';
 import 'dart:async';
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +28,7 @@ import '../services/transients/transient_candidate.dart';
 import 'package:skotiq_astro/format.dart';
 import '../models/imaging/gnomonic_projection.dart' show SolvedWcs;
 import 'frame_header.dart';
+import 'restored_frame_path.dart';
 import 'wcs/plate_solve_data_from_result.dart' show storedFrameWcs;
 import '../backend/network_backend/host_data/remote_imaging_records.dart';
 import '../backend/roles/host_data/imaging_records.dart';
@@ -32,6 +36,7 @@ import '../providers/host_role.dart';
 import '../providers/thumbnail_sidecar_provider.dart';
 import '../backend/thumbnail_sidecar_service.dart';
 import '../providers/logging_service_provider.dart';
+import '../settings/app_settings_state.g.dart' show AppSettingDefs;
 part 'local_imaging_records_solved_frame_hooks.dart';
 
 /// The sessions and captured-image rows in this process's own database.
@@ -41,10 +46,15 @@ final class LocalImagingRecords implements ImagingRecords {
     required ImagesDao imagesDao,
     ThumbnailSidecarService? thumbnails,
     SolvedFrameFoldHook? onSolvedFrameFold,
+    Future<String?> Function()? rejectFolder,
   }) : _sessionsDao = sessionsDao,
        _imagesDao = imagesDao,
        _thumbnails = thumbnails,
-       _onSolvedFrameFold = onSolvedFrameFold;
+       _onSolvedFrameFold = onSolvedFrameFold,
+       _rejectFolder = rejectFolder;
+
+  /// The reject-folder setting, read when a frame is restored.
+  final Future<String?> Function()? _rejectFolder;
 
   final SessionsDao _sessionsDao;
   final ImagesDao _imagesDao;
@@ -178,7 +188,47 @@ final class LocalImagingRecords implements ImagingRecords {
       _imagesDao.rejectImage(id, reason);
 
   @override
-  Future<void> acceptImage(int id) => _imagesDao.acceptImage(id);
+  Future<void> acceptImage(int id) async {
+    await _imagesDao.acceptImage(id);
+    await _moveOutOfRejectFolder(id);
+  }
+
+  /// A restored frame leaves the reject folder, with its thumbnail, so the
+  /// folder a stacking program reads holds every accepted frame. A frame
+  /// whose original place is taken, or cannot be known, stays where it is.
+  Future<void> _moveOutOfRejectFolder(int id) async {
+    final image = await _imagesDao.getImageById(id);
+    if (image == null) return;
+    final target = restoredFramePath(
+      image.filePath,
+      rejectFolder: await _rejectFolder?.call(),
+    );
+    if (target == null) return;
+    final source = File(image.filePath);
+    if (!await source.exists() || await File(target).exists()) return;
+    try {
+      await source.rename(target);
+    } on FileSystemException catch (e) {
+      Log.warning(
+        'Restored frame $id stays in the reject folder: $e',
+        source: 'LocalImagingRecords',
+      );
+      return;
+    }
+    await _imagesDao.updateImageFilePath(id, target);
+    final thumb = image.thumbnailPath;
+    if (thumb == null || p.dirname(thumb) != p.dirname(image.filePath)) {
+      return;
+    }
+    final movedThumb = p.join(p.dirname(target), p.basename(thumb));
+    try {
+      await File(thumb).rename(movedThumb);
+      await _imagesDao.setThumbnailPath(id, movedThumb);
+    } on FileSystemException {
+      // The thumbnail is rebuilt from the frame when it is next asked for.
+      await _imagesDao.setThumbnailPath(id, null);
+    }
+  }
 
   @override
   Future<void> updatePlateSolveResult(
@@ -382,6 +432,11 @@ final imagingRecordsProvider = hostRoleProvider<ImagingRecords>(
       imagesDao: imagesDao,
       thumbnails: ref.watch(thumbnailSidecarServiceProvider),
       onSolvedFrameFold: solvedFrameFoldHook(ref, imagesDao),
+      rejectFolder: () async {
+        final setting = AppSettingDefs.imageGradingRejectFolderPath;
+        final raw = await ref.read(settingsDaoProvider).getSetting(setting.key);
+        return setting.decode(raw, null);
+      },
     );
   },
   linked: (ref, host) {

@@ -584,15 +584,15 @@ void main() {
   });
 
   testWidgets('below the column floor nothing folds', (tester) async {
-    // The canvas — not the preference — decides what is on screen: under
-    // `_ledgerColumnsMinWidth` the tree falls back to compact rows and draws
+    // The canvas — not the preference — decides what is on screen: too narrow
+    // for even two ledger columns the tree falls back to compact rows and draws
     // every child. An arrow-key order still folded there would step over rows
     // the operator can plainly see.
     final built = _runInAlpha();
     final handle = await _pumpTree(
       tester,
       built.sequence,
-      size: const Size(420, 900),
+      size: const Size(360, 900),
     );
     await _drainValidationDebounce(tester);
 

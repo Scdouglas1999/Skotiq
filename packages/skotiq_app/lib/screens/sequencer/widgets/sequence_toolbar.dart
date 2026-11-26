@@ -316,7 +316,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               context.showInfoSnackBar(
                 'Exposure triggers applied to '
                 '${countLabel(exposureNodes.length, 'exposure node')}. '
-                'Save (Ctrl+S) to keep them.',
+                'Save${shortcutSuffix('S')} to keep them.',
               );
             }
           }
@@ -726,41 +726,33 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             density: overviewDensity,
             visible: showOverview,
           );
+          // Ledger has no overview, so it has no toggle for one.
+          final offersOverview = overviewDensity != SequencerDensity.ledger;
           void toggleOverview() {
             ref
                 .read(sequenceOverviewPrefsProvider.notifier)
                 .setVisible(overviewDensity, !showOverview);
           }
 
-          // The mobile builder forces comfortable rows
-          // (`effectiveSequencerDensity`), so a density control there would
-          // sell a mode the canvas refuses to draw. The gate mirrors the same
-          // signal the layout applies to the tree: `builder_layout.dart`
-          // picks `_MobileBuilderLayout` on the region's SHORT side
-          // (`BreakpointTokens.isPhone(min(w, h))`), so a narrow-but-tall
-          // desktop window keeps the switch while the tree keeps drawing
-          // ledger rows. The window's short side is the closest measurement
-          // this widget can take of that region's — they differ only by the
-          // shell chrome between them.
-          final mediaSize = MediaQuery.sizeOf(context);
-          final showDensity = !BreakpointTokens.isPhone(
-            math.min(mediaSize.width, mediaSize.height),
-          );
+          // Every builder honors the density, so every builder offers it; a
+          // narrow bar moves the switch into its overflow menu.
           // Without the toggles the bar carries undo/redo and save/more.
           final barToolbarWidth = _toolbarWidth(4, 2, glyphExtent);
           // With them, three groups of two — plus the three density glyphs
           // riding inside the toggle group when the control is offered.
-          final toggledToolbarWidth =
-              _toolbarWidth(showDensity ? 9 : 6, 3, glyphExtent);
+          final toggledToolbarWidth = _toolbarWidth(9, 3, glyphExtent);
           // Labelled, the middle group is two worded buttons and the
           // segmented density control.
           final labelledToolbarWidth = _toolbarWidth(4, 3, glyphExtent) +
               _labelledToggleGroupWidth +
-              (showDensity ? _densityControlWidth : 0);
+              _densityControlWidth;
 
+          final touch = SkotiqTouchTarget.isTouch(context);
           final saveLabel = sequence == null
               ? 'Save (create or open a sequence first)'
-              : 'Save to the library (Ctrl+S)';
+              : touch
+                  ? 'Save to the library'
+                  : 'Save to the library${shortcutSuffix('S')}';
           final save =
               sequence == null ? null : () => saveOpenSequence(context, ref);
 
@@ -791,18 +783,21 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                     .read(timelineVisibleProvider.notifier)
                     .state = !showTimeline,
               ))
-              ..add(_ToolbarAction(
-                icon: LucideIcons.map,
-                label: overviewLabel,
-                onPressed: toggleOverview,
-              ));
+              ..addAll([
+                if (offersOverview)
+                  _ToolbarAction(
+                    icon: LucideIcons.map,
+                    label: overviewLabel,
+                    onPressed: toggleOverview,
+                  ),
+              ]);
           }
 
           // The density switch follows the toggles into the menu when the bar
           // cannot hold them. The active mode's entry is disabled — the menu
           // has no checkmark affordance, and a no-op tap is how a radio menu
           // says "this is where you are".
-          if (!inlineToggles && showDensity) {
+          if (!inlineToggles) {
             for (final mode in SequencerDensity.values) {
               actions.add(_ToolbarAction(
                 icon: mode.icon,
@@ -834,32 +829,32 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                       .read(timelineVisibleProvider.notifier)
                       .state = !showTimeline,
                 ),
-                SkotiqButton(
-                  label: sequenceOverviewButtonLabel(overviewDensity),
-                  icon: LucideIcons.map,
-                  size: ButtonSize.small,
-                  variant: showOverview
-                      ? ButtonVariant.secondary
-                      : ButtonVariant.ghost,
-                  // The name says WHAT it is and the variant says it is on;
-                  // the hint is where a reader gets what pressing it does.
-                  semanticsHint: overviewLabel,
-                  onPressed: toggleOverview,
-                ),
+                if (offersOverview)
+                  SkotiqButton(
+                    label: sequenceOverviewButtonLabel(overviewDensity),
+                    icon: LucideIcons.map,
+                    size: ButtonSize.small,
+                    variant: showOverview
+                        ? ButtonVariant.secondary
+                        : ButtonVariant.ghost,
+                    // The name says WHAT it is and the variant says it is on;
+                    // the hint is where a reader gets what pressing it does.
+                    semanticsHint: overviewLabel,
+                    onPressed: toggleOverview,
+                  ),
                 // Density is a one-of-three choice, not a third on/off
                 // toggle, so it keeps its own control shape even while it
                 // shares the group: `SegmentedControl` publishes button /
                 // enabled / selected / label per segment on its own.
-                if (showDensity)
-                  SegmentedControl(
-                    segments: <String>[
-                      for (final mode in SequencerDensity.values) mode.label,
-                    ],
-                    selectedIndex: density.index,
-                    onSelected: (index) => ref
-                        .read(sequencerDensityPrefsProvider.notifier)
-                        .setDensity(SequencerDensity.values[index]),
-                  ),
+                SegmentedControl(
+                  segments: <String>[
+                    for (final mode in SequencerDensity.values) mode.label,
+                  ],
+                  selectedIndex: density.index,
+                  onSelected: (index) => ref
+                      .read(sequencerDensityPrefsProvider.notifier)
+                      .setDensity(SequencerDensity.values[index]),
+                ),
               ];
             }
             return <Widget>[
@@ -873,26 +868,26 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                     .read(timelineVisibleProvider.notifier)
                     .state = !showTimeline,
               ),
-              SkotiqIconButton(
-                icon: LucideIcons.map,
-                tooltip: overviewLabel,
-                size: IconButtonSize.sm,
-                selected: showOverview,
-                onPressed: toggleOverview,
-              ),
+              if (offersOverview)
+                SkotiqIconButton(
+                  icon: LucideIcons.map,
+                  tooltip: overviewLabel,
+                  size: IconButtonSize.sm,
+                  selected: showOverview,
+                  onPressed: toggleOverview,
+                ),
               // Glyph tier: one button per mode, named by its tooltip and
               // carrying the same `selected` treatment as Timeline / Map.
-              if (showDensity)
-                for (final mode in SequencerDensity.values)
-                  SkotiqIconButton(
-                    icon: mode.icon,
-                    tooltip: '${mode.label} density',
-                    size: IconButtonSize.sm,
-                    selected: mode == density,
-                    onPressed: () => ref
-                        .read(sequencerDensityPrefsProvider.notifier)
-                        .setDensity(mode),
-                  ),
+              for (final mode in SequencerDensity.values)
+                SkotiqIconButton(
+                  icon: mode.icon,
+                  tooltip: '${mode.label} density',
+                  size: IconButtonSize.sm,
+                  selected: mode == density,
+                  onPressed: () => ref
+                      .read(sequencerDensityPrefsProvider.notifier)
+                      .setDensity(mode),
+                ),
             ];
           }
 
@@ -905,10 +900,30 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 onPressed: save,
               ),
             );
+            // Undo and redo stay on the bar: in the menu they were missing
+            // altogether, and a phone has no Ctrl+Z.
             return Row(
               children: [
                 Expanded(
                   child: _CanvasBarName(colors: colors, sequence: sequence),
+                ),
+                SkotiqIconButton(
+                  icon: LucideIcons.undo2,
+                  tooltip: touch
+                      ? 'Undo$lockedTooltipSuffix'
+                      : 'Undo${shortcutSuffix('Z')}$lockedTooltipSuffix',
+                  size: IconButtonSize.sm,
+                  onPressed:
+                      (canEdit && notifier.canUndo) ? notifier.undo : null,
+                ),
+                SkotiqIconButton(
+                  icon: LucideIcons.redo2,
+                  tooltip: touch
+                      ? 'Redo$lockedTooltipSuffix'
+                      : 'Redo${shortcutSuffix('Y')}$lockedTooltipSuffix',
+                  size: IconButtonSize.sm,
+                  onPressed:
+                      (canEdit && notifier.canRedo) ? notifier.redo : null,
                 ),
                 _ToolbarOverflowMenu(colors: colors, actions: actions),
               ],
@@ -967,14 +982,14 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                   <Widget>[
                     SkotiqIconButton(
                       icon: LucideIcons.undo2,
-                      tooltip: 'Undo (Ctrl+Z)$lockedTooltipSuffix',
+                      tooltip: 'Undo${shortcutSuffix('Z')}$lockedTooltipSuffix',
                       size: IconButtonSize.sm,
                       onPressed:
                           (canEdit && notifier.canUndo) ? notifier.undo : null,
                     ),
                     SkotiqIconButton(
                       icon: LucideIcons.redo2,
-                      tooltip: 'Redo (Ctrl+Y)$lockedTooltipSuffix',
+                      tooltip: 'Redo${shortcutSuffix('Y')}$lockedTooltipSuffix',
                       size: IconButtonSize.sm,
                       onPressed:
                           (canEdit && notifier.canRedo) ? notifier.redo : null,

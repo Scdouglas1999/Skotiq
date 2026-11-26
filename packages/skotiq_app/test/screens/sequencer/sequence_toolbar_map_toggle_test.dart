@@ -1,7 +1,6 @@
-// The canvas bar's overview toggle: what it hides in the density the canvas is
-// drawing, what it says it will do before you press it, and what it remembers
-// per density. It used to govern only the 80 px strip, which Ledger — the
-// shipped default — does not draw, so in Ledger the control did nothing at all.
+// The canvas bar's overview toggle: Ledger has no overview and no toggle; the
+// other two densities show the 80 px map strip on request and remember the
+// answer per density.
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -26,7 +25,7 @@ import '../../harness/pump_app_screen.dart';
 const _settingsKey = 'sequence_overview_visible_v1';
 
 /// Wide enough for the canvas bar's glyph tier (tooltips, not words) and for
-/// the ledger columns to afford the gutter, so no clamp is in play.
+/// all four ledger columns, so no clamp is in play.
 const Size _canvas = Size(1180, 800);
 
 /// Root -> "M 42" -> "Broadband" -> 20 differently-lengthed subs, which is a
@@ -107,7 +106,7 @@ Future<HarnessHandle> _pumpCanvas(WidgetTester tester) async {
 }
 
 /// Past the debounced validation, the post-frame density publish and the
-/// gutter's own open/close, so every assertion reads a settled canvas.
+/// strip's own open/close, so every assertion reads a settled canvas.
 Future<void> _drain(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(seconds: 1));
@@ -124,21 +123,6 @@ String? _toggleTooltip(WidgetTester tester) =>
 bool _toggleSelected(WidgetTester tester) =>
     tester.widget<SkotiqIconButton>(_toggle()).selected;
 
-Finder _gutter() => find.byKey(sequenceGutterMapKey);
-
-/// The width the rows themselves are laid out in — the tree's own scroll
-/// viewport, not the canvas bar's (the bar scrolls its chips horizontally).
-double _rowsWidth(WidgetTester tester) => tester
-    .getSize(
-      find
-          .descendant(
-            of: find.byType(SequenceTree),
-            matching: find.byType(SingleChildScrollView),
-          )
-          .first,
-    )
-    .width;
-
 Future<void> _setDensity(
   WidgetTester tester,
   HarnessHandle handle,
@@ -153,32 +137,11 @@ Future<void> _setDensity(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('ledger: the toggle hides the gutter and the rows take its width',
+  testWidgets('ledger draws no overview and offers no toggle for one',
       (tester) async {
     await _pumpCanvas(tester);
-
-    expect(_gutter(), findsOneWidget);
-    expect(_toggleSelected(tester), isTrue);
-    expect(_toggleTooltip(tester), 'Hide the overview gutter');
-    final rowsWithGutter = _rowsWidth(tester);
-
-    await tester.tap(_toggle());
-    await _drain(tester);
-
-    expect(_gutter(), findsNothing);
-    expect(_toggleSelected(tester), isFalse);
-    expect(_toggleTooltip(tester), 'Show the overview gutter');
-    expect(
-      _rowsWidth(tester) - rowsWithGutter,
-      34.0,
-      reason: 'the ledger columns get the gutter\'s width back, to the pixel',
-    );
-
-    await tester.tap(_toggle());
-    await _drain(tester);
-
-    expect(_gutter(), findsOneWidget);
-    expect(_rowsWidth(tester), rowsWithGutter);
+    expect(_toggle(), findsNothing);
+    expect(find.byType(SequenceMinimap), findsNothing);
   });
 
   testWidgets('comfortable: the toggle shows the 80 px strip', (tester) async {
@@ -202,11 +165,6 @@ void main() {
       (tester) async {
     final handle = await _pumpCanvas(tester);
 
-    // Ledger: off, against its on-by-default.
-    await tester.tap(_toggle());
-    await _drain(tester);
-    expect(_gutter(), findsNothing);
-
     // Comfortable: on, against its off-by-default.
     await _setDensity(tester, handle, SequencerDensity.comfortable);
     expect(find.byType(SequenceMinimap), findsNothing);
@@ -214,19 +172,21 @@ void main() {
     await _drain(tester);
     expect(find.byType(SequenceMinimap), findsOneWidget);
 
-    // Neither choice reaches the other density, in either direction.
+    // Compact never had it chosen, so it is still off.
+    await _setDensity(tester, handle, SequencerDensity.compact);
+    expect(find.byType(SequenceMinimap), findsNothing);
+
+    // Ledger never shows it.
     await _setDensity(tester, handle, SequencerDensity.ledger);
-    expect(_gutter(), findsNothing);
     expect(find.byType(SequenceMinimap), findsNothing);
 
     await _setDensity(tester, handle, SequencerDensity.comfortable);
     expect(find.byType(SequenceMinimap), findsOneWidget);
 
-    // And both survived the trip through the database.
     expect(
       jsonDecode(
           (await SettingsDao(handle.database).getSetting(_settingsKey))!),
-      {'ledger': false, 'comfortable': true},
+      {'comfortable': true},
     );
   });
 
@@ -234,7 +194,7 @@ void main() {
     final notifier = CurrentSequenceNotifier();
     // ignore: invalid_use_of_protected_member
     notifier.state = _tallSequence();
-    await pumpAppScreen(
+    final handle = await pumpAppScreen(
       tester,
       Builder(
         builder: (context) => SequenceToolbar(colors: SkotiqColors.of(context)),
@@ -245,31 +205,26 @@ void main() {
       extraOverrides: [currentSequenceProvider.overrideWith((_) => notifier)],
     );
     await _drain(tester);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is SkotiqButton && w.icon == LucideIcons.map,
+      ),
+      findsNothing,
+      reason: 'Ledger has no overview to toggle',
+    );
+    await _setDensity(tester, handle, SequencerDensity.compact);
 
     final button = tester.widget<SkotiqButton>(
       find.byWidgetPredicate(
         (w) => w is SkotiqButton && w.icon == LucideIcons.map,
       ),
     );
-    expect(button.label, 'Gutter');
-    expect(button.semanticsHint, 'Hide the overview gutter');
+    expect(button.label, 'Map');
+    expect(button.semanticsHint, 'Show the map');
   });
 
-  test('the wording follows the density and the current state', () {
-    expect(
-      sequenceOverviewToggleLabel(
-          density: SequencerDensity.ledger, visible: true),
-      'Hide the overview gutter',
-    );
-    expect(
-      sequenceOverviewToggleLabel(
-          density: SequencerDensity.ledger, visible: false),
-      'Show the overview gutter',
-    );
-    for (final density in [
-      SequencerDensity.comfortable,
-      SequencerDensity.compact,
-    ]) {
+  test('the wording names the map in every density', () {
+    for (final density in SequencerDensity.values) {
       expect(
         sequenceOverviewToggleLabel(density: density, visible: true),
         'Hide the map',
@@ -280,10 +235,9 @@ void main() {
       );
       expect(sequenceOverviewButtonLabel(density), 'Map');
     }
-    expect(sequenceOverviewButtonLabel(SequencerDensity.ledger), 'Gutter');
   });
 
-  test('a fresh store is gutter-on in ledger, strip-off elsewhere', () async {
+  test('a fresh store is off everywhere, and Ledger is never on', () async {
     final db = mockDatabase();
     addTearDown(db.close);
     final container =
@@ -291,11 +245,16 @@ void main() {
     addTearDown(container.dispose);
 
     final prefs = await container.read(sequenceOverviewPrefsProvider.future);
-    expect(prefs.visibleIn(SequencerDensity.ledger), isTrue);
+    expect(prefs.visibleIn(SequencerDensity.ledger), isFalse);
     expect(prefs.visibleIn(SequencerDensity.comfortable), isFalse);
     expect(prefs.visibleIn(SequencerDensity.compact), isFalse);
-    // The synchronous view answers for the density on screen while hydrating.
-    expect(container.read(sequenceOverviewVisibleProvider), isTrue);
+    expect(container.read(sequenceOverviewVisibleProvider), isFalse);
+    expect(
+      prefs
+          .withVisibility(SequencerDensity.ledger, true)
+          .visibleIn(SequencerDensity.ledger),
+      isFalse,
+    );
   });
 
   test('a choice per density survives a fresh notifier', () async {

@@ -89,4 +89,30 @@ void main() {
   test('an empty feed collapses to nothing', () {
     expect(collapseRepeatedEvents(const []), isEmpty);
   });
+
+  test('a warm-up ramp folds into the set-point now in force', () {
+    RunDashboardEvent setpoint(int id, String target) => RunDashboardEvent(
+          eventId: BigInt.from(id),
+          time: DateTime(2026, 11, 25, 22, 30, id * 10 % 60),
+          severity: RunDashboardEventSeverity.info,
+          category: 'Equipment',
+          title: 'Cooler set',
+          message: 'Target $target°C',
+          isCritical: false,
+          kind: RunDashboardRowKind.coolerSetpoint,
+        );
+    final out = collapseRepeatedEvents([
+      setpoint(5, '-1.7'),
+      setpoint(4, '-2.0'),
+      setpoint(3, '-2.3'),
+      ev(2, 'Mount parked', category: 'Equipment'),
+      setpoint(1, '-10.0'),
+    ]);
+    expect(out.map((e) => e.message), [
+      'Target -1.7°C',
+      '',
+      'Target -10.0°C',
+    ]);
+    expect(out.first.repeatCount, 1, reason: 'a set-point is not a repeat');
+  });
 }

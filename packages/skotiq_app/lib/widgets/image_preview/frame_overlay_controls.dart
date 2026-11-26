@@ -104,6 +104,11 @@ class FramePill extends StatelessWidget {
           text: '   ${text.time}',
           style: TextStyle(color: colors.textMuted),
         ),
+    ];
+    // The value ("21 s left", "HFR 2.08") and the status after it never
+    // shorten: on a phone the ellipsis cut "#77 exposing Dark 55 s 2…", the
+    // one number worth reading. The words before it give way instead.
+    final trailing = <InlineSpan>[
       if (text.mono != null)
         TextSpan(
           text: '   ${text.mono}',
@@ -117,6 +122,15 @@ class FramePill extends StatelessWidget {
           style: TextStyle(color: _tone(colors, text.statusTone)),
         ),
     ];
+    // A status with no value is part of the sentence ("Solved … 12″ off")
+    // and shortens with it.
+    if (text.mono == null) {
+      spans.addAll(trailing);
+      trailing.clear();
+    }
+    final textStyle = SkotiqTypography.bodySm.copyWith(
+      color: colors.textSecondary,
+    );
     return Semantics(
       liveRegion: liveRegion,
       container: true,
@@ -126,29 +140,46 @@ class FramePill extends StatelessWidget {
           color: colors.surface.withValues(alpha: 0.86),
           borderRadius: SkotiqTokens.borderRadiusFull,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _tone(colors, text.dot),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: SkotiqTokens.spaceSm),
-            Flexible(
-              child: Text.rich(
-                TextSpan(children: spans),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: SkotiqTypography.bodySm.copyWith(
-                  color: colors.textSecondary,
+        // The value claims the room first, but never more than the pill
+        // has: past that it shortens too rather than overflow.
+        child: LayoutBuilder(
+          builder: (context, constraints) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: _tone(colors, text.dot),
+                  shape: BoxShape.circle,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Flexible(
+                child: Text.rich(
+                  TextSpan(children: spans),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle,
+                ),
+              ),
+              if (trailing.isNotEmpty)
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth.isFinite
+                        ? (constraints.maxWidth - 6 - SkotiqTokens.spaceSm)
+                            .clamp(0.0, double.infinity)
+                        : double.infinity,
+                  ),
+                  child: Text.rich(
+                    TextSpan(children: trailing),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textStyle,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

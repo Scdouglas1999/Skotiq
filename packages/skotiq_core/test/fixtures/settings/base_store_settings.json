@@ -398,8 +398,8 @@
           "autoAnnotate": true,
           "maxObjectsToDisplay": 500,
           "catalogBboxPaddingFraction": 0.05,
-          "compassEnabled": true,
-          "scaleBarEnabled": true,
+          "compassEnabled": false,
+          "scaleBarEnabled": false,
           "gridType": "none",
           "showSolveResiduals": false
         },
@@ -424,8 +424,8 @@
           "autoAnnotate": true,
           "maxObjectsToDisplay": 500,
           "catalogBboxPaddingFraction": 0.05,
-          "compassEnabled": true,
-          "scaleBarEnabled": true,
+          "compassEnabled": false,
+          "scaleBarEnabled": false,
           "gridType": "none",
           "showSolveResiduals": false
         },
@@ -450,8 +450,8 @@
           "autoAnnotate": true,
           "maxObjectsToDisplay": 500,
           "catalogBboxPaddingFraction": 0.05,
-          "compassEnabled": true,
-          "scaleBarEnabled": true,
+          "compassEnabled": false,
+          "scaleBarEnabled": false,
           "gridType": "none",
           "showSolveResiduals": false
         },
@@ -461,7 +461,7 @@
       },
       "writes": {
         "turn off": {
-          "annotation_settings": "{\"enabled\":false,\"magnitudeCutoff\":15.0,\"minMagnitude\":-5.0,\"visibleTypes\":[\"galaxies\",\"nebulae\",\"starClusters\",\"planetaryNebulae\"],\"showLabels\":true,\"showMagnitudes\":false,\"fadeWhenNotHovering\":true,\"hoverOpacity\":0.8,\"idleOpacity\":0.2,\"fadeAnimationMs\":400,\"clickToIdentify\":true,\"clickSearchRadiusArcsec\":30.0,\"autoAnnotate\":true,\"maxObjectsToDisplay\":500,\"catalogBboxPaddingFraction\":0.05,\"compassEnabled\":true,\"scaleBarEnabled\":true,\"gridType\":\"none\",\"showSolveResiduals\":false}"
+          "annotation_settings": "{\"enabled\":false,\"magnitudeCutoff\":15.0,\"minMagnitude\":-5.0,\"visibleTypes\":[\"galaxies\",\"nebulae\",\"starClusters\",\"planetaryNebulae\"],\"showLabels\":true,\"showMagnitudes\":false,\"fadeWhenNotHovering\":true,\"hoverOpacity\":0.8,\"idleOpacity\":0.2,\"fadeAnimationMs\":400,\"clickToIdentify\":true,\"clickSearchRadiusArcsec\":30.0,\"autoAnnotate\":true,\"maxObjectsToDisplay\":500,\"catalogBboxPaddingFraction\":0.05,\"compassEnabled\":false,\"scaleBarEnabled\":false,\"gridType\":\"none\",\"showSolveResiduals\":false}"
         }
       }
     },

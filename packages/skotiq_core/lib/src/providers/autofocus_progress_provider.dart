@@ -116,6 +116,11 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
   int _backendGeneration = 0;
   Timer? _resultDismissTimer;
 
+  /// Whether a host snapshot has arrived yet. The first one describes the
+  /// past: a result in it finished before this client was watching, possibly
+  /// hours ago, and must not pop up as if it had just landed.
+  bool _hasHostState = false;
+
   /// How long a finished result stays on screen before the overlay closes
   /// itself. The overlay is shell-mounted (it is the single live V-curve
   /// surface, so it must outlive a screen change during a run), which means a
@@ -348,13 +353,17 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
         incoming.status.isEmpty &&
         incoming.result == null &&
         incoming.vcurvePoints.isEmpty) {
+      _hasHostState = true;
       _cancelResultDismiss();
       state = incoming;
       return;
     }
+    final firstSnapshot = !_hasHostState;
+    _hasHostState = true;
     final starting = incoming.isRunning && !state.isRunning;
     final ending = !incoming.isRunning && state.isRunning;
-    final firstResult = state.status.isEmpty && incoming.status.isNotEmpty;
+    final firstResult =
+        !firstSnapshot && state.status.isEmpty && incoming.status.isNotEmpty;
     if (incoming.isRunning || incoming.hasError) {
       _cancelResultDismiss();
     } else if (ending || firstResult) {

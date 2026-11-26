@@ -521,7 +521,7 @@ impl SafetyMonitorDriver for SimSafetyMonitor {
         if !safety.status.connected {
             return Err(self.not_connected());
         }
-        Ok(safety.status.is_safe)
+        Ok(safety.status.is_safe && !faults::is_unsafe(FAULT_KEY))
     }
 }
 
@@ -535,10 +535,12 @@ impl SafetyMonitor for SimSafetyMonitor {
         _device_id: &str,
     ) -> Result<SafetyMonitorCapabilities, SkotiqError> {
         let monitor = get_sim_safety_monitor().read().await;
+        let safe =
+            monitor.status.is_safe && !crate::simulator::faults::is_unsafe("safetymonitor.status");
         let (is_safe, description) = if monitor.status.connected {
             (
-                monitor.status.is_safe,
-                if monitor.status.is_safe {
+                safe,
+                if safe {
                     "Simulated conditions are safe"
                 } else {
                     "Simulated conditions are unsafe"
