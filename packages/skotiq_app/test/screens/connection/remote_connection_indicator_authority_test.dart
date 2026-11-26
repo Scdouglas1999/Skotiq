@@ -149,6 +149,39 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  // Whether the link works away from home is the first question on the road.
+  for (final (host, via) in [
+    ('192.168.1.50', 'This network'),
+    ('100.101.102.103', 'Tailscale, from anywhere'),
+    ('rig.tail1234.ts.net', 'Tailscale, from anywhere'),
+  ]) {
+    testWidgets('the details sheet says $host is reached via $via',
+        (tester) async {
+      final backend = _MockNetworkBackend();
+      _stubHost(backend, host, state: BackendConnectionState.connected);
+      when(() => backend.unansweredPingAge).thenReturn(null);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            backendProvider.overrideWith(
+              (ref) => _SwappableBackendNotifier(ref, backend),
+            ),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const Scaffold(body: RemoteConnectionIndicator()),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(RemoteConnectionIndicator));
+      await tester.pumpAndSettle();
+      expect(find.text('Reachable via'), findsOneWidget);
+      expect(find.text(via), findsOneWidget);
+    });
+  }
+
   // A failing Wi-Fi link can stall the host's answers while the socket stays
   // open; the chip must not keep saying "Live".
   testWidgets('a connected host that stops answering pings reads as stale',

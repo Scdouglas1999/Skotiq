@@ -500,7 +500,7 @@ abstract class NetworkBackendTransport {
 
   /// Stream of WebSocket ping/pong round-trip times. Emits a [Duration]
   /// every time the server's pong is received after we send a ping.
-  /// Subscribers (e.g. the mobile NetworkStatusIndicator) use this to
+  /// Subscribers (e.g. the link badge) use this to
   /// surface latency to the operator. Hidden when disconnected — when
   /// the heartbeat stops firing, no new values are emitted.
   Stream<Duration> get latencyStream => _latencyController.stream;

@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:go_router/go_router.dart';
@@ -629,6 +630,14 @@ class _RemoteConnectionSheetState
               _row(theme, colors, 'Computer', linkedLaunch.name!),
             _row(theme, colors, 'Host', hostLink.serverHost),
             _row(theme, colors, 'Port', hostLink.serverPort.toString()),
+            _row(
+              theme,
+              colors,
+              'Reachable via',
+              TailnetDetector.isTailscaleEndpoint(hostLink.serverHost)
+                  ? 'Tailscale, from anywhere'
+                  : 'This network',
+            ),
           ],
           if (latency != null && status == RemoteConnectionStatus.connected)
             _row(
