@@ -1,5 +1,6 @@
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../services/mobile_pairing_service.dart';
 
@@ -7,25 +8,16 @@ import '../services/mobile_pairing_service.dart';
 /// empty when nothing is being tried.
 String connectActivityText(ConnectActivity? activity) => switch (activity) {
   null => '',
-  ConnectDiscovering(status: null) => 'Looking for it on this Wi-Fi…',
-  ConnectDiscovering(:final status?) => _discoveryStatusText(status),
+  ConnectDiscovering(stage: DiscoveryStage.lastServer) =>
+    'Trying the computer this phone used last…',
+  // The methods the search tries are its business; where it is looking is
+  // the operator's.
+  ConnectDiscovering() => 'Looking for it on this Wi-Fi…',
   ConnectLinking(:final label) => 'Connecting to $label...',
   ConnectPairing(:final host, :final port) => 'Pairing with $host:$port...',
   ConnectViaRelay() => 'Connecting via relay...',
   ConnectViaQr() => 'Connecting via QR code...',
 };
-
-/// The discovery's progress in the phone's words: the methods it tries are
-/// its business, where it is looking is the operator's.
-String _discoveryStatusText(String status) {
-  if (status.startsWith('Checking last server')) {
-    return 'Trying the computer this phone used last…';
-  }
-  if (status.contains('broadcast') || status.contains('mDNS')) {
-    return 'Looking for it on this Wi-Fi…';
-  }
-  return status;
-}
 
 /// Why the last connect did not link, as the connection screen says it.
 String connectProblemText(ConnectProblem problem) => switch (problem) {

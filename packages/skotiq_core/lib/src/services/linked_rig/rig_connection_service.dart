@@ -323,11 +323,9 @@ class RigConnectionService extends ChangeNotifier {
       Log.debug('Starting enhanced auto-discovery...', source: 'Discovery');
 
       final server = await network.discover(
-        onStatus: (status) {
+        onStatus: (stage) {
           if (!_disposed) {
-            _update(
-              _state.copyWith(activity: () => ConnectDiscovering(status)),
-            );
+            _update(_state.copyWith(activity: () => ConnectDiscovering(stage)));
           }
         },
       );

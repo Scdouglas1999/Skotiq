@@ -428,7 +428,22 @@ String _normalizeTransportScheme(Object? raw, {String fallback = 'http'}) {
   return (lowered == 'http' || lowered == 'https') ? lowered : fallback;
 }
 
-typedef DiscoveryStatusCallback = void Function(String status);
+/// The step [EnhancedSkotiqDiscovery.discoverWithFallback] is on.
+enum DiscoveryStage {
+  /// Asking the server this device linked to last.
+  lastServer,
+
+  /// Browsing mDNS (Bonjour) for `_skotiq._tcp`.
+  bonjour,
+
+  /// Sending the UDP discovery broadcast.
+  broadcast,
+
+  /// Every step ended without a server.
+  nothingFound,
+}
+
+typedef DiscoveryStatusCallback = void Function(DiscoveryStage stage);
 
 /// A discovered or entered server after it was asked who it is.
 class ServerRead {
@@ -768,7 +783,7 @@ class EnhancedSkotiqDiscovery {
     Duration timeout = const Duration(seconds: 2),
     DiscoveryStatusCallback? onStatus,
   }) async {
-    onStatus?.call('Checking last server...');
+    onStatus?.call(DiscoveryStage.lastServer);
     final server = await loadLastServer();
     if (server == null) {
       _enhancedDiscoveryLog.fine('No saved server found');
@@ -801,7 +816,7 @@ class EnhancedSkotiqDiscovery {
     Duration timeout = const Duration(seconds: 10),
     DiscoveryStatusCallback? onStatus,
   }) async {
-    onStatus?.call('Searching via Bonjour...');
+    onStatus?.call(DiscoveryStage.bonjour);
     _enhancedDiscoveryLog.fine('mDNS discovery starting...');
 
     final List<DiscoveredServer> servers = [];
@@ -921,7 +936,7 @@ class EnhancedSkotiqDiscovery {
     Duration timeout = const Duration(seconds: 3),
     DiscoveryStatusCallback? onStatus,
   }) async {
-    onStatus?.call('Searching via network broadcast...');
+    onStatus?.call(DiscoveryStage.broadcast);
     return SkotiqDiscovery.discoverServers(timeout: timeout);
   }
 
@@ -941,7 +956,7 @@ class EnhancedSkotiqDiscovery {
     _enhancedDiscoveryLog.fine('Starting cascading discovery...');
 
     // 1. Try last saved server (2s timeout)
-    onStatus?.call('Reconnecting to last server...');
+    onStatus?.call(DiscoveryStage.lastServer);
     final lastServer = await tryLastServer(
       timeout: const Duration(seconds: 2),
       onStatus: onStatus,
@@ -952,7 +967,7 @@ class EnhancedSkotiqDiscovery {
     }
 
     // 2. Try mDNS discovery (3s timeout)
-    onStatus?.call('Searching via Bonjour...');
+    onStatus?.call(DiscoveryStage.bonjour);
     final mdnsServers = await discoverViaMdns(
       timeout: const Duration(seconds: 3),
       onStatus: onStatus,
@@ -963,7 +978,7 @@ class EnhancedSkotiqDiscovery {
     }
 
     // 3. Fall back to UDP broadcast (3s timeout)
-    onStatus?.call('Searching via network broadcast...');
+    onStatus?.call(DiscoveryStage.broadcast);
     final udpServers = await discoverViaUdp(
       timeout: const Duration(seconds: 3),
       onStatus: onStatus,
@@ -975,7 +990,7 @@ class EnhancedSkotiqDiscovery {
 
     // 4. No server found
     _enhancedDiscoveryLog.warning('No server found via any method');
-    onStatus?.call('No server found');
+    onStatus?.call(DiscoveryStage.nothingFound);
     return null;
   }
 

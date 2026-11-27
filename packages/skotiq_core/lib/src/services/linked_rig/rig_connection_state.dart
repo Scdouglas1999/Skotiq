@@ -8,12 +8,12 @@ sealed class ConnectActivity {
   const ConnectActivity();
 }
 
-/// Looking for an imaging computer; [status] is the discovery's own report.
+/// Looking for an imaging computer; [stage] is the step the search is on.
 final class ConnectDiscovering extends ConnectActivity {
-  const ConnectDiscovering([this.status]);
+  const ConnectDiscovering([this.stage]);
 
-  /// Null before discovery has reported anything.
-  final String? status;
+  /// Null before the search has reported a step.
+  final DiscoveryStage? stage;
 }
 
 /// Opening a link to [label] (a computer's name or an address).
