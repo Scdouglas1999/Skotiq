@@ -88,9 +88,9 @@ class _FlatBuildMasterStepState extends ConsumerState<FlatBuildMasterStep> {
         case null:
           if (run.remote) {
             state = '${output.paths.length} frames on the imaging computer';
-          } else if (output.paths.length < calibrationBacklogMinFrames) {
+          } else if (output.paths.length < calibrationMasterMinFrames) {
             state = 'A master flat needs at least '
-                '$calibrationBacklogMinFrames frames';
+                '$calibrationMasterMinFrames frames';
             tone = colors.warning;
           } else if (group == null) {
             state = backlog.groups.isLoading
