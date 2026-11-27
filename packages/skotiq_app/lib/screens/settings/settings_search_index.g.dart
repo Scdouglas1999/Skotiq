@@ -272,7 +272,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'files-storage': [
     'Application data',
-    'Automatic backup scheduling is stored and executed on',
     'Automatic backups',
     'Backup interval',
     'Backups',
@@ -283,6 +282,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'File paths',
     'Files & storage',
     'Host-owned setting',
+    'How often the imaging computer backs itself up',
     'How often to create backups (hours)',
     'How often to save pending sequence edits',
     'Last backup',
@@ -935,8 +935,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Without a dark slot in the filter wheel',
   },
   'files-storage': {
-    'Automatic backup scheduling is stored and executed on':
-        'Configure on the host',
+    'How often the imaging computer backs itself up': 'Configure on the host',
     'How often to create backups (hours)': 'Backup interval',
     'How often to save pending sequence edits': 'Sequence save interval',
     'Number of auto-save backups to retain': 'Maximum backups',

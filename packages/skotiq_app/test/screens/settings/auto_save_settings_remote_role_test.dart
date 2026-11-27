@@ -12,6 +12,7 @@
 // settings screen, the very service the entry point had declined to start for
 // this role.
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/widgets/auto_save_settings.dart';
@@ -120,6 +121,9 @@ void main() {
 
     expect(find.text('Configure on the host'), findsOneWidget);
     expect(find.text('Enable automatic backups'), findsNothing);
+    // The host's backups are made and restored from a phone in Backup &
+    // restore, so the page leads there instead of ending.
+    expect(find.byKey(const ValueKey('autoSave.openBackups')), findsOneWidget);
     service.dispose();
   });
 

@@ -6,6 +6,8 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../router/app_routes.dart';
+import '../../../router/settings_sections.dart';
 import 'settings_widgets.dart';
 import '../../../utils/snackbar_helper.dart';
 
@@ -110,8 +112,11 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     // service the entry point deliberately declined to start for this role.
     final isRemoteClient = ref.watch(isRemoteClientProvider);
 
+    // The host applies its backup schedule when it starts, so a schedule
+    // written from here would wait for its next start; Backup & restore
+    // makes and restores the host's backups from here at once.
     if (isRemoteClient) {
-      return const SettingsPage(
+      return SettingsPage(
         title: 'Automatic backups',
         description: 'Backups run on the imaging host',
         children: [
@@ -120,10 +125,19 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
             children: [
               SettingRow(
                 title: 'Configure on the host',
-                subtitle:
-                    'Automatic backup scheduling is stored and executed on '
-                    'the computer connected to your equipment.',
-                trailing: SizedBox.shrink(),
+                subtitle: 'How often the imaging computer backs itself up '
+                    'is set in Skotiq there. Its backups can be made and '
+                    'restored from here, in Backup & restore.',
+                stackWhenNarrow: true,
+                trailing: SkotiqButton(
+                  key: const ValueKey('autoSave.openBackups'),
+                  label: 'Open Backup & restore',
+                  icon: LucideIcons.arrowUpRight,
+                  variant: ButtonVariant.secondary,
+                  size: settingsActionButtonSize(context),
+                  onPressed: () =>
+                      openSettings(context, SettingsSectionId.backup),
+                ),
               ),
             ],
           ),
