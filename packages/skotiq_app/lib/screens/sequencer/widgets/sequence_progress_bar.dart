@@ -472,10 +472,10 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
               // row in it already shows the same progress.
               if (constraints.maxWidth < SkotiqTokens.breakpointMobile) {
                 final message = progress.message;
-                // "Progress: 1/175 exposures" repeats the count beside it;
-                // a wait or a retry says something the count does not.
+                // The frame count repeats the count beside it; a wait or a
+                // retry says something the count does not.
                 final saysMore =
-                    message != null && !message.startsWith('Progress:');
+                    message != null && !progress.messageIsFrameCount;
                 return Container(
                   padding: const EdgeInsets.fromLTRB(
                     SkotiqTokens.spaceLg,

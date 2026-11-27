@@ -156,9 +156,7 @@ class RunEventHandler {
         progressNotifier.updateProgress(
           completedExposures: current,
           // A run looping until its window closes has no total to show.
-          message: total > 0
-              ? 'Progress: $current/$total exposures'
-              : 'Progress: $current exposures',
+          message: SequenceProgress.frameCountMessage(current, total),
         );
       case SequencerEvent_TargetChanged(
         :final targetName,
