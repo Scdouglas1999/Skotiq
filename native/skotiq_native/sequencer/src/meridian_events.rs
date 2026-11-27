@@ -34,7 +34,7 @@ impl FlipStep {
     }
 
     /// The step's words, the app's words for it
-    /// (`packages/skotiq_core/test/fixtures/flip_step_words.json`).
+    /// (`test_fixtures/wire_words/flip_step_words.json`).
     pub fn description(&self) -> &'static str {
         match self {
             FlipStep::PausingGuider => "Pausing Guider",
@@ -274,10 +274,12 @@ mod tests {
     /// `meridian_flip_event_test.dart` reads the same file.
     #[test]
     fn flip_step_words_match_the_app() {
-        let words: std::collections::BTreeMap<String, String> = serde_json::from_str(include_str!(
-            "../../../../packages/skotiq_core/test/fixtures/flip_step_words.json"
-        ))
-        .expect("the fixture is JSON");
+        let words: std::collections::BTreeMap<String, String> =
+            serde_json::from_str(include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../../test_fixtures/wire_words/flip_step_words.json"
+            )))
+            .expect("the fixture is JSON");
         let steps = [
             FlipStep::PausingGuider,
             FlipStep::EnablingTracking,
@@ -305,9 +307,10 @@ mod tests {
     /// `meridian_flip_event_test.dart` decodes the same file.
     #[test]
     fn flip_events_match_the_app() {
-        let expected: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../packages/skotiq_core/test/fixtures/meridian_flip_events.json"
-        ))
+        let expected: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/meridian_flip_events.json"
+        )))
         .expect("the fixture is JSON");
         let steps = [
             FlipStep::PausingGuider,

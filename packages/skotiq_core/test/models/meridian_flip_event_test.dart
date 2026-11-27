@@ -9,7 +9,9 @@ void main() {
   // native flip events against.
   final events =
       jsonDecode(
-            File('test/fixtures/meridian_flip_events.json').readAsStringSync(),
+            File(
+              '../../test_fixtures/meridian_flip_events.json',
+            ).readAsStringSync(),
           )
           as List<dynamic>;
 
@@ -97,7 +99,9 @@ void main() {
   test('every step the native executor sends has its one word', () {
     final words =
         (jsonDecode(
-                  File('test/fixtures/flip_step_words.json').readAsStringSync(),
+                  File(
+                    '../../test_fixtures/wire_words/flip_step_words.json',
+                  ).readAsStringSync(),
                 )
                 as Map<String, dynamic>)
             .cast<String, String>();

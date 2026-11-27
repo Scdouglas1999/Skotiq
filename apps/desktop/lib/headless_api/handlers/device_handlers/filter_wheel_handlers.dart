@@ -32,7 +32,7 @@ extension FilterWheelDeviceHandlers on DeviceHandlers {
     }
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'filter-wheel.set-position',
+      operation: CommandOperation.filterWheelSetPosition,
       deviceId: deviceId,
     );
 

@@ -1313,9 +1313,10 @@ mod tests {
                 }
             }
         }
-        let sent: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../../packages/skotiq_core/test/fixtures/run_config_wire.json"
-        ))
+        let sent: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/run_config_wire.json"
+        )))
         .expect("the app's run config is JSON");
         let config: RunConfig =
             serde_json::from_value(sent.clone()).expect("the app's run config loads");

@@ -46,4 +46,24 @@ void main() {
       isNull,
     );
   });
+
+  test('a tailnet address listed first is not named as the LAN address', () {
+    expect(
+      pickLanAddress([
+        _Interface('tailscale0', ['100.101.102.103']),
+        _Interface('Wi-Fi', ['192.168.1.40']),
+      ]),
+      '192.168.1.40',
+    );
+  });
+
+  test('a host reached only over the tailnet names its tailnet address', () {
+    expect(
+      pickLanAddress([
+        _Interface('lo', ['127.0.0.1']),
+        _Interface('tailscale0', ['100.101.102.103']),
+      ]),
+      '100.101.102.103',
+    );
+  });
 }

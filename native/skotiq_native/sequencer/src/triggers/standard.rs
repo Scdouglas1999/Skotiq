@@ -350,9 +350,10 @@ mod tests {
     /// (`eon_run_end_table_test.dart` builds its stops from the same file).
     #[test]
     fn night_ends_match_the_app() {
-        let expected: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../../packages/skotiq_core/test/fixtures/night_end_triggers.json"
-        ))
+        let expected: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/night_end_triggers.json"
+        )))
         .expect("the fixture is JSON");
         let ids = StandardTrigger::ALL
             .iter()

@@ -12,7 +12,7 @@
 ///
 /// `filter_name.rs` in the native `skotiq_frame` crate holds the same rule
 /// for the run's wheel moves; both are tested against
-/// `test/fixtures/filter_matching_cases.json`.
+/// `test_fixtures/filter_matching_cases.json`.
 library;
 
 /// Every known spelling, as the letters and digits of its words run

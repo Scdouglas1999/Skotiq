@@ -292,8 +292,9 @@ void main() {
         'trees', () async {
       final ranked = await rankTonightTargets(
         scorer: TargetScorer(FakeTargetScoring()).scoreForNight,
-        raDeg: [_east.raHours * 15],
-        decDeg: [_east.decDegrees],
+        targets: [
+          TonightCandidate(raDeg: _east.raHours * 15, decDeg: _east.decDegrees),
+        ],
         latitudeDeg: _latitude,
         longitudeDeg: _longitude,
         nightDate: NightDate.ofCalendarDay(DateTime(2026, 1, 14)),

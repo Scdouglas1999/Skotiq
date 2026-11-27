@@ -240,9 +240,10 @@ mod executor_state_tests {
     /// same file.
     #[test]
     fn state_words_match_the_app() {
-        let expected: Vec<String> = serde_json::from_str(include_str!(
-            "../../../../../packages/skotiq_core/test/fixtures/native_run_states.json"
-        ))
+        let expected: Vec<String> = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/wire_words/native_run_states.json"
+        )))
         .expect("the fixture is JSON");
         let sent: Vec<String> = ExecutorState::ALL
             .into_iter()

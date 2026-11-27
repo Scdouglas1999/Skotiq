@@ -24,7 +24,7 @@ enum FlipStep {
 
 extension FlipStepExtension on FlipStep {
   /// The step's words, the native executor's words for it too
-  /// (`test/fixtures/flip_step_words.json`).
+  /// (`test_fixtures/wire_words/flip_step_words.json`).
   String get displayName {
     switch (this) {
       case FlipStep.enablingTracking:
@@ -75,7 +75,7 @@ extension FlipStepExtension on FlipStep {
 /// One step of a running meridian flip, as the native flip executor reports
 /// it (`MeridianFlipEvent` in `meridian_events.rs`, sent externally tagged:
 /// `{"StepStarted": {"step": "SlewingToTarget", ...}}`). The fields the app
-/// reads are pinned by `test/fixtures/meridian_flip_events.json`, which the
+/// reads are pinned by `test_fixtures/meridian_flip_events.json`, which the
 /// native side's test writes from the same events.
 sealed class MeridianFlipEvent extends Equatable {
   const MeridianFlipEvent();

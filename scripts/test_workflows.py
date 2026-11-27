@@ -4,7 +4,15 @@ import re
 import unittest
 from pathlib import Path
 
-WORKFLOWS = Path(__file__).resolve().parent.parent / ".github" / "workflows"
+ROOT = Path(__file__).resolve().parent.parent
+WORKFLOWS = ROOT / ".github" / "workflows"
+
+
+def gate_sharded_packages():
+    """The packages tools/production/gate.dart runs in parts (`_shardedPackages`)."""
+    text = (ROOT / "tools" / "production" / "gate.dart").read_text()
+    block = re.search(r"const _shardedPackages = \{(.*?)\};", text, re.S)
+    return re.findall(r"'(\w+)':", block.group(1))
 
 
 def flutter_versions(text):
@@ -103,7 +111,9 @@ class DartTestPartsTest(unittest.TestCase):
     def test_the_parts_cover_every_shard_and_the_rest(self):
         steps = steps_by_name(self.text, "test-dart-part")
         self.assertIn("melos run gate -- ${{ matrix.gate }}", steps["Run Dart tests"])
-        for package in ("skotiq_app", "skotiq_core"):
+        packages = gate_sharded_packages()
+        self.assertTrue(packages)
+        for package in packages:
             shards = re.findall(
                 rf"gate: --only flutter-tests:{package} --shard (\d+)/(\d+)", self.text)
             self.assertTrue(shards, package)
@@ -112,8 +122,8 @@ class DartTestPartsTest(unittest.TestCase):
             self.assertEqual(sorted(int(i) for i, _ in shards),
                              list(range(1, count.pop() + 1)), package)
         self.assertIn(
-            "gate: --stage dart-tests --skip flutter-tests:skotiq_app "
-            "--skip flutter-tests:skotiq_core", self.text)
+            "gate: --stage dart-tests "
+            + " ".join(f"--skip flutter-tests:{p}" for p in packages), self.text)
 
     def test_dart_tests_is_green_only_when_every_part_is(self):
         steps = steps_by_name(self.text, "test-dart")

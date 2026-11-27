@@ -10,7 +10,7 @@ void main() {
     final fixture =
         jsonDecode(
               File(
-                'test/fixtures/guiding_stop_reasons.json',
+                '../../test_fixtures/wire_words/guiding_stop_reasons.json',
               ).readAsStringSync(),
             )
             as Map<String, dynamic>;

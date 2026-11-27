@@ -8,7 +8,7 @@ import 'settings_provider.dart' show appSettingsProvider;
 // QR/pairing validator and the NetworkBackend timeout tuning so the three
 // never drift.
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show HostAdvert, TailnetDetector, kDefaultHeadlessPort;
+    show HostAdvert, LocalAddresses, kDefaultHeadlessPort;
 
 /// Holds runtime state for the embedded web server.
 ///
@@ -46,7 +46,7 @@ class WebServerState {
   ///
   /// Fail-closed: defaults to empty and is only populated when an interface
   /// address positively classifies as a Tailscale address via
-  /// [TailnetDetector.isTailscaleInterfaceAddress]. We never guess — if no
+  /// `TailnetDetector.isTailscaleInterfaceAddress`. We never guess — if no
   /// tailnet interface is up, this stays empty and [tailscaleReachable] stays
   /// false, so the UI shows "not reachable over Tailscale" rather than
   /// advertising a stale/guessed address the phone can't actually reach.
@@ -234,7 +234,7 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
   ///     address, which phones on the LAN cannot necessarily reach.
   ///   * [WebServerState.tailscaleIp] — the tailnet address (IPv4 CGNAT
   ///     preferred over IPv6 ULA for QR brevity), classified by
-  ///     [TailnetDetector.isTailscaleInterfaceAddress].
+  ///     `TailnetDetector.isTailscaleInterfaceAddress`.
   ///   * [WebServerState.tailscaleReachable] — true iff a tailnet address was
   ///     found AND the server isn't bound loopback-only.
   ///
@@ -246,34 +246,18 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
       final interfaces = await NetworkInterface.list(includeLoopback: false);
       if (!mounted) return;
 
-      String? lanIp;
-      String? tailscaleV4;
-      String? tailscaleV6;
-
-      for (final interface in interfaces) {
-        for (final addr in interface.addresses) {
-          if (addr.isLoopback) {
-            continue;
-          }
-          final isTailnet = TailnetDetector.isTailscaleInterfaceAddress(addr);
-          if (isTailnet) {
-            if (addr.type == InternetAddressType.IPv4) {
-              tailscaleV4 ??= addr.address;
-            } else if (addr.type == InternetAddressType.IPv6) {
-              tailscaleV6 ??= addr.address;
-            }
-            continue;
-          }
-          // First non-loopback, non-tailnet IPv4 is the LAN address. IPv6 LAN
-          // addresses are not used for `localIp` (the legacy networkUrl getter
-          // assumes a bare IPv4 host) — only the tailnet IPv6 ULA is surfaced,
-          // and tailscaleUrl brackets it.
-          if (addr.type == InternetAddressType.IPv4) {
-            lanIp ??= addr.address;
-          }
-        }
-      }
-
+      // The LAN address is IPv4 only (the networkUrl getter assumes a bare
+      // IPv4 host); a tailnet address may be IPv6, which tailscaleUrl
+      // brackets.
+      final lanIp = LocalAddresses.lanIpv4(interfaces, skipTailnet: true);
+      final tailscaleV4 = LocalAddresses.tailnet(
+        interfaces,
+        type: InternetAddressType.IPv4,
+      )?.address;
+      final tailscaleV6 = LocalAddresses.tailnet(
+        interfaces,
+        type: InternetAddressType.IPv6,
+      )?.address;
       final tailscaleIp = tailscaleV4 ?? tailscaleV6 ?? '';
       final tailscaleReachable = tailscaleIp.isNotEmpty && !state.bindLocalOnly;
 

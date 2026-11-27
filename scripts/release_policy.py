@@ -2,9 +2,10 @@
 
 import argparse
 import os
-import re
 import sys
 from pathlib import Path
+
+import version_file
 
 
 SIGNING_NAMES = (
@@ -23,16 +24,10 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--distribute", action="store_true")
     args = parser.parse_args()
-    version = args.version_file.read_text()
-    channels = list(re.finditer(
-        r"^channel:[ \t]*(?P<quote>[\"']?)(?P<channel>stable|beta|alpha)(?P=quote)[ \t]*(?:#.*)?$",
-        version, re.MULTILINE,
-    ))
-    declarations = re.findall(r"^channel:", version, re.MULTILINE)
-    if len(channels) != 1 or len(declarations) != 1:
+    channel = version_file.read(args.version_file.read_text())["channel"]
+    if channel is None:
         print("::error::version.yaml must declare one channel: stable, beta, or alpha.", file=sys.stderr)
         return 1
-    channel = channels[0].group("channel")
     # Every published release is signed, whatever its channel; only a build
     # that is never published may be unsigned.
     require_signing = args.distribute

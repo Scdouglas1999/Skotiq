@@ -36,8 +36,9 @@ void main() {
     );
     final ranked = await rankTonightTargets(
       scorer: scorer.call,
-      raDeg: [raThatTransitsAt(darkMid)],
-      decDeg: [20.0],
+      targets: [
+        TonightCandidate(raDeg: raThatTransitsAt(darkMid), decDeg: 20.0),
+      ],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: NightDate.ofCalendarDay(nightDate),
@@ -57,8 +58,10 @@ void main() {
   test('a target the scorer leaves out is not listed', () async {
     final ranked = await rankTonightTargets(
       scorer: ScriptedNightScorer(byIndex: {0: null}).call,
-      raDeg: [10, 20],
-      decDeg: [20, 20],
+      targets: const [
+        TonightCandidate(raDeg: 10, decDeg: 20),
+        TonightCandidate(raDeg: 20, decDeg: 20),
+      ],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: NightDate.ofCalendarDay(nightDate),
@@ -72,8 +75,7 @@ void main() {
     final asked = ScriptedNightScorer();
     await rankTonightTargets(
       scorer: asked.call,
-      raDeg: [10],
-      decDeg: [20],
+      targets: const [TonightCandidate(raDeg: 10, decDeg: 20)],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: NightDate.ofCalendarDay(nightDate),
@@ -99,8 +101,7 @@ void main() {
     final asked = ScriptedNightScorer();
     final ranked = await rankTonightTargets(
       scorer: asked.call,
-      raDeg: [10],
-      decDeg: [20],
+      targets: const [TonightCandidate(raDeg: 10, decDeg: 20)],
       // Midsummer near the pole: the sun never sets.
       latitudeDeg: 78,
       longitudeDeg: 15,
@@ -115,13 +116,14 @@ void main() {
     final ra = raThatTransitsAt(darkMid);
     final ranked = await rankTonightTargets(
       scorer: scorer.call,
-      raDeg: [ra, ra],
-      decDeg: [20, 20],
+      targets: [
+        TonightCandidate(raDeg: ra, decDeg: 20, magnitude: 8),
+        TonightCandidate(raDeg: ra, decDeg: 20, magnitude: 15),
+      ],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
-      magnitudes: [8, 15],
     );
     expect(ranked.map((entry) => entry.index).take(2), [0, 1]);
   });
@@ -130,13 +132,18 @@ void main() {
     final ra = raThatTransitsAt(darkMid);
     final ranked = await rankTonightTargets(
       scorer: scorer.call,
-      raDeg: [ra, ra],
-      decDeg: [20, 20],
+      targets: [
+        TonightCandidate(
+          raDeg: ra,
+          decDeg: 20,
+          objectType: DsoType.galaxy.index,
+        ),
+        TonightCandidate(raDeg: ra, decDeg: 20, objectType: DsoType.star.index),
+      ],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
-      objectTypes: [DsoType.galaxy.index, DsoType.star.index],
     );
     expect(ranked.map((entry) => entry.index).take(2), [0, 1]);
   });
@@ -145,25 +152,27 @@ void main() {
     final ra = raThatTransitsAt(darkMid);
     final narrow = await rankTonightTargets(
       scorer: scorer.call,
-      raDeg: [ra, ra],
-      decDeg: [20, 20],
+      targets: [
+        TonightCandidate(raDeg: ra, decDeg: 20, sizeArcMin: 2),
+        TonightCandidate(raDeg: ra, decDeg: 20, sizeArcMin: 200),
+      ],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
-      sizesArcMin: [2, 200],
       fovWidthDeg: 0.57,
       fovHeightDeg: 0.57,
     );
     final wide = await rankTonightTargets(
       scorer: scorer.call,
-      raDeg: [ra, ra],
-      decDeg: [20, 20],
+      targets: [
+        TonightCandidate(raDeg: ra, decDeg: 20, sizeArcMin: 2),
+        TonightCandidate(raDeg: ra, decDeg: 20, sizeArcMin: 200),
+      ],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
-      sizesArcMin: [2, 200],
       fovWidthDeg: 5.7,
       fovHeightDeg: 5.7,
     );
@@ -173,35 +182,19 @@ void main() {
 
   test('missing catalog metadata is neutral and deterministic', () async {
     final ra = raThatTransitsAt(darkMid);
-    final withNoMetadata = await rankTonightTargets(
+    final ranked = await rankTonightTargets(
       scorer: scorer.call,
-      raDeg: [ra, ra],
-      decDeg: [20, 20],
+      targets: [
+        TonightCandidate(raDeg: ra, decDeg: 20),
+        TonightCandidate(raDeg: ra, decDeg: 20),
+      ],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
     );
-    final explicitNulls = await rankTonightTargets(
-      scorer: scorer.call,
-      raDeg: [ra, ra],
-      decDeg: [20, 20],
-      latitudeDeg: latitude,
-      longitudeDeg: longitude,
-      nightDate: NightDate.ofCalendarDay(nightDate),
-      floor: floor,
-      magnitudes: [null, null],
-      sizesArcMin: [null, null],
-      objectTypes: [null, null],
-    );
-    expect(
-      explicitNulls.map((entry) => entry.index),
-      withNoMetadata.map((entry) => entry.index),
-    );
-    expect(
-      explicitNulls.map((entry) => entry.score),
-      withNoMetadata.map((entry) => entry.score),
-    );
+    expect(ranked.map((entry) => entry.index), [0, 1]);
+    expect(ranked.first.score, ranked.last.score);
   });
 
   group('darknessWindowOf', () {
@@ -254,9 +247,18 @@ void main() {
         scorer: ScriptedNightScorer(
           byIndex: {0: (total: 90, hours: 8), 1: (total: 70, hours: 3)},
         ).call,
-        raDeg: [raThatTransitsAt(darkMid), raThatTransitsAt(darkMid)],
-        decDeg: [40.0, 0.0],
-        magnitudes: [14.5, 5.0],
+        targets: [
+          TonightCandidate(
+            raDeg: raThatTransitsAt(darkMid),
+            decDeg: 40.0,
+            magnitude: 14.5,
+          ),
+          TonightCandidate(
+            raDeg: raThatTransitsAt(darkMid),
+            decDeg: 0.0,
+            magnitude: 5.0,
+          ),
+        ],
         latitudeDeg: latitude,
         longitudeDeg: longitude,
         nightDate: NightDate.ofCalendarDay(nightDate),

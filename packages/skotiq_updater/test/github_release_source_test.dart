@@ -5,6 +5,7 @@
 // on an old version.
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -67,6 +68,19 @@ void main() {
       name: name,
       downloadUrl: 'https://example.invalid/$name',
       size: 1,
+    );
+
+    test(
+      'the Windows release job publishes the name the updater looks for',
+      () {
+        final workflow = File(
+          '../../.github/workflows/release.yml',
+        ).readAsStringSync();
+        expect(
+          workflow,
+          contains('"dist/${manifestAssetName('windows', 'x64')}"'),
+        );
+      },
     );
 
     test('prefers the exact platform+arch manifest', () {

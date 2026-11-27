@@ -1304,7 +1304,9 @@ class UpdateController {
       final raw = (await file.readAsString()).trim();
       if (raw.isEmpty) return null;
       return DateTime.tryParse(raw);
-    } catch (_) {
+    } on FileSystemException {
+      return null;
+    } on FormatException {
       return null;
     }
   }

@@ -103,23 +103,12 @@ extension SessionThumbnailHandlers on SessionHandlers {
     final decoded = await container
         .read(imagingBackendProvider)
         .readFitsFile(filePath: dbImage.filePath);
-    final s = decoded.stats;
     final image = CapturedImageResult(
       width: decoded.width,
       height: decoded.height,
       displayData: decoded.displayData,
       histogram: decoded.histogram,
-      stats: ImageStatsResult(
-        min: s.min,
-        max: s.max,
-        mean: s.mean,
-        median: s.median,
-        stdDev: s.stdDev,
-        hfr: s.hfr,
-        eccentricity: s.eccentricity,
-        fwhm: s.fwhm,
-        starCount: s.starCount,
-      ),
+      stats: ImageStatsResult.fromBridge(decoded.stats),
       exposureTime: decoded.exposureTime ?? dbImage.exposureDuration,
       timestamp: dbImage.capturedAt.toUtc().toIso8601String(),
       isColor: decoded.bayerPattern != null,

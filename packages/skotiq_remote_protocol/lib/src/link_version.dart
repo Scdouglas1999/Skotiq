@@ -3,6 +3,8 @@ library;
 
 import 'wire/api_error.dart';
 import 'wire/api_error_codes.dart';
+import 'wire/routes/system_api.dart';
+import 'wire/routes/update_api.dart';
 
 /// The Skotiq release this build is. `version.yaml` is the source; the
 /// version-consistency audit fails CI when this differs from it.
@@ -59,10 +61,12 @@ abstract final class LinkVersion {
   /// identity, so each side can say what the other runs, and the update
   /// routes, so a newer client can bring an older host up to its release.
   /// Nothing else is shared between releases.
+  /// Every update route is open by its prefix, so one a newer client adds is
+  /// open on an older host too.
   static bool openToOtherReleases(String path) =>
-      path == '/api/info' ||
-      path == '/api/system/version' ||
-      path.startsWith('/api/system/update/');
+      path == SystemApi.info.route.path ||
+      path == SystemApi.version.route.path ||
+      path.startsWith(UpdateApi.pathPrefix);
 }
 
 /// The side of a link that has to be updated.

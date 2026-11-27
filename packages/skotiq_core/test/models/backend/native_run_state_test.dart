@@ -10,7 +10,7 @@ void main() {
     final words =
         (jsonDecode(
                   File(
-                    'test/fixtures/native_run_states.json',
+                    '../../test_fixtures/wire_words/native_run_states.json',
                   ).readAsStringSync(),
                 )
                 as List)

@@ -11,10 +11,8 @@
 //
 // The matching is intentionally best-effort: a multi-client scenario
 // where two phones slew the same mount within 100 ms can confuse the
-// FIFO pairing. We document that limitation in the class doc rather
-// than building a deterministic command-id round-trip through the FFI
-// layer (which would require Rust-side support and is out of scope for
-// this wave).
+// FIFO pairing. A deterministic pairing would need the command id carried
+// through the native library and back on its events.
 //
 // TTL eviction (default 30 minutes) protects against unbounded growth
 // when a registered command's matching event never arrives (e.g. driver
@@ -26,10 +24,42 @@ import 'package:skotiq_core/backend.dart' show typedEventFromWire;
 import 'package:skotiq_core/bridge_events.dart' as sk;
 import 'package:skotiq_core/models.dart' show SkotiqEvent;
 
+/// The action a POST begins. Each handler that registers a command names one;
+/// [commandCompletionOf] names the ones an event completes. An operation no
+/// event completes still gets a command id, which is never stamped.
+enum CommandOperation {
+  cameraExpose,
+  cameraAbort,
+  filterWheelSetPosition,
+  focuserAutofocusStart,
+  focuserAutofocusCancel,
+  focuserBacklashCalibrationStart,
+  focuserBacklashCalibrationCancel,
+  focuserMoveRelative,
+  focuserMoveTo,
+  mountHome,
+  mountPark,
+  mountSlew,
+  mountSlewAltAz,
+  mountUnpark,
+  rotatorMoveTo,
+  sequencerLoadAndStart,
+  sequencerPause,
+  sequencerResume,
+  sequencerSecondaryRigStart,
+  sequencerSecondaryRigStop,
+  sequencerSkip,
+  sequencerStart,
+  sequencerStop,
+}
+
 /// What a completion event finishes: the operations whose commands it can
 /// complete, the one tried first first, and the device it names (null when
 /// the event names none).
-typedef CommandCompletion = ({List<String> operations, String? deviceId});
+typedef CommandCompletion = ({
+  List<CommandOperation> operations,
+  String? deviceId,
+});
 
 /// The commands [event] completes, or null when it completes none.
 ///
@@ -37,7 +67,7 @@ typedef CommandCompletion = ({List<String> operations, String? deviceId});
 /// compile here instead of quietly never matching, and a guider's `Paused`
 /// can never complete a `sequencer.pause`.
 CommandCompletion? commandCompletionOf(SkotiqEvent event) {
-  CommandCompletion of(List<String> operations, [String? deviceId]) =>
+  CommandCompletion of(List<CommandOperation> operations, [String? deviceId]) =>
       (operations: operations, deviceId: deviceId);
   return switch (typedEventFromWire(event)?.payload) {
     sk.EventPayload_Imaging(
@@ -46,30 +76,30 @@ CommandCompletion? commandCompletionOf(SkotiqEvent event) {
           sk.ImagingEvent_ExposureFailed() ||
           sk.ImagingEvent_ExposureFailedOld(),
     ) =>
-      of(const ['camera.expose']),
+      of(const [CommandOperation.cameraExpose]),
     sk.EventPayload_Imaging(field0: sk.ImagingEvent_ExposureCancelled()) => of(
-      const ['camera.abort', 'camera.expose'],
+      const [CommandOperation.cameraAbort, CommandOperation.cameraExpose],
     ),
     sk.EventPayload_Equipment(:final field0) => switch (field0) {
       sk.EquipmentEvent_MountSlewCompleted(:final deviceId) => of(const [
-        'mount.slew',
-        'mount.slew-alt-az',
+        CommandOperation.mountSlew,
+        CommandOperation.mountSlewAltAz,
       ], deviceId),
       sk.EquipmentEvent_MountParkCompleted(:final deviceId) => of(const [
-        'mount.park',
+        CommandOperation.mountPark,
       ], deviceId),
       sk.EquipmentEvent_MountUnparked(:final deviceId) => of(const [
-        'mount.unpark',
+        CommandOperation.mountUnpark,
       ], deviceId),
       sk.EquipmentEvent_FocuserMoveCompleted(:final deviceId) => of(const [
-        'focuser.move-to',
-        'focuser.move-relative',
+        CommandOperation.focuserMoveTo,
+        CommandOperation.focuserMoveRelative,
       ], deviceId),
       sk.EquipmentEvent_FilterChanged(:final deviceId) => of(const [
-        'filter-wheel.set-position',
+        CommandOperation.filterWheelSetPosition,
       ], deviceId),
       sk.EquipmentEvent_RotatorMoveCompleted(:final deviceId) => of(const [
-        'rotator.move-to',
+        CommandOperation.rotatorMoveTo,
       ], deviceId),
       _ => null,
     },
@@ -77,12 +107,14 @@ CommandCompletion? commandCompletionOf(SkotiqEvent event) {
       sk.SequencerEvent_Started() ||
       sk.SequencerEvent_Completed() ||
       sk.SequencerEvent_Failed() => of(const [
-        'sequencer.start',
-        'sequencer.load-and-start',
+        CommandOperation.sequencerStart,
+        CommandOperation.sequencerLoadAndStart,
       ]),
-      sk.SequencerEvent_Stopped() => of(const ['sequencer.stop']),
-      sk.SequencerEvent_Paused() => of(const ['sequencer.pause']),
-      sk.SequencerEvent_Resumed() => of(const ['sequencer.resume']),
+      sk.SequencerEvent_Stopped() => of(const [CommandOperation.sequencerStop]),
+      sk.SequencerEvent_Paused() => of(const [CommandOperation.sequencerPause]),
+      sk.SequencerEvent_Resumed() => of(const [
+        CommandOperation.sequencerResume,
+      ]),
       _ => null,
     },
     _ => null,
@@ -91,7 +123,7 @@ CommandCompletion? commandCompletionOf(SkotiqEvent event) {
 
 class _PendingCommand {
   final String commandId;
-  final String operation;
+  final CommandOperation operation;
   final String? deviceId;
   final DateTime registeredAt;
   bool stamped = false;
@@ -145,11 +177,7 @@ class CommandCorrelator {
   /// should embed the returned id in the action POST response body so
   /// the client knows which id to correlate later events with.
   ///
-  /// [operation] uses the dotted-path convention (`camera.expose`,
-  /// `mount.slew`, etc.) that [commandCompletionOf] names. Unknown
-  /// operations are accepted (the id will still be returned to the
-  /// caller) but [stampEvent] will never match them.
-  String beginCommand({required String operation, String? deviceId}) {
+  String beginCommand({required CommandOperation operation, String? deviceId}) {
     final commandId = _generateUuidV4();
     final key = _key(operation, deviceId);
     final command = _PendingCommand(
@@ -169,7 +197,7 @@ class CommandCorrelator {
   ///
   /// "Matching" means: the oldest un-stamped pending command for the
   /// key, modulo TTL eviction.
-  String? stampEvent({required String operation, String? deviceId}) {
+  String? stampEvent({required CommandOperation operation, String? deviceId}) {
     final now = _now();
     final key = _key(operation, deviceId);
     final list = _pendingByKey[key];
@@ -227,10 +255,10 @@ class CommandCorrelator {
     _pendingByKey.clear();
   }
 
-  String _key(String operation, String? deviceId) {
+  String _key(CommandOperation operation, String? deviceId) {
     return deviceId == null || deviceId.isEmpty
-        ? operation
-        : '$operation::$deviceId';
+        ? operation.name
+        : '${operation.name}::$deviceId';
   }
 
   /// Inline UUID v4 generator. We deliberately avoid `package:uuid` so

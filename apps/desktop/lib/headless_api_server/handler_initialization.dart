@@ -59,6 +59,7 @@ extension _HeadlessApiServerHandlerInitialization on HeadlessApiServer {
           pairingModeWire: () => pairingMode.wire,
           tailscaleHost: () => remoteAccessHints.tailscaleHost,
           relayApplianceId: () => remoteAccessHints.relayApplianceId,
+          pairedSessionsUnread: () => _pairedTokenHydrationFailed,
           hostMode: hostMode,
           hostName: hostComputerName(),
         ),

@@ -15,7 +15,7 @@ void main() {
       final fixture =
           jsonDecode(
                 File(
-                  'test/fixtures/camera_frame_type_names.json',
+                  '../../test_fixtures/wire_words/camera_frame_type_names.json',
                 ).readAsStringSync(),
               )
               as Map<String, dynamic>;

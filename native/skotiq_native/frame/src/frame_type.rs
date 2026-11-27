@@ -170,10 +170,12 @@ mod tests {
     /// one the capture knows, and asks for the frame it names.
     #[test]
     fn every_name_the_app_sends_is_known() {
-        let names: std::collections::BTreeMap<String, String> = serde_json::from_str(include_str!(
-            "../../../../packages/skotiq_core/test/fixtures/camera_frame_type_names.json"
-        ))
-        .expect("the fixture is JSON");
+        let names: std::collections::BTreeMap<String, String> =
+            serde_json::from_str(include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../../test_fixtures/wire_words/camera_frame_type_names.json"
+            )))
+            .expect("the fixture is JSON");
         for (name, frame) in names {
             assert_eq!(
                 FrameType::from_app_name(&name).map(FrameType::as_str),

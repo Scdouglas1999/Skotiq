@@ -509,10 +509,9 @@ impl SimSafetyMonitor {
 impl SafetyMonitorDriver for SimSafetyMonitor {
     async fn is_safe(&self) -> Result<bool, DriverError> {
         use crate::simulator::faults;
-        const FAULT_KEY: &str = "safetymonitor.status";
-        if let Err(e) = faults::check(FAULT_KEY).await {
+        if let Err(e) = faults::check(SAFETY_FAULT_KEY).await {
             // `unplug`: the monitor's cable or hub dropped.
-            if faults::take_unplug(FAULT_KEY).is_some() {
+            if faults::take_unplug(SAFETY_FAULT_KEY).is_some() {
                 get_sim_safety_monitor().write().await.status.connected = false;
             }
             return Err(refuse(e));
@@ -521,8 +520,17 @@ impl SafetyMonitorDriver for SimSafetyMonitor {
         if !safety.status.connected {
             return Err(self.not_connected());
         }
-        Ok(safety.status.is_safe && !faults::is_unsafe(FAULT_KEY))
+        Ok(sim_reads_safe(safety.status.is_safe))
     }
+}
+
+/// The fault key an injected safety-monitor fault is armed on.
+const SAFETY_FAULT_KEY: &str = "safetymonitor.status";
+
+/// The simulated monitor's verdict: its own state, unless an injected
+/// `unsafe` fault has latched it unsafe.
+fn sim_reads_safe(state_is_safe: bool) -> bool {
+    state_is_safe && !crate::simulator::faults::is_unsafe(SAFETY_FAULT_KEY)
 }
 
 /// Read from the simulator's state, not through `is_safe`, so a capability
@@ -535,8 +543,7 @@ impl SafetyMonitor for SimSafetyMonitor {
         _device_id: &str,
     ) -> Result<SafetyMonitorCapabilities, SkotiqError> {
         let monitor = get_sim_safety_monitor().read().await;
-        let safe =
-            monitor.status.is_safe && !crate::simulator::faults::is_unsafe("safetymonitor.status");
+        let safe = sim_reads_safe(monitor.status.is_safe);
         let (is_safe, description) = if monitor.status.connected {
             (
                 safe,

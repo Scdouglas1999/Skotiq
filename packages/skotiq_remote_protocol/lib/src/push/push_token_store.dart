@@ -66,22 +66,24 @@ class DevicePushPreferences {
   /// critical event still reaches the operator before prefs catch up).
   bool allows(String? eventType) {
     if (!enabled) return false;
-    switch (eventType) {
-      case 'sequenceFailed':
-      case 'exposureFailed':
-        return !muteSequenceFailed;
-      case 'weatherUnsafe':
-        return !muteWeatherUnsafe;
-      case 'guidingLost':
-        return !muteGuidingLost;
-      case 'autofocusFailed':
-        return !muteAutofocusFailed;
-      case 'equipmentDisconnected':
-        return !muteEquipmentDisconnected;
-      default:
-        return true;
-    }
+    final muted = _mutedBy[eventType];
+    return muted == null || !muted(this);
   }
+
+  /// The event types a device can mute, each with the switch that mutes it.
+  /// The words are the host's notification category names; a core test
+  /// checks each one still names a category.
+  static final Map<String, bool Function(DevicePushPreferences)> _mutedBy = {
+    'sequenceFailed': (p) => p.muteSequenceFailed,
+    'exposureFailed': (p) => p.muteSequenceFailed,
+    'weatherUnsafe': (p) => p.muteWeatherUnsafe,
+    'guidingLost': (p) => p.muteGuidingLost,
+    'autofocusFailed': (p) => p.muteAutofocusFailed,
+    'equipmentDisconnected': (p) => p.muteEquipmentDisconnected,
+  };
+
+  /// The event types [allows] can mute.
+  static Iterable<String> get mutableEventTypes => _mutedBy.keys;
 }
 
 /// Read surface over the `device_push_tokens` + `device_push_prefs` tables

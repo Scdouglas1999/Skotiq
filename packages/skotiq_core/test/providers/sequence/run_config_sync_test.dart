@@ -23,7 +23,7 @@ import 'package:skotiq_core/src/settings/app_settings_table.dart';
 
 import '../../mocks/mock_backend.dart';
 
-const _wireFixture = 'test/fixtures/run_config_wire.json';
+const _wireFixture = '../../test_fixtures/run_config_wire.json';
 
 class _RecordingBackend extends MockBackend {
   final List<Map<String, dynamic>> runConfigs = [];

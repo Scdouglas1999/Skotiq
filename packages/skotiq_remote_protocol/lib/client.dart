@@ -10,4 +10,5 @@ export 'src/push/lan_push_broadcaster.dart'
     show LanPushDecodeFailure, LanPushDecodeResult, PushNotificationFrame;
 export 'src/remote_pairing_client.dart';
 export 'src/rig_discovery.dart';
+export 'src/local_addresses.dart';
 export 'src/tailnet_detector.dart';

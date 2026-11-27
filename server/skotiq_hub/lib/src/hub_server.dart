@@ -32,6 +32,9 @@ import 'tiles/tile_builder.dart';
 import 'tiles/tile_codec.dart';
 import 'tiles/tile_store.dart';
 
+/// The hub's release, as `pubspec.yaml` names it. `GET /v1/info` reports it.
+const hubVersion = '6.0.0';
+
 class HubConfig {
   HubConfig({
     required this.databasePath,
@@ -533,7 +536,7 @@ class HubServer {
           if (decoded is Map && decoded['error'] is Map) {
             code = (decoded['error'] as Map)['code']?.toString();
           }
-        } catch (_) {
+        } on FormatException {
           // Non-JSON error body (none today); fall back to the bare status.
         }
         final token = _bearer(request);
@@ -764,7 +767,7 @@ class HubServer {
     return hubJson(<String, Object?>{
       'name': config.name,
       'fingerprint': fingerprint,
-      'version': '6.0.0',
+      'version': hubVersion,
       'healpixOrder': config.healpixOrder,
       'tilePixels': config.tilePixels,
       'selfHosted': true,

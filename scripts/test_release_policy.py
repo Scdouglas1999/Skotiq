@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -150,6 +151,8 @@ class WorkflowVersionTest(unittest.TestCase):
                 app.mkdir(parents=True)
                 (app / "pubspec.yaml").write_text("version: 9.0.0+37\n")
             (root / "version.yaml").write_text('version: "9.0.0"\nchannel: stable\n')
+            (root / "scripts").mkdir()
+            shutil.copy(SCRIPT.with_name("version_file.py"), root / "scripts")
             output = root / "outputs"
             result = subprocess.run(
                 ["bash", "-c", workflow_step("Resolve + validate version")], cwd=root,

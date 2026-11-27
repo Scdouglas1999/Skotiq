@@ -58,11 +58,16 @@ final bestTargetsProvider = FutureProvider<List<TonightTarget>?>((ref) async {
   final fov = ref.watch(equipmentFOVProvider).fov;
 
   final ranked = await rankTonightTargets(
-    raDeg: [for (final d in dsos) d.coordinates.raDegrees],
-    decDeg: [for (final d in dsos) d.coordinates.dec],
-    magnitudes: [for (final d in dsos) d.magnitude],
-    sizesArcMin: [for (final d in dsos) d.sizeArcMin],
-    objectTypes: [for (final d in dsos) d.type.index],
+    targets: [
+      for (final d in dsos)
+        TonightCandidate(
+          raDeg: d.coordinates.raDegrees,
+          decDeg: d.coordinates.dec,
+          magnitude: d.magnitude,
+          sizeArcMin: d.sizeArcMin,
+          objectType: d.type.index,
+        ),
+    ],
     fovWidthDeg: fov?.$1,
     fovHeightDeg: fov?.$2,
     latitudeDeg: site.latitude,

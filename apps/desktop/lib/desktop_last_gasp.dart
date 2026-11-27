@@ -100,7 +100,9 @@ class DesktopSessionRecord {
         safingError: decoded['safingError'] as String?,
         ownsRig: decoded['ownsRig'] as bool?,
       );
-    } catch (_) {
+    } on FormatException {
+      return null;
+    } on TypeError {
       return null;
     }
   }

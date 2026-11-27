@@ -478,16 +478,9 @@ Future<RunningHostServer> startHostServer({
 Future<String?> firstLanAddress() async =>
     pickLanAddress(await NetworkInterface.list());
 
-/// The first IPv4 address of [interfaces] that is not a loopback address.
-/// Interface names do not decide it: Linux names Wi-Fi `wlo1`.
+/// The address of [interfaces] the connect banner names: a LAN address before
+/// a tailnet one, which only devices on the tailnet reach.
 @visibleForTesting
-String? pickLanAddress(List<NetworkInterface> interfaces) {
-  for (final interface in interfaces) {
-    for (final addr in interface.addresses) {
-      if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
-        return addr.address;
-      }
-    }
-  }
-  return null;
-}
+String? pickLanAddress(List<NetworkInterface> interfaces) =>
+    LocalAddresses.lanIpv4(interfaces, skipTailnet: true) ??
+    LocalAddresses.lanIpv4(interfaces, skipTailnet: false);

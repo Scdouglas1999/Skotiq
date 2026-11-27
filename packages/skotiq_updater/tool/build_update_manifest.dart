@@ -34,6 +34,8 @@ import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:skotiq_updater/src/models/update_manifest.dart';
+import 'package:skotiq_updater/src/services/github_release_source.dart'
+    show manifestAssetName;
 import 'package:skotiq_updater/src/services/update_verifier.dart';
 import 'package:path/path.dart' as p;
 
@@ -103,7 +105,7 @@ Future<void> main(List<String> args) async {
   // a shared `manifest.json` would have each platform silently overwrite the
   // last and leave one arbitrary target's manifest standing.
   final manifestFile = File(
-    p.join(outDir.path, 'manifest-$platform-$arch.json'),
+    p.join(outDir.path, manifestAssetName(platform, arch)),
   );
   await manifestFile.writeAsString(
     const JsonEncoder.withIndent('  ').convert(signed.toJson()),

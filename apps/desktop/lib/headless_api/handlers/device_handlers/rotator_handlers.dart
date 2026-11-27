@@ -8,7 +8,7 @@ extension RotatorDeviceHandlers on DeviceHandlers {
     final angle = requireDouble(payload, 'angle');
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'rotator.move-to',
+      operation: CommandOperation.rotatorMoveTo,
       deviceId: deviceId,
     );
 

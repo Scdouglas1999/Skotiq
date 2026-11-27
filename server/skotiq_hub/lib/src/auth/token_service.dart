@@ -201,7 +201,7 @@ class ScopedGrant {
         }
       } on FormatException {
         return null;
-      } catch (_) {
+      } on TypeError {
         // Token resolution must NEVER throw on a corrupt/type-confused scope
         // value (a non-string role / deviceId / action would otherwise raise a
         // _TypeError out of `as` casts). Any cast/decode failure fails closed by
@@ -291,7 +291,7 @@ String stampAuthoritativeProvenanceIdentity(
           : <String, Object?>{};
     } on FormatException {
       prov = <String, Object?>{};
-    } catch (_) {
+    } on TypeError {
       // A type-confused blob (e.g. a non-Map shape that slips past the `is Map`
       // guard during conversion) must fail closed to a bare authenticated
       // identity, never propagate out of the trust boundary.

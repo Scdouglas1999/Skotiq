@@ -9,7 +9,7 @@ extension MountDeviceHandlers on DeviceHandlers {
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'mount.slew',
+      operation: CommandOperation.mountSlew,
       deviceId: deviceId,
     );
 
@@ -50,7 +50,7 @@ extension MountDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'mount.park',
+      operation: CommandOperation.mountPark,
       deviceId: deviceId,
     );
 
@@ -76,7 +76,7 @@ extension MountDeviceHandlers on DeviceHandlers {
     final deviceId = requireString(payload, 'deviceId');
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'mount.unpark',
+      operation: CommandOperation.mountUnpark,
       deviceId: deviceId,
     );
 
@@ -309,7 +309,7 @@ extension MountDeviceHandlers on DeviceHandlers {
     final azimuth = requireDouble(payload, 'azimuth', min: 0, max: 360);
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'mount.slew-alt-az',
+      operation: CommandOperation.mountSlewAltAz,
       deviceId: deviceId,
     );
 
@@ -381,7 +381,7 @@ extension MountDeviceHandlers on DeviceHandlers {
     }
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'mount.home',
+      operation: CommandOperation.mountHome,
       deviceId: deviceId,
     );
 

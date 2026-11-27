@@ -571,7 +571,7 @@ void main() {
     events.add(
       _evt(
         cat: EventCategory.system,
-        type: 'UpdateAvailable',
+        type: kUpdateAvailableEventType,
         data: const {'latestVersion': '6.0', 'currentVersion': '5.9'},
       ),
     );

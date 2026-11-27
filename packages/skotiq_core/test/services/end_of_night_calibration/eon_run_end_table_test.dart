@@ -19,7 +19,11 @@ import 'package:skotiq_core/src/providers/sequence/sequence_progress.dart'
 
 /// The native trigger table's night end for a trigger id.
 final Map<String, Object?> _nativeNightEnds =
-    jsonDecode(File('test/fixtures/night_end_triggers.json').readAsStringSync())
+    jsonDecode(
+          File(
+            '../../test_fixtures/night_end_triggers.json',
+          ).readAsStringSync(),
+        )
         as Map<String, Object?>;
 
 SequencerNightEnd? _nightEndOf(String id) {

@@ -19,7 +19,7 @@ import 'adaptive_exposure_event.dart' show AdaptiveExposureReason;
 /// The steps the app draws a panel or a mark for have a class here; any other
 /// kind is kept as [UnknownInstructionProgressDetail]. The field names are
 /// pinned against the native side by
-/// `test/fixtures/progress_detail_kinds.json`, which both sides' tests read.
+/// `test_fixtures/wire_words/progress_detail_kinds.json`, which both sides' tests read.
 /// The kind of a step's free text, which has no fields of its own.
 const String kGenericProgressDetailKind = 'Generic';
 

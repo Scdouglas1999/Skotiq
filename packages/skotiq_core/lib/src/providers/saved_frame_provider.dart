@@ -220,19 +220,7 @@ CapturedImageData _imageFrom(
     height: decoded.height,
     displayData: decoded.displayData,
     histogram: decoded.histogram,
-    stats: imageStatsFromResult(
-      ImageStatsResult(
-        min: decoded.stats.min,
-        max: decoded.stats.max,
-        mean: decoded.stats.mean,
-        median: decoded.stats.median,
-        stdDev: decoded.stats.stdDev,
-        hfr: decoded.stats.hfr,
-        eccentricity: decoded.stats.eccentricity,
-        fwhm: decoded.stats.fwhm,
-        starCount: decoded.stats.starCount,
-      ),
-    ),
+    stats: imageStatsFromResult(ImageStatsResult.fromBridge(decoded.stats)),
     capturedAt: frame.capturedAt,
     // Only the pixels and their statistics are drawn from this; the frame's
     // row holds its capture settings.

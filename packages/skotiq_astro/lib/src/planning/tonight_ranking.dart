@@ -130,24 +130,40 @@ class TonightRanking {
   });
 }
 
-/// Rank catalog positions for the night of [nightDate] at the given site.
+/// One catalog object offered to [rankTonightTargets]: its J2000 position and
+/// the catalog facts the fit term reads. Missing facts score neutral.
+class TonightCandidate {
+  final double raDeg;
+  final double decDeg;
+  final double? magnitude;
+  final double? sizeArcMin;
+
+  /// A [DsoType] index.
+  final int? objectType;
+
+  const TonightCandidate({
+    required this.raDeg,
+    required this.decDeg,
+    this.magnitude,
+    this.sizeArcMin,
+    this.objectType,
+  });
+}
+
+/// Rank [targets] for the night of [nightDate] at the given site.
 ///
 /// Only targets above [floor] (the site's altitude floor, by azimuth) during
 /// the darkness window are returned. [scorer] scores them by altitude, moon
 /// separation, timing, usable hours and airmass; the catalog fit is blended
 /// in here.
 Future<List<TonightRanking>> rankTonightTargets({
-  required List<double> raDeg,
-  required List<double> decDeg,
+  required List<TonightCandidate> targets,
   required double latitudeDeg,
   required double longitudeDeg,
   required NightDate nightDate,
   required AltitudeFloorSamples floor,
   required NightScorer scorer,
   int limit = kTonightRankingLimit,
-  List<double?>? magnitudes,
-  List<double?>? sizesArcMin,
-  List<int?>? objectTypes,
   double? fovWidthDeg,
   double? fovHeightDeg,
 }) async {
@@ -185,13 +201,13 @@ Future<List<TonightRanking>> rankTonightTargets({
       moonIlluminationPercent: AstronomyCalculations.moonIllumination(mid),
       floor: floor,
       targets: [
-        for (var i = 0; i < raDeg.length; i++)
+        for (var i = 0; i < targets.length; i++)
           DeepSkyObject(
             id: '$i',
             name: '$i',
             coordinates: CelestialCoordinate.fromDegrees(
-              raDegrees: raDeg[i],
-              decDegrees: decDeg[i],
+              raDegrees: targets[i].raDeg,
+              decDegrees: targets[i].decDeg,
             ),
             type: DsoType.other,
           ),
@@ -215,9 +231,9 @@ Future<List<TonightRanking>> rankTonightTargets({
     final peak = score.visibility.peakAltitude;
     if (hours == null || hours <= 0 || peak == null) continue;
     final catalogQuality = _catalogQualityScore(
-      magnitude: _at(magnitudes, i),
-      sizeArcMin: _at(sizesArcMin, i),
-      objectType: _at(objectTypes, i),
+      magnitude: targets[i].magnitude,
+      sizeArcMin: targets[i].sizeArcMin,
+      objectType: targets[i].objectType,
       fovWidthDeg: fovWidthDeg,
       fovHeightDeg: fovHeightDeg,
     );
@@ -253,8 +269,8 @@ Future<List<TonightRanking>> rankTonightTargets({
         index: entry.index,
         visibility: objectVisibilityAboveFloor(
           floor.at,
-          raDeg: raDeg[entry.index],
-          decDeg: decDeg[entry.index],
+          raDeg: targets[entry.index].raDeg,
+          decDeg: targets[entry.index].decDeg,
           center: mid,
           latitudeDeg: latitudeDeg,
           longitudeDeg: longitudeDeg,
@@ -266,9 +282,6 @@ Future<List<TonightRanking>> rankTonightTargets({
       ),
   ];
 }
-
-T? _at<T>(List<T?>? values, int index) =>
-    values != null && index < values.length ? values[index] : null;
 
 double _catalogQualityScore({
   required double? magnitude,

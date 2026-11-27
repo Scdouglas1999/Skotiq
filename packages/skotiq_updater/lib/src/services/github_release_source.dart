@@ -197,6 +197,11 @@ class GithubReleaseSource {
   }
 }
 
+/// The release asset name of the manifest for one [platform]/[arch] build.
+/// Published releases carry these names, so they never change.
+String manifestAssetName(String platform, String arch) =>
+    'manifest-$platform-$arch.json';
+
 /// Pick the manifest asset that describes a build for [platform]/[arch].
 ///
 /// Names are matched most-specific first, so a release may carry manifests for
@@ -211,7 +216,7 @@ GithubReleaseAsset? selectManifestAsset(
   required String arch,
 }) {
   final preferred = <String>[
-    'manifest-$platform-$arch.json',
+    manifestAssetName(platform, arch),
     'manifest-$platform.json',
     'manifest.json',
   ];
