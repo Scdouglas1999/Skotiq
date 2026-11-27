@@ -24,9 +24,10 @@ class _RecordingExecutor extends SequenceExecutor {
   Future<void> resume() async => resumeCount++;
 
   @override
-  Future<void> releaseActionHold({required bool resume}) async {
+  Future<bool> endActionHold() async {
     releaseCount++;
-    if (resume) resumeCount++;
+    resumeCount++;
+    return true;
   }
 
   @override
@@ -93,7 +94,7 @@ void main() {
     final h = _harness(_autofocusHold);
     addTearDown(h.container.dispose);
 
-    final result = await h.container.read(nightRigOpsProvider).resumeRun();
+    final result = await h.container.read(nightRigOpsProvider).endRunHold();
 
     expect(h.executor.releaseCount, 1);
     expect(h.executor.resumeCount, 1);

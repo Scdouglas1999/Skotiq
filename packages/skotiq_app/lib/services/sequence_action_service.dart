@@ -230,7 +230,7 @@ class SequenceActionService {
           }));
 
   /// Holds the run for a manual action this app runs: a running run is
-  /// paused, a paused one stays paused, and until [releaseActionHold] the
+  /// paused, a paused one stays paused, and until [endActionHold] the
   /// run's host refuses every other resume or skip.
   Future<CommandActionResult> holdForAction() => _single(
       _SequenceCommand.hold,
@@ -248,25 +248,28 @@ class SequenceActionService {
             }
           }));
 
-  /// Ends this app's manual-action hold; with [resume] the paused run is
-  /// resumed too. The hold ends even when the resume fails.
-  Future<CommandActionResult> releaseActionHold({required bool resume}) =>
-      _single(
-          _SequenceCommand.release,
-          () => _afterStart(() async {
-                try {
-                  await _executor.releaseActionHold(resume: resume);
-                  return CommandActionResult.ok;
-                } on RunStillPaused catch (stillPaused) {
-                  return CommandActionResult.stillPaused(stillPaused.pausedBy);
-                } catch (e) {
-                  return CommandActionResult.failure(
-                      'Failed to resume sequence: ${userFacingError(e)}');
-                }
-              }));
+  /// Ends this app's manual-action hold. The run's host resumes the run when
+  /// the hold is what paused it; a run it found paused is left as it is
+  /// ([CommandActionResult.leftPaused]). The hold ends even when the resume
+  /// fails.
+  Future<CommandActionResult> endActionHold() => _single(
+      _SequenceCommand.release,
+      () => _afterStart(() async {
+            try {
+              final resumed = await _executor.endActionHold();
+              return resumed
+                  ? CommandActionResult.ok
+                  : const CommandActionResult.leftPaused();
+            } on RunStillPaused catch (stillPaused) {
+              return CommandActionResult.stillPaused(stillPaused.pausedBy);
+            } catch (e) {
+              return CommandActionResult.failure(
+                  'Failed to resume sequence: ${userFacingError(e)}');
+            }
+          }));
 
   /// Resumes a paused run. While a manual action holds the pause, only that
-  /// action's release resumes it ([releaseActionHold]): any other resume
+  /// action's end resumes it ([endActionHold]): any other resume
   /// would move the run on while the action still uses the rig.
   Future<CommandActionResult> resume() => _single(
       _SequenceCommand.resume,

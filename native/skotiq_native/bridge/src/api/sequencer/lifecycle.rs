@@ -123,20 +123,35 @@ pub async fn api_sequencer_pause(origin: Option<String>) -> Result<(), SkotiqErr
     Ok(())
 }
 
-/// Resume the sequence executor. `releases_hold_of` names the holder of a
-/// manual action's hold this resume ends ([`api_sequencer_hold_for_action`]);
-/// the hold ends even when the resume then fails, and the run stays paused.
-/// When another pause took the run over while the hold lasted, the run stays
-/// paused under it and the resume is refused with
-/// [`SkotiqError::RunStillPaused`], naming that pause.
-pub async fn api_sequencer_resume(releases_hold_of: Option<String>) -> Result<(), SkotiqError> {
+/// Resume a paused run. Refused while a manual action holds it: only the
+/// action's end ([`api_sequencer_end_action_hold`]) lets a held run go on.
+pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence execution");
-    if let Some(holder) = releases_hold_of {
-        skotiq_sequencer::executor_handle()
-            .release_action_hold_to_resume(&holder)
-            .map_err(run_command_refused)?;
-    }
     crate::sequence_run::resume().await
+}
+
+/// End `holder`'s hold at the end of its manual action, and resume the run
+/// when the hold is what paused it. A run the hold found paused, or one no
+/// longer paused, is left as it is. Returns whether the run was resumed. The
+/// hold ends even when the resume then fails, and the run stays paused. When
+/// another pause took over the run the hold paused, the run stays paused
+/// under it and the call is refused with [`SkotiqError::RunStillPaused`],
+/// naming that pause.
+pub async fn api_sequencer_end_action_hold(holder: String) -> Result<bool, SkotiqError> {
+    tracing::info!(
+        holder = holder.as_str(),
+        "Ending a manual action's hold on the run"
+    );
+    match skotiq_sequencer::executor_handle()
+        .end_action_hold(&holder)
+        .map_err(run_command_refused)?
+    {
+        skotiq_sequencer::HoldEnd::Resume => {
+            crate::sequence_run::resume().await?;
+            Ok(true)
+        }
+        skotiq_sequencer::HoldEnd::LeavePaused => Ok(false),
+    }
 }
 
 /// Hold the run for a manual action of `holder`: a running run is paused, a

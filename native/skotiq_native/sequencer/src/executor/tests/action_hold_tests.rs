@@ -85,10 +85,10 @@ async fn a_pause_that_took_over_a_held_run_outlives_the_release() {
         .pause_from(Some("weather turned unsafe".to_string()))
         .await
         .expect("weather pauses the held run");
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    drain_commands(&handle).await;
 
     assert_eq!(
-        handle.release_action_hold_to_resume("host"),
+        handle.end_action_hold("host"),
         Err(RunCommandError::StillPaused(
             "weather turned unsafe".to_string()
         ))
@@ -109,9 +109,9 @@ async fn a_hold_alone_is_released_to_resume() {
     let handle = executor.handle();
     handle.hold_for_action("host").await.expect("hold taken");
     wait_for(&executor, ExecutorState::Paused).await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    drain_commands(&handle).await;
 
-    assert_eq!(handle.release_action_hold_to_resume("host"), Ok(()));
+    assert_eq!(handle.end_action_hold("host"), Ok(HoldEnd::Resume));
     handle.resume().await.expect("released run resumes");
     wait_for(&executor, ExecutorState::Running).await;
     executor.stop().await.ok();
@@ -150,5 +150,23 @@ async fn a_resume_sent_just_before_a_hold_leaves_the_held_run_paused() {
 
     assert_eq!(executor.get_state().await, ExecutorState::Paused);
     assert!(handle.held_by_action());
+    executor.stop().await.ok();
+}
+
+/// A hold taken on a run the operator had already paused did not pause it,
+/// so its release leaves the operator's pause in place.
+#[tokio::test]
+async fn the_release_of_a_hold_that_found_the_run_paused_leaves_it_paused() {
+    let mut executor = running_executor().await;
+    let handle = executor.handle();
+    handle.pause_from(None).await.expect("operator pause sent");
+    wait_for(&executor, ExecutorState::Paused).await;
+    handle.hold_for_action("phone").await.expect("hold taken");
+    drain_commands(&handle).await;
+
+    assert_eq!(handle.end_action_hold("phone"), Ok(HoldEnd::LeavePaused));
+    assert!(!handle.held_by_action());
+    assert_eq!(handle.end_action_hold("phone"), Ok(HoldEnd::LeavePaused));
+    assert_eq!(executor.get_state().await, ExecutorState::Paused);
     executor.stop().await.ok();
 }

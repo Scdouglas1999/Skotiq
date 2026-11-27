@@ -83,10 +83,9 @@ void main() {
       isNot('host'),
       reason: "the host's own action is never released by a link",
     );
+    verifyNever(() => backend.sequencerResume());
     verifyNever(
-      () => backend.sequencerResume(
-        releasingHoldOf: any(named: 'releasingHoldOf'),
-      ),
+      () => backend.sequencerEndActionHold(holder: any(named: 'holder')),
     );
   });
 }

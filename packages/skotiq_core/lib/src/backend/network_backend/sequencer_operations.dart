@@ -146,12 +146,21 @@ mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
   }
 
   @override
-  Future<void> sequencerResume({String? releasingHoldOf}) async {
+  Future<void> sequencerResume() async {
+    await _post(SequencerApi.resume);
+  }
+
+  // The host names this client as the holder, so no holder is sent.
+  @override
+  Future<bool> sequencerEndActionHold({
+    String holder = hostActionHolder,
+  }) async {
     try {
-      await _post(
+      final response = await _post(
         SequencerApi.resume,
-        body: releasingHoldOf == null ? null : {'releasesHold': true},
+        body: {'releasesHold': true},
       );
+      return response['status'] == 'resumed';
     } on ServerError catch (e) {
       if (e.code != ApiErrorCodes.runStillPaused) rethrow;
       final pausedBy = e.details?['pausedBy'];

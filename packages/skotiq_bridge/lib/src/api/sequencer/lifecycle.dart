@@ -27,16 +27,22 @@ Future<void> apiSequencerStart() =>
 Future<void> apiSequencerPause({String? origin}) => RustLib.instance.api
     .crateApiSequencerLifecycleApiSequencerPause(origin: origin);
 
-/// Resume the sequence executor. `releases_hold_of` names the holder of a
-/// manual action's hold this resume ends ([`api_sequencer_hold_for_action`]);
-/// the hold ends even when the resume then fails, and the run stays paused.
-/// When another pause took the run over while the hold lasted, the run stays
-/// paused under it and the resume is refused with
-/// [`SkotiqError::RunStillPaused`], naming that pause.
-Future<void> apiSequencerResume({String? releasesHoldOf}) =>
-    RustLib.instance.api.crateApiSequencerLifecycleApiSequencerResume(
-      releasesHoldOf: releasesHoldOf,
-    );
+/// Resume a paused run. Refused while a manual action holds it: only the
+/// action's end ([`api_sequencer_end_action_hold`]) lets a held run go on.
+Future<void> apiSequencerResume() =>
+    RustLib.instance.api.crateApiSequencerLifecycleApiSequencerResume();
+
+/// End `holder`'s hold at the end of its manual action, and resume the run
+/// when the hold is what paused it. A run the hold found paused, or one no
+/// longer paused, is left as it is. Returns whether the run was resumed. The
+/// hold ends even when the resume then fails, and the run stays paused. When
+/// another pause took over the run the hold paused, the run stays paused
+/// under it and the call is refused with [`SkotiqError::RunStillPaused`],
+/// naming that pause.
+Future<bool> apiSequencerEndActionHold({required String holder}) => RustLib
+    .instance
+    .api
+    .crateApiSequencerLifecycleApiSequencerEndActionHold(holder: holder);
 
 /// Hold the run for a manual action of `holder`: a running run is paused, a
 /// paused one stays paused, and until the holder releases it nothing else

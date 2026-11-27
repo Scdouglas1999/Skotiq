@@ -79,11 +79,15 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   /// names the client as the holder itself; the network backend sends none.
   Future<void> sequencerHoldForAction({String holder = hostActionHolder});
 
-  /// Resume a paused run. [releasingHoldOf] is the holder whose hold this
-  /// resume ends: a manual action's own release. The hold ends even when the
-  /// resume then fails. Throws [RunStillPaused], without resuming, when
-  /// another pause took the run over while the hold lasted.
-  Future<void> sequencerResume({String? releasingHoldOf});
+  /// Resume a paused run. Refused while a manual action holds it.
+  Future<void> sequencerResume();
+
+  /// End [holder]'s hold at the end of its manual action. The run's host
+  /// resumes the run when the hold is what paused it, and leaves a run the
+  /// hold found paused as it is. Returns whether the run was resumed. The
+  /// hold ends even when the resume then fails. Throws [RunStillPaused],
+  /// without resuming, when another pause took over the run the hold paused.
+  Future<bool> sequencerEndActionHold({String holder = hostActionHolder});
 
   /// End [holder]'s hold without resuming the run. Returns whether [holder]
   /// held it.

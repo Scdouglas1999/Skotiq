@@ -3527,6 +3527,9 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint(int64_t port_);
 
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold(int64_t port_,
+                                                                                                struct wire_cst_list_prim_u_8_strict *holder);
+
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_get_adaptive_swap_json(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_get_checkpoint_info(int64_t port_);
@@ -3567,8 +3570,7 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_reset(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume(int64_t port_,
-                                                                                       struct wire_cst_list_prim_u_8_strict *releases_hold_of);
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume_from_checkpoint(int64_t port_);
 
@@ -4417,6 +4419,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__secondary_rig__secondary_rig_status_api_default);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_perform_meridian_flip);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_get_checkpoint_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_get_state);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_has_checkpoint);

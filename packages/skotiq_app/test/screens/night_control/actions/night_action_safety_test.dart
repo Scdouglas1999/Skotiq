@@ -46,15 +46,14 @@ class _RecordingExecutor extends SequenceExecutor {
   }
 
   @override
-  Future<void> releaseActionHold({required bool resume}) async {
-    calls.add(resume ? 'resume' : 'release');
+  Future<bool> endActionHold() async {
+    calls.add('endHold');
     final error = resumeError;
     if (error != null) throw error;
-    if (resume) {
-      _ref
-          .read(runRecordProvider.notifier)
-          .setLifecycle(SequenceExecutionState.running);
-    }
+    _ref
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
+    return true;
   }
 
   @override
@@ -104,7 +103,7 @@ void main() {
       run.setLifecycle(SequenceExecutionState.paused);
       return CommandActionResult.ok;
     });
-    when(() => sequence.releaseActionHold(resume: true)).thenAnswer((_) async {
+    when(() => sequence.endActionHold()).thenAnswer((_) async {
       run.setLifecycle(SequenceExecutionState.running);
       return CommandActionResult.ok;
     });
@@ -139,7 +138,7 @@ void main() {
     await container.read(nightActionApiProvider).autofocus();
 
     verify(() => sequence.holdForAction()).called(1);
-    verify(() => sequence.releaseActionHold(resume: true)).called(1);
+    verify(() => sequence.endActionHold()).called(1);
     verifyNeverParkedOrStopped();
     expect(container.read(sequenceExecutionStateProvider),
         SequenceExecutionState.running);
@@ -152,13 +151,13 @@ void main() {
   test('resume fails: the run stays paused, is never stopped or parked',
       () async {
     stubAutofocus(() async => throw Exception('No stars detected'));
-    when(() => sequence.releaseActionHold(resume: true)).thenAnswer(
+    when(() => sequence.endActionHold()).thenAnswer(
       (_) async => const CommandActionResult.failure('bridge timeout'),
     );
 
     await container.read(nightActionApiProvider).autofocus();
 
-    verify(() => sequence.releaseActionHold(resume: true)).called(1);
+    verify(() => sequence.endActionHold()).called(1);
     verifyNeverParkedOrStopped();
     expect(container.read(sequenceExecutionStateProvider),
         SequenceExecutionState.paused);
@@ -206,7 +205,7 @@ void main() {
 
       await real.read(nightActionApiProvider).autofocus();
 
-      expect(executor.calls, ['pause', 'resume']);
+      expect(executor.calls, ['pause', 'endHold']);
       expect(real.read(sequenceExecutionStateProvider),
           SequenceExecutionState.running);
       verifyNever(() => devices.parkMount());
@@ -219,7 +218,7 @@ void main() {
 
       await real.read(nightActionApiProvider).autofocus();
 
-      expect(executor.calls, ['pause', 'resume']);
+      expect(executor.calls, ['pause', 'endHold']);
       expect(real.read(sequenceExecutionStateProvider),
           SequenceExecutionState.paused);
       final state = real.read(nightActionStateProvider);

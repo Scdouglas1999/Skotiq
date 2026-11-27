@@ -612,8 +612,7 @@ class NightActionController extends Notifier<ManualActionState>
     final guard = RunPauseGuard(
       ref: ref,
       pause: _ops.pauseRun,
-      resume: _ops.resumeRun,
-      release: _ops.releaseRun,
+      end: _ops.endRunHold,
       holdsPausedRun: id == ManualActionId.loop,
     );
     var hold = RunHold.notOwed;
@@ -668,9 +667,10 @@ class NightActionController extends Notifier<ManualActionState>
         switch (release.outcome) {
           case RunReleaseOutcome.resumed:
             _log.info('Run resumed after ${id.name}', source: _logSource);
-          case RunReleaseOutcome.notPaused:
+          case RunReleaseOutcome.notOwed:
             _log.info(
-              'Run no longer paused after ${id.name}; nothing to resume',
+              'Run left as it was after ${id.name}: the hold did not pause '
+              'it, or it is no longer paused',
               source: _logSource,
             );
           case RunReleaseOutcome.resumeFailed:
@@ -701,8 +701,6 @@ class NightActionController extends Notifier<ManualActionState>
               'Run stays paused after ${id.name}: ${release.error}',
               source: _logSource,
             );
-          case RunReleaseOutcome.notOwed:
-            break;
         }
       } else if (hold.held) {
         await guard.release(hold);

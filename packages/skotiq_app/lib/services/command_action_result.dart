@@ -18,12 +18,17 @@ class CommandActionResult {
   /// who paused it ([RunStillPaused.pausedBy]).
   final String? stillPausedBy;
 
+  /// A manual action's hold ended and the run was left as it was: the hold
+  /// had found it paused, or it is no longer paused.
+  final bool leftPaused;
+
   const CommandActionResult._({
     required this.isSuccess,
     required this.message,
     required this.feedbackType,
     this.alreadyShown = false,
     this.stillPausedBy,
+    this.leftPaused = false,
   });
 
   const CommandActionResult.success({
@@ -54,6 +59,16 @@ class CommandActionResult {
           message: 'The run is still paused: $pausedBy.',
           feedbackType: CommandFeedbackType.info,
           stillPausedBy: pausedBy,
+        );
+
+  /// A manual action's hold ended and nothing was resumed: the run was not
+  /// the hold's to resume.
+  const CommandActionResult.leftPaused()
+      : this._(
+          isSuccess: true,
+          message: null,
+          feedbackType: CommandFeedbackType.info,
+          leftPaused: true,
         );
 
   /// The operator answered no to a question the command asked; there is

@@ -1,5 +1,5 @@
 // A manual action's release finds the run taken over by another pause: the
-// refusal the native resume raises reaches the app as RunStillPaused naming
+// refusal the native end of the hold raises reaches the app as RunStillPaused naming
 // that pause once, in the words its origin gave.
 
 import 'package:flutter_test/flutter_test.dart';
@@ -18,8 +18,8 @@ final _refusal = bridge.SkotiqError.runStillPaused(
 
 class _Native extends Mock implements bridge.RustLibApi {
   @override
-  Future<void> crateApiSequencerLifecycleApiSequencerResume({
-    String? releasesHoldOf,
+  Future<bool> crateApiSequencerLifecycleApiSequencerEndActionHold({
+    required String holder,
   }) async => throw _refusal;
 }
 
@@ -28,9 +28,10 @@ void main() {
   tearDownAll(bridge.NativeBridge.disposeMock);
 
   test('the release names the pause that keeps the run paused once', () async {
-    final error = await FfiBackend()
-        .sequencerResume(releasingHoldOf: hostActionHolder)
-        .then<Object?>((_) => null, onError: (Object e) => e);
+    final error = await FfiBackend().sequencerEndActionHold().then<Object?>(
+      (_) => null,
+      onError: (Object e) => e,
+    );
 
     expect(error, isA<RunStillPaused>());
     final stillPaused = error! as RunStillPaused;

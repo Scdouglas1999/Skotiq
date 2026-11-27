@@ -591,9 +591,9 @@ extension _SequencerLifecycle on SequencerHandlers {
   /// Run [command], answering the executor's refusal of a held run as
   /// [_runHeldByAction] and a release whose run stays paused as
   /// [_runStillPaused].
-  Future<void> _unlessHeld(String verb, Future<void> Function() command) async {
+  Future<T> _unlessHeld<T>(String verb, Future<T> Function() command) async {
     try {
-      await command();
+      return await command();
     } on bridge_api.SkotiqError_Refused catch (error) {
       if (error.kind != bridge_api.Refusal.runHeldByAction) rethrow;
       throw _runHeldByAction(verb, error);
@@ -637,8 +637,10 @@ extension _SequencerLifecycle on SequencerHandlers {
     });
   }
 
-  /// A body of `{"releasesHold": true}` is a manual action's own release:
-  /// it ends the caller's hold, then resumes.
+  /// A body of `{"releasesHold": true}` is the end of the caller's manual
+  /// action: it ends the caller's hold, and the run resumes when the hold is
+  /// what paused it. `status` is `resumed`, or `released` when the run was
+  /// left as it was.
   Future<Response> _handleSequencerResume(Request request) async {
     _logInfo('[API] POST /api/sequencer/resume');
     final releasesHold = optionalBool(
@@ -650,22 +652,24 @@ extension _SequencerLifecycle on SequencerHandlers {
       operation: CommandOperation.sequencerResume,
     );
     final backend = container.read(sequencerBackendProvider);
-    await _unlessHeld(
+    final resumed = await _unlessHeld(
       'resume',
-      () => backend.sequencerResume(
-        releasingHoldOf: releasesHold == true
-            ? actionHolderFor(authIdentityFrom(request))
-            : null,
-      ),
+      () async => releasesHold == true
+          ? backend.sequencerEndActionHold(
+              holder: actionHolderFor(authIdentityFrom(request)),
+            )
+          : backend.sequencerResume().then((_) => true),
     );
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.sequencer,
-      action: HostMutationAction.resumed,
-    );
+    if (resumed) {
+      publishHostMutationFromContainer(
+        container,
+        entityType: HostMutationEntity.sequencer,
+        action: HostMutationAction.resumed,
+      );
+    }
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
-      'status': 'resumed',
+      'status': resumed ? 'resumed' : 'released',
       kWasRunningField: true,
     });
   }

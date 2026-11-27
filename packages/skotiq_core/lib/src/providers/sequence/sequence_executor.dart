@@ -1709,7 +1709,7 @@ class SequenceExecutor {
 
   /// Hold the run for a manual action this app runs: a running run is paused
   /// as [pause] does, a paused one stays paused. Until
-  /// [releaseActionHold] nothing else resumes or skips the run, on this app
+  /// [endActionHold] nothing else resumes or skips the run, on this app
   /// or any other.
   Future<void> holdForAction() async {
     _ensureBackendAuthority();
@@ -1721,24 +1721,27 @@ class SequenceExecutor {
     await _pause(hold: true);
   }
 
-  /// End this app's manual-action hold. With [resume] a paused run is
-  /// resumed as [resume] does; the hold ends whether or not the resume can
-  /// be made.
-  Future<void> releaseActionHold({required bool resume}) async {
+  /// End this app's manual-action hold at the end of its action. The run's
+  /// host resumes the run when the hold is what paused it; returns whether
+  /// it did. The hold ends whether or not the resume can be made. While
+  /// another pause or resume of this app is in flight the hold only ends.
+  Future<bool> endActionHold() async {
     _ensureBackendAuthority();
-    if (resume &&
-        !_lifecycle.pauseResume.isHeld &&
-        _ref.read(sequenceExecutionStateProvider) ==
-            SequenceExecutionState.paused) {
-      await _resume(releasingHoldOf: hostActionHolder);
-      return;
+    if (_lifecycle.pauseResume.isHeld) {
+      await _backend.sequencerReleaseActionHold();
+      return false;
     }
-    await _backend.sequencerReleaseActionHold();
+    _lifecycle.pauseResume.acquire();
+    try {
+      final resumed = await _backend.sequencerEndActionHold();
+      if (resumed) await _confirmResumed(_backend);
+      return resumed;
+    } finally {
+      _lifecycle.pauseResume.release();
+    }
   }
 
-  Future<void> resume() => _resume();
-
-  Future<void> _resume({String? releasingHoldOf}) async {
+  Future<void> resume() async {
     _ensureBackendAuthority();
     if (_lifecycle.pauseResume.isHeld) {
       throw Exception('Pause/Resume operation already in progress');
@@ -1753,25 +1756,30 @@ class SequenceExecutor {
 
     try {
       final backend = _backend;
-      await backend.sequencerResume(releasingHoldOf: releasingHoldOf);
-
-      final confirmed = await _awaitStateChange(SequenceExecutionState.running);
-      if (!confirmed) {
-        // A pause placed during a recovery that is still under way only
-        // withdraws: the run goes back to `recovering`, not `running`.
-        final state = (await backend.sequencerGetStatus()).runState;
-        if (state == NativeRunState.running) {
-          _setExecutionState(SequenceExecutionState.running);
-        } else if (state != NativeRunState.recovering) {
-          throw Exception('Resume operation timed out - state not confirmed');
-        }
-      }
-
-      _notePausedByExecutor(false);
-      await _persistLiveRunStatus(SequenceRunStatus.running);
+      await backend.sequencerResume();
+      await _confirmResumed(backend);
     } finally {
       _lifecycle.pauseResume.release();
     }
+  }
+
+  /// Wait for the resume the backend accepted to show as running, and
+  /// record it on the live run.
+  Future<void> _confirmResumed(SequencerBackend backend) async {
+    final confirmed = await _awaitStateChange(SequenceExecutionState.running);
+    if (!confirmed) {
+      // A pause placed during a recovery that is still under way only
+      // withdraws: the run goes back to `recovering`, not `running`.
+      final state = (await backend.sequencerGetStatus()).runState;
+      if (state == NativeRunState.running) {
+        _setExecutionState(SequenceExecutionState.running);
+      } else if (state != NativeRunState.recovering) {
+        throw Exception('Resume operation timed out - state not confirmed');
+      }
+    }
+
+    _notePausedByExecutor(false);
+    await _persistLiveRunStatus(SequenceRunStatus.running);
   }
 
   /// Record a confirmed pause or resume on a live run. A run in any other

@@ -43,8 +43,8 @@ class _StillPausedNative extends Mock implements bridge_api.RustLibApi {
           as String;
 
   @override
-  Future<void> crateApiSequencerLifecycleApiSequencerResume({
-    String? releasesHoldOf,
+  Future<bool> crateApiSequencerLifecycleApiSequencerEndActionHold({
+    required String holder,
   }) async => throw bridge_api.SkotiqError.runStillPaused(pausedBy: pausedBy);
 }
 
@@ -88,11 +88,10 @@ void main() {
   setUp(() {
     backend = _MockSequencerBackend();
     executor = _StoppedExecutor();
+    when(() => backend.sequencerResume()).thenAnswer((_) async {});
     when(
-      () => backend.sequencerResume(
-        releasingHoldOf: any(named: 'releasingHoldOf'),
-      ),
-    ).thenAnswer((_) async {});
+      () => backend.sequencerEndActionHold(holder: any(named: 'holder')),
+    ).thenAnswer((_) async => true);
     when(() => backend.sequencerSkip()).thenAnswer((_) async {});
     when(
       () => backend.sequencerHoldForAction(holder: any(named: 'holder')),
@@ -121,11 +120,7 @@ void main() {
       expect(body['error'], ApiErrorCodes.runHeldByAction);
       expect(body['message'], contains('a manual action holds the run'));
     }
-    verifyNever(
-      () => backend.sequencerResume(
-        releasingHoldOf: any(named: 'releasingHoldOf'),
-      ),
-    );
+    verifyNever(() => backend.sequencerResume());
     verifyNever(() => backend.sequencerSkip());
   });
 
@@ -133,11 +128,7 @@ void main() {
     'a hold taken after the status read is still refused by the run',
     () async {
       hostReports(held: false);
-      when(
-        () => backend.sequencerResume(
-          releasingHoldOf: any(named: 'releasingHoldOf'),
-        ),
-      ).thenThrow(_held);
+      when(() => backend.sequencerResume()).thenThrow(_held);
       when(() => backend.sequencerSkip()).thenThrow(_held);
 
       for (final call in [
@@ -180,14 +171,31 @@ void main() {
 
     expect(response.statusCode, HttpStatus.ok);
     verify(
-      () => backend.sequencerResume(releasingHoldOf: 'phone-token'),
+      () => backend.sequencerEndActionHold(holder: 'phone-token'),
     ).called(1);
+  });
+
+  test('a release that leaves the run as it was says so', () async {
+    hostReports(held: true);
+    when(
+      () => backend.sequencerEndActionHold(holder: 'phone-token'),
+    ).thenAnswer((_) async => false);
+
+    final response = await translateHandlerErrors(
+      handlers.handleSequencerResume(
+        _post('resume', body: {'releasesHold': true}, identity: 'phone-token'),
+      ),
+    );
+
+    expect(response.statusCode, HttpStatus.ok);
+    expect((await _bodyOf(response))['status'], 'released');
+    verifyNever(() => backend.sequencerResume());
   });
 
   test("a second client's release is refused by the run", () async {
     hostReports(held: true);
     when(
-      () => backend.sequencerResume(releasingHoldOf: 'tablet-token'),
+      () => backend.sequencerEndActionHold(holder: 'tablet-token'),
     ).thenThrow(_held);
 
     final response = await translateHandlerErrors(
@@ -221,7 +229,7 @@ void main() {
     () async {
       hostReports(held: true);
       when(
-        () => backend.sequencerResume(releasingHoldOf: 'phone-token'),
+        () => backend.sequencerEndActionHold(holder: 'phone-token'),
       ).thenThrow(const RunStillPaused('Weather turned unsafe'));
 
       final response = await translateHandlerErrors(

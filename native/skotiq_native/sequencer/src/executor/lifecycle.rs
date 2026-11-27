@@ -52,6 +52,16 @@ impl std::fmt::Display for RunCommandError {
 
 impl std::error::Error for RunCommandError {}
 
+/// What the end of a manual action's hold leaves the caller to do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HoldEnd {
+    /// The hold paused the run and nothing else did: resume it.
+    Resume,
+    /// The run is left as it is: the hold found it paused, it is no longer
+    /// paused, or the holder held nothing.
+    LeavePaused,
+}
+
 /// Who asked a run to stop.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StopOrigin {
@@ -292,16 +302,23 @@ impl ExecutorHandle {
         self.run_state.release_action_hold(holder).is_some()
     }
 
-    /// End `holder`'s hold ahead of the action's own resume. Refused with
-    /// [`RunCommandError::StillPaused`] when another pause took the run over
-    /// while the hold lasted: the run stays paused under that pause and is
-    /// not resumed. A holder that holds nothing has nothing to release.
-    pub fn release_action_hold_to_resume(&self, holder: &str) -> Result<(), RunCommandError> {
+    /// End `holder`'s hold at the end of its action, and say whether the
+    /// run is owed a resume: only when the hold's own pause is what paused
+    /// it and the run is still paused. A hold that found the run paused, or
+    /// a holder that holds nothing, leaves the run as it is. Refused with
+    /// [`RunCommandError::StillPaused`] when another pause took over a run
+    /// the hold paused: the run stays paused under that pause.
+    pub fn end_action_hold(&self, holder: &str) -> Result<HoldEnd, RunCommandError> {
         match self.run_state.release_action_hold(holder) {
             Some(HoldReleased {
+                paused_by_hold: true,
                 still_paused: Some(origin),
             }) => Err(RunCommandError::StillPaused(origin)),
-            _ => Ok(()),
+            Some(HoldReleased {
+                paused_by_hold: true,
+                still_paused: None,
+            }) if self.run_state.get() == ExecutorState::Paused => Ok(HoldEnd::Resume),
+            _ => Ok(HoldEnd::LeavePaused),
         }
     }
 

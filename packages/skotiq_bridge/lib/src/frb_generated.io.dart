@@ -15098,6 +15098,33 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpointPtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> holder,
+  ) {
+    return _wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold(
+      port_,
+      holder,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_holdPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold',
+      );
+  late final _wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold =
+      _wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_holdPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void
   wire__crate__api__sequencer__runtime_config__api_sequencer_get_adaptive_swap_json(
     int port_,
@@ -15430,32 +15457,17 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__lifecycle__api_sequencer_resetPtr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__sequencer__lifecycle__api_sequencer_resume(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> releases_hold_of,
-  ) {
-    return _wire__crate__api__sequencer__lifecycle__api_sequencer_resume(
-      port_,
-      releases_hold_of,
-    );
+  void wire__crate__api__sequencer__lifecycle__api_sequencer_resume(int port_) {
+    return _wire__crate__api__sequencer__lifecycle__api_sequencer_resume(port_);
   }
 
   late final _wire__crate__api__sequencer__lifecycle__api_sequencer_resumePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
         'frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume',
       );
   late final _wire__crate__api__sequencer__lifecycle__api_sequencer_resume =
       _wire__crate__api__sequencer__lifecycle__api_sequencer_resumePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
+          .asFunction<void Function(int)>();
 
   void
   wire__crate__api__sequencer__lifecycle__api_sequencer_resume_from_checkpoint(

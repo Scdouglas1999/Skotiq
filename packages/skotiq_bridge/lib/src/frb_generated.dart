@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -273098168;
+  int get rustContentHash => 1320572690;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -977,6 +977,10 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSequencerLifecycleApiSequencerClearCheckpoint();
 
+  Future<bool> crateApiSequencerLifecycleApiSequencerEndActionHold({
+    required String holder,
+  });
+
   Future<String?>
   crateApiSequencerRuntimeConfigApiSequencerGetAdaptiveSwapJson();
 
@@ -1025,9 +1029,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSequencerLifecycleApiSequencerReset();
 
-  Future<void> crateApiSequencerLifecycleApiSequencerResume({
-    String? releasesHoldOf,
-  });
+  Future<void> crateApiSequencerLifecycleApiSequencerResume();
 
   Future<void> crateApiSequencerLifecycleApiSequencerResumeFromCheckpoint();
 
@@ -7767,6 +7769,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiSequencerLifecycleApiSequencerEndActionHold({
+    required String holder,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(holder);
+          return wire
+              .wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_bool,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiSequencerLifecycleApiSequencerEndActionHoldConstMeta,
+        argValues: [holder],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerLifecycleApiSequencerEndActionHoldConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_end_action_hold",
+        argNames: ["holder"],
+      );
+
+  @override
   Future<String?>
   crateApiSequencerRuntimeConfigApiSequencerGetAdaptiveSwapJson() {
     return handler.executeNormal(
@@ -8249,17 +8284,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_sequencer_reset", argNames: []);
 
   @override
-  Future<void> crateApiSequencerLifecycleApiSequencerResume({
-    String? releasesHoldOf,
-  }) {
+  Future<void> crateApiSequencerLifecycleApiSequencerResume() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          var arg0 = cst_encode_opt_String(releasesHoldOf);
           return wire
               .wire__crate__api__sequencer__lifecycle__api_sequencer_resume(
                 port_,
-                arg0,
               );
         },
         codec: DcoCodec(
@@ -8267,17 +8298,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiSequencerLifecycleApiSequencerResumeConstMeta,
-        argValues: [releasesHoldOf],
+        argValues: [],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiSequencerLifecycleApiSequencerResumeConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_sequencer_resume",
-        argNames: ["releasesHoldOf"],
-      );
+      const TaskConstMeta(debugName: "api_sequencer_resume", argNames: []);
 
   @override
   Future<void> crateApiSequencerLifecycleApiSequencerResumeFromCheckpoint() {

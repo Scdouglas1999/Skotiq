@@ -55,7 +55,7 @@ void main() {
       emit('ExposureComplete', {'success': true});
       await done;
       expect(h.ops.calls, contains('center M74'));
-      expect(h.ops.calls.last, 'resume');
+      expect(h.ops.calls.last, 'endHold');
     });
 
     test('opening Tonight mid-exposure checks the host before stopping guiding',
@@ -75,7 +75,7 @@ void main() {
         'stopGuiding',
         'center M74',
         'startGuidingAndSettle',
-        'resume'
+        'endHold'
       ]);
     });
 
@@ -95,7 +95,7 @@ void main() {
         ]);
         addTearDown(h.container.dispose);
         await h.container.read(nightActionApiProvider).center();
-        expect(h.ops.calls, ['pause', 'resume']);
+        expect(h.ops.calls, ['pause', 'endHold']);
         expect(h.container.read(nightActionStateProvider).error, isNotNull);
       });
     }
@@ -123,7 +123,7 @@ void main() {
         'stopGuiding',
         'center M74',
         'startGuidingAndSettle',
-        'resume'
+        'endHold'
       ]);
     });
 
@@ -133,7 +133,7 @@ void main() {
 
       await h.container.read(nightActionApiProvider).autofocus();
 
-      expect(h.ops.calls, ['pause', 'autofocus', 'resume']);
+      expect(h.ops.calls, ['pause', 'autofocus', 'endHold']);
       expect(h.container.read(sequenceExecutionStateProvider), running);
       final state = h.container.read(nightActionStateProvider);
       expect(state.phase, ManualActionPhase.idle);
@@ -160,7 +160,7 @@ void main() {
 
       await h.container.read(nightActionApiProvider).dither();
 
-      expect(h.ops.calls, ['pause', 'dither', 'resume']);
+      expect(h.ops.calls, ['pause', 'dither', 'endHold']);
       expect(h.container.read(sequenceExecutionStateProvider), paused);
       final state = h.container.read(nightActionStateProvider);
       expect(state.runLeftPaused, isTrue);
@@ -176,7 +176,7 @@ void main() {
 
       await h.container.read(nightActionApiProvider).dither();
 
-      expect(h.ops.calls, ['pause', 'dither', 'resume']);
+      expect(h.ops.calls, ['pause', 'dither', 'endHold']);
       expect(h.container.read(sequenceExecutionStateProvider), paused);
       final state = h.container.read(nightActionStateProvider);
       expect(state.runLeftPaused, isTrue);
@@ -192,7 +192,7 @@ void main() {
 
       await h.container.read(nightActionApiProvider).autofocus();
 
-      expect(h.ops.calls, ['pause', 'autofocus', 'resume']);
+      expect(h.ops.calls, ['pause', 'autofocus', 'endHold']);
       expect(h.container.read(sequenceExecutionStateProvider), running);
       final state = h.container.read(nightActionStateProvider);
       expect(state.error?.key, 'nightActErrAutofocus');
@@ -228,7 +228,7 @@ void main() {
 
       camera.setExposing(false);
       await done;
-      expect(h.ops.calls, ['pause', 'autofocus', 'resume']);
+      expect(h.ops.calls, ['pause', 'autofocus', 'endHold']);
       state = c.read(nightActionStateProvider);
       expect(state.phase, ManualActionPhase.idle);
     });
@@ -247,7 +247,7 @@ void main() {
 
       mount.put(steady);
       await done;
-      expect(h.ops.calls, ['pause', 'dither', 'resume']);
+      expect(h.ops.calls, ['pause', 'dither', 'endHold']);
     });
 
     test('a run resumed elsewhere while waiting is not acted on', () async {
@@ -263,7 +263,7 @@ void main() {
       await done;
 
       // The hold the action took is given up; nothing is resumed.
-      expect(h.ops.calls, ['pause', 'release']);
+      expect(h.ops.calls, ['pause', 'endHold']);
       expect(
           c.read(nightActionStateProvider).error?.key, 'nightActErrRunMoved');
     });
@@ -280,7 +280,7 @@ void main() {
       await c.read(nightActionApiProvider).cancel();
       await done;
 
-      expect(h.ops.calls, ['pause', 'cancelAutofocus', 'resume']);
+      expect(h.ops.calls, ['pause', 'cancelAutofocus', 'endHold']);
       expect(c.read(sequenceExecutionStateProvider), running);
       expect(c.read(nightActionStateProvider).error, isNull);
     });
@@ -543,7 +543,7 @@ void main() {
         'stopGuiding',
         'center M74',
         'startGuidingAndSettle',
-        'resume',
+        'endHold',
       ]);
     });
 
@@ -577,7 +577,7 @@ void main() {
       final stopped = api.toggleLoop();
       expect(identical(stopped, looping), isTrue);
       await looping;
-      expect(h.ops.calls, ['pause', 'loop', 'stopCapture', 'resume']);
+      expect(h.ops.calls, ['pause', 'loop', 'stopCapture', 'endHold']);
       expect(h.container.read(sequenceExecutionStateProvider), running);
       expect(h.container.read(nightActionStateProvider).error, isNull);
     });

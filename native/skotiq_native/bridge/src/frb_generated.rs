@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -273098168;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1320572690;
 
 // Section: executor
 
@@ -5238,6 +5238,34 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint_impl(
         },
     )
 }
+fn wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    holder: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_sequencer_end_action_hold",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_holder = holder.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::sequencer::lifecycle::api_sequencer_end_action_hold(
+                                api_holder,
+                            )
+                            .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_get_adaptive_swap_json_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -5579,7 +5607,6 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_reset_impl(
 }
 fn wire__crate__api__sequencer__lifecycle__api_sequencer_resume_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
-    releases_hold_of: impl CstDecode<Option<String>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -5588,14 +5615,11 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_resume_impl(
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
-            let api_releases_hold_of = releases_hold_of.cst_decode();
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::sequencer::lifecycle::api_sequencer_resume(
-                            api_releases_hold_of,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::sequencer::lifecycle::api_sequencer_resume().await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -32038,6 +32062,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold(
+        port_: i64,
+        holder: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sequencer__lifecycle__api_sequencer_end_action_hold_impl(port_, holder)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_get_adaptive_swap_json(
         port_: i64,
     ) {
@@ -32174,9 +32206,8 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume(
         port_: i64,
-        releases_hold_of: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sequencer__lifecycle__api_sequencer_resume_impl(port_, releases_hold_of)
+        wire__crate__api__sequencer__lifecycle__api_sequencer_resume_impl(port_)
     }
 
     #[unsafe(no_mangle)]
