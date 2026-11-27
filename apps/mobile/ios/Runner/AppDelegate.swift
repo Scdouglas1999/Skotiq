@@ -29,11 +29,11 @@ import WidgetKit
   /// from the channel handler. Cleared in `liveActivityEnd(_:)`.
   private var liveActivities: [String: Any] = [:]
 
-  // MARK: - APNs push (Phase E)
+  // MARK: - APNs push
 
   /// Channel for forwarding the APNs device token to Dart, where
   /// `apps/mobile/lib/services/push_registration_service.dart` POSTs it to the
-  /// Phase D server endpoint `POST /api/push/register-token` (platform=apns).
+  /// server endpoint `POST /api/push/register-token` (platform=apns).
   /// Channel + method names MUST match that Dart service.
   private var pushChannel: FlutterMethodChannel?
 
@@ -109,7 +109,7 @@ import WidgetKit
         self.handleWatchComplicationCall(call, result: result)
       }
 
-      // Phase E — APNs push channel.
+      // APNs push channel.
       //
       // The Dart side (push_registration_service.dart) calls
       // `registerForRemoteNotifications` once the device is paired, then either
@@ -174,7 +174,7 @@ import WidgetKit
     reclaimNotificationCenterDelegate()
   }
 
-  // MARK: - APNs registration (Phase E)
+  // MARK: - APNs registration
 
   /// Handles `skotiq/push` MethodChannel calls from Dart.
   ///
@@ -238,7 +238,7 @@ import WidgetKit
     )
   }
 
-  // MARK: - Foreground critical-alert presentation (Phase E)
+  // MARK: - Foreground critical-alert presentation
 
   /// Present notifications while the app is foregrounded.
   ///

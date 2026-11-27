@@ -1,4 +1,4 @@
-// Phase E — PushRegistrationService tests.
+// PushRegistrationService tests.
 //
 // Validates the iOS APNs token plumbing at the channel + HTTP boundary:
 //   * the platform string is `apns` (the server's contract, NOT `ios`),

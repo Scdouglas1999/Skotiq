@@ -5,12 +5,10 @@
 // SavedServersService for persistence and the existing BackendNotifier
 // for live connection switching.
 //
-// UX contract (per brief):
+// UX contract:
 //   * Each row: display name, last-connected relative time, dot
 //     indicator showing last-known reachability.
-//   * Tap a row → open that server (BackendNotifier.connect + persist
-//     into EnhancedSkotiqDiscovery so the auto-reconnect path also
-//     updates).
+//   * Tap a row → open that server (BackendNotifier.connect).
 //   * Long-press → rename / edit notes / remove.
 //   * FAB → kicks off the existing pairing flow (passes the new host
 //     through the same SavedServersService.upsert path so the row is
