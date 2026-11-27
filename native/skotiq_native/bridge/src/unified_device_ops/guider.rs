@@ -132,4 +132,8 @@ impl GuiderOps for UnifiedDeviceOps {
     async fn guider_note_stop_reason(&self, reason: Option<skotiq_sequencer::GuidingStopReason>) {
         crate::guider::stop_reason::set(reason);
     }
+
+    async fn guider_run_ended(&self) {
+        crate::guider::stop_reason::run_ended();
+    }
 }

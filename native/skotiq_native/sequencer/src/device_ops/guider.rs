@@ -185,4 +185,9 @@ pub trait GuiderOps: Send + Sync {
     /// settling, a flip that has already stopped it); `None` withdraws the
     /// run's reason. A successful start of guiding clears it as well.
     async fn guider_note_stop_reason(&self, _reason: Option<crate::GuidingStopReason>) {}
+
+    /// The run ended: a hold it gave as the reason
+    /// ([`crate::GuidingStopReason::is_hold`]) is over. A reason that says
+    /// why guiding stopped stays.
+    async fn guider_run_ended(&self) {}
 }

@@ -41,6 +41,14 @@ pub(crate) fn set(reason: Option<GuidingStopReason>) {
     }
 }
 
+/// The run ended: a hold it gave as the reason is over; a reason that says
+/// why guiding stopped stays.
+pub(crate) fn run_ended() {
+    if current().is_some_and(GuidingStopReason::is_hold) {
+        set(None);
+    }
+}
+
 /// An operator's stop: recorded as such unless the run already said why it
 /// is stopping the guider.
 pub(crate) fn note_operator_stop() {
@@ -99,5 +107,19 @@ mod tests {
         );
         set(None);
         assert_eq!(current(), None);
+    }
+
+    /// A run's end withdraws the hold it left ("paused while the mount
+    /// moves") and keeps a reason that says why guiding stopped.
+    #[test]
+    fn a_run_end_withdraws_holds_only() {
+        let _slot = crate::simulator::sim_singleton_test_lock().blocking_lock();
+        for reason in GuidingStopReason::ALL {
+            set(Some(reason));
+            run_ended();
+            let expected = (!reason.is_hold()).then_some(reason);
+            assert_eq!(current(), expected, "{reason:?}");
+        }
+        set(None);
     }
 }

@@ -63,6 +63,22 @@ impl GuidingStopReason {
         }
     }
 
+    /// Whether the reason is a hold of the run's that guiding resumes from
+    /// (autofocus, a flip, a mount move, a dither settling), as opposed to
+    /// one that says why guiding stopped (the run's stop, the operator's, the
+    /// Stop Guiding step, a mount fault).
+    pub fn is_hold(self) -> bool {
+        match self {
+            Self::Autofocus
+            | Self::MeridianFlip
+            | Self::TrackingLimitHold
+            | Self::MountMove
+            | Self::PreMeridianHold
+            | Self::DitherSettle => true,
+            Self::SequenceStep | Self::RunStopped | Self::Operator | Self::MountFault => false,
+        }
+    }
+
     pub fn from_wire(wire: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
