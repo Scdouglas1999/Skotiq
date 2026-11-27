@@ -4,6 +4,7 @@ use crate::device::{DeviceType, DriverType};
 use crate::device_manager::failure::DeviceFailure;
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, HeartbeatConfig};
+use crate::dispatch::error::DeviceOpError;
 use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use crate::state::SharedAppState;
 use std::sync::Arc;
@@ -631,7 +632,7 @@ impl DeviceManager {
     /// Get device health status
     ///
     /// Returns (last_successful_timestamp_ms, is_healthy)
-    pub async fn get_device_health(&self, device_id: &str) -> Result<(i64, bool), String> {
+    pub async fn get_device_health(&self, device_id: &str) -> Result<(i64, bool), DeviceOpError> {
         let devices = self.devices.read().await;
 
         if let Some(device) = devices.get(device_id) {
@@ -659,7 +660,7 @@ impl DeviceManager {
 
             Ok((last_comm, is_healthy))
         } else {
-            Err(format!("Device {} not found", device_id))
+            Err(DeviceOpError::DeviceNotFound(device_id.to_string()))
         }
     }
 
