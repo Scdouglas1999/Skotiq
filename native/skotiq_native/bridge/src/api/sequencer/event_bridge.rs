@@ -416,7 +416,9 @@ pub(crate) async fn run_sequencer_event_loop(
                     EventCategory::Sequencer,
                     EventPayload::Sequencer(SequencerEvent::InstructionProgress {
                         node_id: "__meridian_flip__".to_string(),
-                        instruction: "MeridianFlip".to_string(),
+                        instruction:
+                            skotiq_sequencer::meridian_flip_executor::MERIDIAN_FLIP_INSTRUCTION
+                                .to_string(),
                         progress_percent: 0.0,
                         detail: "Meridian flip".to_string(),
                         detail_kind: "MeridianFlip".to_string(),

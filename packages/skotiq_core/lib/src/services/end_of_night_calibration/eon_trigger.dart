@@ -95,7 +95,7 @@ EonEndReason? classifyRunEnd({
   if (reason != null) return reason;
   // A trigger's stop carries the trigger's id as its origin.
   final safetyStop =
-      stopOrigin == 'weather_unsafe' ||
+      stopOrigin == kWeatherUnsafeTriggerId ||
       stopOrigin == RunStopOrigin.safety.wire ||
       stopOrigin == null;
   if (safetyStop && nightEnding) return EonEndReason.dawn;

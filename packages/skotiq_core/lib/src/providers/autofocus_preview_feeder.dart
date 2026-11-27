@@ -92,7 +92,7 @@ class AutofocusPreviewFeeder {
         ):
           _flipping = true;
         case SequencerEvent_InstructionProgress(:final instruction):
-          _flipping = instruction == 'MeridianFlip';
+          _flipping = instruction == kMeridianFlipInstruction;
           // Attempt 0 is the step starting or finishing, not a frame.
           _centering = switch (run.report) {
             CenterInstructionProgressDetail(:final attempt, :final maxAttempts)

@@ -266,6 +266,10 @@ enum RunStopOrigin {
       values.where((origin) => origin.wire == wire).firstOrNull;
 }
 
+/// The stop origin the native Weather Unsafe trigger stops a run with: the
+/// trigger's id (`test_fixtures/wire_words/run_ids.json`).
+const String kWeatherUnsafeTriggerId = 'weather_unsafe';
+
 /// The operator-facing name of a system stop's `origin`. Unknown origins are
 /// printed verbatim: naming the real caller is more useful than a generic
 /// "the system", and it is what the log says too.

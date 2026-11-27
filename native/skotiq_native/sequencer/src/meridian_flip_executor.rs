@@ -38,6 +38,11 @@ use crate::{AutofocusConfig, FlipFailureAction, MeridianFlipConfig};
 /// progress on this string, so it must stay stable.
 pub const MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID: &str = "trigger:meridian_flip";
 
+/// The instruction a flip's progress is published under, whichever started
+/// it (a Meridian Flip step, the trigger, the run's flip telemetry): the
+/// Meridian Flip node's wire name. The app reads a flip in progress by it.
+pub const MERIDIAN_FLIP_INSTRUCTION: &str = "MeridianFlip";
+
 /// What a `MeridianFlipOutcome` event reports.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -2371,7 +2376,7 @@ impl MeridianFlipExecutor {
                 };
                 let _ = tx.send(ExecutorEvent::NodeProgress {
                     node_id: MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID.to_string(),
-                    instruction: "MeridianFlip".to_string(),
+                    instruction: MERIDIAN_FLIP_INSTRUCTION.to_string(),
                     // Attempts made out of attempts allowed. The flip is not
                     // "N% done"; this is the only percentage that is true.
                     progress_percent: if *max_attempts > 0 {

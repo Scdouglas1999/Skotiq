@@ -28,6 +28,8 @@ pub mod flat_wizard;
 // Measuring a focuser's mechanical backlash instead of asking the operator
 // for a figure the app has never been able to work out for itself.
 #[cfg(test)]
+mod app_matched_ids_tests;
+#[cfg(test)]
 mod autofocus_config_fixture_tests;
 pub mod focuser_calibration;
 mod frame_naming;
@@ -393,7 +395,7 @@ impl NodeType {
             NodeType::Notification(_) => "Notification",
             NodeType::RunScript(_) => "RunScript",
             NodeType::PolarAlignment(_) => "PolarAlignment",
-            NodeType::MeridianFlip(_) => "MeridianFlip",
+            NodeType::MeridianFlip(_) => meridian_flip_executor::MERIDIAN_FLIP_INSTRUCTION,
             NodeType::OpenDome(_) => "OpenDome",
             NodeType::CloseDome(_) => "CloseDome",
             NodeType::ParkDome(_) => "ParkDome",

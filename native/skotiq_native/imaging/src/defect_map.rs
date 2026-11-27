@@ -941,6 +941,39 @@ fn write_u16_pixel(
 mod tests {
     use super::*;
 
+    /// `test_fixtures/wire_words/defect_map_methods.json`: every correction
+    /// method's word, which the app stores in settings and sends back.
+    /// Regenerate with
+    /// `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_imaging defect_map_methods_fixture`.
+    #[test]
+    fn defect_map_methods_fixture() {
+        let methods = [
+            CorrectionMethod::Median,
+            CorrectionMethod::Mean,
+            CorrectionMethod::Gaussian,
+        ];
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            methods,
+            [
+                CorrectionMethod::Median,
+                CorrectionMethod::Mean,
+                CorrectionMethod::Gaussian,
+            ]
+        );
+        let words: Vec<&str> = methods
+            .iter()
+            .map(|method| {
+                assert_eq!(CorrectionMethod::from_wire(method.as_str()), *method);
+                method.as_str()
+            })
+            .collect();
+        skotiq_wire_fixtures::pin_json(
+            "wire_words/defect_map_methods.json",
+            &serde_json::json!(words),
+            "a defect-map method's word changed; regenerate the fixture and update the app",
+        );
+    }
+
     fn flat_dark(width: u32, height: u32, value: u16) -> ImageData {
         let pixels = vec![value; (width * height) as usize];
         ImageData::from_u16(width, height, 1, &pixels)
