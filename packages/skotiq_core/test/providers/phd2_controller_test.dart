@@ -285,6 +285,7 @@ void main() {
     final mount = container.read(mountStateProvider.notifier);
     mount.setConnecting('sim_mount_1', 'Simulated Mount');
     mount.setConnected();
+    mount.setParked(false);
 
     await container.read(phd2ControllerProvider).startGuiding();
 
@@ -295,6 +296,38 @@ void main() {
           .contains('Guiding a mount that is not tracking'),
       isTrue,
     );
+  });
+
+  // Phone check 9.4: a guider started on a parked mount was warned about as
+  // "not tracking".
+  test('starting guiding on a parked mount says it is parked', () async {
+    final events = StreamController<SkotiqEvent>.broadcast();
+    addTearDown(events.close);
+    final backend = _MockBackend();
+    when(() => backend.eventStream).thenAnswer((_) => events.stream);
+    when(
+      () => backend.guiderStartGuiding(
+        settlePixels: any(named: 'settlePixels'),
+        settleTime: any(named: 'settleTime'),
+        settleTimeout: any(named: 'settleTimeout'),
+      ),
+    ).thenAnswer((_) async {});
+    final container = _container(backend);
+    addTearDown(container.dispose);
+    _markConnected(container);
+    final mount = container.read(mountStateProvider.notifier);
+    mount.setConnecting('sim_mount_1', 'Simulated Mount');
+    mount.setConnected();
+    mount.setParked(true);
+
+    await container.read(phd2ControllerProvider).startGuiding();
+
+    final titles = container
+        .read(uiNotificationProvider)
+        .map((n) => n.title)
+        .toList();
+    expect(titles, contains('The mount is parked'));
+    expect(titles, isNot(contains('Guiding a mount that is not tracking')));
   });
 
   group('command gate', () {

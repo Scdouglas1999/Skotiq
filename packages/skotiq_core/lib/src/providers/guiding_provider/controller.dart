@@ -718,10 +718,21 @@ class Phd2Controller {
   }
 
   /// Guiding a mount that is not tracking only chases the drift; say so, and
-  /// guide anyway: the operator may be about to turn tracking on.
+  /// guide anyway: the operator may be about to turn tracking on. A parked
+  /// mount is named as parked: the rig refuses to guide on it.
   void _warnIfMountNotTracking() {
     final mount = ref.read(mountStateProvider);
     if (mount.connectionState != DeviceConnectionState.connected) return;
+    if (mount.isParked) {
+      ref
+          .read(uiNotificationProvider.notifier)
+          .showWarning(
+            'Guiding cannot start on a parked mount. Unpark it and turn '
+            'tracking on in the Mount tab.',
+            title: 'The mount is parked',
+          );
+      return;
+    }
     if (mount.isTracking || mount.isSlewing) return;
     ref
         .read(uiNotificationProvider.notifier)
