@@ -57,8 +57,8 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     // behind it: a request that arrived first would be judged against an
     // empty map, answered 403 "Invalid authentication token", and a remote
     // client takes that answer as final and asks its operator to re-pair.
-    // Hydration swallows its own errors, so a broken database still lets the
-    // server come up and print its connect URL.
+    // Hydration catches its own errors, so a broken database still lets the
+    // server come up and print its connect URL; the self-test reports it.
     final hydration = _hydratePairedSessionTokens();
     _pairedTokenHydration = hydration;
 
@@ -238,6 +238,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     // a thin client never calls. The restart then looks like the clients
     // broke. Always hydrating on start makes persisted pairings survive.
     final service = _ensurePairingService();
+    _pairedTokenHydrationFailed = false;
     try {
       final rows = await service.tokenManager.getActiveUnexpiredPairedDevices();
       var restored = 0;
@@ -267,6 +268,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
       // Never fall back silently to an empty map. A restart that quietly
       // loses every paired client looks like the phones broke; logging the
       // hydration failure tells the operator they may need to re-pair.
+      _pairedTokenHydrationFailed = true;
       _logError(
         '[AUTH] Failed to hydrate paired session tokens from disk: $e\n$st',
       );

@@ -280,6 +280,11 @@ class HeadlessApiServer {
   /// is still empty.
   Future<void>? _pairedTokenHydration;
 
+  /// Whether the last hydration could not read the pairing database, which
+  /// leaves every paired device refused until it pairs again. The self-test
+  /// reports it.
+  bool _pairedTokenHydrationFailed = false;
+
   /// The longest a request waits on [_pairedTokenHydration]. Reading the
   /// pairing database takes milliseconds; one that never answers (a stuck
   /// disk) must not hold every request, the public connect and pairing

@@ -768,6 +768,67 @@ void main() {
       stuckContainer.dispose();
     }
   });
+
+  test(
+    'the self-test reports paired devices the host could not read',
+    () async {
+      // Hydration logs a pairing database it cannot read and the server comes
+      // up anyway, refusing every paired token as invalid. The operator's
+      // health probe has to say so.
+      Future<Map<String, dynamic>> selfTest({required bool readable}) async {
+        final service = PairingService(
+          database: PairingDatabase.forTesting(
+            LazyDatabase(() async {
+              if (!readable) throw const FileSystemException('disk gone');
+              return NativeDatabase.memory();
+            }),
+          ),
+        );
+        final client = HttpClient();
+        final container = createHeadlessTestContainer(
+          overrides: [
+            hostKnownDevicesProvider.overrideWith(
+              (ref) async => const KnownDevices(),
+            ),
+            appVersionProvider.overrideWithValue(
+              const AppVersionInfo(version: '2.5.0', buildNumber: 5),
+            ),
+          ],
+        );
+        final server = HeadlessApiServer(
+          port: 0,
+          container: container,
+          bindLocalOnly: true,
+          authToken: 'admin-token',
+          pairingServiceFactory: () => service,
+        );
+        try {
+          await server.start();
+          final uri = Uri.parse('http://127.0.0.1:${server.actualPort}');
+          final response = await _request(
+            client,
+            uri,
+            '/api/self-test',
+            token: 'admin-token',
+          );
+          expect(response.statusCode, HttpStatus.ok);
+          return response.body;
+        } finally {
+          client.close(force: true);
+          await server.stop();
+          container.dispose();
+          await service.close().catchError((Object _) {});
+        }
+      }
+
+      final unread = await selfTest(readable: false);
+      expect(unread['status'], 'degraded');
+      expect((unread['pairedSessions'] as Map)['status'], 'error');
+
+      final read = await selfTest(readable: true);
+      expect((read['pairedSessions'] as Map)['status'], 'ok');
+    },
+  );
 }
 
 Future<_TestResponse> _request(

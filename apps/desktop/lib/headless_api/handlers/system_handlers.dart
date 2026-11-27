@@ -51,6 +51,8 @@ export 'system_pair_page_handler.dart';
 /// values (the event-seq cursor in particular advances on every
 /// broadcast, so a snapshot taken at construction time would be useless
 /// ten seconds later).
+bool _pairedSessionsRead() => false;
+
 class SystemServerView {
   /// Hex-encoded server fingerprint. TLS pins to the SubjectPublicKeyInfo
   /// digest when TLS is active; plain-HTTP falls back to
@@ -101,6 +103,10 @@ class SystemServerView {
   /// null. Same purpose as [tailscaleHost] for the relay path.
   final String? Function() relayApplianceId;
 
+  /// Whether the paired devices could not be read from the pairing database
+  /// at start, so every paired token is refused until its device pairs again.
+  final bool Function() pairedSessionsUnread;
+
   /// GUI app or headless daemon; see [SkotiqHostMode].
   final SkotiqHostMode hostMode;
 
@@ -122,6 +128,7 @@ class SystemServerView {
     required this.relayApplianceId,
     this.hostMode = SkotiqHostMode.headless,
     this.hostName = 'Skotiq',
+    this.pairedSessionsUnread = _pairedSessionsRead,
   });
 }
 
@@ -307,12 +314,14 @@ class SystemHandlers implements RouteSource {
       final storageChecks = await _runStorageSelfTests();
       final databaseCheck = _runDatabaseSelfTest();
       final connectedDeviceProbe = await _probeConnectedDevices(backend);
+      final pairedSessionsCheck = _pairedSessionsSelfTest();
       final endpointCount = advertisedApiEndpoints.length;
 
       final checks = [
         ...storageChecks.map((check) => check['status']),
         databaseCheck['status'],
         connectedDeviceProbe['status'],
+        pairedSessionsCheck['status'],
       ];
       final hasFailures = checks.contains('error');
 
@@ -339,6 +348,7 @@ class SystemHandlers implements RouteSource {
         'deviceDrivers': platformCapabilities.toJson(),
         'storagePaths': storageChecks,
         'database': databaseCheck,
+        'pairedSessions': pairedSessionsCheck,
         'api': {
           'endpointCount': endpointCount,
           'selfTestEndpoint': 'GET /api/self-test',
@@ -385,6 +395,20 @@ class SystemHandlers implements RouteSource {
   }
 
   (int, String)? _openApiDocument;
+
+  Map<String, dynamic> _pairedSessionsSelfTest() => view.pairedSessionsUnread()
+      ? {
+          'name': 'pairedSessions',
+          'status': 'error',
+          'message':
+              'Paired devices could not be read from the pairing database; '
+              'each is refused until it pairs again.',
+        }
+      : {
+          'name': 'pairedSessions',
+          'status': 'ok',
+          'message': 'Paired devices were read at start.',
+        };
 
   Map<String, dynamic> _runDatabaseSelfTest() {
     try {
