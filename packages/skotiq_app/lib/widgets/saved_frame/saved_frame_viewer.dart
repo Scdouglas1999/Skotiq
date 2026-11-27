@@ -62,7 +62,6 @@ class SavedFrameViewer extends ConsumerStatefulWidget {
       pushFrameViewer(
         context,
         transitionDuration: SkotiqTokens.durationFast,
-        dropFocus: false,
         builder: (_) =>
             SavedFrameViewer(frames: frames, initialIndex: initialIndex),
       );

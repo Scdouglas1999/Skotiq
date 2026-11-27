@@ -4,17 +4,16 @@ import 'package:flutter/services.dart';
 /// Opens a full-window frame viewer over the whole app (the root navigator),
 /// faded in, as an opaque page.
 ///
-/// [dropFocus] clears the page's focus first: coming back restores the focus
-/// the page had, and a field still focused from an earlier edit would then
-/// reopen a phone's keyboard over the screen the operator returned to.
+/// The page's focus is cleared first: coming back restores the focus the page
+/// had, and a field still focused from an earlier edit would then reopen a
+/// phone's keyboard over the screen the operator returned to.
 Future<void> pushFrameViewer(
   BuildContext context, {
   required WidgetBuilder builder,
   required Duration transitionDuration,
   Color? barrierColor,
-  bool dropFocus = true,
 }) {
-  if (dropFocus) FocusManager.instance.primaryFocus?.unfocus();
+  FocusManager.instance.primaryFocus?.unfocus();
   return Navigator.of(context, rootNavigator: true).push<void>(
     PageRouteBuilder<void>(
       opaque: true,
