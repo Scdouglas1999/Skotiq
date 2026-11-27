@@ -62,7 +62,7 @@ class SkotiqApp extends ConsumerWidget {
 
             // Desktop and Android both install Skotiq from its GitHub
             // releases (the APK is sideloaded, not from a store), so both
-            // update in place. iOS cannot sideload an update.
+            // can update in place. iOS cannot sideload an update.
             if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
               result = UpdateManagerWidget(
                 // This builder sits above the router's Navigator; the
