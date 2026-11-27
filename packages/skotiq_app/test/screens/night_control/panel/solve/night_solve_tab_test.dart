@@ -14,6 +14,7 @@ import 'package:skotiq_app/screens/night_control/panel/solve/solve_sections.dart
 import 'package:skotiq_app/screens/night_control/panel/solve/night_solve_tab.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../scope_panel_test_support.dart';
@@ -115,6 +116,25 @@ void main() {
     await tester.tap(find.byKey(_center));
     await tester.pump();
     expect(api.calls, ['solve', 'solveAndSync', 'center']);
+  });
+
+  testWidgets('the settings section names the solver the preference selects',
+      (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightSolveTab(),
+      overrides: [
+        ...panelOverrides(),
+        plateSolverPreferenceProvider.overrideWith(
+          (ref) async => const PlateSolverPreference(
+            choice: PlateSolverChoice.astrometry,
+          ),
+        ),
+      ],
+    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+    await tester.pump();
+    expect(find.text('Astrometry.net'), findsOneWidget);
   });
 
   testWidgets('the centering note quotes the centering the button runs',

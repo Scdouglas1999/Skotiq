@@ -44,10 +44,30 @@ void main() {
     ], isEmpty);
   });
 
+  test('a setting held natively travels as the store holding it says', () {
+    for (final setting in hostSettings.where((s) => s.heldNatively)) {
+      final value = setting.toJson(_changed(setting));
+      final sent = AppSettingsCodec.toWire(
+        const AppSettingsState(),
+        heldNatively: {setting.wire: value},
+      ).toJson();
+      expect(sent[setting.wire], value, reason: setting.wire);
+      final previous = models.AppSettings.fromJson({setting.wire: value});
+      expect(
+        AppSettingsCodec.toWire(
+          const AppSettingsState(),
+          previous: previous,
+        ).toJson()[setting.wire],
+        value,
+        reason: '${setting.wire} kept from the host snapshot',
+      );
+    }
+  });
+
   test('every host setting survives a full snapshot from host to client', () {
     final lost = <String>[];
     final noOtherValue = <String>[];
-    for (final setting in hostSettings) {
+    for (final setting in hostSettings.where((s) => !s.heldNatively)) {
       final value = _changed(setting);
       final host = const AppSettingsState().withValue(setting, value);
       if (setting.valuesEqual(host.valueOf(setting), setting.fallback)) {

@@ -62,6 +62,13 @@ const Set<String> _addedSinceBase = {
   'demo_rig',
 };
 
+/// Settings the native plate-solver preference has held since the base build
+/// ([Setting.heldNatively]): their rows, written by the base build, stay in
+/// the database unread (a replace-restore still writes a backup's rows into
+/// the preference), and the settings document takes them from the
+/// preference. Every comparison of state-derived rows is made without them.
+final Set<String> _heldNatively = AppSettingsCodec.heldNativelyKeys;
+
 /// Wire fields of settings declared after the base build; the base wire form
 /// is compared without them.
 const Set<String> _wireAddedSinceBase = {
@@ -180,10 +187,13 @@ Map<String, dynamic> _withoutNewDefaults(Map<String, dynamic> changes) => {
       entry.key: entry.value,
 };
 
-/// [rows] without the settings the base build did not have.
+/// [rows] without the settings the base build did not have, and without
+/// those [_heldNatively].
 Map<String, String> _baseOnly(Map<String, String> rows) => {
   for (final entry in rows.entries)
-    if (!_addedSinceBase.contains(entry.key)) entry.key: entry.value,
+    if (!_addedSinceBase.contains(entry.key) &&
+        !_heldNatively.contains(entry.key))
+      entry.key: entry.value,
 };
 
 void main() {
@@ -197,8 +207,13 @@ void main() {
         )
         as Map<String, dynamic>,
   );
-  final baseDefaults = Map<String, String>.from(fixture['defaults'] as Map);
-  final baseRows = Map<String, String>.from(fixture['nonDefaultStored'] as Map);
+  final baseDefaults = _baseOnly(
+    Map<String, String>.from(fixture['defaults'] as Map),
+  );
+  final baseStoreRows = Map<String, String>.from(
+    fixture['nonDefaultStored'] as Map,
+  );
+  final baseRows = _baseOnly(baseStoreRows);
 
   test(
     'a settings store written by the base build loads with every value',
@@ -222,6 +237,14 @@ void main() {
           .storedRowsOf(loaded);
       final rows = _baseOnly(allRows);
       expect(rows, baseRows);
+      for (final key in _heldNatively) {
+        expect(allRows, isNot(contains(key)));
+        expect(
+          await database.settingsDao.getSetting(key),
+          baseStoreRows[key],
+          reason: '$key stays in the database as the base build wrote it',
+        );
+      }
       for (final key in _addedSinceBase) {
         final setting = AppSettingsCodec.settingForKey(key)!;
         expect(
@@ -237,6 +260,7 @@ void main() {
       final atDefault = [
         for (final setting in kAppSettingsTable)
           if (!_addedSinceBase.contains(setting.key) &&
+              !_heldNatively.contains(setting.key) &&
               !_changedDefaultKeys.contains(setting.key) &&
               rows[setting.key] == baseDefaults[setting.key])
             setting.key,
@@ -308,6 +332,14 @@ void main() {
 
   test('every stored row reads as the base build read it', () {
     (fixture['fullLoad'] as Map<String, dynamic>).forEach((key, perRaw) {
+      if (_heldNatively.contains(key)) {
+        expect(
+          AppSettingsCodec.toRows(AppSettingsCodec.fromRows({key: 'x'})),
+          isNot(contains(key)),
+          reason: '$key is never read',
+        );
+        return;
+      }
       (perRaw as Map<String, dynamic>).forEach((raw, expected) {
         // The base build could only save frames as FITS and read every
         // stored archive format as FITS; XISF is now a format frames are
@@ -347,6 +379,14 @@ void main() {
         reason: 'whether a linked client may write $key',
       );
       if (refusedByBase) return;
+      if (_heldNatively.contains(key)) {
+        expect(
+          AppSettingsCodec.toRows(AppSettingsCodec.applyRows(b, {key: 'x'})),
+          AppSettingsCodec.toRows(b),
+          reason: '$key is never applied',
+        );
+        return;
+      }
       perRaw.forEach((raw, expected) {
         final got = _changed(
           baseRows,
@@ -368,9 +408,23 @@ void main() {
       plain(AppSettingsCodec.toWire(const AppSettingsState())),
       fixture['wireDefault'],
     );
+    final heldWire = {
+      for (final setting in kAppSettingsTable)
+        if (setting.heldNatively) setting.wire,
+    };
+    final wireNonDefault = Map<String, dynamic>.from(
+      fixture['wireNonDefault'] as Map,
+    );
     expect(
-      plain(AppSettingsCodec.toWire(AppSettingsCodec.fromRows(baseRows))),
-      fixture['wireNonDefault'],
+      plain(
+        AppSettingsCodec.toWire(
+          AppSettingsCodec.fromRows(baseRows),
+          heldNatively: {
+            for (final wire in heldWire) wire: wireNonDefault[wire],
+          },
+        ),
+      ),
+      wireNonDefault,
     );
     expect(
       _baseOnly(
@@ -382,7 +436,7 @@ void main() {
           ),
         ),
       ),
-      fixture['fromWireNonDefault'],
+      _baseOnly(Map<String, String>.from(fixture['fromWireNonDefault'] as Map)),
     );
     expect(
       _baseOnly(
@@ -390,7 +444,7 @@ void main() {
           AppSettingsCodec.fromWire(const models.AppSettings()),
         ),
       ),
-      fixture['fromWireEmpty'],
+      _baseOnly(Map<String, String>.from(fixture['fromWireEmpty'] as Map)),
     );
   });
 
@@ -402,6 +456,14 @@ void main() {
     };
     (fixture['events'] as Map<String, dynamic>).forEach((key, perValue) {
       final setting = wireKeys[key];
+      if (setting != null && setting.heldNatively) {
+        expect(
+          AppSettingsCodec.applyWireChange(b, key, 'x'),
+          isNull,
+          reason: '$key goes to the preference, not the settings',
+        );
+        return;
+      }
       (perValue as Map<String, dynamic>).forEach((label, expected) {
         final next = AppSettingsCodec.applyWireChange(
           b,

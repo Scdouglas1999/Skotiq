@@ -64,6 +64,7 @@ sealed class Setting<T> {
     this.seed,
     this.seeded = false,
     this.adminOnly,
+    this.heldNatively = false,
   });
 
   /// Name of the field on `AppSettingsState`.
@@ -101,6 +102,12 @@ sealed class Setting<T> {
   /// Set when a linked client changes it only with admin access to the host,
   /// and why. The host refuses the change from any lesser link.
   final AdminOnly? adminOnly;
+
+  /// Its value lives in a native store outside the database (the
+  /// plate-solver preference), the only one the program reading it consults.
+  /// It has no field on `AppSettingsState` and its row is never read or
+  /// written; the settings document carries it, built from that store.
+  final bool heldNatively;
 
   bool get hasInstallRow => seeded || seed != null;
 
@@ -471,6 +478,7 @@ final class TextSetting extends Setting<String> {
     super.seed,
     super.seeded,
     super.adminOnly,
+    super.heldNatively,
   });
 
   /// When set, any other stored or received text reads as [fallback].

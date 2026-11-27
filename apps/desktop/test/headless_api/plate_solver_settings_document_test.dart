@@ -209,13 +209,6 @@ void main() {
     },
   );
 
-  test("the host's own settings name the solver a link chose", () async {
-    await changePreference();
-
-    final host = await container.read(appSettingsProvider.future);
-    expect(host.plateSolver, 'Astrometry.net');
-  });
-
   test('a backup carries the preference the solver reads', () async {
     await changePreference();
     final scratch = await Directory.systemTemp.createTemp('skotiq_solver_');

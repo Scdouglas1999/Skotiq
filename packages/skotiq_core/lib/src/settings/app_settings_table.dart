@@ -301,15 +301,21 @@ const List<Setting<Object?>> kAppSettingsTable = [
     sync: SettingSync.thisComputer,
   ),
 
-  /// The label of the native plate-solver preference, kept as a stored copy
-  /// for export. The preference itself is the authority.
-  TextSetting('plateSolver', 'plate_solver', 'ASTAP', seed: 'Auto'),
+  /// The label of the native plate-solver preference's choice.
+  TextSetting(
+    'plateSolver',
+    'plate_solver',
+    'ASTAP',
+    seed: 'Auto',
+    heldNatively: true,
+  ),
   TextSetting(
     'astapPath',
     'astap_path',
     '',
     seeded: true,
     adminOnly: AdminOnly.hostProgram,
+    heldNatively: true,
   ),
   TextSetting(
     'astrometryPath',
@@ -317,6 +323,7 @@ const List<Setting<Object?>> kAppSettingsTable = [
     '',
     seeded: true,
     adminOnly: AdminOnly.hostProgram,
+    heldNatively: true,
   ),
   IntSetting('plateSolveTimeout', 'plate_solve_timeout', 60, seeded: true),
   DoubleSetting(

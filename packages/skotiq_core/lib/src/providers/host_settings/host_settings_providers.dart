@@ -120,9 +120,9 @@ class _NotifierAppSettingsRows implements AppSettingsRows {
   final ProviderContainer _container;
 
   static final Set<String> _keys = Set.unmodifiable(
-    AppSettingsNotifier.storedKeys.difference(
-      AppSettingsNotifier.hostStoreKeys,
-    ),
+    AppSettingsNotifier.storedKeys
+        .difference(AppSettingsNotifier.hostStoreKeys)
+        .difference(AppSettingsNotifier.heldNativelyKeys),
   );
 
   @override

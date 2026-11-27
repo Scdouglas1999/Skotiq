@@ -13,11 +13,10 @@
 //     config, not in app settings.
 //   * WHICH solver runs, or the solver program paths. Those are
 //     `PlateSolverPreference` in the native store (`platesolver.json`), the
-//     only thing the solve dispatcher reads. The `plate_solver`, `astap_path`
-//     and `astrometry_path` app-settings are copies of it. The settings
-//     document, backups and the host's settings store read the preference
-//     itself ([plateSolverPreferenceRows]); the stored rows are what a
-//     restored backup brings back.
+//     only thing the solve dispatcher reads. The `plateSolver`, `astapPath`
+//     and `astrometryPath` settings are held there ([Setting.heldNatively]):
+//     the settings document, backups and the host's settings store build
+//     them from it, and a replace-restore writes a backup's rows into it.
 part of '../settings_provider.dart';
 
 /// The plate-solver preference [service] holds, as the settings document,
@@ -39,7 +38,7 @@ Future<PlateSolverPreference> reportedPlateSolverPreference(
   }
 }
 
-/// The app-setting rows that copy [preference].
+/// The settings rows that stand for [preference].
 Map<String, String> plateSolverPreferenceRows(
   PlateSolverPreference preference,
 ) => {
@@ -48,39 +47,18 @@ Map<String, String> plateSolverPreferenceRows(
   ...AppSettingDefs.astrometryPath.toRows(preference.astrometryPath),
 };
 
+/// The settings document's plate-solver fields for [preference], by wire
+/// name.
+Map<String, Object?> plateSolverWireValues(PlateSolverPreference preference) =>
+    {
+      AppSettingDefs.plateSolver.wire: preference.choice.settingLabel,
+      AppSettingDefs.astapPath.wire: preference.astapPath,
+      AppSettingDefs.astrometryPath.wire: preference.astrometryPath,
+    };
+
 extension PlateSolveSettingsSection on AppSettingsNotifier {
-  /// Select the solver engine.
-  ///
-  /// Update the dispatcher preference first, then its exported settings
-  /// projection, so an acknowledged value always selects the running engine.
-  Future<void> setPlateSolver(String value) async {
-    final choice = PlateSolverChoice.fromSettingLabel(value);
-    if (choice == null) {
-      throw ArgumentError.value(
-        value,
-        'plateSolver',
-        'Unknown solver. Expected one of Auto, ASTAP, Astrometry.net',
-      );
-    }
-    final service = ref.read(plateSolveServiceProvider);
-    final current = await service.getConfig();
-    await service.setConfig(current.copyWith(choice: choice));
-    await _syncPlateSolverProjection(choice);
-  }
-
-  /// Update the `plate_solver` projection after the preference itself changed
-  /// (the Plate Solving page writes the preference directly). Deliberately
-  /// does NOT call back into the preference — that would recurse.
-  Future<void> syncPlateSolverFromPreference(PlateSolverChoice choice) =>
-      _syncPlateSolverProjection(choice);
-
-  Future<void> _syncPlateSolverProjection(PlateSolverChoice choice) async {
-    final label = choice.settingLabel;
-    await _set(AppSettingDefs.plateSolver, label);
-  }
-
   /// Write solver program paths to the plate-solver preference, the store
-  /// the solver reads; the settings rows are copies of it.
+  /// the solver reads.
   Future<void> _writeSolverPaths({
     String? astapPath,
     String? astrometryPath,

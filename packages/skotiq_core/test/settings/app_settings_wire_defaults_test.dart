@@ -22,10 +22,17 @@ void main() {
 
   test('a snapshot without a field reads as the table default', () {
     final state = AppSettingsCodec.fromWire(const models.AppSettings());
+    final blank = const models.AppSettings().toJson();
     final drift = <String>{};
     for (final setting in kAppSettingsTable) {
       if (setting.sync != SettingSync.host) continue;
-      final read = jsonEncode(setting.toJson(state.valueOf(setting)));
+      // A setting held natively has no state; the document's own default is
+      // what an absent field reads as.
+      final read = jsonEncode(
+        setting.heldNatively
+            ? blank[setting.wire]
+            : setting.toJson(state.valueOf(setting)),
+      );
       if (read != jsonEncode(setting.toJson(setting.fallback))) {
         drift.add(setting.wire);
       }
