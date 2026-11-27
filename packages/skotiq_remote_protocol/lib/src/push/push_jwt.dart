@@ -1,4 +1,4 @@
-// JWT signing for cloud-push authentication (Phase D).
+// JWT signing for cloud-push authentication.
 //
 // Two algorithms are needed by the cellular-push deliveries:
 //   - RS256 (RSA-SHA256, PKCS#1 v1.5) — to mint the OAuth2 assertion that

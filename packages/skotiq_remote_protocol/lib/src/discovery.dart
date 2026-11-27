@@ -219,13 +219,8 @@ typedef DiscoveryDatagramHandler =
 
 /// One process-wide socket on UDP 45679 shared by every responder.
 ///
-/// The desktop host used to bind the port twice: once for the discovery
-/// beacon ([SkotiqDiscovery.startBroadcasting]) and once for the LAN update
-/// responder ([UpdatePushDiscovery.startResponding]), both with
-/// `reuseAddress`. On Windows a unicast datagram to a doubly bound UDP port is
-/// delivered to only one of the sockets, and it was the update responder's,
-/// which ignores discovery probes. A Windows imaging computer therefore never
-/// answered `SKOTIQ_DISCOVERY_V2:` at all. One socket that hands each message
+/// On Windows a unicast datagram to a doubly bound UDP port is
+/// delivered to only one of the sockets. One socket that hands each message
 /// to the responder whose prefix it carries cannot lose a datagram that way.
 class DiscoveryPortMux {
   DiscoveryPortMux._();

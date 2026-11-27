@@ -36,7 +36,7 @@ class PairingDatabase extends _$PairingDatabase {
         if (from < 2) {
           await m.addColumn(pairedDevices, pairedDevices.expiresAt);
         }
-        // v2 -> v3 (Phase D): add the cellular-push token + per-device prefs
+        // v2 -> v3: add the cellular-push token + per-device prefs
         // tables. Additive only — existing paired-device rows are untouched;
         // a phone registers its FCM/APNs token after the upgrade and the
         // delivery treats a missing prefs row as "all categories enabled".

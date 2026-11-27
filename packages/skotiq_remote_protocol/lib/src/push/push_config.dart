@@ -1,4 +1,4 @@
-// Cloud-push configuration loader (Phase D).
+// Cloud-push configuration loader.
 //
 // The FCM service-account JSON and the APNs `.p8` auth key are operator
 // secrets that never live in the repo. They are referenced *by path* from

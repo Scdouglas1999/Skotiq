@@ -2,7 +2,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
-/// Phase D — `device_push_tokens` + `device_push_prefs` schema-v3 tables.
+/// `device_push_tokens` + `device_push_prefs` schema-v3 tables.
 ///
 /// Exercises the accessors the `/api/push/*` endpoints sit on:
 ///  - register-token upserts (insert then overwrite-in-place on refresh),

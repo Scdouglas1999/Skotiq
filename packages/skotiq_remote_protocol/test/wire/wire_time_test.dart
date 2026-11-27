@@ -1,7 +1,5 @@
 // Times cross the wire as UTC with a `Z`, and are read as the reader's local
-// time. A host used to send its local wall-clock time with no offset, which a
-// client in another time zone read as its own local time: a run the host
-// started at 20:09 in New York showed as 20:09 in Tokyo, 14 hours off.
+// time.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 

@@ -2,7 +2,7 @@
 // the /api/info merge, the UDP beacon, the mDNS TXT record and the probe.
 // The rows include keys of the wrong type, which no Skotiq release writes
 // but a foreign service on the LAN can: each reader takes such a key as
-// missing, where the merge used to throw and the beacon was dropped.
+// missing.
 
 import 'dart:convert';
 import 'dart:io';

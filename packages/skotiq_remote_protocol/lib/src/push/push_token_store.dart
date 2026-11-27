@@ -1,4 +1,4 @@
-// Recipient store + preference gate for cellular push delivery (Phase D).
+// Recipient store + preference gate for cellular push delivery.
 //
 // `RemotePushDelivery.deliver(frame)` receives the *content* of a critical
 // alert but no *recipient* — the LAN-broadcast frame is identical for every
