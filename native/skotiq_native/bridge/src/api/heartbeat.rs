@@ -15,5 +15,23 @@ pub async fn api_get_device_health(device_id: String) -> Result<(i64, bool), Sko
     get_device_manager()
         .get_device_health(&device_id)
         .await
-        .map_err(|e| SkotiqError::OperationFailed(e))
+        .map_err(SkotiqError::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A device the host has not registered yet (a client polling right after
+    /// a host restart) is a lookup miss the HTTP layer answers 404, not a
+    /// failed operation it answers 500.
+    #[tokio::test]
+    async fn an_unregistered_device_is_not_found() {
+        let id = "health_probe_never_registered";
+        let err = api_get_device_health(id.to_string()).await.unwrap_err();
+        assert!(
+            matches!(&err, SkotiqError::DeviceNotFound(found) if found == id),
+            "{err:?}"
+        );
+    }
 }

@@ -7896,6 +7896,15 @@ impl SseDecode for std::collections::HashMap<String, std::collections::HashMap<S
     }
 }
 
+impl SseDecode for std::collections::HashMap<String, std::collections::HashMap<String, u32>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner =
+            <Vec<(String, std::collections::HashMap<String, u32>)>>::sse_decode(deserializer);
+        return inner.into_iter().collect();
+    }
+}
+
 impl SseDecode for std::collections::HashMap<String, f64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9057,6 +9066,10 @@ impl SseDecode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
         let mut var_ended = <Option<String>>::sse_decode(deserializer);
         let mut var_framesDoneByStep =
             <std::collections::HashMap<String, u32>>::sse_decode(deserializer);
+        let mut var_filterFramesDoneByStep = <std::collections::HashMap<
+            String,
+            std::collections::HashMap<String, u32>,
+        >>::sse_decode(deserializer);
         return crate::api::sequencer::lifecycle::CheckpointInfoApi {
             sequence_name: var_sequenceName,
             timestamp: var_timestamp,
@@ -9066,6 +9079,7 @@ impl SseDecode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
             age_seconds: var_ageSeconds,
             ended: var_ended,
             frames_done_by_step: var_framesDoneByStep,
+            filter_frames_done_by_step: var_filterFramesDoneByStep,
         };
     }
 }
@@ -11101,6 +11115,18 @@ impl SseDecode for Vec<(String, std::collections::HashMap<String, f64>)> {
     }
 }
 
+impl SseDecode for Vec<(String, std::collections::HashMap<String, u32>)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<(String, std::collections::HashMap<String, u32>)>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<(String, u32)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12200,6 +12226,15 @@ impl SseDecode for (String, std::collections::HashMap<String, f64>) {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_field0 = <String>::sse_decode(deserializer);
         let mut var_field1 = <std::collections::HashMap<String, f64>>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
+impl SseDecode for (String, std::collections::HashMap<String, u32>) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <String>::sse_decode(deserializer);
+        let mut var_field1 = <std::collections::HashMap<String, u32>>::sse_decode(deserializer);
         return (var_field0, var_field1);
     }
 }
@@ -15013,6 +15048,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::sequencer::lifecycle::Checkpo
             self.age_seconds.into_into_dart().into_dart(),
             self.ended.into_into_dart().into_dart(),
             self.frames_done_by_step.into_into_dart().into_dart(),
+            self.filter_frames_done_by_step.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -19022,6 +19058,16 @@ impl SseEncode for std::collections::HashMap<String, std::collections::HashMap<S
     }
 }
 
+impl SseEncode for std::collections::HashMap<String, std::collections::HashMap<String, u32>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<(String, std::collections::HashMap<String, u32>)>>::sse_encode(
+            self.into_iter().collect(),
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for std::collections::HashMap<String, f64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -19754,6 +19800,10 @@ impl SseEncode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
         <i64>::sse_encode(self.age_seconds, serializer);
         <Option<String>>::sse_encode(self.ended, serializer);
         <std::collections::HashMap<String, u32>>::sse_encode(self.frames_done_by_step, serializer);
+        <std::collections::HashMap<String, std::collections::HashMap<String, u32>>>::sse_encode(
+            self.filter_frames_done_by_step,
+            serializer,
+        );
     }
 }
 
@@ -21379,6 +21429,16 @@ impl SseEncode for Vec<(String, std::collections::HashMap<String, f64>)> {
     }
 }
 
+impl SseEncode for Vec<(String, std::collections::HashMap<String, u32>)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(String, std::collections::HashMap<String, u32>)>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<(String, u32)> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22173,6 +22233,14 @@ impl SseEncode for (String, std::collections::HashMap<String, f64>) {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.0, serializer);
         <std::collections::HashMap<String, f64>>::sse_encode(self.1, serializer);
+    }
+}
+
+impl SseEncode for (String, std::collections::HashMap<String, u32>) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.0, serializer);
+        <std::collections::HashMap<String, u32>>::sse_encode(self.1, serializer);
     }
 }
 
@@ -23590,6 +23658,17 @@ mod io {
             vec.into_iter().collect()
         }
     }
+    impl CstDecode<std::collections::HashMap<String, std::collections::HashMap<String, u32>>>
+        for *mut wire_cst_list_record_string_map_string_u_32_none
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(
+            self,
+        ) -> std::collections::HashMap<String, std::collections::HashMap<String, u32>> {
+            let vec: Vec<(String, std::collections::HashMap<String, u32>)> = self.cst_decode();
+            vec.into_iter().collect()
+        }
+    }
     impl CstDecode<std::collections::HashMap<String, f64>> for *mut wire_cst_list_record_string_f_64 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> std::collections::HashMap<String, f64> {
@@ -24850,6 +24929,7 @@ mod io {
                 age_seconds: self.age_seconds.cst_decode(),
                 ended: self.ended.cst_decode(),
                 frames_done_by_step: self.frames_done_by_step.cst_decode(),
+                filter_frames_done_by_step: self.filter_frames_done_by_step.cst_decode(),
             }
         }
     }
@@ -26242,6 +26322,18 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<(String, std::collections::HashMap<String, u32>)>>
+        for *mut wire_cst_list_record_string_map_string_u_32_none
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<(String, std::collections::HashMap<String, u32>)> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<(String, u32)>> for *mut wire_cst_list_record_string_u_32 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<(String, u32)> {
@@ -26722,6 +26814,14 @@ mod io {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> (String, std::collections::HashMap<String, f64>) {
+            (self.field0.cst_decode(), self.field1.cst_decode())
+        }
+    }
+    impl CstDecode<(String, std::collections::HashMap<String, u32>)>
+        for wire_cst_record_string_map_string_u_32_none
+    {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> (String, std::collections::HashMap<String, u32>) {
             (self.field0.cst_decode(), self.field1.cst_decode())
         }
     }
@@ -28544,6 +28644,7 @@ mod io {
                 age_seconds: Default::default(),
                 ended: core::ptr::null_mut(),
                 frames_done_by_step: core::ptr::null_mut(),
+                filter_frames_done_by_step: core::ptr::null_mut(),
             }
         }
     }
@@ -29687,6 +29788,19 @@ mod io {
         }
     }
     impl Default for wire_cst_record_string_map_string_f_64_none {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_record_string_map_string_u_32_none {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                field0: core::ptr::null_mut(),
+                field1: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_record_string_map_string_u_32_none {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -33894,6 +34008,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_record_string_map_string_u_32_none(
+        len: i32,
+    ) -> *mut wire_cst_list_record_string_map_string_u_32_none {
+        let wrap = wire_cst_list_record_string_map_string_u_32_none {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_record_string_map_string_u_32_none>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_record_string_u_32(
         len: i32,
     ) -> *mut wire_cst_list_record_string_u_32 {
@@ -34537,6 +34665,7 @@ mod io {
         age_seconds: i64,
         ended: *mut wire_cst_list_prim_u_8_strict,
         frames_done_by_step: *mut wire_cst_list_record_string_u_32,
+        filter_frames_done_by_step: *mut wire_cst_list_record_string_map_string_u_32_none,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -35721,6 +35850,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_record_string_map_string_u_32_none {
+        ptr: *mut wire_cst_record_string_map_string_u_32_none,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_record_string_u_32 {
         ptr: *mut wire_cst_record_string_u_32,
         len: i32,
@@ -36082,6 +36217,12 @@ mod io {
     pub struct wire_cst_record_string_map_string_f_64_none {
         field0: *mut wire_cst_list_prim_u_8_strict,
         field1: *mut wire_cst_list_record_string_f_64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_record_string_map_string_u_32_none {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+        field1: *mut wire_cst_list_record_string_u_32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

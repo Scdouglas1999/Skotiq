@@ -159,6 +159,105 @@ void main() {
     }
   });
 
+  testWidgets('a nearly flat series gets labels that tell its ticks apart',
+      (tester) async {
+    // Two frames at 6.0912 and 6.0953 px: two-decimal labels on round steps
+    // inside a 0.004 px range all printed "6.09".
+    final t0 = DateTime(2026, 11, 26, 10, 24);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 320,
+            height: 110,
+            child: NightChartAxes(
+              leftUnit: ' px',
+              rightGrouped: true,
+              lines: <SeriesChartLine>[
+                SeriesChartLine(
+                  points: <(DateTime, double?)>[
+                    (t0, 6.0953),
+                    (t0.add(const Duration(minutes: 10)), 6.0912),
+                  ],
+                  tone: SeriesChartTone.primary,
+                ),
+                SeriesChartLine(
+                  points: <(DateTime, double?)>[
+                    (t0, 73),
+                    (t0.add(const Duration(minutes: 10)), 72),
+                  ],
+                  tone: SeriesChartTone.secondary,
+                  axis: SeriesChartAxis.right,
+                ),
+              ],
+              semanticLabel: 'HFR',
+            ),
+          ),
+        ),
+      ),
+    );
+    final texts = <String>[
+      for (final e in find.byType(Text).evaluate()) (e.widget as Text).data!,
+    ];
+    final left = <String>[
+      for (final t in texts)
+        if (RegExp(r'^\d+\.\d+( px)?$').hasMatch(t)) t.replaceAll(' px', ''),
+    ];
+    final right = <String>[
+      for (final t in texts)
+        if (RegExp(r'^\d+$').hasMatch(t)) t,
+    ];
+    expect(left.length, greaterThanOrEqualTo(2), reason: '$texts');
+    expect(left.toSet(), hasLength(left.length), reason: 'left: $left');
+    expect(right.length, greaterThanOrEqualTo(2), reason: '$texts');
+    expect(right.toSet(), hasLength(right.length), reason: 'right: $right');
+  });
+
+  testWidgets('a nearly flat strip gets labels that tell its ticks apart',
+      (tester) async {
+    // A cooler holding -10.00 / -9.99 C.
+    final t0 = DateTime(2026, 11, 26, 10, 24);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 320,
+            height: 160,
+            child: NightChartStrips(
+              semanticLabel: 'cooler',
+              strips: <NightChartStrip>[
+                NightChartStrip(
+                  unit: '°C',
+                  lines: <SeriesChartLine>[
+                    SeriesChartLine(
+                      points: <(DateTime, double?)>[
+                        (t0, -10.0),
+                        (t0.add(const Duration(minutes: 10)), -9.99),
+                      ],
+                      tone: SeriesChartTone.primary,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final labels = <String>[
+      for (final e in find.byType(Text).evaluate())
+        if (RegExp(r'^[-\u2212]?\d+(\.\d+)?$')
+            .hasMatch((e.widget as Text).data!))
+          (e.widget as Text).data!,
+    ];
+    expect(labels.length, greaterThanOrEqualTo(2), reason: '$labels');
+    expect(labels.toSet(), hasLength(labels.length), reason: '$labels');
+  });
+
   for (final (bodyHeight, row) in const <(double, String)>[
     (758, '120 px row'),
     (700, '96 px row'),

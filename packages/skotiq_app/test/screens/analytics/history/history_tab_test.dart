@@ -232,7 +232,8 @@ void main() {
     expect(_readout(tester, 'Exposures').value, '3');
     expect(_readout(tester, 'Accepted integration').value, '1h');
     expect(_readout(tester, 'Meridian flips').value, '2');
-    expect(_readout(tester, 'Autofocus runs').value, '5');
+    // Only runs that focused are counted; a failed sweep is not one.
+    expect(_readout(tester, 'Autofocus succeeded').value, '5');
     expect(_readout(tester, 'Avg HFR').value, '2.00');
     final rms = _readout(tester, 'Avg guiding RMS');
     expect(rms.value, '0.80');

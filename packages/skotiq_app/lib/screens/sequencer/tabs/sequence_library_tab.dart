@@ -180,36 +180,49 @@ class SequenceLibraryTab extends ConsumerWidget {
               );
             }
             final filtered = filteredAsync.valueOrNull ?? const [];
+            // Too short to hold the toolbar and a row with the list scrolling
+            // under it (a phone on its side, under the run controls): the
+            // whole page scrolls instead.
+            final short = constraints.maxHeight < _shortHeight;
+            final list = filtered.isEmpty
+                ? Center(
+                    child: EmptyState(
+                      icon: LucideIcons.searchX,
+                      title: 'No sequences match',
+                      body: 'Try a different search, or clear the filters.',
+                      action: SkotiqButton(
+                        label: 'Clear filters',
+                        variant: ButtonVariant.secondary,
+                        size: ButtonSize.small,
+                        onPressed: () => _clearFilters(ref),
+                      ),
+                    ),
+                  )
+                : _SequenceList(
+                    summaries: filtered,
+                    total: library.length,
+                    compact: compact,
+                    scrolls: !short,
+                  );
+            final children = [
+              _LibraryToolbar(compact: compact),
+              const SizedBox(height: SkotiqTokens.spaceLg),
+              if (short) list else Expanded(child: list),
+            ];
+            if (short) {
+              return SingleChildScrollView(
+                padding: padding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                ),
+              );
+            }
             return Padding(
               padding: padding,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _LibraryToolbar(compact: compact),
-                  const SizedBox(height: SkotiqTokens.spaceLg),
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? Center(
-                            child: EmptyState(
-                              icon: LucideIcons.searchX,
-                              title: 'No sequences match',
-                              body:
-                                  'Try a different search, or clear the filters.',
-                              action: SkotiqButton(
-                                label: 'Clear filters',
-                                variant: ButtonVariant.secondary,
-                                size: ButtonSize.small,
-                                onPressed: () => _clearFilters(ref),
-                              ),
-                            ),
-                          )
-                        : _SequenceList(
-                            summaries: filtered,
-                            total: library.length,
-                            compact: compact,
-                          ),
-                  ),
-                ],
+                children: children,
               ),
             );
           },
@@ -220,6 +233,9 @@ class SequenceLibraryTab extends ConsumerWidget {
 }
 
 const double _panelInset = SkotiqTokens.spaceSm;
+
+/// Below this height the Saved page scrolls as a whole.
+const double _shortHeight = 320;
 
 /// A row's star and "more" buttons with the gaps [ListRow] puts around them.
 const double _rowActionsWidth =
@@ -232,11 +248,16 @@ class _SequenceList extends StatelessWidget {
     required this.summaries,
     required this.total,
     required this.compact,
+    this.scrolls = true,
   });
 
   final List<SequenceSummary> summaries;
   final int total;
   final bool compact;
+
+  /// Whether the rows scroll in the space left to them; when not, the page
+  /// around them scrolls and they lay out at full height.
+  final bool scrolls;
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +267,26 @@ class _SequenceList extends StatelessWidget {
         ? countLabel(total, 'sequence')
         : '${summaries.length} of ${countLabel(total, 'sequence')}';
 
+    final panel = SkotiqPanel(
+      padding: const EdgeInsets.symmetric(
+        horizontal: _panelInset,
+        vertical: SkotiqTokens.spaceXs,
+      ),
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: scrolls ? null : const NeverScrollableScrollPhysics(),
+        itemCount: summaries.length,
+        itemBuilder: (context, index) => _SequenceRow(
+          key: ValueKey(summaries[index].id),
+          summary: summaries[index],
+          compact: compact,
+          last: index == summaries.length - 1,
+        ),
+      ),
+    );
+
     return Column(
+      mainAxisSize: scrolls ? MainAxisSize.max : MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Inset to line up with the row text and the trailing figure.
@@ -263,24 +303,7 @@ class _SequenceList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: SkotiqTokens.spaceSm),
-        Flexible(
-          child: SkotiqPanel(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _panelInset,
-              vertical: SkotiqTokens.spaceXs,
-            ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: summaries.length,
-              itemBuilder: (context, index) => _SequenceRow(
-                key: ValueKey(summaries[index].id),
-                summary: summaries[index],
-                compact: compact,
-                last: index == summaries.length - 1,
-              ),
-            ),
-          ),
-        ),
+        if (scrolls) Flexible(child: panel) else panel,
       ],
     );
   }

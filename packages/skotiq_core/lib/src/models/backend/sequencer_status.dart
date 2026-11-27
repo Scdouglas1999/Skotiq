@@ -246,6 +246,10 @@ class CheckpointInfo {
   /// before the host recorded it.
   final Map<String, int> framesDoneByStep;
 
+  /// Frames each Smart Exposure step of the plan already has, by node id and
+  /// then filter name. A step that finished all its filters has no entry.
+  final Map<String, Map<String, int>> filterFramesDoneByStep;
+
   const CheckpointInfo({
     required this.sequenceName,
     required this.timestamp,
@@ -255,6 +259,7 @@ class CheckpointInfo {
     required this.ageSeconds,
     this.ended,
     this.framesDoneByStep = const {},
+    this.filterFramesDoneByStep = const {},
   });
 
   /// Whether the app died under the run: the only run that was interrupted.
@@ -277,6 +282,15 @@ class CheckpointInfo {
             in ((json['framesDoneByStep'] as Map?) ?? const {}).entries)
           key as String: (value as num).toInt(),
       },
+      filterFramesDoneByStep: {
+        for (final MapEntry(:key, :value)
+            in ((json['filterFramesDoneByStep'] as Map?) ?? const {}).entries)
+          key as String: {
+            for (final MapEntry(key: filter, value: frames)
+                in (value as Map).entries)
+              filter as String: (frames as num).toInt(),
+          },
+      },
     );
   }
 
@@ -289,6 +303,7 @@ class CheckpointInfo {
     'ageSeconds': ageSeconds,
     if (ended != null) 'ended': ended,
     'framesDoneByStep': framesDoneByStep,
+    'filterFramesDoneByStep': filterFramesDoneByStep,
   };
 
   String get ageString {

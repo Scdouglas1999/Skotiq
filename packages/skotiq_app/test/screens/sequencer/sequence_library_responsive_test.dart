@@ -62,6 +62,29 @@ Future<void> _openMenu(WidgetTester tester, String name) async {
 }
 
 void main() {
+  // Phone landscape: under the run strip and controls the tab had about 150
+  // px, and the saved row was clipped to an empty strip below the toolbar.
+  testWidgets('a short slot scrolls the page so a saved row shows whole',
+      (tester) async {
+    final now = DateTime(2026, 7, 13, 20);
+    await _pumpLibrary(
+      tester,
+      [
+        _summary(id: 1, name: 'M74 Plan', createdAt: now, modifiedAt: now),
+      ],
+      size: const Size(780, 150),
+    );
+
+    final row = find.text('M74 Plan');
+    await tester.scrollUntilVisible(row, 50,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pump();
+    final rowBox = tester.getRect(row);
+    expect(rowBox.top, greaterThanOrEqualTo(0));
+    expect(rowBox.bottom, lessThanOrEqualTo(150));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'phone layout keeps the star and the menu, and the menu holds every '
       'other action', (tester) async {

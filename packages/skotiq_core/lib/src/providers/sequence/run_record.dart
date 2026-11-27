@@ -37,6 +37,7 @@ class RunRecord {
     this.progress = const SequenceProgress(),
     this.tally = const {},
     this.framesDoneBeforeRun = const {},
+    this.filterFramesDoneBeforeRun = const {},
     this.restoredCheckpoint,
     this.runId,
     this.stats,
@@ -69,6 +70,10 @@ class RunRecord {
   /// Frames each exposure step had before this run, by node id: the
   /// checkpoint's counts when the run continues one, empty for a fresh run.
   final Map<String, int> framesDoneBeforeRun;
+
+  /// Frames each Smart Exposure step had before this run, by node id and
+  /// then filter name, as [framesDoneBeforeRun] has them for exposure steps.
+  final Map<String, Map<String, int>> filterFramesDoneBeforeRun;
 
   /// The checkpoint a restore prepared and the next Start will continue.
   final CheckpointInfo? restoredCheckpoint;
@@ -115,6 +120,7 @@ class RunRecord {
     SequenceProgress? progress,
     Map<String, NodeExposureTally>? tally,
     Map<String, int>? framesDoneBeforeRun,
+    Map<String, Map<String, int>>? filterFramesDoneBeforeRun,
     Object? restoredCheckpoint = _keep,
     Object? runId = _keep,
     Object? stats = _keep,
@@ -135,6 +141,8 @@ class RunRecord {
       progress: progress ?? this.progress,
       tally: tally ?? this.tally,
       framesDoneBeforeRun: framesDoneBeforeRun ?? this.framesDoneBeforeRun,
+      filterFramesDoneBeforeRun:
+          filterFramesDoneBeforeRun ?? this.filterFramesDoneBeforeRun,
       restoredCheckpoint: pick(restoredCheckpoint, this.restoredCheckpoint),
       runId: pick(runId, this.runId),
       stats: pick(stats, this.stats),
@@ -459,8 +467,15 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
 
   // The executor's run transaction.
 
-  void setFramesDoneBeforeRun(Map<String, int> frames) =>
-      state = state.copyWith(framesDoneBeforeRun: frames);
+  /// The frames the plan's steps had before this run: [frames] for exposure
+  /// steps, [byFilter] for Smart Exposure steps. Empty maps for a fresh run.
+  void setFramesDoneBeforeRun(
+    Map<String, int> frames, {
+    Map<String, Map<String, int>> byFilter = const {},
+  }) => state = state.copyWith(
+    framesDoneBeforeRun: frames,
+    filterFramesDoneBeforeRun: byFilter,
+  );
 
   void setRestoredCheckpoint(CheckpointInfo? info) =>
       state = state.copyWith(restoredCheckpoint: info);

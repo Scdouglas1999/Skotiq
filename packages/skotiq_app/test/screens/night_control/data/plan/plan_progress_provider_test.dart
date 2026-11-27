@@ -163,6 +163,55 @@ void main() {
     },
   );
 
+  // Restored at 7 frames, a Smart Exposure plan read "L 0/24" on Tonight.
+  test('a restored Smart Exposure counts the frames each filter has', () {
+    final smart = SmartExposureNode(
+      id: 'smart',
+      parentId: 't',
+      plans: const [
+        FilterPlan(filterName: 'L', count: 24, durationSecs: 90),
+        FilterPlan(filterName: 'R', count: 17, durationSecs: 90),
+      ],
+    );
+    final target = TargetHeaderNode(
+      id: 't',
+      parentId: 'root',
+      targetName: 'M74',
+      raHours: 1.6,
+      decDegrees: 15.8,
+      childIds: const ['smart'],
+    );
+    final root = InstructionSetNode(id: 'root', childIds: const ['t']);
+    final sequence = Sequence.create(
+      name: 'M74 Plan',
+      rootNodeId: 'root',
+      nodes: {root.id: root, target.id: target, smart.id: smart},
+    );
+    final restored = CheckpointInfo(
+      sequenceName: sequence.name,
+      timestamp: bostonTime(2026, 10, 19, 19),
+      completedExposures: 7,
+      completedIntegrationSecs: 630,
+      canResume: true,
+      ageSeconds: 60,
+      filterFramesDoneByStep: const {
+        'smart': {'L': 4, 'R': 3},
+      },
+    );
+    final container = planContainer(
+      now: evening,
+      sequence: sequence,
+      run: RunRecord(
+        restoredCheckpoint: restored,
+        filterFramesDoneBeforeRun: restored.filterFramesDoneByStep,
+      ),
+    );
+    addTearDown(container.dispose);
+
+    final plan = container.read(nightPlanProgressProvider)!;
+    expect(plan.rows.map((r) => r.framesDone), [4, 3]);
+  });
+
   test(
     'running: frames from the session, accepted integration, current row',
     () {

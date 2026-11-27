@@ -816,6 +816,57 @@ void main() {
     await _drainValidationDebounce(tester);
   });
 
+  testWidgets('a finished step with no observed start shows no ETA',
+      (tester) async {
+    // A window that joined mid-run (an app restart) has not seen the
+    // finished steps start. Their projection moves with the run's lateness,
+    // so it would print a different time for a step that already happened.
+    final exposure = ExposureNode(
+      name: 'L subs',
+      filter: 'L',
+      durationSecs: 60,
+      count: 10,
+    );
+    final built = _threeLevelSequence([exposure]);
+    final t0 = DateTime.now();
+    final simulation = PreSessionSimulationResult(
+      start: t0,
+      end: t0.add(const Duration(minutes: 10)),
+      duration: const Duration(minutes: 10),
+      segments: [
+        PreSessionSimulationSegment(
+          nodeId: exposure.id,
+          nodeName: exposure.name,
+          nodeType: 'ExposureNode',
+          start: t0,
+          end: t0.add(const Duration(minutes: 10)),
+          duration: const Duration(minutes: 10),
+        ),
+      ],
+      targetWindows: const {},
+      issues: const [],
+    );
+    final progress = RunRecordNotifier();
+    await _pumpTree(
+      tester,
+      built.sequence,
+      progressNotifier: progress,
+      simulation: simulation,
+    );
+
+    progress.updateNodeStatus(exposure.id, NodeStatus.success);
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: _rowShellOf(find.text('L subs')).first,
+        matching: find.text(ClockFormat.hm(t0.toLocal())),
+      ),
+      findsNothing,
+    );
+    await _drainValidationDebounce(tester);
+  });
+
   testWidgets('the Watchdog badge drops its label rather than overflow the row',
       (tester) async {
     // A meridian flip nested three deep at the narrowest canvas Ledger will

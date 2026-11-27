@@ -834,3 +834,33 @@ async fn a_slew_is_logged_with_its_target_and_its_arrival() {
         "{lines:?}"
     );
 }
+
+/// A device notice is a system notification and says so in its category:
+/// the app decodes an event by category and type, and an equipment
+/// `Notification` is no event it knows, so every reader dropped it.
+#[test]
+fn a_device_notice_is_a_system_notification() {
+    let manager = get_device_manager();
+    let mut rx = get_state().event_bus.subscribe();
+    manager.publish_notice("Camera settings", "notice_category_probe".to_string());
+    loop {
+        let event = match rx.try_recv() {
+            Ok(event) => event,
+            Err(TryRecvError::Lagged(_)) => continue,
+            Err(e) => panic!("the notice was not published: {e}"),
+        };
+        if let EventPayload::System(crate::event::system::SystemEvent::Notification {
+            message,
+            ..
+        }) = &event.payload
+        {
+            if message == "notice_category_probe" {
+                assert_eq!(
+                    event.category,
+                    crate::event::equipment::EventCategory::System
+                );
+                return;
+            }
+        }
+    }
+}

@@ -55,7 +55,10 @@ class HostRunControl {
     _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(info);
     _ref
         .read(runRecordProvider.notifier)
-        .setFramesDoneBeforeRun(info?.framesDoneByStep ?? const {});
+        .setFramesDoneBeforeRun(
+          info?.framesDoneByStep ?? const {},
+          byFilter: info?.filterFramesDoneByStep ?? const {},
+        );
   }
 
   /// A reset starts the next run from the beginning, so a restore waiting

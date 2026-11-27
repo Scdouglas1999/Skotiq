@@ -560,6 +560,16 @@ typedef struct wire_cst_list_record_string_u_32 {
   int32_t len;
 } wire_cst_list_record_string_u_32;
 
+typedef struct wire_cst_record_string_map_string_u_32_none {
+  struct wire_cst_list_prim_u_8_strict *field0;
+  struct wire_cst_list_record_string_u_32 *field1;
+} wire_cst_record_string_map_string_u_32_none;
+
+typedef struct wire_cst_list_record_string_map_string_u_32_none {
+  struct wire_cst_record_string_map_string_u_32_none *ptr;
+  int32_t len;
+} wire_cst_list_record_string_map_string_u_32_none;
+
 typedef struct wire_cst_checkpoint_info_api {
   struct wire_cst_list_prim_u_8_strict *sequence_name;
   struct wire_cst_list_prim_u_8_strict *timestamp;
@@ -569,6 +579,7 @@ typedef struct wire_cst_checkpoint_info_api {
   int64_t age_seconds;
   struct wire_cst_list_prim_u_8_strict *ended;
   struct wire_cst_list_record_string_u_32 *frames_done_by_step;
+  struct wire_cst_list_record_string_map_string_u_32_none *filter_frames_done_by_step;
 } wire_cst_checkpoint_info_api;
 
 typedef struct wire_cst_cover_calibrator_capabilities {
@@ -4062,6 +4073,8 @@ struct wire_cst_list_record_string_field_availability *frbgen_skotiq_bridge_cst_
 
 struct wire_cst_list_record_string_map_string_f_64_none *frbgen_skotiq_bridge_cst_new_list_record_string_map_string_f_64_none(int32_t len);
 
+struct wire_cst_list_record_string_map_string_u_32_none *frbgen_skotiq_bridge_cst_new_list_record_string_map_string_u_32_none(int32_t len);
+
 struct wire_cst_list_record_string_u_32 *frbgen_skotiq_bridge_cst_new_list_record_string_u_32(int32_t len);
 
 struct wire_cst_list_retained_capture_info *frbgen_skotiq_bridge_cst_new_list_retained_capture_info(int32_t len);
@@ -4172,6 +4185,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_f_64);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_field_availability);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_map_string_f_64_none);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_map_string_u_32_none);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_u_32);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_retained_capture_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_scheduler_score_entry);

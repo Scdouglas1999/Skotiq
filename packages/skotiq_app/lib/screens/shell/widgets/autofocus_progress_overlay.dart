@@ -13,7 +13,8 @@ import '../../../utils/snackbar_helper.dart';
 /// of the screen and shows live V-curve data as autofocus runs.
 ///
 /// This overlay does not block interaction with the rest of the app.
-/// It can be minimized, dragged, and dismissed.
+/// It can be minimized and dismissed, and dragged except on a phone, where a
+/// scroll swipe that starts on the pill would carry it up over the screen.
 ///
 /// The ONE live focus V-curve surface in the app. Driven by
 /// [autofocusOverlayProvider] (which assembles state from the
@@ -145,20 +146,25 @@ class _AutofocusProgressOverlayState
       right: _offset.dx.clamp(0.0, math.max(0.0, screenWidth - width)),
       bottom: _offset.dy,
       child: GestureDetector(
-        onPanUpdate: (details) {
-          final screenSize = MediaQuery.sizeOf(context);
-          // Drag range, floored against its own start: a short viewport (the
-          // overlay plus the bottom-nav inset taller than the screen) would
-          // otherwise invert these bounds and throw out of the drag handler.
-          final maxDx = math.max(0.0, screenSize.width - width);
-          final maxDy = math.max(minBottomInset, screenSize.height - height);
-          setState(() {
-            _offset = Offset(
-              (_offset.dx - details.delta.dx).clamp(0, maxDx),
-              (_offset.dy - details.delta.dy).clamp(minBottomInset, maxDy),
-            );
-          });
-        },
+        onPanUpdate: Responsive.isPhone(context)
+            ? null
+            : (details) {
+                final screenSize = MediaQuery.sizeOf(context);
+                // Drag range, floored against its own start: a short
+                // viewport (the overlay plus the bottom-nav inset taller
+                // than the screen) would otherwise invert these bounds and
+                // throw out of the drag handler.
+                final maxDx = math.max(0.0, screenSize.width - width);
+                final maxDy =
+                    math.max(minBottomInset, screenSize.height - height);
+                setState(() {
+                  _offset = Offset(
+                    (_offset.dx - details.delta.dx).clamp(0, maxDx),
+                    (_offset.dy - details.delta.dy)
+                        .clamp(minBottomInset, maxDy),
+                  );
+                });
+              },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: width,
