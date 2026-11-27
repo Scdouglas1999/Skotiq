@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/startup/always_on_services.dart';
+import 'package:skotiq_core/providers.dart' show LaunchRole;
 import 'package:skotiq_mobile/services/live_activity_lifecycle_provider.dart';
 import 'package:skotiq_mobile/services/mobile_platform_services.dart';
 import 'package:skotiq_mobile/services/mobile_sequence_hooks.dart';
@@ -18,7 +18,7 @@ void main() {
       voiceControlLifecycleProvider,
     ]);
     for (final service in mobilePlatformServices) {
-      expect(service.roles, {AppRole.mobile}, reason: service.name);
+      expect(service.roles, {LaunchRole.mobile}, reason: service.name);
     }
   });
 }

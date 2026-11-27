@@ -189,7 +189,10 @@ void main(List<String> args) async {
 
     stdout.writeln('Initializing services...');
     final activeContainer = container = ProviderContainer(
-      overrides: appProviderOverrides(appVersion),
+      overrides: [
+        launchRoleProvider.overrideWithValue(LaunchRole.hostDaemon),
+        ...appProviderOverrides(appVersion),
+      ],
     );
     final runtimeLogger = activeContainer.read(loggingServiceProvider);
     logger = runtimeLogger;

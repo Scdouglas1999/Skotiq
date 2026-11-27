@@ -33,13 +33,13 @@ class _FixedBackendNotifier extends BackendNotifier {
 }
 
 enum _Role {
-  hostGui(AppRole.hostGui, linked: false),
-  hostDaemon(AppRole.hostDaemon, linked: false),
-  linkedDesktop(AppRole.linkedClient, linked: true),
-  linkedPhone(AppRole.mobile, linked: true);
+  hostGui(LaunchRole.hostGui, linked: false),
+  hostDaemon(LaunchRole.hostDaemon, linked: false),
+  linkedDesktop(LaunchRole.linkedClient, linked: true),
+  linkedPhone(LaunchRole.mobile, linked: true);
 
   const _Role(this.appRole, {required this.linked});
-  final AppRole appRole;
+  final LaunchRole appRole;
   final bool linked;
 }
 
@@ -497,8 +497,8 @@ void main() {
           .singleWhere((s) => identical(s.provider, producer))
           .roles;
       expect(
-        roles.contains(AppRole.mobile),
-        roles.contains(AppRole.linkedClient),
+        roles.contains(LaunchRole.mobile),
+        roles.contains(LaunchRole.linkedClient),
         reason: '$producer',
       );
     }

@@ -110,11 +110,7 @@ class SkotiqApp extends ConsumerWidget {
     );
 
     return AlwaysOnServicesScope(
-      role: isDesktop
-          ? (ref.watch(remoteClientLaunchProvider)
-              ? AppRole.linkedClient
-              : AppRole.hostGui)
-          : AppRole.mobile,
+      role: ref.watch(launchRoleProvider),
       platformServices: platformServices,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: systemUiOverlayStyleFor(theme),
@@ -220,7 +216,7 @@ class AlwaysOnServicesScope extends ConsumerStatefulWidget {
     this.platformServices = const [],
   });
 
-  final AppRole role;
+  final LaunchRole role;
   final List<AlwaysOnService> platformServices;
   final Widget child;
 

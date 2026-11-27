@@ -16,6 +16,7 @@ import '../backend/disconnected_backend.dart';
 import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
 import 'database_provider.dart';
+import 'launch_role.dart';
 import 'host_mutation_event_provider.dart';
 import 'native_events_lost_notice.dart';
 import 'ui_notification_provider.dart';
@@ -528,7 +529,9 @@ final isRemoteModeProvider = Provider<bool>(
 /// Defaults to false: a process that never overrides it owns its own hardware.
 /// The desktop entry point overrides it from the launch flags it already
 /// parses.
-final remoteClientLaunchProvider = Provider<bool>((ref) => false);
+final remoteClientLaunchProvider = Provider<bool>(
+  (ref) => ref.watch(launchRoleProvider) == LaunchRole.linkedClient,
+);
 
 /// True when this process must treat the imaging host's data as another
 /// machine's: it is connected to one now, or it was launched as one's client.

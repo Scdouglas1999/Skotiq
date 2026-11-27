@@ -188,6 +188,7 @@ void main() async {
   runApp(
     ProviderScope(
       overrides: [
+        launchRoleProvider.overrideWithValue(LaunchRole.mobile),
         ...appProviderOverrides(appVersion),
         phoneBarStatusProvider.overrideWithValue(const PhoneBatteryIndicator()),
         androidNotificationsRequestProvider.overrideWithValue(

@@ -168,7 +168,7 @@ final List<HostStartupStep> hostStartupSteps = [
     run: (host) async {
       final services = startAlwaysOnServices(
         host.container,
-        AppRole.hostDaemon,
+        LaunchRole.hostDaemon,
       );
       host.alwaysOn = services;
       host.onStop('always-on services', () async => services.stop());

@@ -131,7 +131,7 @@ void main() {
       addTearDown(container.dispose);
       final services = startAlwaysOnServices(
         container,
-        AppRole.hostGui,
+        LaunchRole.hostGui,
         services: [
           alwaysOnServices.singleWhere(
             (s) => identical(s.provider, recoveryEventBridgeProvider),
