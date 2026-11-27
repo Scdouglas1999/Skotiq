@@ -84,7 +84,7 @@ scripts:
 
   audit:narrative-comments:
     run: dart run tools/production/gate.dart --only narrative-comments
-    description: Flag AI-narrative / audit-trail comments (change-history, self-narration, restated-obvious lines, over-written 'why this import' blocks). Informational human-in-the-loop lint; allowlist real-invariant keepers in docs/production-readiness/narrative-comment-allowlist.txt. For a budget run `dart run tools/production/narrative_comment_audit.dart --max N`.
+    description: Count AI-narrative / audit-trail comments (change-history, self-narration, restated-obvious lines, over-written 'why this import' blocks) in Dart lib code and in native/skotiq_native Rust; fails when either count exceeds its line in tools/production/narrative_comment_baseline.txt (Dart, then Rust).
 
   audit:narrative-comments:self-test:
     run: dart run tools/production/gate.dart --only narrative-comments:self-test
