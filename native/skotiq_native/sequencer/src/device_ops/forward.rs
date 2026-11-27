@@ -224,6 +224,9 @@ macro_rules! forward_device_ops {
                 async fn guider_note_stop_reason(&self, reason: Option<$crate::GuidingStopReason>) {
                     self.$field.guider_note_stop_reason(reason).await
                 }
+                async fn guider_withdraw_stop_reason(&self, reason: $crate::GuidingStopReason) {
+                    self.$field.guider_withdraw_stop_reason(reason).await
+                }
                 async fn guider_run_ended(&self) {
                     self.$field.guider_run_ended().await
                 }

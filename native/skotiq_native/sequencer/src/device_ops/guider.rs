@@ -186,9 +186,14 @@ pub trait GuiderOps: Send + Sync {
     }
 
     /// Record why the run holds the guider without stopping it (a dither
-    /// settling, a flip that has already stopped it); `None` withdraws the
-    /// run's reason. A successful start of guiding clears it as well.
+    /// settling, a flip that has already stopped it); `None` clears whatever
+    /// reason is recorded. A successful start of guiding clears it as well.
     async fn guider_note_stop_reason(&self, _reason: Option<crate::GuidingStopReason>) {}
+
+    /// Withdraw `reason` once its hold is over, if it is still the one
+    /// recorded: a stop someone asked for meanwhile (a center, the operator)
+    /// keeps its own reason, so the guider it stopped never reads as lost.
+    async fn guider_withdraw_stop_reason(&self, _reason: crate::GuidingStopReason) {}
 
     /// The run ended: a hold it gave as the reason
     /// ([`crate::GuidingStopReason::is_hold`]) is over. A reason that says

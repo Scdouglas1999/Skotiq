@@ -752,8 +752,44 @@ async fn a_burst_dither_tells_the_guider_it_is_settling_after_a_dither() {
     assert_eq!(*ops.dithers_after_frame.lock().unwrap(), vec![1]);
     assert_eq!(
         *ops.guider_stop_reasons.lock().unwrap(),
-        vec![Some(crate::GuidingStopReason::DitherSettle), None]
+        vec![Some(crate::GuidingStopReason::DitherSettle)]
     );
+    assert_eq!(
+        *ops.guider_stop_reason.lock().unwrap(),
+        None,
+        "the settle's reason is withdrawn once the dither is done"
+    );
+}
+
+/// A center or the operator that stops the guider while a dither settles
+/// gives its own reason; the dither's end must not erase it, or the
+/// stopped guider reads as a lost star.
+#[tokio::test]
+async fn a_stop_during_a_dither_keeps_its_reason_after_the_dither() {
+    for reason in [
+        crate::GuidingStopReason::MountMove,
+        crate::GuidingStopReason::Operator,
+    ] {
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_guider_stopped_during_dither(reason));
+        let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 2,
+            frame_type: crate::FrameType::Light,
+            dither_every: Some(1),
+            ..ExposureConfig::default()
+        };
+
+        let result = expose_burst(&config, &ctx, |_, _, _| {}).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(*ops.dithers_after_frame.lock().unwrap(), vec![1]);
+        assert_eq!(
+            *ops.guider_stop_reason.lock().unwrap(),
+            Some(reason),
+            "{reason:?} was erased by the dither's end"
+        );
+    }
 }
 
 /// What counts as a dither is an open owner question, so each caller keeps
