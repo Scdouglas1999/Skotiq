@@ -398,7 +398,7 @@ mod recommended_settings_tests {
 
     #[test]
     fn default_recommended_settings_is_all_none() {
-        // Per IMG-P3-2 contract: a camera whose SDK exposes nothing must
+        // A camera whose SDK exposes nothing must
         // surface as an empty struct so the Dart side knows there is no
         // recommendation to apply (and the profile is left untouched).
         let s = CameraRecommendedSettings::default();
