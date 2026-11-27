@@ -70,6 +70,16 @@ const _pierError = 'Verifying pier side: Pier side did not change after flip '
 const _solveError = 'Plate solving and centering: Plate solve failed: no '
     'solution; target centering is unverified (three frames tried)';
 
+Map<String, dynamic> _recovery(String phase) => {
+      'started_at_iso': '2026-11-27T15:50:22Z',
+      'cause_kind': 'MountTrackingLost',
+      'attempt_count': 1,
+      'max_attempts': 1440,
+      'retry_interval_secs': 8.0,
+      'max_duration_secs': 43200.0,
+      'phase': phase,
+    };
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -195,6 +205,25 @@ void main() {
     await emit(container, _flipFailed(_t0, _pierError));
 
     expect(container.read(runDashboardCriticalEventsProvider), hasLength(2));
+  });
+
+  // Phone check 9.4: "Recovery started  MountTrackingLost (attempt 1/1440)"
+  // stayed red over a running run after the recovery had succeeded.
+  test('a recovery that ends clears its banner', () async {
+    final container = await wiredContainer();
+
+    await emit(
+      container,
+      _wire(_t0, 'RecoveryStarted', _recovery('Waiting'),
+          severity: EventSeverity.critical),
+    );
+    expect(container.read(runDashboardCriticalEventsProvider), hasLength(1));
+
+    await emit(
+      container,
+      _wire(_t0 + 8000, 'RecoveryCompleted', _recovery('Recovered')),
+    );
+    expect(container.read(runDashboardCriticalEventsProvider), isEmpty);
   });
 
   test('resuming the run clears the flip failure that paused it', () async {
