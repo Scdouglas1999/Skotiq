@@ -53,4 +53,22 @@ void main() {
     expect(progress.nodeProgressStructuredDetail['af'], measured);
     expect(progress.nodeProgressPercent['af'], 35);
   });
+
+  test(
+    'a step names its frame type when it starts, and the next clears it',
+    () {
+      final notifier = RunRecordNotifier();
+
+      notifier.beginStep('darks', 'TakeExposure', FrameType.dark);
+      expect(notifier.state.progress.currentFrameType, FrameType.dark);
+      expect(notifier.state.progress.currentNodeId, 'darks');
+      expect(notifier.state.progress.nodeStatuses['darks'], NodeStatus.running);
+
+      notifier.updateProgress(message: 'Progress: 1/10 exposures');
+      expect(notifier.state.progress.currentFrameType, FrameType.dark);
+
+      notifier.beginStep('park', 'Park', null);
+      expect(notifier.state.progress.currentFrameType, isNull);
+    },
+  );
 }

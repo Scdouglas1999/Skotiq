@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/backend/sequencer_status.dart' show CheckpointInfo;
 import '../../models/sequence/instruction_progress_detail.dart';
+import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
 import '../sequence_stats_provider.dart'
@@ -276,6 +277,7 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
             estimatedRemainingSecs ?? current.estimatedRemainingSecs,
         currentTarget: currentTarget ?? current.currentTarget,
         currentFilter: currentFilter ?? current.currentFilter,
+        currentFrameType: current.currentFrameType,
         message: message ?? current.message,
         nodeStatuses: current.nodeStatuses,
         nodeProgressPercent: current.nodeProgressPercent,
@@ -284,6 +286,18 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
         nodeLatestReport: current.nodeLatestReport,
       ),
     );
+  }
+
+  /// A step started, taking [frameType] frames (null for a step that takes
+  /// none).
+  void beginStep(String nodeId, String nodeType, FrameType? frameType) {
+    updateProgress(
+      currentNodeId: nodeId,
+      currentNodeName: nodeType,
+      currentNodeStatus: NodeStatus.running,
+    );
+    _setProgress(state.progress.copyWith(currentFrameType: frameType));
+    updateNodeStatus(nodeId, NodeStatus.running);
   }
 
   void updateNodeStatus(String nodeId, NodeStatus status) {

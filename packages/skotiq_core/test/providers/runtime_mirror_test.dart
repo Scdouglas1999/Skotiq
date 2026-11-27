@@ -594,12 +594,13 @@ void main() {
       final client = await roundTrip((host) {
         host.read(runRecordProvider.notifier)
           ..setLifecycle(SequenceExecutionState.running)
-          ..updateNodeStatus('exp-l', NodeStatus.running)
+          ..beginStep('exp-l', 'TakeExposure', FrameType.dark)
           ..updateNodeStructuredProgress('exp-l', 66, reading)
           ..updateNodeStructuredProgress('exp-l', 66, hold);
       }, 'sequenceRun');
 
       final progress = client.read(sequenceProgressProvider);
+      expect(progress.currentFrameType, FrameType.dark);
       expect(progress.nodeLatestReport['exp-l'], hold);
       expect(progress.nodeProgressStructuredDetail['exp-l'], reading);
     });

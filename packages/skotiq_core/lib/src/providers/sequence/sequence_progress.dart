@@ -4,6 +4,7 @@ import '../../backend/bridge_events.dart';
 import '../../backend/sequencer_error_kind.dart';
 import '../../backend/sequencer_run_events.dart';
 import '../../models/backend/event_types.dart';
+import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../models/sequence/sequence_models.dart';
 import '../../utils/logging_service.dart';
 import '../backend_provider.dart';
@@ -216,13 +217,16 @@ void foldRunEvent(
       run.updateProgress(message: 'Sequence failed: $error');
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.failed);
 
-    case SequencerEvent_NodeStarted(:final nodeId, :final nodeType):
-      run.updateProgress(
-        currentNodeId: nodeId,
-        currentNodeName: nodeType,
-        currentNodeStatus: NodeStatus.running,
+    case SequencerEvent_NodeStarted(
+      :final nodeId,
+      :final nodeType,
+      :final frameType,
+    ):
+      run.beginStep(
+        nodeId,
+        nodeType,
+        frameType == null ? null : FrameType.fromImageType(frameType),
       );
-      run.updateNodeStatus(nodeId, NodeStatus.running);
 
     case SequencerEvent_NodeCompleted(:final nodeId, :final nodeStatus?)
         when nodeId.isNotEmpty:

@@ -428,6 +428,10 @@ abstract class SequenceProgress with _$SequenceProgress {
     double? estimatedRemainingSecs,
     String? currentTarget,
     String? currentFilter,
+
+    /// The frame type the running exposure step takes, as the run engine
+    /// says when the step starts; null while any other step runs.
+    FrameType? currentFrameType,
     String? message,
     @Default(<String, NodeStatus>{}) Map<String, NodeStatus> nodeStatuses,
 

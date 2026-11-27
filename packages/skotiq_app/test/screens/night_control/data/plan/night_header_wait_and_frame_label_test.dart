@@ -146,12 +146,14 @@ void main() {
     expect(container.read(nightHeaderProvider).currentFilter, 'Dark');
   });
 
-  // The end-of-night darks run a plan of their own, which a linked phone
-  // never holds: its header read "G 55 s" (night test finding 40).
-  test('an end-of-night dark reads as a dark too', () {
-    for (final (id, label) in [
-      ('eon-dark-3', 'Dark'),
-      ('eon-bias-4', 'Bias')
+  // A plan the phone does not hold (the end-of-night darks, a dark plan the
+  // desktop started): the run engine names the step's frame type when the
+  // step starts. Its header read "G 55 s" (night test finding 40).
+  test('a dark from a plan the phone does not hold reads as a dark', () {
+    for (final (id, frameType, label) in [
+      ('eon-dark-3', FrameType.dark, 'Dark'),
+      ('eon-bias-4', FrameType.bias, 'Bias'),
+      ('darks-30s', FrameType.dark, 'Dark'),
     ]) {
       final container = planContainer(
         now: evening,
@@ -165,6 +167,7 @@ void main() {
           state: SequenceExecutionState.running,
           currentNodeId: id,
           currentFilter: 'G',
+          currentFrameType: frameType,
           nodeStatuses: {id: NodeStatus.running},
         ),
       );

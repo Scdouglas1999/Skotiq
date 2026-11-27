@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/sequence/instruction_progress_detail.dart';
+import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/node_exposure_tally.dart';
 import '../../sequence/run_record.dart';
@@ -65,6 +66,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
         'estimatedRemainingSecs': finiteOrNull(p.estimatedRemainingSecs),
         'currentTarget': p.currentTarget,
         'currentFilter': p.currentFilter,
+        'currentFrameType': p.currentFrameType?.imageType,
         'message': p.message,
         'nodeStatuses': {
           for (final e in p.nodeStatuses.entries) e.key: e.value.name,
@@ -160,6 +162,12 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
               ),
               currentTarget: jsonString(progress['currentTarget']),
               currentFilter: jsonString(progress['currentFilter']),
+              currentFrameType: switch (jsonString(
+                progress['currentFrameType'],
+              )) {
+                final name? => FrameType.fromImageType(name),
+                null => null,
+              },
               message: jsonString(progress['message']),
               nodeStatuses: statuses,
               nodeProgressPercent: {

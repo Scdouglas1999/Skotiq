@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart' show eonFrameTypeOfNodeId;
 
 import '../tonight_night.dart';
 import '../../../../services/run_dashboard_providers.dart';
@@ -152,10 +151,10 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
     currentFilter: switch (activeNode) {
       ExposureNode(:final frameType) when frameType.coverOnLabel != null =>
         frameType.coverOnLabel,
-      // The end-of-night darks run a plan of their own the phone never
-      // holds: they read "G 55 s" from the wheel.
-      null when eonFrameTypeOfNodeId(progress?.currentNodeId) != null =>
-        eonFrameTypeOfNodeId(progress?.currentNodeId)!.coverOnLabel,
+      // A plan the phone does not hold (the end-of-night darks) names its
+      // frame type when the step starts.
+      null when progress?.currentFrameType?.coverOnLabel != null =>
+        progress!.currentFrameType!.coverOnLabel,
       _ => _nonEmpty(progress?.currentFilter) ??
           (activeNode is ExposureNode ? _nonEmpty(activeNode.filter) : null),
     },
