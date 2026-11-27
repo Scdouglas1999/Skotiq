@@ -46,12 +46,15 @@ class _TimedWalk {
 /// Every node's rolled-up length in [sequence], in one memoized post-order
 /// walk. With [tonight] (the sequence walked from now at the site), a node's
 /// own cost is what that walk gives it; without it, a "loop until stopped"
-/// block cannot be bounded and is marked open-ended.
+/// block cannot be bounded and is marked open-ended. A loop that runs until a
+/// time lasts from [now] (this machine's clock when not given) to that time.
 NodeRollups computeNodeRollups(
   Sequence sequence,
   SequenceTimeEstimator estimator, {
   List<NodeTiming>? tonight,
+  DateTime? now,
 }) {
+  final at = now ?? DateTime.now();
   final walk = tonight == null ? null : _TimedWalk(tonight);
   final secsById = <String, double>{};
   final openEnds = <String, NodeOpenEnd>{};
@@ -61,6 +64,7 @@ NodeRollups computeNodeRollups(
       sequence.rootNodeId!,
       estimator,
       secsById,
+      now: at,
       openEnds: openEnds,
       walk: walk,
     );
@@ -75,6 +79,7 @@ NodeRollups computeNodeRollups(
         id,
         estimator,
         secsById,
+        now: at,
         openEnds: openEnds,
         walk: walk,
       );
@@ -103,7 +108,9 @@ String formatNodeRollup(Duration duration, NodeOpenEnd? openEnd) =>
 double sequenceRollupSecs(
   Sequence sequence, {
   SequenceTimeEstimator estimator = const SequenceTimeEstimator(),
+  DateTime? now,
 }) {
+  final at = now ?? DateTime.now();
   final out = <String, double>{};
   final openEnds = <String, NodeOpenEnd>{};
   final rootId = sequence.rootNodeId;
@@ -120,6 +127,7 @@ double sequenceRollupSecs(
       id,
       estimator,
       out,
+      now: at,
       openEnds: openEnds,
     );
     if (openEnds.containsKey(id)) return 0;
@@ -152,6 +160,7 @@ double _computeRollupSecs(
   String nodeId,
   SequenceTimeEstimator estimator,
   Map<String, double> out, {
+  required DateTime now,
   Map<String, NodeOpenEnd>? openEnds,
   _TimedWalk? walk,
 }) {
@@ -175,6 +184,7 @@ double _computeRollupSecs(
       childId,
       estimator,
       out,
+      now: now,
       openEnds: openEnds,
       walk: walk,
     );
@@ -213,15 +223,14 @@ double _computeRollupSecs(
     result = switch (node.conditionType) {
       LoopConditionType.count || LoopConditionType.integrationTime =>
         selfOverhead + childSum * (loopPasses(node, sequence.nodes) ?? 1),
-      // We don't have a reference time here; reuse the Sequence-level
-      // estimator's logic to get fittable iterations. Falling back to
-      // single-iteration when the deadline is in the past matches
-      // _estimateNodeIntegration().
+      // One pass when the deadline is already past, as
+      // _estimateNodeIntegration() does.
       LoopConditionType.untilTime => _untilTimeRollup(
         sequence,
         node,
         childSum,
         selfOverhead,
+        now: now,
         walked: walk?.leaf[node.id],
       ),
       // Unbounded: report a single iteration. Marking this as "~∞" would be
@@ -262,6 +271,7 @@ double _untilTimeRollup(
   LoopNode node,
   double childSum,
   double selfOverhead, {
+  required DateTime now,
   NodeTiming? walked,
 }) {
   if (walked != null) {
@@ -269,10 +279,7 @@ double _untilTimeRollup(
   }
   final deadline = _untilTimeDeadline(sequence, node);
   if (deadline != null) {
-    final availableSecs = deadline
-        .difference(DateTime.now())
-        .inSeconds
-        .toDouble();
+    final availableSecs = deadline.difference(now).inSeconds.toDouble();
     if (availableSecs > 0) return selfOverhead + availableSecs;
   }
   return selfOverhead + childSum;
