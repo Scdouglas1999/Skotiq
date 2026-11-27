@@ -6839,8 +6839,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     if (apiObj is SequencerEvent_Started) {
       var pre_sequence_name = cst_encode_String(apiObj.sequenceName);
+      var pre_calibration_only = cst_encode_bool(apiObj.calibrationOnly);
       wireObj.tag = 0;
       wireObj.kind.Started.sequence_name = pre_sequence_name;
+      wireObj.kind.Started.calibration_only = pre_calibration_only;
       return;
     }
     if (apiObj is SequencerEvent_Paused) {
@@ -21131,6 +21133,9 @@ final class wire_cst_safety_monitor_capabilities extends ffi.Struct {
 
 final class wire_cst_SequencerEvent_Started extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> sequence_name;
+
+  @ffi.Bool()
+  external bool calibration_only;
 }
 
 final class wire_cst_SequencerEvent_Stopped extends ffi.Struct {

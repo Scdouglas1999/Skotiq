@@ -9,7 +9,7 @@ use crate::{NodeType, SequenceDefinition};
 /// parks) all serve light frames, and acting on any of them moves hardware a
 /// dark run needs to stay still, or ends a run that daylight cannot spoil.
 /// Triggers the sequence declares itself through Recovery nodes still apply.
-pub(super) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
+pub(crate) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
     let mut calibration_frames = false;
     for node in sequence.enabled_nodes() {
         match &node.node_type {

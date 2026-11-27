@@ -21,8 +21,13 @@ bridge.SkotiqEvent _event(bridge.SequencerEvent payload, DateTime at) =>
       payload: bridge.EventPayload.sequencer(payload),
     );
 
-bridge.SkotiqEvent _runStarted(DateTime at) =>
-    _event(const bridge.SequencerEvent.started(sequenceName: 'Night'), at);
+bridge.SkotiqEvent _runStarted(DateTime at) => _event(
+  const bridge.SequencerEvent.started(
+    sequenceName: 'Night',
+    calibrationOnly: false,
+  ),
+  at,
+);
 
 bridge.SkotiqEvent _nodeStarted(String nodeId, DateTime at) => _event(
   bridge.SequencerEvent.nodeStarted(nodeId: nodeId, nodeType: 'Delay'),

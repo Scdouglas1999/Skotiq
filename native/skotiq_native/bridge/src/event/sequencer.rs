@@ -223,6 +223,11 @@ impl From<skotiq_sequencer::meridian_flip_executor::FlipOutcome> for FlipOutcome
 pub enum SequencerEvent {
     Started {
         sequence_name: String,
+        /// The plan only takes calibration frames (darks, bias, flats) and
+        /// otherwise only cools, warms, parks or homes; dawn safing leaves
+        /// such a run alone.
+        #[serde(default)]
+        calibration_only: bool,
     },
     Paused,
     Resumed,

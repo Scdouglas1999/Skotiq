@@ -12436,8 +12436,10 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
         match tag_ {
             0 => {
                 let mut var_sequenceName = <String>::sse_decode(deserializer);
+                let mut var_calibrationOnly = <bool>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerEvent::Started {
                     sequence_name: var_sequenceName,
+                    calibration_only: var_calibrationOnly,
                 };
             }
             1 => {
@@ -17585,9 +17587,15 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerErrorKi
 impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            crate::event::sequencer::SequencerEvent::Started { sequence_name } => {
-                [0.into_dart(), sequence_name.into_into_dart().into_dart()].into_dart()
-            }
+            crate::event::sequencer::SequencerEvent::Started {
+                sequence_name,
+                calibration_only,
+            } => [
+                0.into_dart(),
+                sequence_name.into_into_dart().into_dart(),
+                calibration_only.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::event::sequencer::SequencerEvent::Paused => [1.into_dart()].into_dart(),
             crate::event::sequencer::SequencerEvent::Resumed => [2.into_dart()].into_dart(),
             crate::event::sequencer::SequencerEvent::Stopped { sequence_run_id } => {
@@ -22293,9 +22301,13 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::event::sequencer::SequencerEvent::Started { sequence_name } => {
+            crate::event::sequencer::SequencerEvent::Started {
+                sequence_name,
+                calibration_only,
+            } => {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(sequence_name, serializer);
+                <bool>::sse_encode(calibration_only, serializer);
             }
             crate::event::sequencer::SequencerEvent::Paused => {
                 <i32>::sse_encode(1, serializer);
@@ -26798,6 +26810,7 @@ mod io {
                     let ans = unsafe { self.kind.Started };
                     crate::event::sequencer::SequencerEvent::Started {
                         sequence_name: ans.sequence_name.cst_decode(),
+                        calibration_only: ans.calibration_only.cst_decode(),
                     }
                 }
                 1 => crate::event::sequencer::SequencerEvent::Paused,
@@ -36120,6 +36133,7 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_SequencerEvent_Started {
         sequence_name: *mut wire_cst_list_prim_u_8_strict,
+        calibration_only: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

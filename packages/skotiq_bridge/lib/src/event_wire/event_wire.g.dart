@@ -790,7 +790,10 @@ GuidingEvent? _decodeGuidingEvent(
 WireEvent _encodeSequencerEvent(SequencerEvent event) => switch (event) {
   SequencerEvent_Started() => (
     'Started',
-    <String, Object?>{'sequence_name': event.sequenceName},
+    <String, Object?>{
+      'sequence_name': event.sequenceName,
+      'calibration_only': event.calibrationOnly,
+    },
   ),
   SequencerEvent_Paused() => ('Paused', <String, Object?>{}),
   SequencerEvent_Resumed() => ('Resumed', <String, Object?>{}),
@@ -1120,6 +1123,7 @@ SequencerEvent? _decodeSequencerEvent(
     case 'Started':
       return SequencerEvent.started(
         sequenceName: wireString(d, 'sequence_name'),
+        calibrationOnly: wireBool(d, 'calibration_only'),
       );
     case 'Paused':
       return const SequencerEvent.paused();

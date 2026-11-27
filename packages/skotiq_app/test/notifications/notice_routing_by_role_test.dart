@@ -156,7 +156,10 @@ SkotiqEvent _autofocus(String status, {bool inRun = false}) => _wire(
 final List<_Happening> _happenings = [
   _Happening(
     NotificationCategory.sequenceStarted,
-    (_) => [_seq(const sk.SequencerEvent.started(sequenceName: 'Night'))],
+    (_) => [
+      _seq(const sk.SequencerEvent.started(
+          sequenceName: 'Night', calibrationOnly: false))
+    ],
   ),
   _Happening(
     NotificationCategory.sequenceCompleted,
@@ -474,7 +477,8 @@ final List<_Happening> _happenings = [
   _Happening(
     NotificationCategory.mountMoved,
     (_) => [
-      _seq(const sk.SequencerEvent.started(sequenceName: 'Night')),
+      _seq(const sk.SequencerEvent.started(
+          sequenceName: 'Night', calibrationOnly: false)),
       _mount(const sk.EquipmentEvent.mountSlewCompleted(
         deviceId: '',
         ra: 10,

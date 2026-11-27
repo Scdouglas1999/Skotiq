@@ -273,7 +273,6 @@ void main() {
         .whereType<ExposureNode>()
         .toList();
     expect(exposures.map((e) => e.filter).toSet(), {'DARK'});
-    expect(isCalibrationOnlySequence(rig.sequences.single), isTrue);
 
     expect(rig.built.map((b) => (b.kind, b.framePaths.length)).toList(), [
       ('dark', 20),

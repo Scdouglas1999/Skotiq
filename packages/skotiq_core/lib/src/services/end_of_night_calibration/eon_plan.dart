@@ -336,47 +336,6 @@ Sequence buildCalibrationSequence({
   return Sequence.create(name: name, nodes: ordered, rootNodeId: root);
 }
 
-/// Whether [sequence] only takes calibration frames and otherwise only cools,
-/// warms, parks or homes. The native sequencer applies the same rule to keep
-/// the light-frame triggers off such a run; the app uses it to keep weather
-/// and dawn safing from pausing it.
-bool isCalibrationOnlySequence(Sequence sequence) {
-  var calibrationFrames = false;
-  for (final node in sequence.nodes.values) {
-    if (!node.isEnabled) continue;
-    switch (node) {
-      case ExposureNode(:final frameType):
-        if (frameType == FrameType.light || frameType == FrameType.snapshot) {
-          return false;
-        }
-        calibrationFrames = true;
-      case InstructionSetNode() ||
-          LoopNode() ||
-          ParallelNode() ||
-          RecoveryNode() ||
-          StopGuidingNode() ||
-          FilterChangeNode() ||
-          CoolCameraNode() ||
-          WarmCameraNode() ||
-          ParkNode() ||
-          HomeMountNode() ||
-          WaitTimeNode() ||
-          DelayNode() ||
-          NotificationNode() ||
-          CloseDomeNode() ||
-          ParkDomeNode() ||
-          CloseCoverNode() ||
-          OpenCoverNode() ||
-          CalibratorOnNode() ||
-          CalibratorOffNode():
-        break;
-      default:
-        return false;
-    }
-  }
-  return calibrationFrames;
-}
-
 /// Id prefixes of the end-of-night plan's dark and bias steps.
 const String kEonDarkIdPrefix = 'eon-dark-';
 const String kEonBiasIdPrefix = 'eon-bias-';

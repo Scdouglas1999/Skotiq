@@ -389,7 +389,10 @@ void main() {
     test('the run lifecycle events a host sends complete their commands', () {
       expect(
         sequencer(
-          const sk.SequencerEvent.started(sequenceName: 'n'),
+          const sk.SequencerEvent.started(
+            sequenceName: 'n',
+            calibrationOnly: false,
+          ),
         )?.operations,
         contains(CommandOperation.sequencerStart),
       );

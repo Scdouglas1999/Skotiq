@@ -46,6 +46,7 @@ class RunRecord {
     this.terminal,
     this.terminalFromHost = false,
     this.completedImagingRun,
+    this.calibrationOnly = false,
   });
 
   /// Where the run stands. The only lifecycle value; [progress] carries a copy
@@ -98,6 +99,10 @@ class RunRecord {
   /// The last imaging run, kept when a calibration run replaces the live one.
   final CompletedImagingRun? completedImagingRun;
 
+  /// The current or last run's plan only takes calibration frames, as the
+  /// host's sequencer judged it when the run started.
+  final bool calibrationOnly;
+
   RunRecord copyWith({
     SequenceExecutionState? lifecycle,
     bool? launching,
@@ -113,6 +118,7 @@ class RunRecord {
     Object? terminal = _keep,
     bool? terminalFromHost,
     Object? completedImagingRun = _keep,
+    bool? calibrationOnly,
   }) {
     T? pick<T>(Object? value, T? current) =>
         identical(value, _keep) ? current : value as T?;
@@ -131,6 +137,7 @@ class RunRecord {
       terminal: pick(terminal, this.terminal),
       terminalFromHost: terminalFromHost ?? this.terminalFromHost,
       completedImagingRun: pick(completedImagingRun, this.completedImagingRun),
+      calibrationOnly: calibrationOnly ?? this.calibrationOnly,
     );
   }
 }
@@ -452,6 +459,9 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
   /// night's cause is never attached to the next one's stop.
   void setStopEvidence(SequenceStopDecision? decision) =>
       state = state.copyWith(stopEvidence: decision);
+
+  void setCalibrationOnly(bool calibrationOnly) =>
+      state = state.copyWith(calibrationOnly: calibrationOnly);
 
   /// Publish the result of a run this app finalized, or clear it (null) when
   /// the next run starts, so its end is seen as a change from nothing.

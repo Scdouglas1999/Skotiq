@@ -13,10 +13,6 @@
         "count": 1,
         "reason": "Domain predicate, Rust twin of eon_plan.dart isCalibrationOnlySequence."
       },
-      "eon_plan.dart::isCalibrationOnlySequence": {
-        "count": 1,
-        "reason": "Domain predicate (steps a calibration-only plan may hold), not type metadata (k-nodedesc)."
-      },
       "node_durations.dart::_SequenceTimeEstimatorNodeDurations._estimateNodeDuration": {
         "count": 1,
         "reason": "Time estimator rules read the overhead config and the site (k-nodedesc)."

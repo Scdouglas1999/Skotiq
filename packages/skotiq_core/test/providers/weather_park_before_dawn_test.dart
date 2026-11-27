@@ -10,10 +10,10 @@ import 'package:skotiq_core/src/models/weather/weather_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/weather_state_provider.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show SequencerEvent;
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
-import 'package:skotiq_core/src/services/end_of_night_calibration/eon_plan.dart';
 import 'package:skotiq_core/src/providers/safe_rig_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
@@ -104,7 +104,7 @@ void main() {
     DateTime now, {
     double latitude = _latitude,
     double longitude = _longitude,
-    Sequence? running,
+    bool calibrationOnlyRun = false,
     SequenceExecutionState execution = SequenceExecutionState.idle,
   }) async {
     _RecordingSafeRigService? safeRig;
@@ -140,18 +140,19 @@ void main() {
         safeRigServiceProvider.overrideWith(
           (ref) => safeRig = _RecordingSafeRigService(ref),
         ),
-        if (running != null)
-          currentSequenceProvider.overrideWith((ref) {
-            final notifier = CurrentSequenceNotifier();
-            // ignore: invalid_use_of_protected_member
-            notifier.state = running;
-            return notifier;
-          }),
       ],
     );
     addTearDown(container.dispose);
 
-    container.read(runRecordProvider.notifier).setLifecycle(execution);
+    final run = container.read(runRecordProvider.notifier);
+    foldRunEvent(
+      run,
+      SequencerEvent.started(
+        sequenceName: 'Tonight',
+        calibrationOnly: calibrationOnlyRun,
+      ),
+    );
+    run.setLifecycle(execution);
     final mount = container.read(mountStateProvider.notifier);
     mount.setConnecting('mount-1');
     mount.setConnected();
@@ -251,35 +252,21 @@ void main() {
     expect(result.safeRigReasons, isEmpty);
   });
 
-  test('dawn neither pauses nor parks a run that only takes darks', () async {
-    final darks = buildCalibrationSequence(
-      needs: const EonFrameNeeds(
-        darks: [
-          EonDarkGroup(
-            exposureSecs: 90,
-            gain: 76,
-            offset: 15,
-            binX: 1,
-            binY: 1,
-            setPointC: -10,
-            lightCount: 40,
-          ),
-        ],
-        bias: [],
-      ),
-      darkCount: 20,
-      biasCount: 50,
-      biasExposureSecs: 0.001,
-      cameraCanCool: true,
-      sensorTempC: null,
-    );
-    final result = await evaluateAt(
-      _dawn().subtract(const Duration(minutes: 20)),
-      running: darks,
-      execution: SequenceExecutionState.running,
-    );
+  // A stopping run is not live, so only the calibration rule keeps dawn off it.
+  for (final execution in [
+    SequenceExecutionState.running,
+    SequenceExecutionState.stopping,
+  ]) {
+    test('dawn neither pauses nor parks a ${execution.name} run that the '
+        'host judged calibration-only', () async {
+      final result = await evaluateAt(
+        _dawn().subtract(const Duration(minutes: 20)),
+        calibrationOnlyRun: true,
+        execution: execution,
+      );
 
-    expect(result.state.status, WeatherSafetyStatus.unsafe);
-    expect(result.safeRigReasons, isEmpty);
-  });
+      expect(result.state.status, WeatherSafetyStatus.unsafe);
+      expect(result.safeRigReasons, isEmpty);
+    });
+  }
 }

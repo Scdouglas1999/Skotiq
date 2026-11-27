@@ -178,7 +178,6 @@ void main() {
         expect(e.adaptiveExposure?.enabled, isFalse);
         expect(e.parentId, sequence.rootNodeId);
       }
-      expect(isCalibrationOnlySequence(sequence), isTrue);
     });
 
     test('a camera that cannot cool gets no Cool Camera step', () {
@@ -234,37 +233,6 @@ void main() {
       [-10, 0, 1],
     );
     expect(steps.first, isA<CoolCameraNode>());
-  });
-
-  group('isCalibrationOnlySequence', () {
-    test('a light frame or a slew makes it an imaging run', () {
-      Sequence of(List<SequenceNode> children) {
-        final root = InstructionSetNode(
-          id: 'root',
-          childIds: [for (final c in children) c.id],
-        );
-        return Sequence.create(
-          name: 't',
-          nodes: {root.id: root, for (final c in children) c.id: c},
-          rootNodeId: root.id,
-        );
-      }
-
-      final dark = ExposureNode(id: 'd', frameType: FrameType.dark);
-      expect(isCalibrationOnlySequence(of([dark])), isTrue);
-      expect(
-        isCalibrationOnlySequence(of([dark, ExposureNode(id: 'l')])),
-        isFalse,
-      );
-      expect(isCalibrationOnlySequence(of([dark, SlewNode(id: 's')])), isFalse);
-      expect(
-        isCalibrationOnlySequence(
-          of([dark, ExposureNode(id: 'l', isEnabled: false)]),
-        ),
-        isTrue,
-      );
-      expect(isCalibrationOnlySequence(of([CoolCameraNode(id: 'c')])), isFalse);
-    });
   });
 
   test('end-of-night calibration is on unless switched off', () async {

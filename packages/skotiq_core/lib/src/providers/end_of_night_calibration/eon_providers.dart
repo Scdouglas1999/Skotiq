@@ -21,6 +21,7 @@ import '../equipment/filter_wheel_state_provider.dart';
 import '../equipment/guider_state_provider.dart';
 import '../equipment/mount_state_provider.dart';
 import '../sequence/sequence_executor.dart';
+import '../sequence/run_record.dart';
 import '../sequence/sequence_progress.dart';
 import '../sequence/sequence_selection.dart';
 import '../sequence_stats_provider.dart';
@@ -35,7 +36,6 @@ import '../../services/frame_header.dart';
 import '../../services/camera_warmup_controller.dart' show CameraWarmupOutcome;
 import '../../services/mount_home_watcher.dart' show MountHomeOutcome;
 import '../../services/notification_service.dart';
-import '../../services/end_of_night_calibration/eon_plan.dart';
 import '../../services/end_of_night_calibration/eon_service.dart';
 import '../../services/end_of_night_calibration/eon_settings.dart';
 import '../calibration_library_service_providers.dart';
@@ -317,6 +317,5 @@ final endOfNightCalibrationProvider =
 final calibrationOnlyRunActiveProvider = Provider<bool>((ref) {
   final state = ref.watch(sequenceExecutionStateProvider);
   if (state.canStart) return false;
-  final sequence = ref.watch(currentSequenceProvider);
-  return sequence != null && isCalibrationOnlySequence(sequence);
+  return ref.watch(runRecordProvider.select((r) => r.calibrationOnly));
 });
