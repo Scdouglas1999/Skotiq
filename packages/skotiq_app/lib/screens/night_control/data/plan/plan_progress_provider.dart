@@ -93,9 +93,11 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
       ref.watch(restoredCheckpointProvider) != null) {
     final before = ref.watch(framesDoneBeforeRunProvider);
     final beforeByFilter = ref.watch(filterFramesDoneBeforeRunProvider);
-    void add(String? filter, int frames, double exposureSecs) {
+    // A filter the step no longer plans has frames and no known length.
+    void add(String? filter, int frames, double? exposureSecs) {
       final key = _filterKey(filter);
       done.update(key, (count) => count + frames, ifAbsent: () => frames);
+      if (exposureSecs == null) return;
       final secs = frames * exposureSecs;
       secsBefore.update(key, (sum) => sum + secs, ifAbsent: () => secs);
     }
@@ -105,8 +107,9 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
       if (node is SmartExposureNode) {
         for (final MapEntry(key: filter, value: frames)
             in (beforeByFilter[node.id] ?? const <String, int>{}).entries) {
-          final plan = node.plans.where((p) => p.filterName == filter);
-          add(filter, frames, plan.firstOrNull?.durationSecs ?? 0);
+          final plan =
+              node.plans.where((p) => p.filterName == filter).firstOrNull;
+          add(filter, frames, plan?.durationSecs);
         }
         continue;
       }
