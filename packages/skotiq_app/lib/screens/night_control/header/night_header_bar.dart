@@ -18,6 +18,7 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../../services/command_action_result.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
+import '../skip_step_guard.dart';
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
 import '../../../services/night_actions/armed_start_provider.dart';
 import '../../../services/night_actions/manual_action_gating.dart'
@@ -353,7 +354,11 @@ class NightHeaderBar extends ConsumerWidget {
           glyph: LucideIcons.skipForward,
           iconOnly: iconOnly,
           control: control,
-          onPressed: () => _runCommand(context, ref, (s) => s.skip()),
+          onPressed: () async {
+            if (!await confirmSkipStep(context, ref)) return;
+            if (!context.mounted) return;
+            await _runCommand(context, ref, (s) => s.skip());
+          },
         ),
       );
     }
