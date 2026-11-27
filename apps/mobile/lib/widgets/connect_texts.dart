@@ -1,9 +1,8 @@
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
-
-import '../services/mobile_pairing_service.dart';
 
 /// What the connection screen's progress card says while [activity] runs;
 /// empty when nothing is being tried.
@@ -37,10 +36,8 @@ String connectProblemText(ConnectProblem problem, SkotiqLocalizations l10n) {
   String error(Object e) => '$e';
   return switch (problem) {
     ConnectHostProblem(:final problem) => problem.message,
-    ConnectPairingFailed(:final failure, :final host) => pairingFailureText(
-      failure,
-      host,
-    ),
+    ConnectPairingFailed(:final failure, :final host) =>
+      describeRigPairingFailure(failure, host),
     ConnectOneTapIdentity(:final failure) => failure.message,
     ConnectForgotten(:final name) => l10n.text(
       'mobileForgotten',

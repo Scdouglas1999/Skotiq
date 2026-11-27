@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
@@ -53,29 +52,6 @@ class MobilePairingService {
     clientFactory: clientFactory,
   );
 
-  /// Pairs with the code the host shows or the QR carries.
-  static Future<RigPairing> pairWithCode(
-    DiscoveredServer host, {
-    required String code,
-    required bool fullAccess,
-    RemotePairingClient Function(DiscoveredServer host)? clientFactory,
-  }) => pairing(clientFactory: clientFactory).pairWithCode(
-    host,
-    code: code,
-    deviceName: deviceName(),
-    fullAccess: fullAccess,
-  );
-
-  /// One-tap pairing on the host's own network, with full access: a headless
-  /// rig has no other screen to choose its capture folder, solver or backups
-  /// on.
-  static Future<RigPairing> pairOneTap(
-    DiscoveredServer host, {
-    RemotePairingClient Function(DiscoveredServer host)? clientFactory,
-  }) => pairing(
-    clientFactory: clientFactory,
-  ).pairOneTap(host, deviceName: deviceName(), fullAccess: true);
-
   static String _generateDeviceId() {
     final rng = Random.secure();
     final bytes = List<int>.generate(16, (_) => rng.nextInt(256));
@@ -83,8 +59,3 @@ class MobilePairingService {
     return 'mobile:$hex';
   }
 }
-
-/// What the phone shows when pairing with [host] failed: the same words as the
-/// desktop's link dialog.
-String pairingFailureText(RigPairingFailure failure, DiscoveredServer host) =>
-    describeRigPairingFailure(failure, host);

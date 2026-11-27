@@ -20,6 +20,7 @@ class _Pairing extends RigPairingService {
 
   Object? oneTap;
   final codes = <String>[];
+  final oneTapFullAccess = <bool>[];
 
   @override
   Future<RigPairing> pairOneTap(
@@ -27,6 +28,7 @@ class _Pairing extends RigPairingService {
     required String deviceName,
     bool fullAccess = false,
   }) async {
+    oneTapFullAccess.add(fullAccess);
     final answer = oneTap;
     if (answer is RigPairingFailure) throw answer;
     return RigPairing(token: answer as String, scope: 'admin');
@@ -281,6 +283,9 @@ void main() {
       isTrue,
     );
     expect(session.opened, ['192.168.1.20:8080 lan-token']);
+    // A headless rig has no other screen to choose its folders and solver
+    // on, so one tap asks for full access.
+    expect(device.pairing.oneTapFullAccess, [true]);
   });
 
   test(
