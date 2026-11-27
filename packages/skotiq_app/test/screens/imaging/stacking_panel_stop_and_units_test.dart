@@ -397,6 +397,18 @@ void main() {
     expect(find.textContaining('FITS master'), findsOneWidget);
   });
 
+  testWidgets(
+      'on a linked client the Stop prompt says only a PNG render is saved '
+      'here', (tester) async {
+    await _pumpPanel(tester, onHost: true);
+
+    await tester.tap(find.text('Stop'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('only a PNG of the render'), findsOneWidget);
+    expect(find.textContaining('A FITS master carrying'), findsNothing);
+  });
+
   testWidgets('Statistics rows carry units for frames and for pixels',
       (tester) async {
     await _pumpPanel(tester);

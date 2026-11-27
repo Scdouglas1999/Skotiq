@@ -279,6 +279,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   Future<_StopDecision> _askBeforeDiscardingStack(int frames) async {
     final colors = widget.colors;
     final canSave = _canSaveMaster;
+    final onHost = ref.read(liveStackingServiceProvider).readsHost;
     final count = frames == 1 ? '1 stacked frame' : '$frames stacked frames';
     final decision = await showDialog<_StopDecision>(
       context: context,
@@ -314,15 +315,21 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
           ],
         ],
         child: Text(
-          canSave
-              ? 'Stopping releases the stacker, and the $count accumulated '
-                  'so far cannot be recovered afterwards. Save the stacked '
-                  'master first. A FITS master carrying the integration time '
-                  'and frame count, or discard it and stop.'
-              : 'Stopping releases the stacker, and the $count accumulated '
-                  'so far cannot be recovered afterwards. This device cannot '
-                  'write the master; save it from the imaging computer, or '
-                  'discard it and stop.',
+          canSave && onHost
+              ? 'Stopping releases the imaging computer\'s stacker, and the '
+                  '$count accumulated so far cannot be recovered afterwards. '
+                  'This computer can save only a PNG of the render; the FITS '
+                  'master is saved on the imaging computer. Save the render '
+                  'first, or discard it and stop.'
+              : canSave
+                  ? 'Stopping releases the stacker, and the $count accumulated '
+                      'so far cannot be recovered afterwards. Save the stacked '
+                      'master first. A FITS master carrying the integration time '
+                      'and frame count, or discard it and stop.'
+                  : 'Stopping releases the stacker, and the $count accumulated '
+                      'so far cannot be recovered afterwards. This device cannot '
+                      'write the master; save it from the imaging computer, or '
+                      'discard it and stop.',
           style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
       ),
