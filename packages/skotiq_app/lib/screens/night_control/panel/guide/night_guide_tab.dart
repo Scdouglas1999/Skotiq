@@ -12,7 +12,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
@@ -236,7 +235,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
     final stats = ref.watch(guideStatsProvider);
     final rms = ref.watch(nightGuideRmsProvider);
     final inputs = ref.watch(nightActionInputsProvider);
-    final isPhd2 = guider.deviceId == null || isPhd2DeviceId(guider.deviceId!);
+    final isPhd2 = ref.watch(connectedGuiderIsPhd2Provider);
 
     final (stateKey, tone) = guiderStateLabel(state);
     // SNR and mass are reported once a star is measured; zero means none.
