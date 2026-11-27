@@ -11,7 +11,6 @@ import 'dart:developer' as developer;
 import 'dart:ffi';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show ExternalLibrary;
 import 'package:path/path.dart' as path;
@@ -93,15 +92,13 @@ abstract final class NativeBridge {
     }
   }
 
-  /// Stands [api] in for the native library in a test: [run] calls it as it
-  /// would the library. [disposeMock] undoes it.
-  @visibleForTesting
+  /// For tests only: stands [api] in for the native library, and [run] calls
+  /// it as it would the library. [disposeMock] undoes it.
   static void initMock(frb.RustLibApi api) {
     frb.RustLib.initMock(api: api);
     _nativeAvailable = true;
   }
 
-  @visibleForTesting
   static void disposeMock() {
     frb.RustLib.dispose();
     _nativeAvailable = false;
