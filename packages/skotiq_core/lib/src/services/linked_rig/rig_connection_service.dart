@@ -165,9 +165,6 @@ abstract interface class RigConnectionSession {
   /// Whether [handle] is still the app's backend.
   bool isCurrent(Object handle);
 
-  /// The app's backend now, compared by identity.
-  Object get current;
-
   /// Whether a link to a host is open.
   bool get isLinked;
 
@@ -501,15 +498,18 @@ class RigConnectionService extends ChangeNotifier {
 
   // ----------------------------------------------------------------- relay
 
-  Future<void> _closeActiveRelayTunnel() async {
-    final tunnel = _activeRelayTunnel;
-    _activeRelayTunnel = null;
-    if (tunnel != null) {
-      try {
-        await tunnel.close();
-      } on Object catch (e) {
-        Log.debug('Relay tunnel close failed: $e', source: 'Relay');
-      }
+  Future<void> _closeActiveRelayTunnel() =>
+      _closeRelayTunnel(_activeRelayTunnel);
+
+  /// Closes [tunnel], and forgets it when it is still the session's. A newer
+  /// connect's tunnel is never touched.
+  Future<void> _closeRelayTunnel(RigRelayTunnel? tunnel) async {
+    if (tunnel == null) return;
+    if (identical(_activeRelayTunnel, tunnel)) _activeRelayTunnel = null;
+    try {
+      await tunnel.close();
+    } on Object catch (e) {
+      Log.debug('Relay tunnel close failed: $e', source: 'Relay');
     }
   }
 
@@ -565,8 +565,9 @@ class RigConnectionService extends ChangeNotifier {
     // A fresh tunnel per connect attempt: drop any previous one first.
     await _closeActiveRelayTunnel();
 
+    RigRelayTunnel? opened;
     try {
-      final tunnel = await device.openRelayTunnel(
+      final tunnel = opened = await device.openRelayTunnel(
         relayUrl: parsedRelay,
         applianceId: trimmedId,
         allowBadTlsCertificate: allowInsecureTls,
@@ -593,17 +594,11 @@ class RigConnectionService extends ChangeNotifier {
         pairingSupported: true,
         authToken: presetAuthToken,
       );
-      // A successful connect swaps in a new backend instance; a failed one
-      // leaves the existing backend in place.
-      final priorBackend = session.current;
-      await connect(relayServer);
-
-      // If the connect failed (no backend swap happened), tear the tunnel back
-      // down so no loopback listener leaks and no relay row is saved.
-      if (_disposed ||
-          !session.isLinked ||
-          identical(session.current, priorBackend)) {
-        await _closeActiveRelayTunnel();
+      // A connect that did not link (failed, or a newer connect took over)
+      // closes this tunnel so no loopback listener leaks and no relay row is
+      // saved; a newer connect's tunnel stays up.
+      if (!await connect(relayServer) || _disposed) {
+        await _closeRelayTunnel(tunnel);
         return;
       }
 
@@ -627,7 +622,7 @@ class RigConnectionService extends ChangeNotifier {
         );
       }
     } on RigRelayRefused catch (e) {
-      await _closeActiveRelayTunnel();
+      await _closeRelayTunnel(opened);
       if (_disposed) return;
       _update(
         _state.copyWith(
@@ -637,7 +632,7 @@ class RigConnectionService extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      await _closeActiveRelayTunnel();
+      await _closeRelayTunnel(opened);
       if (_disposed) return;
       _update(
         _state.copyWith(

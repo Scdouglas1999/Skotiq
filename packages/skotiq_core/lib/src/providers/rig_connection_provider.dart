@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../backend/remote_host.dart';
-import '../backend/roles/host_data/host_link.dart';
 import '../backend/skotiq_backend.dart';
 import '../services/linked_rig/rig_connection_service.dart';
 import 'backend_provider.dart';
@@ -85,9 +84,6 @@ class _BackendSession implements RigConnectionSession {
   @override
   bool isCurrent(Object handle) =>
       handle is SkotiqBackend && _backend.isCurrentBackend(handle);
-
-  @override
-  Object get current => _ref.read(backendProvider);
 
   @override
   bool get isLinked => _ref.read(isRemoteModeProvider);

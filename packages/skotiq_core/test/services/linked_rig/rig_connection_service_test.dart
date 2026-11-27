@@ -157,9 +157,6 @@ class _Session implements RigConnectionSession {
   bool isCurrent(Object handle) => identical(handle, _current);
 
   @override
-  Object get current => _current;
-
-  @override
   bool get isLinked => linked;
 
   @override
@@ -194,6 +191,8 @@ DiscoveredServer _host({
 );
 
 void main() {
+  group('relay', relayRaceTests);
+
   late _Device device;
   late _Session session;
   late List<String> savedLast;
@@ -360,6 +359,54 @@ void main() {
       expect(service.state.connected?.host, '192.168.1.20');
       service.showConnectionScreen();
       expect(service.state.skipped, isFalse);
+    },
+  );
+}
+
+class _HeldConnect extends RigConnectionService {
+  _HeldConnect({required super.device, required super.session});
+
+  final held = <Completer<bool>>[];
+
+  @override
+  Future<bool> connect(DiscoveredServer server, {String? savedServerId}) {
+    final answer = Completer<bool>();
+    held.add(answer);
+    return answer.future;
+  }
+}
+
+void relayRaceTests() {
+  test(
+    'a relay connect a newer one replaced closes only its own tunnel',
+    () async {
+      final device = _Device();
+      final session = _Session();
+      final service = _HeldConnect(device: device, session: session);
+
+      final older = service.connectViaRelay(
+        relayUrl: 'wss://relay.example',
+        applianceId: 'aaaa-bbbb-cccc',
+      );
+      await pumpEventQueue();
+      final newer = service.connectViaRelay(
+        relayUrl: 'wss://relay.example',
+        applianceId: 'dddd-eeee-ffff',
+      );
+      await pumpEventQueue();
+      expect(device.tunnels, hasLength(2));
+
+      // The older connect was superseded while the newer one is still dialling.
+      service.held[0].complete(false);
+      await older;
+      expect(device.tunnels[1].closed, isFalse);
+      expect(service.activeRelayTunnel, same(device.tunnels[1]));
+
+      session.linked = true;
+      service.held[1].complete(true);
+      await newer;
+      expect(device.tunnels[1].closed, isFalse);
+      expect(device.relays, ['dddd-eeee-ffff null']);
     },
   );
 }
