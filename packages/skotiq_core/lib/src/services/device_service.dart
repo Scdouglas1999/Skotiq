@@ -256,13 +256,18 @@ class DeviceService {
   final NotificationRouter Function()? _notices;
 
   /// Tell the operator through the notification router, on [category]'s row.
+  ///
+  /// [runStep] marks a happening a run also makes as its own step, which the
+  /// run's screens show: it is not told while a run is going.
   void _tell(
     NotificationCategory category, {
     required String title,
     required String body,
     EventSeverity severity = EventSeverity.info,
     Set<AppScreen> quietOn = const {},
+    bool runStep = false,
   }) {
+    if (runStep && _ref.read(sequenceExecutionStateProvider).canStop) return;
     _notices?.call().routeRendered(
       category: category,
       title: title,

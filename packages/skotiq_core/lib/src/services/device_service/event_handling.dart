@@ -217,12 +217,11 @@ extension _DeviceServiceEventHandling on DeviceService {
       case bridge.EquipmentEvent_MountSlewCompleted(:final deviceId):
         if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(false);
-        // A slew the run made is the run's own step, and Tonight says so.
-        if (_ref.read(sequenceExecutionStateProvider).canStop) break;
         _tell(
           NotificationCategory.mountMoved,
           title: 'Mount',
           body: 'Slew completed',
+          runStep: true,
           quietOn: const {
             AppScreen.dashboard,
             AppScreen.imaging,
