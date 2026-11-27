@@ -472,15 +472,22 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     if (preference == null) return stored;
     final dao = ref.read(settingsDaoProvider);
     const restoredKey = BackupService.restoredSolverRowsSettingKey;
-    if (await dao.getSetting(restoredKey) != null) {
+    if (await dao.getSetting(restoredKey) case final restoredRows?) {
       // A replace-restore: the rows are the backup's, and the preference
       // takes them once. Kept for the next open if the preference refuses.
+      // A backup without a solver row leaves that part of the preference.
+      final rows = restoredRows.split(',').toSet();
+      bool restoredRow(TextSetting setting) => rows.contains(setting.key);
       final restored = preference.copyWith(
-        choice:
-            PlateSolverChoice.fromSettingLabel(stored.plateSolver) ??
-            preference.choice,
-        astapPath: stored.astapPath,
-        astrometryPath: stored.astrometryPath,
+        choice: restoredRow(AppSettingDefs.plateSolver)
+            ? PlateSolverChoice.fromSettingLabel(stored.plateSolver)
+            : null,
+        astapPath: restoredRow(AppSettingDefs.astapPath)
+            ? stored.astapPath
+            : null,
+        astrometryPath: restoredRow(AppSettingDefs.astrometryPath)
+            ? stored.astrometryPath
+            : null,
       );
       try {
         await ref.read(plateSolveServiceProvider).setConfig(restored);
@@ -493,7 +500,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         return stored;
       }
       await dao.deleteSetting(restoredKey);
-      return stored;
+      return _withSolverPreference(stored, restored);
     }
     final storedRows = storedRowsOf(stored);
     final changed = {

@@ -185,10 +185,10 @@ void main() {
       await SettingsDao(
         replaced,
       ).getSetting(BackupService.restoredSolverRowsSettingKey),
-      isNotNull,
+      isNull,
       reason:
-          'the first open writes the restored solver rows to the '
-          'preference',
+          'a bundle without plate-solver rows leaves the solver '
+          'preference as it is',
     );
   });
 }

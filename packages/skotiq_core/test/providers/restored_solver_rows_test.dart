@@ -51,7 +51,8 @@ void main() {
     'plate_solver': 'Astrometry.net',
     'astap_path': '/usr/local/bin/astap',
     'astrometry_path': '/usr/bin/solve-field',
-    BackupService.restoredSolverRowsSettingKey: 'true',
+    BackupService.restoredSolverRowsSettingKey:
+        'plate_solver,astap_path,astrometry_path',
   });
 
   test('the first open of a restored database sets the solver from it, '
@@ -74,6 +75,19 @@ void main() {
     // From then on the preference is the source again.
     preference = preference.copyWith(choice: PlateSolverChoice.astap);
     expect((await open()).plateSolver, 'ASTAP');
+  });
+
+  test('a restore marks only the solver rows the backup carried', () async {
+    await SettingsDao(db).setSettings({
+      'plate_solver': 'Auto',
+      'astap_path': '/usr/local/bin/astap',
+      BackupService.restoredSolverRowsSettingKey: 'astap_path',
+    });
+
+    await open();
+
+    expect(preference.choice, PlateSolverChoice.astap);
+    expect(preference.astapPath, '/usr/local/bin/astap');
   });
 
   test('without a restore the preference wins over stale rows', () async {
