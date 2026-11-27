@@ -83,6 +83,10 @@ class _MobileBuilderLayout extends ConsumerWidget {
           showSequencerPropertiesSheet(context, colors);
         }
       },
+      // On its side the floating add button would sit over the few rows in
+      // view, on their Count and ETA columns; the plan's last line adds.
+      onAddStep:
+          landscape ? () => showSequencerNodeSheet(context, colors) : null,
     );
 
     return SafeArea(
@@ -161,10 +165,8 @@ class _MobileBuilderLayout extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
-                // On its side with a step selected the properties pane sits
-                // here, and the button covered its tabs. The plan's own
-                // "Tap + to add a node" row stays.
-                if (!(landscape && selectedNodeId != null))
+                // On its side the plan's last line is the add control.
+                if (!landscape)
                   FloatingActionButton(
                     heroTag: 'add_node_fab',
                     tooltip: 'Add a step',

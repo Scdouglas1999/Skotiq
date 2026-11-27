@@ -100,7 +100,7 @@ void main() {
     expect(find.byType(SequenceTree), findsOneWidget);
 
     // Add-node affordance is reachable.
-    expect(find.byType(FloatingActionButton), findsWidgets);
+    expect(find.byTooltip('Add a step'), findsWidgets);
   }
 
   for (final (label, portrait) in phones) {

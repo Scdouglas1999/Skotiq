@@ -158,11 +158,16 @@ class SequenceTree extends ConsumerStatefulWidget {
   final bool isMobile;
   final void Function(String nodeId)? onNodeTap;
 
+  /// Turns the plan's last line into an "Add a step" control, for a layout
+  /// that shows no floating add button.
+  final VoidCallback? onAddStep;
+
   const SequenceTree({
     super.key,
     required this.colors,
     this.isMobile = false,
     this.onNodeTap,
+    this.onAddStep,
   });
 
   @override
@@ -878,6 +883,7 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
                                           densityClamped: densityClamped,
                                           isMobile: widget.isMobile,
                                           onNodeTap: widget.onNodeTap,
+                                          onAddStep: widget.onAddStep,
                                           keyRegistry: _nodeKeyRegistry,
                                         ),
                                       ],

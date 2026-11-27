@@ -10,6 +10,10 @@ class _NodeTreeView extends ConsumerWidget {
   final bool isMobile;
   final void Function(String nodeId)? onNodeTap;
 
+  /// Makes the plan's last line a control that adds a step, for a layout
+  /// with no floating add button. Read at the root only.
+  final VoidCallback? onAddStep;
+
   /// How dense this row draws, resolved once by [SequenceTree] and threaded
   /// down so every level of the tree agrees. Ledger swaps the row widget
   /// outright; Compact and Ledger both suppress the inline extras that render
@@ -38,6 +42,7 @@ class _NodeTreeView extends ConsumerWidget {
     required this.keyRegistry,
     this.isMobile = false,
     this.onNodeTap,
+    this.onAddStep,
   });
 
   @override
@@ -451,7 +456,9 @@ class _NodeTreeView extends ConsumerWidget {
                         // node here, or double-click one in the palette'").
                         // Inside a container it names the container's contents
                         // instead, and only while that container is empty.
-                        if (isRoot || (!hasChildren && isContainer))
+                        if (isRoot && isMobile && onAddStep != null)
+                          _AddStepLine(colors: colors, onPressed: onAddStep!)
+                        else if (isRoot || (!hasChildren && isContainer))
                           Padding(
                             padding: const EdgeInsets.only(
                               top: SkotiqTokens.spaceMd,
@@ -737,6 +744,46 @@ class _NodeTreeView extends ConsumerWidget {
       ),
       childWhenDragging: Opacity(opacity: 0.3, child: decorated),
       child: decorated,
+    );
+  }
+}
+
+/// The plan's last line as the control that adds a step.
+class _AddStepLine extends StatelessWidget {
+  const _AddStepLine({required this.colors, required this.onPressed});
+
+  final SkotiqColors colors;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: SkotiqTokens.spaceXs),
+      child: Tooltip(
+        message: 'Add a step',
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(width: SkotiqTokens.spaceXs + 2),
+                Icon(LucideIcons.plus, size: 16, color: colors.primary),
+                const SizedBox(width: SkotiqTokens.spaceSm),
+                Text(
+                  'Add a step',
+                  style: SkotiqTypography.bodySm.copyWith(
+                    color: colors.primary,
+                  ),
+                ),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
