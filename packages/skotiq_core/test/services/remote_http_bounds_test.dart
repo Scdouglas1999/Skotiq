@@ -47,6 +47,17 @@ Future<void> _neverAnswer(HttpRequest request, _Server server) async {
   server.held.add(request);
 }
 
+/// Sends headers and a few body bytes, then goes silent.
+Future<void> _stallMidBody(HttpRequest request, _Server server) async {
+  server.held.add(request);
+  await request.drain<void>();
+  request.response
+    ..statusCode = 200
+    ..contentLength = 1000
+    ..add(List<int>.filled(10, 1));
+  await request.response.flush();
+}
+
 void main() {
   late Directory tmp;
   setUp(() async {
@@ -98,5 +109,33 @@ void main() {
       final second = await service.pushNow();
       expect(second.errorMessage, isNot(contains('already in progress')));
     }, timeout: const Timeout(Duration(seconds: 20)));
+  });
+
+  group('shared calibration library', () {
+    test(
+      'a hub that sends headers then stalls mid-body ends the download',
+      () async {
+        final server = await _Server.start(_stallMidBody);
+        addTearDown(server.close);
+        final client = SharedCalibrationClient(
+          hubBaseUrl: server.uri,
+          bearerToken: 'tok',
+          timeout: const Duration(milliseconds: 300),
+        );
+        addTearDown(client.close);
+
+        await expectLater(
+          client.downloadMasterBytes('m-1'),
+          throwsA(
+            isA<ConstellationException>().having(
+              (e) => e.kind,
+              'kind',
+              ConstellationErrorKind.network,
+            ),
+          ),
+        );
+      },
+      timeout: const Timeout(Duration(seconds: 20)),
+    );
   });
 }

@@ -67,6 +67,7 @@ class SharedCalibrationClient {
       _client,
       networkFailure: ConstellationException.network,
       headerDeadline: timeout,
+      bodyDeadline: timeout,
     );
   }
 
