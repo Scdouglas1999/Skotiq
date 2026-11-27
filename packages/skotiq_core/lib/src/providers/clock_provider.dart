@@ -102,6 +102,27 @@ extension ClockTimeOfDay on Clock {
 
   /// [instant] as `HH:MM` on this clock.
   String timeOfDay(DateTime instant) => ClockFormat.hm(wallClockOf(instant));
+
+  /// The true instant behind [onClock], a time already on this clock.
+  ///
+  /// [FixedOffsetClock] renders a zone by re-tagging shifted fields as host
+  /// local, so the instant is those fields read as UTC, less the offset.
+  DateTime toInstant(DateTime onClock) {
+    final self = this;
+    if (self is FixedOffsetClock) {
+      return DateTime.utc(
+        onClock.year,
+        onClock.month,
+        onClock.day,
+        onClock.hour,
+        onClock.minute,
+        onClock.second,
+        onClock.millisecond,
+        onClock.microsecond,
+      ).subtract(self.utcOffset);
+    }
+    return onClock.toUtc();
+  }
 }
 
 class SystemClock implements Clock {

@@ -37,4 +37,15 @@ void main() {
     final local = DateTime(2026, 11, 26, 22, 5);
     expect(const SystemClock().timeOfDay(local), '22:05');
   });
+
+  test('a time read on a clock goes back to the instant it showed', () {
+    final instant = DateTime.utc(2026, 11, 26, 4, 15);
+    for (final clock in <Clock>[site, const SystemClock()]) {
+      expect(
+        clock.toInstant(clock.wallClockOf(instant)).isAtSameMomentAs(instant),
+        isTrue,
+      );
+    }
+    expect(site.toInstant(DateTime(2026, 11, 25, 23, 15)), instant);
+  });
 }

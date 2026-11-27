@@ -18,27 +18,6 @@ import '../../../../services/night_session/night_now.dart';
 extension NightClockTimes on Clock {
   /// [instant] as the operator reads it.
   DateTime toNightClock(DateTime instant) => fromUtc(instant.toUtc());
-
-  /// The true instant behind [onClock], a time already on this clock.
-  ///
-  /// [FixedOffsetClock] renders a zone by re-tagging shifted fields as host
-  /// local, so the instant is those fields read as UTC, less the offset.
-  DateTime toInstant(DateTime onClock) {
-    final self = this;
-    if (self is FixedOffsetClock) {
-      return DateTime.utc(
-        onClock.year,
-        onClock.month,
-        onClock.day,
-        onClock.hour,
-        onClock.minute,
-        onClock.second,
-        onClock.millisecond,
-        onClock.microsecond,
-      ).subtract(self.utcOffset);
-    }
-    return onClock.toUtc();
-  }
 }
 
 /// When an armed "Start at dark" fires, on the operator's clock; null when
