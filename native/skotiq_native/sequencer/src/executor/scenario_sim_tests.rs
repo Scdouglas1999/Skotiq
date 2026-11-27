@@ -3360,7 +3360,7 @@ async fn a_guider_stop_someone_asked_for_is_not_a_lost_star() {
         ops.guiding.store(false, Ordering::SeqCst);
         let fired_on_loss =
             guide_star_lost_fires(&mut events, std::time::Duration::from_secs(5)).await;
-        let _ = executor.stop().await;
+        executor.stop().await.expect("the run stops");
 
         assert!(
             !fired_on_stop,

@@ -433,7 +433,10 @@ mod tests {
             .parked = true;
 
         let refused = Guider::Builtin.start(1.5, 2.0, 10.0).await;
-        let _ = manager.disconnect_device("sim_mount_1").await;
+        manager
+            .disconnect_device("sim_mount_1")
+            .await
+            .expect("disconnect simulator");
 
         match refused {
             Err(SkotiqError::InvalidState(message)) => {
