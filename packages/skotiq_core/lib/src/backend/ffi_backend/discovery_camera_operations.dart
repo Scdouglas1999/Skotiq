@@ -328,10 +328,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
         name.contains(r'\')) {
       throw ArgumentError.value(name, 'name', 'not a plain file name');
     }
-    final folder = Directory(
-      '${Directory.systemTemp.path}${Platform.pathSeparator}skotiq_captures',
-    );
-    await folder.create(recursive: true);
+    final folder = await resolveSkotiqScratchFramesDirectory();
     return saveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: '${folder.path}${Platform.pathSeparator}$name',

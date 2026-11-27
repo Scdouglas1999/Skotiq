@@ -37,6 +37,7 @@ import 'bridge_event_codec.dart';
 import 'ip_geolocation.dart';
 import '../models/backend/backend_types.dart';
 import '../utils/logging_service.dart';
+import '../utils/skotiq_data_directory.dart';
 
 part 'ffi_backend/native_runtime.dart';
 part 'ffi_backend/type_mappers.dart';
