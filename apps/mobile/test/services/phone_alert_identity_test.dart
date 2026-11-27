@@ -1,6 +1,6 @@
 // What a linked phone shows for one happening that it alerts on directly from
 // the host's events and that the host also pushes, in either order: each
-// posted notification as `<id> <channel> <title>`. A post that reuses an id
+// posted notification as `<id> <channel> <title> -> <tap payload>`. A post that reuses an id
 // replaces the notification under that id; a push under a fresh id stacks.
 //
 // The in-app notices of every role are pinned in
@@ -16,6 +16,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skotiq_core/backend.dart' show wireEventFromTyped;
 import 'package:skotiq_core/bridge_events.dart' as sk;
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart'
+    show PushNotification, PushNotificationPriority;
 import 'package:skotiq_mobile/services/mobile_event_notifier.dart';
 import 'package:skotiq_mobile/services/mobile_preferences.dart';
 import 'package:skotiq_mobile/services/notification_service.dart';
@@ -174,7 +176,8 @@ void main() {
             // range; the counter itself depends on test order.
             posts.add(
               '${id >= 200 ? 'fresh' : '$id'} '
-              '${specifics?['channelId']} ${args['title']}',
+              '${specifics?['channelId']} ${args['title']} '
+              '-> ${args['payload']}',
             );
           }
           return null;
@@ -202,12 +205,16 @@ void main() {
     )..start();
     addTearDown(notifier.stop);
 
-    final push = <String, dynamic>{
-      'title': 'Host: ${category.label}',
-      'body': 'From the host',
-      'priority': 'critical',
-      'eventType': category.storageKey,
-    };
+    // The host's SystemPushTransport names the push by the category's
+    // storage key.
+    final push = PushNotification(
+      title: 'Host: ${category.label}',
+      body: 'From the host',
+      priority: PushNotificationPriority.critical,
+      eventType: category.storageKey,
+      category: EventCategory.sequencer,
+      timestamp: DateTime(2026, 11, 26, 2),
+    ).toJson();
     Future<void> deliverPush() async {
       // What the push listener does with a push from the host.
       notifier.recordPushReceived(category.storageKey);
@@ -252,70 +259,94 @@ void main() {
 const bool _printTable = bool.fromEnvironment('NOTICE_TABLE_PRINT');
 
 const _expected = <String, List<String>>{
-  'sequenceCompleted eventFirst': ['100 skotiq_push Host: Sequence completed'],
-  'sequenceCompleted pushFirst': ['100 skotiq_push Host: Sequence completed'],
+  'sequenceCompleted eventFirst': [
+    '100 skotiq_sequence Host: Sequence completed -> sequence_complete',
+  ],
+  'sequenceCompleted pushFirst': [
+    '100 skotiq_sequence Host: Sequence completed -> sequence_complete',
+  ],
   'sequenceFailed eventFirst': [
-    '101 skotiq_sequence Sequence failed',
-    '101 skotiq_push Host: Sequence failed',
+    '101 skotiq_sequence Sequence failed -> sequence_failed',
+    '101 skotiq_sequence Host: Sequence failed -> sequence_failed',
   ],
-  'sequenceFailed pushFirst': ['101 skotiq_push Host: Sequence failed'],
+  'sequenceFailed pushFirst': [
+    '101 skotiq_sequence Host: Sequence failed -> sequence_failed',
+  ],
   'recoveryGaveUp eventFirst': [
-    '101 skotiq_sequence Recovery gave up',
-    '101 skotiq_push Host: Recovery gave up',
+    '101 skotiq_sequence Recovery gave up -> sequence_failed',
+    '101 skotiq_sequence Host: Recovery gave up -> sequence_failed',
   ],
-  'recoveryGaveUp pushFirst': ['101 skotiq_push Host: Recovery gave up'],
+  'recoveryGaveUp pushFirst': [
+    '101 skotiq_sequence Host: Recovery gave up -> sequence_failed',
+  ],
   'targetCompleted eventFirst': [
-    '110 skotiq_info Target Complete',
-    '110 skotiq_push Host: Target completed',
+    '110 skotiq_info Target Complete -> target_completed:M31',
+    '110 skotiq_info Host: Target completed -> target_completed',
   ],
-  'targetCompleted pushFirst': ['110 skotiq_push Host: Target completed'],
+  'targetCompleted pushFirst': [
+    '110 skotiq_info Host: Target completed -> target_completed',
+  ],
   'meridianFlipPerformed eventFirst': [
-    '102 skotiq_info Meridian Flip',
-    '102 skotiq_push Host: Meridian flip performed',
+    '102 skotiq_info Meridian Flip -> meridian_flip:M31',
+    '102 skotiq_info Host: Meridian flip performed -> meridian_flip',
   ],
   'meridianFlipPerformed pushFirst': [
-    '102 skotiq_push Host: Meridian flip performed',
+    '102 skotiq_info Host: Meridian flip performed -> meridian_flip',
   ],
   'autofocusContinued eventFirst': [
-    '108 skotiq_warnings Autofocus Failed',
-    '108 skotiq_push Host: Autofocus continued',
+    '108 skotiq_warnings Autofocus Failed -> autofocus_failed',
+    '108 skotiq_warnings Host: Autofocus continued -> autofocus_failed',
   ],
-  'autofocusContinued pushFirst': ['108 skotiq_push Host: Autofocus continued'],
+  'autofocusContinued pushFirst': [
+    '108 skotiq_warnings Host: Autofocus continued -> autofocus_failed',
+  ],
   'autofocusFailed eventFirst': [
-    '108 skotiq_warnings Autofocus Failed',
-    '108 skotiq_push Host: Autofocus failed',
+    '108 skotiq_warnings Autofocus Failed -> autofocus_failed',
+    '108 skotiq_warnings Host: Autofocus failed -> autofocus_failed',
   ],
-  'autofocusFailed pushFirst': ['108 skotiq_push Host: Autofocus failed'],
+  'autofocusFailed pushFirst': [
+    '108 skotiq_warnings Host: Autofocus failed -> autofocus_failed',
+  ],
   'exposureFailed eventFirst': [
-    '107 skotiq_warnings Exposure Failed',
-    '107 skotiq_push Host: Exposure failed',
+    '107 skotiq_warnings Exposure Failed -> exposure_failed',
+    '107 skotiq_warnings Host: Exposure failed -> exposure_failed',
   ],
-  'exposureFailed pushFirst': ['107 skotiq_push Host: Exposure failed'],
+  'exposureFailed pushFirst': [
+    '107 skotiq_warnings Host: Exposure failed -> exposure_failed',
+  ],
   'guidingLost eventFirst': [
-    '106 skotiq_critical Guiding Lost',
-    '106 skotiq_push Host: Guiding lost',
+    '106 skotiq_critical Guiding Lost -> guiding_lost',
+    '106 skotiq_critical Host: Guiding lost -> guiding_lost',
   ],
-  'guidingLost pushFirst': ['106 skotiq_push Host: Guiding lost'],
+  'guidingLost pushFirst': [
+    '106 skotiq_critical Host: Guiding lost -> guiding_lost',
+  ],
   'weatherUnsafe eventFirst': [
-    '105 skotiq_critical Weather unsafe',
-    '105 skotiq_push Host: Weather unsafe',
+    '105 skotiq_critical Weather unsafe -> safety',
+    '105 skotiq_critical Host: Weather unsafe -> safety',
   ],
-  'weatherUnsafe pushFirst': ['105 skotiq_push Host: Weather unsafe'],
+  'weatherUnsafe pushFirst': [
+    '105 skotiq_critical Host: Weather unsafe -> safety',
+  ],
   'mountFault eventFirst': [
-    '117 skotiq_critical Mount fault',
-    '117 skotiq_push Host: Mount fault',
+    '117 skotiq_critical Mount fault -> mount_fault',
+    '117 skotiq_critical Host: Mount fault -> mount_fault',
   ],
-  'mountFault pushFirst': ['117 skotiq_push Host: Mount fault'],
+  'mountFault pushFirst': [
+    '117 skotiq_critical Host: Mount fault -> mount_fault',
+  ],
   'diskSpaceLow eventFirst': [
-    '103 skotiq_warnings Low Disk Space',
-    '103 skotiq_push Host: Disk space low',
+    '103 skotiq_warnings Low Disk Space -> low_disk_space',
+    '103 skotiq_warnings Host: Disk space low -> low_disk_space',
   ],
-  'diskSpaceLow pushFirst': ['103 skotiq_push Host: Disk space low'],
+  'diskSpaceLow pushFirst': [
+    '103 skotiq_warnings Host: Disk space low -> low_disk_space',
+  ],
   'equipmentDisconnected eventFirst': [
-    '109 skotiq_critical Device Disconnected',
-    '109 skotiq_push Host: Equipment disconnected',
+    '109 skotiq_critical Device Disconnected -> equipment_disconnected:Camera',
+    '109 skotiq_critical Host: Equipment disconnected -> equipment_disconnected',
   ],
   'equipmentDisconnected pushFirst': [
-    '109 skotiq_push Host: Equipment disconnected',
+    '109 skotiq_critical Host: Equipment disconnected -> equipment_disconnected',
   ],
 };

@@ -227,6 +227,8 @@ NotificationDetails _pushDetails({
   ),
 );
 
+typedef _CategoryPost = ({int id, NotificationDetails details, String payload});
+
 class MobileNotificationService implements MobileNotificationSink {
   static final MobileNotificationService _instance =
       MobileNotificationService._internal();
@@ -285,24 +287,103 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _mountFaultId = 117;
   static const int _hostJobFailedId = 118;
 
-  /// The id each notification category is shown under, keyed by the
-  /// category's storage key, which is the `eventType` of the host's push.
-  static final Map<String, int> _categoryNotificationIds = {
-    NotificationCategory.sequenceCompleted.storageKey: _sequenceCompleteId,
-    NotificationCategory.sequenceFailed.storageKey: _sequenceFailedId,
-    NotificationCategory.recoveryGaveUp.storageKey: _sequenceFailedId,
-    NotificationCategory.meridianFlipPerformed.storageKey: _meridianFlipId,
-    NotificationCategory.diskSpaceLow.storageKey: _lowDiskSpaceId,
-    NotificationCategory.weatherUnsafe.storageKey: _safetyId,
-    NotificationCategory.mountFault.storageKey: _mountFaultId,
-    NotificationCategory.guidingLost.storageKey: _guidingLostId,
-    NotificationCategory.guidingRecovered.storageKey: _guidingLostId,
-    NotificationCategory.exposureFailed.storageKey: _exposureFailedId,
-    NotificationCategory.autofocusFailed.storageKey: _autofocusFailedId,
-    NotificationCategory.autofocusContinued.storageKey: _autofocusFailedId,
-    NotificationCategory.equipmentDisconnected.storageKey:
+  /// How the phone shows each category it also tells itself, keyed by the
+  /// category's storage key, which is the `eventType` of the host's push. A
+  /// push of one of these takes the phone's own id, presentation and tap
+  /// target, so whichever of the two arrives second replaces the first
+  /// without turning an alarm into an ordinary notification.
+  static final Map<String, _CategoryPost> _categoryPosts = {
+    for (final (category, id, details, payload) in [
+      (
+        NotificationCategory.sequenceCompleted,
+        _sequenceCompleteId,
+        _sequenceDetails,
+        NotificationPayloadType.sequenceComplete,
+      ),
+      (
+        NotificationCategory.sequenceFailed,
+        _sequenceFailedId,
+        _sequenceDetails,
+        NotificationPayloadType.sequenceFailed,
+      ),
+      (
+        NotificationCategory.recoveryGaveUp,
+        _sequenceFailedId,
+        _sequenceDetails,
+        NotificationPayloadType.sequenceFailed,
+      ),
+      (
+        NotificationCategory.meridianFlipPerformed,
+        _meridianFlipId,
+        _infoDetails,
+        NotificationPayloadType.meridianFlip,
+      ),
+      (
+        NotificationCategory.diskSpaceLow,
+        _lowDiskSpaceId,
+        _warningDetails,
+        NotificationPayloadType.lowDiskSpace,
+      ),
+      (
+        NotificationCategory.weatherUnsafe,
+        _safetyId,
+        _criticalAlarmDetails,
+        NotificationPayloadType.safety,
+      ),
+      (
+        NotificationCategory.mountFault,
+        _mountFaultId,
+        _criticalAlarmDetails,
+        NotificationPayloadType.mountFault,
+      ),
+      (
+        NotificationCategory.guidingLost,
+        _guidingLostId,
+        _criticalDetails,
+        NotificationPayloadType.guidingLost,
+      ),
+      (
+        NotificationCategory.guidingRecovered,
+        _guidingLostId,
+        _infoDetails,
+        NotificationPayloadType.guidingLost,
+      ),
+      (
+        NotificationCategory.exposureFailed,
+        _exposureFailedId,
+        _warningDetails,
+        NotificationPayloadType.exposureFailed,
+      ),
+      (
+        NotificationCategory.autofocusFailed,
+        _autofocusFailedId,
+        _warningDetails,
+        NotificationPayloadType.autofocusFailed,
+      ),
+      (
+        NotificationCategory.autofocusContinued,
+        _autofocusFailedId,
+        _warningDetails,
+        NotificationPayloadType.autofocusFailed,
+      ),
+      (
+        NotificationCategory.equipmentDisconnected,
         _equipmentDisconnectedId,
-    NotificationCategory.targetCompleted.storageKey: _targetCompletedId,
+        _criticalDetails,
+        NotificationPayloadType.equipmentDisconnected,
+      ),
+      (
+        NotificationCategory.targetCompleted,
+        _targetCompletedId,
+        _infoDetails,
+        NotificationPayloadType.targetCompleted,
+      ),
+    ])
+      category.storageKey: (
+        id: id,
+        details: details,
+        payload: payload.payload(),
+      ),
   };
 
   /// Auto-incrementing ID for push notifications from the desktop
@@ -817,6 +898,18 @@ class MobileNotificationService implements MobileNotificationSink {
         ? deepLinkRaw
         : null;
 
+    final categoryPost = _categoryPosts[eventType];
+    if (categoryPost != null) {
+      await _notifications.show(
+        categoryPost.id,
+        title,
+        body,
+        categoryPost.details,
+        payload: deepLink ?? categoryPost.payload,
+      );
+      return;
+    }
+
     // Map priority to Android notification importance and sound
     final bool playSound;
     final Importance importance;
@@ -837,18 +930,10 @@ class MobileNotificationService implements MobileNotificationSink {
         androidPriority = Priority.high;
     }
 
-    // A push about a happening the phone also tells itself takes the id the
-    // phone tells it under, so the two replace each other in either order.
-    final int id;
-    final categoryId = _categoryNotificationIds[eventType];
-    if (categoryId != null) {
-      id = categoryId;
-    } else {
-      id = _nextPushNotificationId++;
-      // Wrap around to avoid overflow, keeping it above the reserved IDs
-      if (_nextPushNotificationId > 9999) {
-        _nextPushNotificationId = 200;
-      }
+    final id = _nextPushNotificationId++;
+    // Wrap around to avoid overflow, keeping it above the reserved IDs
+    if (_nextPushNotificationId > 9999) {
+      _nextPushNotificationId = 200;
     }
 
     await _notifications.show(
