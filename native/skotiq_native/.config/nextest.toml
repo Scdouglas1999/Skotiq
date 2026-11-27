@@ -1,12 +1,14 @@
 # cargo-nextest, which scripts/rust_checks.sh test uses when it is installed
-# (CI installs it). Each test runs in its own process, so the in-process
-# SERIAL locks of the simulated-rig tests no longer make them take turns.
+# (CI installs it). nextest runs each test in its own process; plain
+# `cargo test` (the script's fallback and every targeted run) runs a binary's
+# tests as threads of one process. Both are supported, so a test that touches
+# a process global (the simulators, the device registry, the guiders, the
+# event bus) still takes its lock, such as `sim_singleton_test_lock`.
 
 [profile.default]
 # Run every test, so one failure cannot hide the rest.
 fail-fast = false
-# Most tests wait on simulated rig clocks: the suite used about 540 CPU
-# seconds over 260 wall seconds at 16 threads on 6 cores. Twelve keeps a
-# 4-core runner busy without starving the timing-sensitive tests.
+# Most tests wait on simulated rig clocks rather than use CPU, so twelve keeps
+# a 4-core runner busy without starving the timing-sensitive tests.
 test-threads = 12
 slow-timeout = { period = "60s" }

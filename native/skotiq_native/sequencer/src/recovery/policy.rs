@@ -278,8 +278,10 @@ impl RecoveryCause {
 mod tests {
     use super::*;
 
+    /// One cause of every kind. The `match` has no wildcard, so a new
+    /// variant does not compile until it is listed here and pinned below.
     fn all_causes() -> Vec<RecoveryCause> {
-        vec![
+        let causes = vec![
             RecoveryCause::GuideStarLost,
             RecoveryCause::SlewFailed,
             RecoveryCause::PlateSolveFailed,
@@ -289,7 +291,24 @@ mod tests {
             RecoveryCause::ConsecutiveRejectsExceeded,
             RecoveryCause::DeviceDisconnected,
             RecoveryCause::Custom("Roof sensor tripped".into()),
-        ]
+        ];
+        let position = |cause: &RecoveryCause| match cause {
+            RecoveryCause::GuideStarLost => 0,
+            RecoveryCause::SlewFailed => 1,
+            RecoveryCause::PlateSolveFailed => 2,
+            RecoveryCause::WeatherUnsafe => 3,
+            RecoveryCause::MountTrackingLost => 4,
+            RecoveryCause::FocusDriftCritical => 5,
+            RecoveryCause::ConsecutiveRejectsExceeded => 6,
+            RecoveryCause::DeviceDisconnected => 7,
+            RecoveryCause::Custom(_) => 8,
+        };
+        assert_eq!(
+            causes.iter().map(position).collect::<Vec<_>>(),
+            (0..=8).collect::<Vec<_>>(),
+            "one cause of each kind, in declaration order"
+        );
+        causes
     }
 
     /// The app parses `kind` (`RecoveryCause.fromJson`), keys analytics on

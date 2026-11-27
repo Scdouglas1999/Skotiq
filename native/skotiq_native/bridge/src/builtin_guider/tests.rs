@@ -1153,6 +1153,8 @@ async fn a_completed_settle_does_not_re_arm_on_the_next_guiding_frame() {
 /// through a whole Loop Exposures run over a plainly bright star.
 #[tokio::test]
 async fn a_looping_frame_announces_its_star_measurement() {
+    let _serial = test_serial().lock().await;
+    let _sims = crate::simulator::sim_singleton_test_lock().lock().await;
     let mut events = get_state().event_bus.subscribe();
     let mut guard = BuiltinGuiderState {
         looping: true,

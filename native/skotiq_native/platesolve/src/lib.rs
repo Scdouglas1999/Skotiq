@@ -3604,15 +3604,22 @@ mod fits_naxis2_tests {
     use super::fits_naxis2;
     use skotiq_imaging::{write_fits, FitsHeader, ImageData, PixelType};
 
+    /// A folder of this test process alone, so runs side by side never share a file.
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sk_fits_{name}_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
     fn reads_the_height_without_decoding_pixels() {
-        let dir = std::env::temp_dir().join("sk_fits_naxis2_test");
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = scratch("naxis2");
         let path = dir.join("frame.fits");
         let image = ImageData::new(16, 12, 1, PixelType::U16);
         write_fits(&path, &image, &FitsHeader::new()).unwrap();
-        assert_eq!(fits_naxis2(&path), Some(12.0));
-        assert_eq!(super::fits_image_size(&path), Some((16.0, 12.0)));
+        let read = (fits_naxis2(&path), super::fits_image_size(&path));
+        std::fs::remove_dir_all(&dir).expect("scratch folder removed");
+        assert_eq!(read, (Some(12.0), Some((16.0, 12.0))));
     }
 
     #[test]
@@ -3624,8 +3631,7 @@ mod fits_naxis2_tests {
     /// that stays right for an imported frame from somebody else's rig.
     #[test]
     fn the_frame_declares_its_own_plate_scale() {
-        let dir = std::env::temp_dir().join("sk_fits_scale_test");
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = scratch("scaled");
         let path = dir.join("scaled.fits");
         let image = ImageData::new(16, 12, 1, PixelType::U16);
         let mut header = FitsHeader::new();
@@ -3633,7 +3639,9 @@ mod fits_naxis2_tests {
         header.set_float("XPIXSZ", 3.76);
         write_fits(&path, &image, &header).unwrap();
 
-        let scale = super::fits_scale_arcsec_per_px(&path).unwrap();
+        let scale = super::fits_scale_arcsec_per_px(&path);
+        std::fs::remove_dir_all(&dir).expect("scratch folder removed");
+        let scale = scale.unwrap();
         assert!(
             (scale - 1.292_59).abs() < 1e-4,
             "600 mm at 3.76 um is 1.29\"/px, got {scale}"
@@ -3643,12 +3651,13 @@ mod fits_naxis2_tests {
     /// A frame with no optics cards yields no hint — never a guess.
     #[test]
     fn a_frame_without_optics_cards_declares_no_scale() {
-        let dir = std::env::temp_dir().join("sk_fits_scale_test");
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = scratch("bare");
         let path = dir.join("bare.fits");
         let image = ImageData::new(16, 12, 1, PixelType::U16);
         write_fits(&path, &image, &FitsHeader::new()).unwrap();
-        assert_eq!(super::fits_scale_arcsec_per_px(&path), None);
+        let scale = super::fits_scale_arcsec_per_px(&path);
+        std::fs::remove_dir_all(&dir).expect("scratch folder removed");
+        assert_eq!(scale, None);
     }
 }
 

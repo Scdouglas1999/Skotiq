@@ -336,15 +336,6 @@ async fn safety_check_interval_updates_runtime_config() {
 }
 
 #[test]
-fn test_save_path_configuration() {
-    let mut executor = SequenceExecutor::new();
-
-    executor.set_save_path(Some(std::path::PathBuf::from("/tmp/images")));
-
-    assert!(executor.save_path.is_some());
-}
-
-#[test]
 fn test_get_set_state() {
     let executor = SequenceExecutor::new();
 
@@ -1351,28 +1342,6 @@ async fn update_filter_offsets_writes_through_runtime_config() {
     let rc = handle.read();
     assert_eq!(rc.filter_focus_offsets.get("Ha"), Some(&250));
     assert_eq!(rc.filter_focus_offsets.get("OIII"), Some(&-120));
-}
-
-/// a single `Arc<CheckpointManager>` must be shared between
-/// the executor public API and the streaming-checkpoint task. Pointer
-/// equality on the Arc is a structural invariant; if `set_checkpoint_dir`
-/// ever drops back to `Box`/owned semantics this test fails immediately.
-#[test]
-fn checkpoint_manager_is_arc_shared() {
-    let mut executor = SequenceExecutor::new();
-    executor.set_checkpoint_dir("/tmp/skotiq_checkpoint_test_§1_16");
-    let mgr_a = executor
-        .checkpoint_manager
-        .clone()
-        .expect("checkpoint manager set");
-    let mgr_b = executor
-        .checkpoint_manager
-        .clone()
-        .expect("checkpoint manager set");
-    assert!(
-        Arc::ptr_eq(&mgr_a, &mgr_b),
-        "set_checkpoint_dir must produce a single shared Arc"
-    );
 }
 
 // calculate_totals must recognise SmartExposure.

@@ -21,11 +21,8 @@
 //! Splitting them across files would force every caller to learn two
 //! file boundaries to read the persistence contract.
 //!
-//!16 invariant (preserved): the same `Arc<CheckpointManager>`
-//! is shared between the executor's public API (these methods) and the
-//! streaming-checkpoint task spawned inside `start()`. The
-//! `checkpoint_manager_is_arc_shared` test in `mod.rs` enforces this
-//! by pointer equality.
+//! The same `Arc<CheckpointManager>` is shared between the executor's public
+//! API (these methods) and the run's checkpoint writer built in `start()`.
 //!
 //! What is deliberately NOT here:
 //!   * The streaming-checkpoint task itself — that lives inline in

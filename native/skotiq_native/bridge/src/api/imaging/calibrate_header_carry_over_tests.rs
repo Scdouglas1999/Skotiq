@@ -2,19 +2,14 @@ use super::api_calibrate_image_file;
 use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData, PixelType};
 use std::path::PathBuf;
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join("sk_calibrate_carry_over_test");
-    std::fs::create_dir_all(&dir).unwrap();
-    dir.join(name)
-}
-
 /// The read path flattens header values to text; carrying them back with
 /// set_string shipped EXPTIME = '120.0' — a string card that get_float
 /// (and every stacker) reads as nothing.
 #[test]
 fn calibrated_save_keeps_numeric_exptime_and_gain() {
-    let light = scratch("light.fits");
-    let out = scratch("calibrated.fits");
+    let dir = tempfile::tempdir().unwrap();
+    let light = dir.path().join("light.fits");
+    let out = dir.path().join("calibrated.fits");
 
     let mut header = FitsHeader::new();
     header.set_float("EXPTIME", 120.0);
@@ -40,8 +35,9 @@ fn calibrated_save_keeps_numeric_exptime_and_gain() {
 /// and its COMMENT and HISTORY lines, and adds its own after them.
 #[test]
 fn calibrated_save_keeps_card_order_comments_and_history() {
-    let light = scratch("ordered_light.fits");
-    let out = scratch("ordered_calibrated.fits");
+    let dir = tempfile::tempdir().unwrap();
+    let light = dir.path().join("ordered_light.fits");
+    let out = dir.path().join("ordered_calibrated.fits");
 
     let mut header = FitsHeader::new();
     header.set_string("OBJECT", "61");
@@ -82,9 +78,9 @@ fn calibrated_save_keeps_card_order_comments_and_history() {
 /// is refused instead of being FITS bytes under a raw file's name.
 #[test]
 fn a_calibrated_copy_named_as_camera_raw_is_refused() {
-    let light = scratch("raw_named_light.fits");
-    let out = scratch("raw_named_calibrated.CR2");
-    let _ = std::fs::remove_file(&out);
+    let dir = tempfile::tempdir().unwrap();
+    let light = dir.path().join("raw_named_light.fits");
+    let out = dir.path().join("raw_named_calibrated.CR2");
     write_fits(
         &light,
         &ImageData::new(4, 4, 1, PixelType::U16),
@@ -108,15 +104,16 @@ fn a_calibrated_copy_named_as_camera_raw_is_refused() {
 /// frame is still written and names every master in full.
 #[test]
 fn calibrated_save_names_long_master_paths_in_full() {
-    let library = std::env::temp_dir()
-        .join("sk_calibrate_carry_over_test")
+    let dir = tempfile::tempdir().unwrap();
+    let library = dir
+        .path()
         .join("Calibration Library")
         .join("ZWO ASI2600MM Pro")
         .join("gain 100 offset 50 at -10 C")
         .join("2026-11-13 masters built from the full set of 40 subframes");
     std::fs::create_dir_all(&library).unwrap();
-    let light = scratch("long_paths_light.fits");
-    let out = scratch("long_paths_calibrated.fits");
+    let light = dir.path().join("long_paths_light.fits");
+    let out = dir.path().join("long_paths_calibrated.fits");
     let dark = library.join("master_dark_300s_gain100_offset50_-10C.fits");
     let flat = library.join("master_flat_Ha_gain100_offset50.fits");
     let bias = library.join("master_bias_gain100_offset50_-10C.fits");
