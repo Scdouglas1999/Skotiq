@@ -142,16 +142,8 @@ apps/desktop/lib/host/host_server.dart	startHostServer	empty_catch	1	U2-03	} cat
 apps/desktop/lib/host/host_steps.dart	_startUpdateReceiver	literal_null_coalesce	1	U2-03	if (host.daemonConfig?.bindLocalOnly ?? false) {
 apps/desktop/lib/main.dart	_parseRemoteTarget	literal_null_coalesce	1	V0177	port: int.tryParse(portRaw ?? '') ?? kDefaultHeadlessPort,
 apps/mobile/lib/main.dart	loadMobileAppVersion	literal_null_coalesce	1	V0069	buildNumber: int.tryParse(packageInfo.buildNumber) ?? 0,
-apps/mobile/lib/main_parts/mobile_connection_state.dart	_MobileConnectionState	comment_best_effort	1	V0147	/// Best-effort: the service swallows and logs all network/host errors, so a
-apps/mobile/lib/main_parts/mobile_discovery_ops.dart	_connectViaTailscale	comment_best_effort	1	V0148	// Best-effort prefill — fall through to an empty field on any failure.
-apps/mobile/lib/main_parts/mobile_discovery_ops.dart	_showRelayConnectDialog	literal_null_coalesce	1	V0148	initialApplianceId = s.relayApplianceId ?? '';
-apps/mobile/lib/main_parts/mobile_discovery_ops.dart	_showRelayConnectDialog	literal_null_coalesce	1	V0148	initialRelayUrl = s.relayUrl ?? '';
-apps/mobile/lib/main_parts/mobile_discovery_ops.dart	build	literal_null_coalesce	1	V0148	onChanged: (v) => setState(() => _allowInsecure = v ?? false),
-apps/mobile/lib/main_parts/mobile_discovery_ops.dart	initState	literal_null_coalesce	1	V0148	_codeController = TextEditingController(text: widget.initialCode ?? '');
-apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_MobileReconnectOps	comment_best_effort	1	V0149	/// Best-effort: a persistence failure must not drop the live session, so we
-apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_closeActiveRelayTunnel	comment_best_effort	1	V0149	// Best-effort teardown only.
-apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	connectToRig	comment_best_effort	1	V0149	// best-effort — failures fall back to the platform default.
-apps/mobile/lib/main_parts/mobile_reconnect_ops.dart	_closeActiveRelayTunnel	empty_catch	1	V0149	} catch (_) {
+apps/mobile/lib/main_parts/mobile_connect_actions.dart	_showRelayConnectDialog	literal_null_coalesce	1	V0148	initialApplianceId = s.relayApplianceId ?? '';
+apps/mobile/lib/main_parts/mobile_connect_actions.dart	_showRelayConnectDialog	literal_null_coalesce	1	V0148	initialRelayUrl = s.relayUrl ?? '';
 apps/mobile/lib/screens/servers/saved_servers_screen.dart	_pingOne	empty_catch	1	V0121	} catch (_) {
 apps/mobile/lib/screens/servers/saved_servers_screen.dart	_editTailscaleHost	literal_null_coalesce	1	V0121	initialValue: server.tailscaleHost ?? '',
 apps/mobile/lib/screens/setup/first_run_setup_screen.dart	build	literal_null_coalesce	1	U2-16	: (v) => change(v ?? false),
@@ -194,6 +186,8 @@ apps/mobile/lib/services/watch_complication_lifecycle_provider.dart	_buildSnapsh
 apps/mobile/lib/services/watch_complication_lifecycle_provider.dart	_buildSnapshot	literal_null_coalesce	1	V0121	currentFilter: (progress.currentFilter ?? '').trim(),
 apps/mobile/lib/services/watch_complication_lifecycle_provider.dart	_jobStateFor	literal_null_coalesce	1	V0121	final node = (progress.currentNodeName ?? '').toLowerCase();
 apps/mobile/lib/services/watch_complication_service.dart	isSupported	literal_null_coalesce	1	V0121	return result ?? false;
+apps/mobile/lib/widgets/pairing_code_dialog.dart	initState	literal_null_coalesce	1	V0148	_codeController = TextEditingController(text: widget.initialCode ?? '');
+apps/mobile/lib/widgets/relay_connect_dialog.dart	build	literal_null_coalesce	1	V0148	onChanged: (v) => setState(() => _allowInsecure = v ?? false),
 apps/mobile/lib/widgets/tailscale_setup_sheet.dart	initState	literal_null_coalesce	1	V0121	_hostController = TextEditingController(text: widget.initialHost ?? '');
 native/skotiq_native/alpaca/src/camera/image_array.rs	parse_image_array_json	unwrap_or_literal	1	V0533	rank: json.get("Rank").and_then(|v| v.as_i64()).unwrap_or(0),
 native/skotiq_native/alpaca/src/camera_driver.rs	download_image	rust_drop_result	1	R9-005	let temperature = camera.ccd_temperature().await.ok();
