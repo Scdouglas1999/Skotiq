@@ -196,3 +196,11 @@ Future<void> settleCheckpointChoice(
   SequenceExecutor executor, {
   required bool restore,
 }) => restore ? executor.restoreFromCheckpoint() : executor.discardCheckpoint();
+
+/// Whether the checkpoint's run is already restored and waits for Start, by
+/// this phone or any other client of the host. The prompt is then not offered:
+/// its Discard would delete the restored run's resume point.
+bool restoredRunAwaitsStart(
+  SequenceExecutor executor,
+  CheckpointInfo? restoredCheckpoint,
+) => restoredCheckpoint != null || executor.hasRestoredCheckpoint;

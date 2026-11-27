@@ -658,6 +658,12 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // stranded until the operator reconnects.
         while (true) {
           if (!dialogContext.mounted) return;
+          if (restoredRunAwaitsStart(
+            executor,
+            ref.read(restoredCheckpointProvider),
+          )) {
+            return;
+          }
           final shouldResume = await CheckpointResumeDialog.show(
             dialogContext,
             info,
