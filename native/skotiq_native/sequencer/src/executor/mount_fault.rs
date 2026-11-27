@@ -66,11 +66,16 @@ impl ExecutorHandle {
     }
 
     /// Resume a paused run. The run wakes and picks up at its next step.
-    pub async fn resume(&self) -> Result<(), String> {
+    /// Refused while a manual action holds the run: its release comes first
+    /// ([`Self::release_action_hold`]).
+    pub async fn resume(&self) -> Result<(), RunCommandError> {
+        if self.run_state.held_by_action() {
+            return Err(RunCommandError::HeldByAction);
+        }
         if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::Resume)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| RunCommandError::Failed(e.to_string()))?;
         }
         self.emit_manual_intervention("resume", serde_json::json!({}));
         Ok(())

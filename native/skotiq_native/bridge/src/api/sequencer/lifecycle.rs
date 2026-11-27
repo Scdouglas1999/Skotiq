@@ -219,11 +219,15 @@ pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqErro
 pub async fn api_sequencer_skip() -> Result<(), SkotiqError> {
     tracing::info!("Skipping current instruction");
 
-    let executor = skotiq_sequencer::executor_handle();
-    executor
+    skotiq_sequencer::executor_handle()
         .skip()
         .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to skip: {}", e)))?;
+        .map_err(|e| match e {
+            skotiq_sequencer::RunCommandError::Failed(reason) => {
+                SkotiqError::OperationFailed(format!("Failed to skip: {reason}"))
+            }
+            held => run_command_refused(held),
+        })?;
 
     Ok(())
 }

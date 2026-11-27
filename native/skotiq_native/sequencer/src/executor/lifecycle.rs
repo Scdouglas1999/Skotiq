@@ -336,11 +336,15 @@ impl ExecutorHandle {
 
     /// Skip the running step: the instruction in progress (an exposure is
     /// aborted) ends as Skipped and the run continues with the next step.
-    pub async fn skip(&self) -> Result<(), String> {
+    /// Refused while a manual action holds the run.
+    pub async fn skip(&self) -> Result<(), RunCommandError> {
+        if self.run_state.held_by_action() {
+            return Err(RunCommandError::HeldByAction);
+        }
         if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::Skip)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| RunCommandError::Failed(e.to_string()))?;
         }
         self.emit_manual_intervention("skip", serde_json::json!({}));
         Ok(())
