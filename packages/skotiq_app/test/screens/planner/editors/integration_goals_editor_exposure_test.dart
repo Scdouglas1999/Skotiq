@@ -41,6 +41,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          effectiveFiltersProvider.overrideWithValue(const ['Ha', 'L']),
           inMemoryDatabaseOverride(),
           // The editor reads the target's old hours goal from the library.
           allDbTargetsProvider.overrideWith((ref) => Stream.value(const [])),
@@ -68,7 +69,6 @@ void main() {
             body: IntegrationGoalsEditor(
               targetId: 42,
               targetName: 'North America Nebula',
-              availableFilters: ['Ha', 'L'],
             ),
           ),
         ),
@@ -102,6 +102,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          effectiveFiltersProvider.overrideWithValue(const ['Ha', 'L']),
           inMemoryDatabaseOverride(),
           // The editor reads the target's old hours goal from the library.
           allDbTargetsProvider.overrideWith((ref) => Stream.value(const [])),
@@ -126,7 +127,6 @@ void main() {
             body: IntegrationGoalsEditor(
               targetId: 42,
               targetName: 'M42',
-              availableFilters: ['Ha', 'L'],
             ),
           ),
         ),

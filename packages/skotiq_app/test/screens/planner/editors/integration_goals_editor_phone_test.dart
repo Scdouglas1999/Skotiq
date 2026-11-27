@@ -23,6 +23,7 @@ void main() {
     );
     await tester.pumpWidget(ProviderScope(
       overrides: [
+        effectiveFiltersProvider.overrideWithValue(const ['L', 'R', 'G', 'B']),
         integrationGoalProgressProvider.overrideWith(
           (ref, targetId) async =>
               [IntegrationGoalProgress(goal: goal, capturedCount: 0)],
@@ -31,14 +32,13 @@ void main() {
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: Scaffold(
+        home: const Scaffold(
           body: Center(
             child: SizedBox(
               width: 340,
               child: IntegrationGoalsEditor(
                 targetId: 2,
                 targetName: 'M33',
-                availableFilters: const ['L', 'R', 'G', 'B'],
               ),
             ),
           ),
