@@ -51,6 +51,20 @@ void main() {
     }
   });
 
+  test('a row the defaults switch off is off here too', () {
+    for (final category in NotificationCategory.values) {
+      expect(
+        inAppOnly.ruleFor(category).enabled,
+        defaults.ruleFor(category).enabled,
+        reason: category.name,
+      );
+    }
+    expect(
+      inAppOnly.ruleFor(NotificationCategory.targetStarted).enabled,
+      isFalse,
+    );
+  });
+
   test('the router keeps it as it is', () {
     final router = NotificationRouter(transports: const [], matrix: inAppOnly);
     expect(router.matrix, inAppOnly);

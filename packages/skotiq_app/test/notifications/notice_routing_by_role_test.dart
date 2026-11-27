@@ -825,15 +825,6 @@ const _expected = <String, List<String>>{
   'linkedDesktop sequenceResumed routingOff': [
     'toast info Sequence resumed',
   ],
-  'linkedDesktop targetStarted defaults': [
-    'toast info Target started: M31',
-  ],
-  'linkedDesktop targetStarted rowOff': [
-    'toast info Target started: M31',
-  ],
-  'linkedDesktop targetStarted routingOff': [
-    'toast info Target started: M31',
-  ],
   'linkedDesktop targetCompleted defaults': [
     'toast success Target complete: M31',
   ],
@@ -1052,15 +1043,6 @@ const _expected = <String, List<String>>{
   ],
   'linkedPhone sequenceResumed routingOff': [
     'toast info Sequence resumed',
-  ],
-  'linkedPhone targetStarted defaults': [
-    'toast info Target started: M31',
-  ],
-  'linkedPhone targetStarted rowOff': [
-    'toast info Target started: M31',
-  ],
-  'linkedPhone targetStarted routingOff': [
-    'toast info Target started: M31',
   ],
   'linkedPhone targetCompleted defaults': [
     'toast success Target complete: M31',

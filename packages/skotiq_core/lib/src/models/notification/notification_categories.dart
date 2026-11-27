@@ -524,7 +524,6 @@ class NotificationRoutingMatrix extends Equatable {
           in NotificationRoutingMatrix.defaults().rules.entries)
         key: value.copyWith(
           transports: const [NotificationTransportKind.inApp],
-          enabled: true,
         ),
     },
   );
