@@ -748,14 +748,17 @@ pub(crate) async fn check_exposure_triggers(
             }
             TriggerAction::PauseAndRecalibrate => {
                 tracing::info!("Pausing sequence due to exposure trigger");
-                context.send_progress(ProgressUpdate::lifecycle(
-                    node_id.to_string(),
-                    NodeStatus::Running,
-                    format!(
-                        "Trigger fired: {}. Paused for recalibration",
-                        exposure_trigger_name(&trigger.condition)
-                    ),
-                ));
+                context.send_progress(
+                    ProgressUpdate::status(
+                        node_id.to_string(),
+                        "Exposure",
+                        format!(
+                            "Trigger fired: {}. Paused for recalibration",
+                            exposure_trigger_name(&trigger.condition)
+                        ),
+                    )
+                    .with_bare_status_line(),
+                );
                 let resumed = context.pause_and_wait_for_resume().await;
                 if !resumed {
                     tracing::info!("Cancelled while paused for trigger");
@@ -764,14 +767,17 @@ pub(crate) async fn check_exposure_triggers(
             }
             TriggerAction::Autofocus => {
                 tracing::info!("Running autofocus due to exposure trigger");
-                context.send_progress(ProgressUpdate::lifecycle(
-                    node_id.to_string(),
-                    NodeStatus::Running,
-                    format!(
-                        "Trigger fired: {}. Running autofocus",
-                        exposure_trigger_name(&trigger.condition)
-                    ),
-                ));
+                context.send_progress(
+                    ProgressUpdate::status(
+                        node_id.to_string(),
+                        "Exposure",
+                        format!(
+                            "Trigger fired: {}. Running autofocus",
+                            exposure_trigger_name(&trigger.condition)
+                        ),
+                    )
+                    .with_bare_status_line(),
+                );
 
                 let af_config = AutofocusConfig {
                     method: AutofocusMethod::VCurve,

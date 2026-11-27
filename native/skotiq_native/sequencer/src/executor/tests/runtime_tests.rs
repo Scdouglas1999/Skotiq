@@ -3254,6 +3254,46 @@ async fn an_exposure_trigger_set_to_abort_or_pause_still_does_it() {
         .expect("no panic");
 }
 
+/// Why a trigger holds the run is the step's report, which the app shows, and
+/// the run's status line keeps its words.
+#[tokio::test]
+async fn a_trigger_pause_says_why_as_the_steps_report() {
+    let (mut context, _events, _decisions) = exposure_trigger_context();
+    let updates: Arc<std::sync::Mutex<Vec<crate::ProgressUpdate>>> = Arc::default();
+    let sink = updates.clone();
+    context.progress_callback = Some(Arc::new(move |u| sink.lock().unwrap().push(u)));
+    let is_cancelled = context.is_cancelled.clone();
+    let held = tokio::spawn(async move {
+        crate::node::instructions::expose::check_exposure_triggers(
+            "lights",
+            &hfr_trigger(crate::TriggerAction::PauseAndRecalibrate),
+            &burst_at_hfr(5.0),
+            &mut context,
+        )
+        .await;
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    is_cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
+    tokio::time::timeout(std::time::Duration::from_secs(2), held)
+        .await
+        .expect("a stop releases the hold")
+        .expect("no panic");
+
+    let updates = updates.lock().unwrap();
+    let pause = updates
+        .iter()
+        .find(|u| {
+            u.legacy_message()
+                .is_some_and(|m| m.ends_with("Paused for recalibration"))
+        })
+        .expect("the pause is reported");
+    assert_eq!(pause.instruction.as_deref(), Some("Exposure"));
+    assert_eq!(
+        pause.detail.as_ref().map(|d| d.detail_text()),
+        pause.legacy_message()
+    );
+}
+
 /// What a run did while the Guiding Failure trigger's condition held.
 struct GuidingFailureRun {
     fired: Vec<String>,

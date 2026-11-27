@@ -39,16 +39,28 @@ pub(super) fn build_progress_callback(
     // The percent each running node last reported, which a status report
     // that does not move the step is published at.
     let node_percent: StdRwLock<HashMap<NodeId, f64>> = StdRwLock::new(HashMap::new());
+    // The words of the status report each running node last published. A
+    // step that repeats itself (a poll restating the same wait) goes out to
+    // clients once.
+    let node_last_status: StdRwLock<HashMap<NodeId, String>> = StdRwLock::new(HashMap::new());
     Arc::new(move |mut update: ProgressUpdate| {
-        if update.instruction.is_some() && update.detail.is_some() {
+        let mut repeated_status = false;
+        if let (Some(instruction), Some(detail)) = (&update.instruction, &update.detail) {
             let mut percents = node_percent.write();
+            let mut last_status = node_last_status.write();
             match update.progress_percent {
                 Some(percent) => {
                     percents.insert(update.node_id.clone(), percent);
+                    last_status.remove(&update.node_id);
                 }
                 None => {
                     update.progress_percent =
                         Some(percents.get(&update.node_id).copied().unwrap_or(0.0));
+                    let words = format!("{instruction}\n{}", detail.detail_text());
+                    repeated_status = last_status
+                        .get(&update.node_id)
+                        .is_some_and(|last| *last == words);
+                    last_status.insert(update.node_id.clone(), words);
                 }
             }
         }
@@ -148,6 +160,7 @@ pub(super) fn build_progress_callback(
                 // already taken twice the frames it had. The reset now
                 // happens after the frame block.
                 node_percent.write().remove(&update.node_id);
+                node_last_status.write().remove(&update.node_id);
                 let mut started = started_nodes.write();
                 let was_started = started.remove(&update.node_id);
                 // Announce the node's terminal status, exactly once, and only
@@ -346,7 +359,8 @@ pub(super) fn build_progress_callback(
                 prog.estimated_remaining_secs = None;
             }
 
-            if let (Some(instruction), Some(percent), Some(detail)) = (
+            if let (false, Some(instruction), Some(percent), Some(detail)) = (
+                repeated_status,
                 update.instruction.as_ref(),
                 update.progress_percent,
                 update.detail.as_ref(),
@@ -603,5 +617,41 @@ mod tests {
             })
             .collect();
         assert_eq!(published, vec![40.0]);
+    }
+
+    /// A step that restates the same status goes out once; a new status, or
+    /// the same one after a reading, goes out again.
+    #[test]
+    fn a_repeated_status_report_is_published_once() {
+        let (cb, mut rx, _started) = callback_with_channel();
+        cb(ProgressUpdate::node_entry("tgt".to_string(), "Target"));
+        drain(&mut rx);
+        let say = |words: &str| cb(ProgressUpdate::status("tgt".to_string(), "Target", words));
+        say("Waiting for M 31: time ≥ 21:00");
+        say("Waiting for M 31: time ≥ 21:00");
+        say("Waiting for M 31 to clear the altitude floor");
+        cb(ProgressUpdate::instruction_progress(
+            "tgt".to_string(),
+            "Target",
+            10.0,
+            ProgressDetail::Generic("Slewing".to_string()),
+        ));
+        say("Waiting for M 31 to clear the altitude floor");
+        let published: Vec<String> = drain(&mut rx)
+            .iter()
+            .filter_map(|e| match e {
+                ExecutorEvent::NodeProgress { detail, .. } => Some(detail.detail_text()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            published,
+            vec![
+                "Waiting for M 31: time ≥ 21:00",
+                "Waiting for M 31 to clear the altitude floor",
+                "Slewing",
+                "Waiting for M 31 to clear the altitude floor",
+            ]
+        );
     }
 }
