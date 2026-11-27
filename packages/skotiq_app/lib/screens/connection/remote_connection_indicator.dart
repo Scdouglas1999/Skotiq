@@ -20,35 +20,7 @@ import 'work_locally.dart';
 import '../../router/app_routes.dart';
 import 'package:skotiq_core/models.dart';
 import '../../utils/snackbar_helper.dart';
-
-/// Four-state model for the shared remote-connection indicator.
-///
-/// Distinct from `BackendConnectionState` so we can render a sane
-/// "not connected at all" state (e.g. desktop using FfiBackend or
-/// mobile that hasn't reached a server yet) without forcing the
-/// backend to invent another enum value just for UI.
-///
-/// `connecting` is separate from `reconnecting` so the very
-/// first handshake says "Connecting" rather than "Reconnecting" (the
-/// latter implies a prior successful session). Both map to amber/
-/// pulsing visuals but the messaging differs.
-enum RemoteConnectionStatus {
-  connected,
-
-  /// The socket is open but the host has left a heartbeat unanswered for at
-  /// least [hostAnswerStaleAfter]: what the screen shows may be out of date.
-  notAnswering,
-  connecting,
-  reconnecting,
-  serverOffline,
-  error,
-  notConnected,
-
-  /// Not linked: the phone runs the demo rig, simulated equipment inside
-  /// the app. Shown as a labeled badge everywhere, so a screenshot or a demo
-  /// is never taken for a real rig.
-  demoRig,
-}
+import 'link_status.dart';
 
 /// Compact pill-style indicator showing the live state of the
 /// [NetworkBackend] WebSocket session. Designed for the mobile shell's
@@ -61,8 +33,7 @@ enum RemoteConnectionStatus {
 /// a green one — there is nothing remote to reach, so claiming
 /// "Connected" would lie.
 ///
-/// Tap to open a detail sheet that includes a "Reconnect now" button
-/// addressing audit bug 6.
+/// Tap to open a detail sheet that includes a "Reconnect now" button.
 class RemoteConnectionIndicator extends ConsumerStatefulWidget {
   /// When true, render only the icon (used in tight AppBar slots).
   final bool compact;
@@ -158,12 +129,12 @@ class _RemoteConnectionIndicatorState
         stream: hostLink.connectionStateStream,
         initialData: hostLink.connectionState,
         builder: (context, snap) {
-          final wsState = snap.data ?? hostLink.connectionState;
-          var status = _statusForBackendState(wsState);
-          if (status == RemoteConnectionStatus.connected &&
-              _unansweredSeconds != null) {
-            status = RemoteConnectionStatus.notAnswering;
-          }
+          final status = linkStatusFor(
+            linkState: snap.data ?? hostLink.connectionState,
+            unansweredSeconds: _unansweredSeconds,
+            hostPlace: HostPlace.linked,
+            linkedLaunch: true,
+          );
           return _build(
             context,
             status,
@@ -172,34 +143,22 @@ class _RemoteConnectionIndicatorState
         },
       );
     }
-    if (ref.watch(backendProvider).hostPlace == HostPlace.demo) {
-      return _build(context, RemoteConnectionStatus.demoRig, hostAddress: null);
-    }
+    final hostPlace = ref.watch(backendProvider).hostPlace;
     // A launch linked to a host that has not answered yet has no backend to
-    // ask, but it is linked: say the host is unreachable, not "not linked".
-    final target = ref.watch(remoteLaunchTargetProvider);
+    // ask, but it is linked: the host is unreachable, not "not linked".
+    final target = hostPlace == HostPlace.demo
+        ? null
+        : ref.watch(remoteLaunchTargetProvider);
     return _build(
       context,
-      target == null
-          ? RemoteConnectionStatus.notConnected
-          : RemoteConnectionStatus.serverOffline,
+      linkStatusFor(
+        linkState: null,
+        unansweredSeconds: null,
+        hostPlace: hostPlace,
+        linkedLaunch: target != null,
+      ),
       hostAddress: target?.host,
     );
-  }
-
-  RemoteConnectionStatus _statusForBackendState(BackendConnectionState state) {
-    switch (state) {
-      case BackendConnectionState.connected:
-        return RemoteConnectionStatus.connected;
-      case BackendConnectionState.connecting:
-        return RemoteConnectionStatus.connecting;
-      case BackendConnectionState.reconnecting:
-        return RemoteConnectionStatus.reconnecting;
-      case BackendConnectionState.disconnected:
-        return RemoteConnectionStatus.serverOffline;
-      case BackendConnectionState.error:
-        return RemoteConnectionStatus.error;
-    }
   }
 
   Widget _build(
@@ -215,7 +174,7 @@ class _RemoteConnectionIndicatorState
             'imaging computer'
         : hostAddress == null
             ? 'Not linked to a remote imaging host'
-            : '${_textFor(status, _unansweredSeconds)} · $hostAddress';
+            : '${LinkStatusLook.of(status).chipLabel(_unansweredSeconds)} · $hostAddress';
     return Tooltip(
       message: description,
       child: Semantics(
@@ -243,7 +202,8 @@ class _RemoteConnectionIndicatorState
   /// On a phone the word is dropped: beside a status chip and two buttons it
   /// cut the Guiding title to "G…". The tinted flask still sets it apart.
   Widget _buildDemoBadge(BuildContext context) {
-    final color = _colorFor(context, RemoteConnectionStatus.demoRig);
+    final color =
+        LinkStatusLook.of(RemoteConnectionStatus.demoRig).color(context);
     final showLabel =
         MediaQuery.sizeOf(context).width >= SkotiqTokens.breakpointMobile;
     return Padding(
@@ -282,7 +242,7 @@ class _RemoteConnectionIndicatorState
   }
 
   Widget _buildDot(BuildContext context, RemoteConnectionStatus status) {
-    final color = _colorFor(context, status);
+    final color = LinkStatusLook.of(status).color(context);
     final pulsing = status == RemoteConnectionStatus.connecting ||
         status == RemoteConnectionStatus.reconnecting ||
         status == RemoteConnectionStatus.notAnswering;
@@ -309,7 +269,7 @@ class _RemoteConnectionIndicatorState
   }
 
   Widget _buildCompact(BuildContext context, RemoteConnectionStatus status) {
-    final color = _colorFor(context, status);
+    final color = LinkStatusLook.of(status).color(context);
     // In the title bar this sits beside three plain icon buttons, so a filled
     // chip would make the RESTING state — "not connected to a server", the
     // normal state of a local install — read as the one selected control in the
@@ -325,7 +285,7 @@ class _RemoteConnectionIndicatorState
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
               bordered: false,
             ),
-      child: Icon(_iconFor(status), size: 20, color: color),
+      child: Icon(LinkStatusLook.of(status).chipIcon, size: 20, color: color),
     );
   }
 
@@ -334,7 +294,7 @@ class _RemoteConnectionIndicatorState
     RemoteConnectionStatus status,
     String? hostAddress,
   ) {
-    final color = _colorFor(context, status);
+    final color = LinkStatusLook.of(status).color(context);
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -345,10 +305,10 @@ class _RemoteConnectionIndicatorState
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(_iconFor(status), size: 18, color: color),
+          Icon(LinkStatusLook.of(status).chipIcon, size: 18, color: color),
           const SizedBox(width: 6),
           Text(
-            _textFor(status, _unansweredSeconds),
+            LinkStatusLook.of(status).chipLabel(_unansweredSeconds),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: color,
               fontWeight: FontWeight.w600,
@@ -387,70 +347,6 @@ class _RemoteConnectionIndicatorState
         builder: (_) => const _RemoteConnectionSheet(),
       ),
     );
-  }
-
-  Color _colorFor(BuildContext context, RemoteConnectionStatus status) {
-    final theme = Theme.of(context);
-    final colors = theme.extension<SkotiqColors>();
-    switch (status) {
-      case RemoteConnectionStatus.connected:
-        return colors?.success ?? theme.colorScheme.primary;
-      case RemoteConnectionStatus.notAnswering:
-      case RemoteConnectionStatus.connecting:
-      case RemoteConnectionStatus.reconnecting:
-        return colors?.warning ?? theme.colorScheme.secondary;
-      case RemoteConnectionStatus.serverOffline:
-      case RemoteConnectionStatus.error:
-        return colors?.error ?? theme.colorScheme.error;
-      case RemoteConnectionStatus.notConnected:
-        return colors?.textMuted ?? theme.colorScheme.onSurfaceVariant;
-      case RemoteConnectionStatus.demoRig:
-        return colors?.info ?? theme.colorScheme.tertiary;
-    }
-  }
-
-  IconData _iconFor(RemoteConnectionStatus status) {
-    switch (status) {
-      case RemoteConnectionStatus.connected:
-        return LucideIcons.wifi;
-      case RemoteConnectionStatus.notAnswering:
-        return LucideIcons.clock;
-      case RemoteConnectionStatus.connecting:
-      case RemoteConnectionStatus.reconnecting:
-        return LucideIcons.refreshCw;
-      case RemoteConnectionStatus.serverOffline:
-        return LucideIcons.serverOff;
-      case RemoteConnectionStatus.error:
-        return LucideIcons.alertTriangle;
-      // Standalone is the normal state of a local install, not a fault: a
-      // plain link (tap to link to an imaging host), never a crossed-out
-      // network.
-      case RemoteConnectionStatus.notConnected:
-        return LucideIcons.link;
-      case RemoteConnectionStatus.demoRig:
-        return LucideIcons.flaskConical;
-    }
-  }
-
-  String _textFor(RemoteConnectionStatus status, int? unansweredSeconds) {
-    switch (status) {
-      case RemoteConnectionStatus.connected:
-        return 'Live';
-      case RemoteConnectionStatus.notAnswering:
-        return 'No answer for ${unansweredSeconds ?? 0} s';
-      case RemoteConnectionStatus.connecting:
-        return 'Connecting...';
-      case RemoteConnectionStatus.reconnecting:
-        return 'Reconnecting...';
-      case RemoteConnectionStatus.serverOffline:
-        return 'Server unreachable';
-      case RemoteConnectionStatus.error:
-        return 'Connection error';
-      case RemoteConnectionStatus.notConnected:
-        return 'Not connected';
-      case RemoteConnectionStatus.demoRig:
-        return 'Demo rig';
-    }
   }
 }
 
@@ -575,15 +471,12 @@ class _RemoteConnectionSheetState
     final hostLink = ref.watch(linkedHostLinkProvider);
     final unansweredSeconds =
         hostLink == null ? null : unansweredSecondsFor(hostLink);
-    var status = hostLink == null
-        ? (activeBackend.hostPlace == HostPlace.demo
-            ? RemoteConnectionStatus.demoRig
-            : RemoteConnectionStatus.notConnected)
-        : _statusForConnectionState(hostLink.connectionState);
-    if (status == RemoteConnectionStatus.connected &&
-        unansweredSeconds != null) {
-      status = RemoteConnectionStatus.notAnswering;
-    }
+    final status = linkStatusFor(
+      linkState: hostLink?.connectionState,
+      unansweredSeconds: unansweredSeconds,
+      hostPlace: activeBackend.hostPlace,
+      linkedLaunch: false,
+    );
     final latency = hostLink?.lastLatency;
     final linkedLaunch = ref.watch(remoteLaunchTargetProvider);
     final canSwitch = canSwitchRole(ref);
@@ -597,9 +490,9 @@ class _RemoteConnectionSheetState
           Row(
             children: [
               Icon(
-                _headerIcon(status),
+                LinkStatusLook.of(status).headerIcon,
                 size: 32,
-                color: _headerColor(context, status),
+                color: LinkStatusLook.of(status).color(context),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -750,16 +643,10 @@ class _RemoteConnectionSheetState
                 ),
               ),
             ),
-          // With no backend at all this sheet had no action whatsoever — it
-          // stated "Not connected to a server" and stopped, which on the
-          // desktop that owns the hardware was the dead end one failed
-          // "Connect to Server" left behind. Same recovery the shell banner
-          // and Settings > Connection offer, on the surface the title-bar
-          // indicator opens.
-          //
-          // Gated on the backend TYPE, not on `status`: a local FFI desktop is
-          // also "notConnected" to a server, and offering it a way to local
-          // mode it is already in would be a control that does nothing.
+          // With no host at all, the way back to local mode, as on the shell
+          // banner and Settings > Connection. Gated on the host place, not
+          // on `status`: a local desktop is notConnected too, and is already
+          // in local mode.
           if (activeBackend.hostPlace == HostPlace.none && canWorkLocally)
             const Padding(
               padding: EdgeInsets.only(top: 8),
@@ -768,9 +655,7 @@ class _RemoteConnectionSheetState
                 fullWidth: true,
               ),
             ),
-          // A local desktop reaches none of the branches above, and the sheet
-          // then held no control at all — an operator who opened it had to
-          // guess that Escape or the barrier was the way out.
+          // Every sheet has a way out, a local desktop's included.
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Align(
@@ -785,23 +670,6 @@ class _RemoteConnectionSheetState
         ],
       ),
     );
-  }
-
-  RemoteConnectionStatus _statusForConnectionState(
-    BackendConnectionState state,
-  ) {
-    switch (state) {
-      case BackendConnectionState.connected:
-        return RemoteConnectionStatus.connected;
-      case BackendConnectionState.connecting:
-        return RemoteConnectionStatus.connecting;
-      case BackendConnectionState.reconnecting:
-        return RemoteConnectionStatus.reconnecting;
-      case BackendConnectionState.disconnected:
-        return RemoteConnectionStatus.serverOffline;
-      case BackendConnectionState.error:
-        return RemoteConnectionStatus.error;
-    }
   }
 
   Widget _row(
@@ -835,46 +703,6 @@ class _RemoteConnectionSheetState
         ],
       ),
     );
-  }
-
-  IconData _headerIcon(RemoteConnectionStatus status) {
-    switch (status) {
-      case RemoteConnectionStatus.connected:
-        return LucideIcons.checkCircle;
-      case RemoteConnectionStatus.notAnswering:
-        return LucideIcons.clock;
-      case RemoteConnectionStatus.connecting:
-      case RemoteConnectionStatus.reconnecting:
-        return LucideIcons.loader;
-      case RemoteConnectionStatus.serverOffline:
-        return LucideIcons.serverOff;
-      case RemoteConnectionStatus.error:
-        return LucideIcons.alertTriangle;
-      case RemoteConnectionStatus.notConnected:
-        return LucideIcons.xCircle;
-      case RemoteConnectionStatus.demoRig:
-        return LucideIcons.flaskConical;
-    }
-  }
-
-  Color _headerColor(BuildContext context, RemoteConnectionStatus status) {
-    final theme = Theme.of(context);
-    final colors = theme.extension<SkotiqColors>();
-    switch (status) {
-      case RemoteConnectionStatus.connected:
-        return colors?.success ?? theme.colorScheme.primary;
-      case RemoteConnectionStatus.notAnswering:
-      case RemoteConnectionStatus.connecting:
-      case RemoteConnectionStatus.reconnecting:
-        return colors?.warning ?? theme.colorScheme.secondary;
-      case RemoteConnectionStatus.serverOffline:
-      case RemoteConnectionStatus.error:
-        return colors?.error ?? theme.colorScheme.error;
-      case RemoteConnectionStatus.notConnected:
-        return colors?.textMuted ?? theme.colorScheme.onSurfaceVariant;
-      case RemoteConnectionStatus.demoRig:
-        return colors?.info ?? theme.colorScheme.tertiary;
-    }
   }
 
   String _description(
