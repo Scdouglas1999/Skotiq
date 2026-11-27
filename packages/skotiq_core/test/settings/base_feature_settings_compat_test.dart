@@ -1073,7 +1073,7 @@ void main() {
           recorded[probe.name] = result;
         } else {
           final base = probe.name == 'notification routing'
-              ? _targetStartedOff(fixture[probe.name])
+              ? _withAddedCategories(_targetStartedOff(fixture[probe.name]))
               : fixture[probe.name];
           expect(result, _withChanges(base, _changedOnPurpose[probe.name]));
         }
@@ -1320,6 +1320,43 @@ Object? _targetStartedOff(Object? value) {
         entry.key: entry.key == 'targetStarted' && entry.value is Map
             ? {...entry.value as Map, 'enabled': false}
             : _targetStartedOff(entry.value),
+    };
+  }
+  return value;
+}
+
+/// Categories added after the base build: a full routing table now also
+/// holds their default rows, in category order. Their keys are new, so no
+/// stored row changes meaning.
+const _addedCategories = {
+  NotificationCategory.mountMoved,
+  NotificationCategory.targetCentered,
+  NotificationCategory.focusOffsetFailed,
+  NotificationCategory.deviceAnsweredLate,
+  NotificationCategory.checkpointFailed,
+};
+
+Object? _withAddedCategories(Object? value) {
+  if (value is String && value.startsWith('{"enabled"')) {
+    return jsonEncode(_withAddedCategories(jsonDecode(value)));
+  }
+  if (value is Map) {
+    final fullTable =
+        value.containsKey(NotificationCategory.sequenceStarted.name) &&
+        value.containsKey(NotificationCategory.custom.name);
+    if (fullTable) {
+      final defaults = NotificationRoutingMatrix.defaults();
+      return {
+        for (final category in NotificationCategory.values)
+          if (_addedCategories.contains(category))
+            category.name: defaults.ruleFor(category).toJson()
+          else if (value.containsKey(category.name))
+            category.name: value[category.name],
+      };
+    }
+    return {
+      for (final entry in value.entries)
+        entry.key: _withAddedCategories(entry.value),
     };
   }
   return value;

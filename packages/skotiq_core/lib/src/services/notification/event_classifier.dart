@@ -581,8 +581,19 @@ class NotificationEventClassifier {
       return null;
     }
     if (outcome is! Map<String, dynamic>) return null;
+    final hfr = switch (outcome['result']) {
+      {'best_hfr': final num value} when value.isFinite && value > 0 => value,
+      _ => null,
+    };
     return switch (outcome['status']) {
-      'Success' => (NotificationCategory.autofocusCompleted, _none),
+      'Success' => (
+        NotificationCategory.autofocusCompleted,
+        <String, String>{
+          'autofocus.summary': hfr == null
+              ? 'Autofocus run completed.'
+              : 'Autofocus run completed (HFR: ${hfr.toStringAsFixed(2)}).',
+        },
+      ),
       'Failure' when outcome['in_run'] != true => (
         NotificationCategory.autofocusFailed,
         _none,

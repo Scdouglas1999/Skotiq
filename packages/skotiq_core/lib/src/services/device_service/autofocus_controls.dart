@@ -332,19 +332,8 @@ extension _DeviceServiceAutofocusControls on DeviceService {
             .read(focuserBacklashOfferSessionProvider.notifier)
             .noteAutofocusOutcome(focuserId: focuserDeviceId);
 
-        final hfrText = completedResult.bestHfr.toStringAsFixed(2);
-        _ref
-            .read(smartNotificationServiceProvider)
-            .showSuccessIfNotOnScreens(
-              message: 'Autofocus complete (HFR: $hfrText)',
-              relevantScreens: [
-                AppScreen.imaging,
-                AppScreen.equipment,
-                AppScreen.sequencer,
-              ],
-              title: 'Autofocus',
-            );
-
+        // The sweep's outcome event tells the operator, through the
+        // notification router, on every window.
         // Feed the persisted predictive-AF model (wire-up): record this
         // converged outcome as a training sample and, if we made a prediction
         // before the sweep, record the prediction-vs-actual error for drift

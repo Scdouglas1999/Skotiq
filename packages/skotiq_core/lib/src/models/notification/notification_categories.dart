@@ -36,6 +36,14 @@ enum NotificationCategory {
 
   // Mount / hardware milestones
   meridianFlipPerformed('Meridian flip performed'),
+
+  /// The mount finished a slew, parked or unparked. Not told for a slew the
+  /// run made, which is the run's own step.
+  mountMoved('Mount slewed or parked'),
+
+  /// A centering the operator started put the target in the middle of the
+  /// frame.
+  targetCentered('Target centered'),
   autofocusCompleted('Autofocus completed'),
   autofocusFailed('Autofocus failed'),
 
@@ -45,6 +53,10 @@ enum NotificationCategory {
   /// Info, not error: the night goes on slightly soft, and an error here would
   /// train the operator to ignore the alerts that do end a run.
   autofocusContinued('Autofocus continued'),
+
+  /// A filter change could not move the focuser by the filter's focus offset;
+  /// frames on that filter may be soft until the focuser is checked.
+  focusOffsetFailed('Focus offset failed'),
 
   // Imaging
   frameCaptured('Frame captured'),
@@ -95,6 +107,14 @@ enum NotificationCategory {
   // System / operational
   diskSpaceLow('Disk space low'),
   equipmentDisconnected('Equipment disconnected'),
+
+  /// A device whose connect had been told as failed answered after all: it
+  /// came up, or it answered but did not come up.
+  deviceAnsweredLate('Device answered late'),
+
+  /// A run's checkpoint could not be saved after a critical device
+  /// disconnected, so a restart could not pick the run up from there.
+  checkpointFailed('Checkpoint not saved'),
   triggerFired('Trigger fired'),
 
   // Custom (user-script / NotificationNode-defined)
@@ -118,6 +138,9 @@ enum NotificationCategory {
       case NotificationCategory.targetStarted:
       case NotificationCategory.targetCompleted:
       case NotificationCategory.meridianFlipPerformed:
+      case NotificationCategory.mountMoved:
+      case NotificationCategory.targetCentered:
+      case NotificationCategory.deviceAnsweredLate:
       case NotificationCategory.autofocusCompleted:
       case NotificationCategory.autofocusContinued:
       case NotificationCategory.frameCaptured:
@@ -138,6 +161,7 @@ enum NotificationCategory {
         return EventSeverity.info;
       case NotificationCategory.frameRejected:
       case NotificationCategory.problemNoticed:
+      case NotificationCategory.focusOffsetFailed:
       case NotificationCategory.cloudArriving:
       case NotificationCategory.recoveryStarted:
         return EventSeverity.warning;
@@ -148,6 +172,7 @@ enum NotificationCategory {
       case NotificationCategory.weatherUnsafe:
       case NotificationCategory.diskSpaceLow:
       case NotificationCategory.equipmentDisconnected:
+      case NotificationCategory.checkpointFailed:
         return EventSeverity.error;
       // A possible new transient is a time-critical, must-not-miss event: the
       // chase window closes by morning. Severity `critical` so it clears the

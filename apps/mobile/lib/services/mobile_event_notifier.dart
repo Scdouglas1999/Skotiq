@@ -247,6 +247,11 @@ class MobileEventNotifier {
       NotificationCategory.transientDiscovered ||
       NotificationCategory.darkroomDraftReady ||
       NotificationCategory.triggerFired ||
+      NotificationCategory.mountMoved ||
+      NotificationCategory.targetCentered ||
+      NotificationCategory.focusOffsetFailed ||
+      NotificationCategory.deviceAnsweredLate ||
+      NotificationCategory.checkpointFailed ||
       NotificationCategory.custom => (false, _repeatWindow, null),
     };
     if (!enabled || send == null) return;

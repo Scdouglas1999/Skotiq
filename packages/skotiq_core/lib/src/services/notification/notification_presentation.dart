@@ -55,6 +55,9 @@ class NotificationPresentation {
   /// The coarse event category a phone push carries on the wire.
   final EventCategory eventCategory;
 
+  /// How long the in-app banner stays up; null for the banner's default.
+  final Duration? inAppDuration;
+
   const NotificationPresentation({
     required this.title,
     required this.body,
@@ -62,6 +65,7 @@ class NotificationPresentation {
     this.tone = NotificationTone.neutral,
     bool? inAppSuccess,
     this.push,
+    this.inAppDuration,
   }) : inAppSuccess = inAppSuccess ?? identical(tone, NotificationTone.good);
 
   NotificationTone toneAt(EventSeverity severity) =>
@@ -142,7 +146,7 @@ class NotificationPresentation {
       ),
     NotificationCategory.autofocusCompleted => const NotificationPresentation(
       title: 'Autofocus complete',
-      body: 'Autofocus run completed.',
+      body: '\${autofocus.summary}',
       eventCategory: EventCategory.sequencer,
       inAppSuccess: true,
     ),
@@ -298,6 +302,41 @@ class NotificationPresentation {
         tone: NotificationTone.alert,
         push: PhonePush(_critical, PushToggle.equipmentDisconnected),
       ),
+    // The four below are told by the app that saw them happen, with copy it
+    // composed; these are the row's defaults.
+    NotificationCategory.mountMoved => const NotificationPresentation(
+      title: 'Mount',
+      body: 'The mount finished moving.',
+      eventCategory: EventCategory.equipment,
+      tone: NotificationTone.good,
+    ),
+    NotificationCategory.targetCentered => const NotificationPresentation(
+      title: 'Centering Complete',
+      body: 'Target centered.',
+      eventCategory: EventCategory.equipment,
+      tone: NotificationTone.good,
+    ),
+    NotificationCategory.focusOffsetFailed => const NotificationPresentation(
+      title: 'Filter Focus Offset Failed',
+      body: 'A filter focus offset could not be applied.',
+      eventCategory: EventCategory.equipment,
+      tone: NotificationTone.caution,
+    ),
+    // Good news or a failure, as the message says.
+    NotificationCategory.deviceAnsweredLate => const NotificationPresentation(
+      title: 'Device',
+      body: 'A device answered late.',
+      eventCategory: EventCategory.equipment,
+      tone: null,
+      inAppSuccess: true,
+    ),
+    NotificationCategory.checkpointFailed => const NotificationPresentation(
+      title: 'Checkpoint Failed',
+      body: 'A sequence checkpoint was not saved.',
+      eventCategory: EventCategory.sequencer,
+      tone: NotificationTone.alert,
+      inAppDuration: Duration(seconds: 12),
+    ),
     NotificationCategory.triggerFired => const NotificationPresentation(
       title: 'Trigger fired',
       body: 'The \${trigger.name} trigger fired.',

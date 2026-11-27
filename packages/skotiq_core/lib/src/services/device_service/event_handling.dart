@@ -220,18 +220,17 @@ extension _DeviceServiceEventHandling on DeviceService {
         // A slew the run made is the run's own step, and Tonight says so; a
         // toast for it covered the phone's frame strip at every target.
         if (_ref.read(sequenceExecutionStateProvider).canStop) break;
-        _ref
-            .read(smartNotificationServiceProvider)
-            .showSuccessIfNotOnScreens(
-              message: 'Slew completed',
-              relevantScreens: [
-                AppScreen.dashboard,
-                AppScreen.imaging,
-                AppScreen.planetarium,
-                AppScreen.sequencer,
-              ],
-              title: 'Mount',
-            );
+        _tell(
+          NotificationCategory.mountMoved,
+          title: 'Mount',
+          body: 'Slew completed',
+          quietOn: const {
+            AppScreen.dashboard,
+            AppScreen.imaging,
+            AppScreen.planetarium,
+            AppScreen.sequencer,
+          },
+        );
         break;
 
       // Mount Tracking Events
@@ -256,25 +255,23 @@ extension _DeviceServiceEventHandling on DeviceService {
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         _ref.read(mountStateProvider.notifier).setParked(true);
         _ref.read(mountStateProvider.notifier).setTracking(false);
-        _ref
-            .read(smartNotificationServiceProvider)
-            .showSuccessIfNotOnScreens(
-              message: 'Mount parked',
-              relevantScreens: [AppScreen.imaging, AppScreen.equipment],
-              title: 'Mount',
-            );
+        _tell(
+          NotificationCategory.mountMoved,
+          title: 'Mount',
+          body: 'Mount parked',
+          quietOn: const {AppScreen.imaging, AppScreen.equipment},
+        );
         break;
 
       case bridge.EquipmentEvent_MountUnparked(:final deviceId):
         if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setParked(false);
-        _ref
-            .read(smartNotificationServiceProvider)
-            .showSuccessIfNotOnScreens(
-              message: 'Mount unparked',
-              relevantScreens: [AppScreen.imaging, AppScreen.equipment],
-              title: 'Mount',
-            );
+        _tell(
+          NotificationCategory.mountMoved,
+          title: 'Mount',
+          body: 'Mount unparked',
+          quietOn: const {AppScreen.imaging, AppScreen.equipment},
+        );
         break;
 
       // Focuser Events
@@ -713,8 +710,8 @@ extension _DeviceServiceEventHandling on DeviceService {
       );
     }
     final critical = severity == EventSeverity.critical;
-    _notices?.call().routeRendered(
-      category: NotificationCategory.equipmentDisconnected,
+    _tell(
+      NotificationCategory.equipmentDisconnected,
       title: critical ? 'Critical: Device' : '${deviceType ?? "Device"} Error',
       body: describeError(toldMessage, domain: ErrorDomain.device).full,
       severity: severity,

@@ -8,7 +8,9 @@ import '../models/sequence/sequence_models.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/sequence_provider.dart';
-import '../providers/ui_notification_provider.dart';
+import '../models/notification/notification_categories.dart'
+    show NotificationCategory;
+import 'notification/notification_router.dart' show NotificationRouter;
 import '../models/backend/backend_types.dart';
 import '../providers/logging_service_provider.dart';
 
@@ -31,7 +33,9 @@ class DeviceReconnectCoordinator {
     required Future<void> Function() resumeSequence,
     required Future<void> Function() pauseSequence,
     required void Function(String deviceId) surfaceReconnecting,
+    NotificationRouter Function()? notices,
   }) : _ref = ref,
+       _notices = notices,
        _backend = backend,
        _hostOwnsRecovery = hostOwnsRecovery,
        _resumeSequence = resumeSequence,
@@ -50,6 +54,10 @@ class DeviceReconnectCoordinator {
 
   final Ref _ref;
   final SkotiqBackend _backend;
+
+  /// The notification router a failed checkpoint is told through; null tells
+  /// nothing.
+  final NotificationRouter Function()? _notices;
 
   /// On a companion the device events are the imaging host's, relayed. The
   /// host already reconnects, checkpoints and pauses for its own devices, so
@@ -175,14 +183,14 @@ class DeviceReconnectCoordinator {
         ),
       );
       try {
-        _ref
-            .read(uiNotificationProvider.notifier)
-            .showError(
+        _notices?.call().routeRendered(
+          category: NotificationCategory.checkpointFailed,
+          title: 'Checkpoint Failed',
+          body:
               'Failed to save a sequence checkpoint after $deviceType '
               'disconnected.',
-              title: 'Checkpoint Failed',
-              duration: const Duration(seconds: 12),
-            );
+          severity: EventSeverity.error,
+        );
       } on Object {
         // Notification failure must not mask the hardware-protection pause.
       }

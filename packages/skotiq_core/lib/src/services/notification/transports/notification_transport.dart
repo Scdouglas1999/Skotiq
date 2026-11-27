@@ -6,6 +6,7 @@
 // shared async send entry point. Subclasses live in sibling files in
 // `transports/`.
 
+import '../../../models/app_screen.dart';
 import '../../../models/backend/event_types.dart';
 import '../../../models/notification/notification_categories.dart';
 
@@ -23,12 +24,17 @@ class NotificationMessage {
   /// it; an email has nowhere to navigate to.
   final String? deepLink;
 
+  /// The screens that already show what the message says: the in-app banner
+  /// keeps quiet while the operator is on one of them.
+  final Set<AppScreen> quietOn;
+
   NotificationMessage({
     required this.category,
     required this.title,
     required this.body,
     EventSeverity? severity,
     this.deepLink,
+    this.quietOn = const {},
   }) : severity = severity ?? category.defaultSeverity;
 }
 

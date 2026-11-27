@@ -91,13 +91,14 @@ extension _DeviceServiceConnections on DeviceService {
       );
     } catch (e) {
       if (_disposed) return;
-      _ref
-          .read(uiNotificationProvider.notifier)
-          .showError(
+      _tell(
+        NotificationCategory.deviceAnsweredLate,
+        title: type.displayName,
+        body:
             'The $noun answered late but did not come up: '
             '${userFacingError(e)}',
-            title: type.displayName,
-          );
+        severity: EventSeverity.error,
+      );
       return;
     }
     if (_disposed) return;
@@ -117,9 +118,11 @@ extension _DeviceServiceConnections on DeviceService {
             ),
           );
     }
-    _ref
-        .read(uiNotificationProvider.notifier)
-        .showSuccess('The $noun connected after all.', title: type.displayName);
+    _tell(
+      NotificationCategory.deviceAnsweredLate,
+      title: type.displayName,
+      body: 'The $noun connected after all.',
+    );
   }
 
   Future<void> _disconnect(DeviceType type) {

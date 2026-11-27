@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'notification_router_provider.dart' show notificationRouterProvider;
 import '../services/centering_service.dart';
 import 'host_role.dart';
 
@@ -14,6 +15,7 @@ final centeringServiceProvider = Provider<CenteringService>((ref) {
   final service = CenteringService(
     ref,
     runner: ref.watch(centeringRunnerProvider),
+    notices: () => ref.read(notificationRouterProvider),
   );
   ref.onDispose(service.retire);
   return service;

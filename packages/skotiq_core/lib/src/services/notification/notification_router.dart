@@ -28,6 +28,7 @@ import '../../backend/bridge_event_codec.dart' show systemEventOf;
 import '../../backend/bridge_events.dart' as typed show SequencerEvent_Started;
 import '../../backend/bridge_events.dart' show SystemEvent_Notification;
 import '../../backend/sequencer_run_events.dart' show sequencerEventOf;
+import '../../models/app_screen.dart';
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../models/sequence/run_stop_classification.dart';
@@ -460,7 +461,8 @@ class NotificationRouter {
   ///
   /// [severity] is the message's own: it is checked against the row's floor
   /// and it is what the transports present (toast style, Pushover priority,
-  /// the embed color of a `custom` message).
+  /// the embed color of a `custom` message). The in-app banner keeps quiet
+  /// while the operator is on one of the [quietOn] screens.
   ///
   /// Returns what was handed to a transport, or which gate sent nothing, so a
   /// caller that states an outcome (the dawn autopilot's morning message lists
@@ -472,6 +474,7 @@ class NotificationRouter {
     EventSeverity severity = EventSeverity.info,
     List<NotificationTransportKind>? explicitTransports,
     String? deepLink,
+    Set<AppScreen> quietOn = const {},
   }) {
     if (!_matrix.enabled) {
       return const NotificationRouteOutcome.dropped(
@@ -517,6 +520,7 @@ class NotificationRouter {
       body: body,
       severity: severity,
       deepLink: deepLink,
+      quietOn: quietOn,
     );
     final eligible = _willing(configured, message);
     if (eligible.isEmpty) {

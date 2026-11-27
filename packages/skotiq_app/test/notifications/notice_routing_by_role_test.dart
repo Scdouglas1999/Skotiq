@@ -444,7 +444,7 @@ final List<_Happening> _happenings = [
     label: 'equipmentWarning',
   ),
   _Happening(
-    null,
+    NotificationCategory.mountMoved,
     (_) => [
       _mount(const sk.EquipmentEvent.mountSlewCompleted(
         deviceId: '',
@@ -455,7 +455,7 @@ final List<_Happening> _happenings = [
     label: 'mountSlewIdle',
   ),
   _Happening(
-    null,
+    NotificationCategory.mountMoved,
     (_) => [
       _seq(const sk.SequencerEvent.started(sequenceName: 'Night')),
       _mount(const sk.EquipmentEvent.mountSlewCompleted(
@@ -467,12 +467,12 @@ final List<_Happening> _happenings = [
     label: 'mountSlewInRun',
   ),
   _Happening(
-    null,
+    NotificationCategory.mountMoved,
     (_) => [_mount(const sk.EquipmentEvent.mountParkCompleted(deviceId: ''))],
     label: 'mountParked',
   ),
   _Happening(
-    null,
+    NotificationCategory.mountMoved,
     (_) => [_mount(const sk.EquipmentEvent.mountUnparked(deviceId: ''))],
     label: 'mountUnparked',
   ),
@@ -785,12 +785,6 @@ const _expected = <String, List<String>>{
   'hostGui mountSlewIdle defaults': [
     'toast success Mount',
   ],
-  'hostGui mountSlewIdle rowOff': [
-    'toast success Mount',
-  ],
-  'hostGui mountSlewIdle routingOff': [
-    'toast success Mount',
-  ],
   'hostGui mountSlewInRun defaults': [
     'toast info Sequence started',
   ],
@@ -800,19 +794,7 @@ const _expected = <String, List<String>>{
   'hostGui mountParked defaults': [
     'toast success Mount',
   ],
-  'hostGui mountParked rowOff': [
-    'toast success Mount',
-  ],
-  'hostGui mountParked routingOff': [
-    'toast success Mount',
-  ],
   'hostGui mountUnparked defaults': [
-    'toast success Mount',
-  ],
-  'hostGui mountUnparked rowOff': [
-    'toast success Mount',
-  ],
-  'hostGui mountUnparked routingOff': [
     'toast success Mount',
   ],
   'hostDaemon sequenceStarted defaults': [
@@ -927,12 +909,6 @@ const _expected = <String, List<String>>{
   'hostDaemon mountSlewIdle defaults': [
     'toast success Mount',
   ],
-  'hostDaemon mountSlewIdle rowOff': [
-    'toast success Mount',
-  ],
-  'hostDaemon mountSlewIdle routingOff': [
-    'toast success Mount',
-  ],
   'hostDaemon mountSlewInRun defaults': [
     'toast info Sequence started',
   ],
@@ -942,19 +918,7 @@ const _expected = <String, List<String>>{
   'hostDaemon mountParked defaults': [
     'toast success Mount',
   ],
-  'hostDaemon mountParked rowOff': [
-    'toast success Mount',
-  ],
-  'hostDaemon mountParked routingOff': [
-    'toast success Mount',
-  ],
   'hostDaemon mountUnparked defaults': [
-    'toast success Mount',
-  ],
-  'hostDaemon mountUnparked rowOff': [
-    'toast success Mount',
-  ],
-  'hostDaemon mountUnparked routingOff': [
     'toast success Mount',
   ],
   'linkedDesktop sequenceStarted defaults': [

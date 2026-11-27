@@ -66,7 +66,6 @@ import '../providers/mount_home_watcher_provider.dart';
 import '../providers/mount_slew_watcher_providers.dart';
 import '../providers/predictive_af_service_providers.dart';
 import '../providers/profile_service_provider.dart';
-import '../providers/smart_notification_service_provider.dart';
 import '../models/notification/notification_categories.dart'
     show NotificationCategory;
 
@@ -257,6 +256,23 @@ class DeviceService {
   /// through; null tells nothing.
   final NotificationRouter Function()? _notices;
 
+  /// Tell the operator through the notification router, on [category]'s row.
+  void _tell(
+    NotificationCategory category, {
+    required String title,
+    required String body,
+    EventSeverity severity = EventSeverity.info,
+    Set<AppScreen> quietOn = const {},
+  }) {
+    _notices?.call().routeRendered(
+      category: category,
+      title: title,
+      body: body,
+      severity: severity,
+      quietOn: quietOn,
+    );
+  }
+
   /// [attempts] is shared with whatever else writes device slots (see
   /// `connectAttemptsProvider`). [hostDevices] and [hostLink] are the linked
   /// host's, or null where the devices are this process's own.
@@ -301,6 +317,7 @@ class DeviceService {
       pauseSequence: pauseSequence,
       surfaceReconnecting: (deviceId) =>
           _heartbeat.surfaceReconnecting(deviceId: deviceId),
+      notices: notices,
     );
     _switchChannels = SwitchChannelService(
       ref: _ref,

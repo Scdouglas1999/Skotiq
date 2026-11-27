@@ -1,7 +1,7 @@
 /// Enum representing major screens in the app for notification filtering.
 ///
-/// Used by `SmartNotificationService` to determine whether to show
-/// notifications based on the user's current screen location.
+/// A notice that a screen already shows keeps its in-app banner quiet while
+/// the operator is on that screen.
 enum AppScreen {
   dashboard,
   equipment,
