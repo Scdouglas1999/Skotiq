@@ -251,7 +251,6 @@ abstract class NetworkBackendTransport {
   bool _webSocketHeartbeatPausedForLifecycle = false;
   int _requestCounter = 0;
   final List<void Function()> _disposeCallbacks = [];
-  static const int _maxReconnectDelay = 30; // Max 30 seconds
 
   /// Registers [callback] to run once when this backend is disposed.
   /// If already disposed, runs immediately.

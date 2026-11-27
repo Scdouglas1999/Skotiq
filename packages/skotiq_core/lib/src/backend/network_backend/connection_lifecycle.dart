@@ -665,17 +665,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
     }
     _updateConnectionState(BackendConnectionState.disconnected);
 
-    // Calculate exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s (max)
-    final delay = Duration(
-      seconds: [
-        1,
-        2,
-        4,
-        8,
-        16,
-        NetworkBackendTransport._maxReconnectDelay,
-      ][_reconnectAttempt.clamp(0, 5)],
-    );
+    final delay = hostLinkReconnectDelay(_reconnectAttempt);
 
     _reconnectAttempt++;
     Log.info(
