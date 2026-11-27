@@ -7,6 +7,7 @@ import '../../../services/run_control/run_control.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../tours/tour_target.dart';
 import '../../../utils/snackbar_helper.dart';
+import '../../night_control/skip_step_guard.dart';
 
 /// Pause or resume, stop and skip for a phone's Sequencer, as compact
 /// buttons that sit in the plan row while a run is live.
@@ -88,6 +89,8 @@ class MobilePlaybackBar extends ConsumerWidget {
           isEnabled: transport.skip?.enabled == true,
           isCompact: true,
           onPressed: () async {
+            if (!await confirmSkipStep(context, ref)) return;
+            if (!context.mounted) return;
             final result = await ref.read(sequenceActionServiceProvider).skip();
             if (!context.mounted) return;
             context.showCommandActionResult(result);

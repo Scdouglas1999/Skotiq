@@ -45,6 +45,7 @@ import '../models/backup/restore_mode.dart';
 import '../models/notification/home_assistant_discovery_config.dart';
 import '../models/notification/home_assistant_host_settings.dart';
 import '../utils/logging_service.dart';
+import '../utils/resilient_poll_stream.dart' show StandingRefusal;
 import 'phd2_probe.dart';
 import '../models/site/horizon_profile.dart';
 import '../models/imaging/fits_keyword_write.dart';
@@ -250,7 +251,6 @@ abstract class NetworkBackendTransport {
   bool _webSocketHeartbeatPausedForLifecycle = false;
   int _requestCounter = 0;
   final List<void Function()> _disposeCallbacks = [];
-  static const int _maxReconnectDelay = 30; // Max 30 seconds
 
   /// Registers [callback] to run once when this backend is disposed.
   /// If already disposed, runs immediately.
@@ -674,7 +674,7 @@ class NetworkBackend extends NetworkBackendTransport
 }
 
 /// Thrown by every call to the host of a client that is not linked to one.
-class HostNotLinkedException implements Exception {
+class HostNotLinkedException implements StandingRefusal {
   const HostNotLinkedException();
 
   @override

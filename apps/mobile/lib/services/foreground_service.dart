@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'notification_service.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/utils.dart';
+
+import 'notification_service.dart';
+import 'run_job_state.dart';
 
 class ImagingForegroundService {
   static final ImagingForegroundService _instance =
@@ -13,7 +16,7 @@ class ImagingForegroundService {
   bool _isRunning = false;
   String _currentTarget = '';
   int _completedExposures = 0;
-  double _percentComplete = 0.0;
+  String? _shownText;
 
   bool get isRunning => _isRunning;
 
@@ -105,7 +108,7 @@ class ImagingForegroundService {
   }) async {
     _currentTarget = targetName;
     _completedExposures = 0;
-    _percentComplete = 0.0;
+    _shownText = null;
 
     if (await FlutterForegroundTask.isRunningService) {
       final restarted = await FlutterForegroundTask.restartService();
@@ -126,39 +129,20 @@ class ImagingForegroundService {
     }
   }
 
-  void updateProgress({
-    required int completedExposures,
-    required int totalExposures,
-    String? currentFilter,
-    String? statusMessage,
-  }) {
+  /// Shows the run's current step and frame count on the ongoing
+  /// notification. Android takes the service's wake and WiFi locks again on
+  /// every update, so an update that would show the same words is not sent.
+  void updateProgress(SequenceExecutionState exec, SequenceProgress progress) {
     if (!_isRunning) return;
 
-    _completedExposures = completedExposures;
-    _percentComplete = totalExposures > 0
-        ? (completedExposures / totalExposures) * 100
-        : 0;
-
-    // Render completed/total plus a percentage so the operator can see
-    // long-sequence progress at a glance.
-    final percentText = _percentComplete > 0
-        ? ' (${_percentComplete.toStringAsFixed(0)}%)'
-        : '';
-    String text = '$completedExposures/$totalExposures exposures$percentText';
-    if (currentFilter != null) {
-      text += ' ($currentFilter)';
-    }
-    if (statusMessage != null && statusMessage.isNotEmpty) {
-      text += ' - $statusMessage';
-    }
-
+    _completedExposures = progress.completedExposures;
+    final text = ongoingRunText(exec, progress);
+    if (text == _shownText) return;
+    _shownText = text;
     FlutterForegroundTask.updateService(
       notificationTitle: 'Imaging $_currentTarget',
       notificationText: text,
     );
-
-    // Note: sendDataToTask removed in v6.0.0+
-    // Data is now sent via updateService notification only
   }
 
   Future<void> stopService({bool sequenceCompleted = false}) async {
@@ -175,11 +159,53 @@ class ImagingForegroundService {
     _isRunning = false;
     _currentTarget = '';
     _completedExposures = 0;
-    _percentComplete = 0.0;
+    _shownText = null;
   }
 
+  /// A service started again shows its start text, so the next update is
+  /// sent whatever it says.
   void setRunning(bool running) {
+    if (running != _isRunning) _shownText = null;
     _isRunning = running;
+  }
+}
+
+/// The ongoing notification's line: what the run is doing now, then its
+/// frame count.
+String ongoingRunText(SequenceExecutionState exec, SequenceProgress progress) {
+  final step = switch (exec) {
+    SequenceExecutionState.running => _runningStepText(progress),
+    SequenceExecutionState.paused => 'Paused',
+    SequenceExecutionState.recovering => 'Recovering',
+    SequenceExecutionState.stopping ||
+    SequenceExecutionState.finalizing ||
+    SequenceExecutionState.stopFailed ||
+    SequenceExecutionState.cleanupFailed => 'Stopping',
+    SequenceExecutionState.completed => 'Finished',
+    SequenceExecutionState.failed => 'Failed',
+    SequenceExecutionState.idle => 'Starting',
+  };
+  final total = progress.totalExposures;
+  if (total <= 0) return step;
+  final done = progress.completedExposures;
+  final percent = done > 0 ? ' (${(done / total * 100).round()}%)' : '';
+  return '$step · $done/$total exposures$percent';
+}
+
+String _runningStepText(SequenceProgress progress) {
+  switch (runningStepKind(progress)) {
+    case RunningStepKind.exposing:
+      final filter = progress.currentFilter?.trim();
+      return filter == null || filter.isEmpty ? 'Exposing' : 'Exposing $filter';
+    case RunningStepKind.centering:
+      return 'Centering';
+    case RunningStepKind.focusing:
+      return 'Autofocus';
+    case RunningStepKind.guiding:
+      return 'Guiding';
+    case RunningStepKind.other:
+      final name = progress.currentNodeName?.trim();
+      return name == null || name.isEmpty ? 'Running' : name;
   }
 }
 

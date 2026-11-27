@@ -12,6 +12,7 @@ import '../../../widgets/run_status/sequence_status_visuals.dart';
 import '../../../services/run_control/run_control.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
+import '../../night_control/skip_step_guard.dart';
 import 'package:skotiq_core/utils.dart';
 
 /// Persistent app-shell mini-player for a running sequence.
@@ -184,6 +185,8 @@ class RunningSequenceMiniBar extends ConsumerWidget {
                 tooltip: 'Skip',
                 isEnabled: transport.skip?.enabled == true,
                 onPressed: () async {
+                  if (!await confirmSkipStep(context, ref)) return;
+                  if (!context.mounted) return;
                   final result =
                       await ref.read(sequenceActionServiceProvider).skip();
                   if (!context.mounted) return;

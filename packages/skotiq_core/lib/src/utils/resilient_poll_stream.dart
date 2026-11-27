@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'poll_pace.dart';
 
+/// A failure that asking again cannot change, such as the refusal of a host
+/// that refuses every call. A poll that meets one stops asking.
+abstract interface class StandingRefusal implements Exception {}
+
 /// Repeatedly calls [fetch], emits the first successful value, and then emits
 /// only values for which [unchanged] returns false.
 ///
@@ -18,6 +22,9 @@ import 'poll_pace.dart';
 /// An event on [refresh] fetches now instead of waiting out the interval; one
 /// that arrives during a fetch runs another fetch as soon as that one ends,
 /// because the in-flight answer may predate whatever prompted the refresh.
+///
+/// A [StandingRefusal] ends the polling: it is reported like any other error
+/// and nothing is fetched after it, on the timer or on [refresh].
 Stream<T> resilientDistinctPoll<T>({
   required Future<T> Function() fetch,
   required bool Function(T previous, T next) unchanged,
@@ -28,6 +35,7 @@ Stream<T> resilientDistinctPoll<T>({
   late T last;
   var hasLast = false;
   var stopped = false;
+  var refused = false;
   var paused = false;
   var polling = false;
   var refreshQueued = false;
@@ -37,6 +45,7 @@ Stream<T> resilientDistinctPoll<T>({
   late final Future<void> Function() poll;
 
   void scheduleNext() {
+    if (refused) return;
     if (stopped || paused || polling || (timer?.isActive ?? false)) return;
     timer = Timer(PollPace.stretch(interval), () {
       timer = null;
@@ -45,7 +54,7 @@ Stream<T> resilientDistinctPoll<T>({
   }
 
   poll = () async {
-    if (stopped || paused || polling) return;
+    if (stopped || refused || paused || polling) return;
     polling = true;
     try {
       final next = await fetch();
@@ -55,6 +64,7 @@ Stream<T> resilientDistinctPoll<T>({
         controller.add(next);
       }
     } catch (error, stackTrace) {
+      if (error is StandingRefusal) refused = true;
       if (!stopped && !hasLast) {
         controller.addError(error, stackTrace);
       } else if (!stopped) {
@@ -72,7 +82,7 @@ Stream<T> resilientDistinctPoll<T>({
   };
 
   void refreshNow() {
-    if (stopped) return;
+    if (stopped || refused) return;
     if (polling || paused) {
       refreshQueued = true;
       return;

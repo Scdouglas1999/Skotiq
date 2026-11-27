@@ -214,9 +214,9 @@ class RigConnectionService extends ChangeNotifier {
     required this.device,
     required this.session,
     this.network = const RigConnectionNetwork(),
-    Duration connectionGracePeriod = const Duration(seconds: 30),
+    Duration? connectionGracePeriod,
     Duration Function(int attempt) retryDelay = lostSessionRetryDelay,
-  }) : _connectionGracePeriod = connectionGracePeriod,
+  }) : _connectionGracePeriod = connectionGracePeriod ?? hostLinkRetryWindow,
        _retryDelay = retryDelay;
 
   final RigConnectionDevice device;
@@ -224,8 +224,9 @@ class RigConnectionService extends ChangeNotifier {
   final RigConnectionNetwork network;
 
   /// How long the link can stay down before the session is declared dead and
-  /// the operator is sent back to the connection screen. The backend's own
-  /// reconnector backs off up to 30 s.
+  /// the operator is sent back to the connection screen: by default the
+  /// link's own retry window ([hostLinkRetryWindow]), so a drop the link
+  /// recovers from keeps the current screen under the reconnecting banner.
   final Duration _connectionGracePeriod;
   final Duration Function(int attempt) _retryDelay;
 

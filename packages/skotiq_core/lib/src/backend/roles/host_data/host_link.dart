@@ -2,6 +2,28 @@ import 'package:skotiq_remote_protocol/wire_models.dart';
 
 import '../../../models/backend/backend_connection_state.dart';
 
+/// The wait before a dropped link's reconnect attempt number [attempt]
+/// (0-based): doubling from 1 s to 16 s, then 30 s for as long as it takes.
+Duration hostLinkReconnectDelay(int attempt) =>
+    _hostLinkReconnectRamp[attempt.clamp(0, _hostLinkReconnectRamp.length - 1)];
+
+/// How long a dropped link is given before the client gives up on it: every
+/// attempt of the ramp, then one full wait at its longest, so the first
+/// steady attempt has had its time to answer.
+final Duration hostLinkRetryWindow = _hostLinkReconnectRamp.fold(
+  _hostLinkReconnectRamp.last,
+  (total, wait) => total + wait,
+);
+
+const _hostLinkReconnectRamp = <Duration>[
+  Duration(seconds: 1),
+  Duration(seconds: 2),
+  Duration(seconds: 4),
+  Duration(seconds: 8),
+  Duration(seconds: 16),
+  Duration(seconds: 30),
+];
+
 /// The connection from this client to its imaging host.
 abstract interface class HostLink {
   /// `http` or `https`.

@@ -137,6 +137,10 @@ class MobileSequenceHooks {
       },
     );
 
+    // A run already under way when the listeners went in changes nothing
+    // they would hear.
+    _syncImagingSession();
+
     // Mark fully wired so anything awaiting [waitUntilInitialized] can
     // safely proceed. Code that depends on the foreground service or
     // event notifier being live must gate on this.
@@ -314,84 +318,79 @@ class MobileSequenceHooks {
   void _handleExecutionStateChange(
     SequenceExecutionState? previous,
     SequenceExecutionState next,
-  ) async {
+  ) {
+    if (next == SequenceExecutionState.running &&
+        previous == SequenceExecutionState.paused &&
+        _sessionHeld) {
+      unawaited(_powerService.acquireWakeLock());
+    }
+    // The banner stays up while the run executes, holds, recovers or has not
+    // settled its stop.
+    _setIosBackgroundBanner(switch (next) {
+      SequenceExecutionState.running ||
+      SequenceExecutionState.paused ||
+      SequenceExecutionState.stopping ||
+      SequenceExecutionState.finalizing => Platform.isIOS,
+      SequenceExecutionState.recovering ||
+      SequenceExecutionState.stopFailed ||
+      SequenceExecutionState.cleanupFailed => true,
+      SequenceExecutionState.idle ||
+      SequenceExecutionState.completed ||
+      SequenceExecutionState.failed => false,
+    });
+    _syncImagingSession();
+  }
+
+  /// Whether this phone holds the run's imaging session: the wake lock and,
+  /// on Android, the foreground service with its ongoing notification.
+  bool _sessionHeld = false;
+  Future<void> _sessionWork = Future<void>.value();
+
+  /// Brings the imaging session in line with the run as the phone sees it now,
+  /// whatever it saw before: a phone that starts, restarts or relinks while a
+  /// run is under way takes the session up just as one that saw it start.
+  void _syncImagingSession() {
+    _sessionWork = _sessionWork.then((_) => _applyImagingSession()).catchError((
+      Object e,
+      StackTrace st,
+    ) {
+      Log.error(
+        'Imaging session update failed: $e',
+        source: 'MobileSequenceHooks',
+        error: e,
+        stackTrace: st,
+      );
+    });
+  }
+
+  Future<void> _applyImagingSession() async {
+    final exec = _ref.read(sequenceExecutionStateProvider);
     final progress = _ref.read(sequenceProgressProvider);
     final sequence = _ref.read(currentSequenceProvider);
-
-    switch (next) {
-      case SequenceExecutionState.idle:
-        // Sequence stopped or not started. Any active imaging state —
-        // running, paused, recovering, or stopping — holds the wake lock
-        // and Android foreground service, so a stop issued from any of
-        // them must tear the session down. We skip null/idle (app start)
-        // and completed/failed (already stopped) to avoid a double stop.
-        if (previous == SequenceExecutionState.running ||
-            previous == SequenceExecutionState.paused ||
-            previous == SequenceExecutionState.recovering ||
-            previous == SequenceExecutionState.stopping ||
-            previous == SequenceExecutionState.finalizing ||
-            previous == SequenceExecutionState.stopFailed ||
-            previous == SequenceExecutionState.cleanupFailed) {
-          await _stopImagingSession(sequenceCompleted: false);
-        }
-        _setIosBackgroundBanner(false);
-        break;
-
-      case SequenceExecutionState.running:
-        if (previous == SequenceExecutionState.idle) {
-          await _startImagingSession(sequence);
-        } else if (previous == SequenceExecutionState.paused) {
-          // Sequence resumed - ensure services are still active
-          await _powerService.acquireWakeLock();
-        }
-        _setIosBackgroundBanner(Platform.isIOS);
-        break;
-
-      case SequenceExecutionState.paused:
-        // Could optionally release wake lock during pause, but we'll keep it
-        // to ensure we can resume quickly
-        _setIosBackgroundBanner(Platform.isIOS);
-        break;
-
-      case SequenceExecutionState.stopping:
-      case SequenceExecutionState.finalizing:
-        // Sequence is stopping / finalizing its durable records. Keep services
-        // active until it fully settles (transitions to idle/completed/failed).
-        _setIosBackgroundBanner(Platform.isIOS);
-        break;
-
-      case SequenceExecutionState.completed:
+    switch (imagingSessionChange(held: _sessionHeld, exec: exec)) {
+      case ImagingSessionChange.start:
+        _sessionHeld = true;
+        await _startImagingSession(
+          name: sequence?.name ?? progress.currentTarget ?? 'Skotiq run',
+          totalExposures: progress.totalExposures > 0 || sequence == null
+              ? progress.totalExposures
+              : sequence.totalExposures,
+        );
+      case ImagingSessionChange.finish:
+        _sessionHeld = false;
         await _stopImagingSession(
           sequenceCompleted: true,
           completedExposures: progress.completedExposures,
           targetName: progress.currentTarget ?? sequence?.name ?? 'Unknown',
         );
-        _setIosBackgroundBanner(false);
-        break;
-
-      case SequenceExecutionState.failed:
+      case ImagingSessionChange.end:
+        _sessionHeld = false;
         await _stopImagingSession(sequenceCompleted: false);
-        _setIosBackgroundBanner(false);
+      case ImagingSessionChange.keep:
         break;
-
-      case SequenceExecutionState.recovering:
-        // Recovery Mode — recovery is in-flight execution, not
-        // session completion. Keep the iOS background banner visible so
-        // the user understands the rig is still actively working; the
-        // recovery banner on the dashboard surfaces the cause + retry
-        // controls. We deliberately do NOT stop the imaging session
-        // here — that only happens on `completed` or `failed`.
-        _setIosBackgroundBanner(true);
-        break;
-
-      case SequenceExecutionState.stopFailed:
-      case SequenceExecutionState.cleanupFailed:
-        // The stop (or its cleanup) has not finished — the run is not settled,
-        // so the wake lock / foreground service must stay held. We keep the
-        // banner up and do NOT tear down here; the teardown happens when the
-        // run finally settles to idle (handled above) or completes/fails.
-        _setIosBackgroundBanner(true);
-        break;
+    }
+    if (_foregroundService.isRunning) {
+      _foregroundService.updateProgress(exec, progress);
     }
   }
 
@@ -469,19 +468,18 @@ class MobileSequenceHooks {
   ) {
     if (_foregroundService.isRunning) {
       _foregroundService.updateProgress(
-        completedExposures: next.completedExposures,
-        totalExposures: next.totalExposures,
-        currentFilter: next.currentFilter,
-        statusMessage: next.message,
+        _ref.read(sequenceExecutionStateProvider),
+        next,
       );
     }
   }
 
-  Future<void> _startImagingSession(Sequence? sequence) async {
-    if (sequence == null) return;
-
+  Future<void> _startImagingSession({
+    required String name,
+    required int totalExposures,
+  }) async {
     Log.info(
-      'Starting imaging session for ${sequence.name}',
+      'Starting imaging session for $name',
       source: 'MobileSequenceHooks',
     );
 
@@ -491,8 +489,8 @@ class MobileSequenceHooks {
     // Start foreground service (keeps app alive in background)
     if (Platform.isAndroid) {
       await _foregroundService.startService(
-        targetName: sequence.name,
-        totalExposures: sequence.totalExposures,
+        targetName: name,
+        totalExposures: totalExposures,
       );
     }
   }
@@ -633,4 +631,39 @@ String? lanPushFingerprint({
       saved.host == connected.host &&
       saved.webPort == connected.webPort;
   return sameRig ? saved.fingerprint : null;
+}
+
+/// What the phone's imaging session does next.
+enum ImagingSessionChange {
+  /// Take it up for a run that is under way.
+  start,
+
+  /// Leave it as it is.
+  keep,
+
+  /// Release it for a run that finished, and say so.
+  finish,
+
+  /// Release it for a run that ended any other way.
+  end,
+}
+
+/// The session is held while the run executes, holds or recovers, and kept
+/// until a stop settles; a finished run releases it with its completion
+/// notice, a failed or stopped one without.
+@visibleForTesting
+ImagingSessionChange imagingSessionChange({
+  required bool held,
+  required SequenceExecutionState exec,
+}) {
+  if (exec.isLive) {
+    return held ? ImagingSessionChange.keep : ImagingSessionChange.start;
+  }
+  if (!held) return ImagingSessionChange.keep;
+  return switch (exec) {
+    SequenceExecutionState.completed => ImagingSessionChange.finish,
+    SequenceExecutionState.idle ||
+    SequenceExecutionState.failed => ImagingSessionChange.end,
+    _ => ImagingSessionChange.keep,
+  };
 }
