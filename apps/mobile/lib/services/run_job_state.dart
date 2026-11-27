@@ -32,28 +32,40 @@ String runJobState(
   }
 }
 
-String _runningStepWord(SequenceProgress progress) {
+String _runningStepWord(SequenceProgress progress) =>
+    switch (runningStepKind(progress)) {
+      RunningStepKind.centering => 'centering',
+      RunningStepKind.focusing => 'focusing',
+      RunningStepKind.guiding => 'guiding',
+      RunningStepKind.exposing || RunningStepKind.other => 'exposing',
+    };
+
+/// What the running step does, as far as the phone can tell.
+enum RunningStepKind { exposing, centering, focusing, guiding, other }
+
+/// Reads the running step: its last centering or exposure reading says what
+/// it does; otherwise its name does.
+RunningStepKind runningStepKind(SequenceProgress progress) {
   final reading = progress.nodeProgressStructuredDetail[progress.currentNodeId];
   switch (reading) {
     case CenterInstructionProgressDetail():
-      return 'centering';
+      return RunningStepKind.centering;
     case ExposureInstructionProgressDetail() ||
         SmartExposureInstructionProgressDetail():
-      return 'exposing';
+      return RunningStepKind.exposing;
     default:
       break;
   }
-  // Otherwise the step's name decides. An autofocus reading does not: an
-  // exposure step keeps the reading of a refocus it ran until its next frame
-  // is recorded, and an autofocus reports one only once it has measured a
-  // point.
+  // An autofocus reading does not decide: an exposure step keeps the reading
+  // of a refocus it ran until its next frame is recorded, and an autofocus
+  // reports one only once it has measured a point.
   if (progress.currentNodeName case final name?) {
     final node = name.toLowerCase();
     if (node.contains('autofocus') || node.contains('focus')) {
-      return 'focusing';
+      return RunningStepKind.focusing;
     }
-    if (node.contains('center')) return 'centering';
-    if (node.contains('guid')) return 'guiding';
+    if (node.contains('center')) return RunningStepKind.centering;
+    if (node.contains('guid')) return RunningStepKind.guiding;
   }
-  return 'exposing';
+  return RunningStepKind.other;
 }
