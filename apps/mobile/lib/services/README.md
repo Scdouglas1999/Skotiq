@@ -34,13 +34,8 @@ await service.startService(
   totalExposures: 100,
 );
 
-// Update progress during sequence
-service.updateProgress(
-  completedExposures: 50,
-  totalExposures: 100,
-  currentFilter: 'Ha',
-  statusMessage: 'Exposing...',
-);
+// Show the run's step and frame count ("Exposing Ha · 50/100 exposures (50%)")
+service.updateProgress(execState, progress);
 
 // Stop service when sequence ends
 await service.stopService(

@@ -393,6 +393,9 @@ class MobileSequenceHooks {
         _setIosBackgroundBanner(true);
         break;
     }
+    if (_foregroundService.isRunning) {
+      _foregroundService.updateProgress(next, progress);
+    }
   }
 
   /// Toggle the iOS-only "honest banner" advisory. No-op on Android (where
@@ -469,10 +472,8 @@ class MobileSequenceHooks {
   ) {
     if (_foregroundService.isRunning) {
       _foregroundService.updateProgress(
-        completedExposures: next.completedExposures,
-        totalExposures: next.totalExposures,
-        currentFilter: next.currentFilter,
-        statusMessage: next.message,
+        _ref.read(sequenceExecutionStateProvider),
+        next,
       );
     }
   }
