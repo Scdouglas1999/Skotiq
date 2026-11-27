@@ -222,7 +222,6 @@ native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_wit
 native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_without_masking_other_errors	unimplemented_behavior	1	U2-04	message: "Method not implemented: canfindhome".to_string(),
 native/skotiq_native/alpaca/src/telescope.rs	unsupported_capability_is_false_without_masking_other_errors	unimplemented_behavior	1	R9-008	message: "not implemented while disconnected".to_string(),
 native/skotiq_native/alpaca/src/telescope.rs	serve_alpaca_response	unwrap_or_default	1	V0043	let request_line = request.lines().next().unwrap_or_default().to_string();
-native/skotiq_native/alpaca/src/telescope.rs	TelescopeFullStatus	unwrap_or_literal	1	V0043	// `.unwrap_or(false)` silently coerced both error and parse failures to
 native/skotiq_native/ascom/src/error.rs	-	unimplemented_behavior	1	R9-009	/// COM's own "not implemented" (`E_NOTIMPL`), which some drivers raise in place
 native/skotiq_native/ascom/src/health.rs	-	unwrap_or_literal	1	V0045	//! All `unwrap_or(0)` sites in this file follow a `SystemTime::now()
 native/skotiq_native/ascom/src/health.rs	get_health	unwrap_or_literal	1	V0045	.unwrap_or(0),
@@ -1446,7 +1445,7 @@ native/skotiq_native/sequencer/src/node/logic/conditional.rs	execute_conditional
 native/skotiq_native/sequencer/src/node/logic/conditional.rs	execute_conditional_propagates_safety_monitor_id	rust_let_underscore	1	V0081	let _ = execute_conditional(&mut node, config, &mut context).await;
 native/skotiq_native/sequencer/src/node/logic/conditional.rs	SafetyRecordingOps	simulated_runtime_path	1	V0081	inner: Arc<NullDeviceOps>,
 native/skotiq_native/sequencer/src/node/logic/conditional.rs	new	simulated_runtime_path	1	V0081	inner: Arc::new(NullDeviceOps),
-native/skotiq_native/sequencer/src/node/logic/conditional.rs	tests	simulated_runtime_path	1	V0081	/// and delegates everything else to `NullDeviceOps`. Lets the audit-C2
+native/skotiq_native/sequencer/src/node/logic/conditional.rs	tests	simulated_runtime_path	1	V0081	/// and delegates everything else to `NullDeviceOps`. Lets the
 native/skotiq_native/sequencer/src/node/logic/conditional.rs	tests	simulated_runtime_path	1	U2-07	use crate::device_ops::{DeviceResult, NullDeviceOps, SharedDeviceOps};
 native/skotiq_native/sequencer/src/node/logic/conditional.rs	safety_poll_error_condition_result	unwrap_or_literal	1	V0081	SafetyFailMode::WarnOnly => previous_safe.unwrap_or(false),
 native/skotiq_native/sequencer/src/node/logic/loop_node.rs	execute_loop	unwrap_or_literal	1	V0077	// == Count, optional otherwise. UI builder enforces this; `unwrap_or(1)`
