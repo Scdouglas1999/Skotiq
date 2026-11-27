@@ -1,6 +1,12 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_app/services/night_actions/night_action_api.dart'
+    show ManualActionId;
+import 'package:skotiq_app/services/run_control/run_control.dart'
+    show runHeldForKey;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/utils.dart';
 
@@ -132,11 +138,15 @@ class ImagingForegroundService {
   /// Shows the run's current step and frame count on the ongoing
   /// notification. Android takes the service's wake and WiFi locks again on
   /// every update, so an update that would show the same words is not sent.
-  void updateProgress(SequenceExecutionState exec, SequenceProgress progress) {
+  void updateProgress(
+    SequenceExecutionState exec,
+    SequenceProgress progress, {
+    String? heldFor,
+  }) {
     if (!_isRunning) return;
 
     _completedExposures = progress.completedExposures;
-    final text = ongoingRunText(exec, progress);
+    final text = ongoingRunText(exec, progress, heldFor: heldFor);
     if (text == _shownText) return;
     _shownText = text;
     FlutterForegroundTask.updateService(
@@ -171,11 +181,16 @@ class ImagingForegroundService {
 }
 
 /// The ongoing notification's line: what the run is doing now, then its
-/// frame count, out of the plan's total when the plan has one.
-String ongoingRunText(SequenceExecutionState exec, SequenceProgress progress) {
+/// frame count, out of the plan's total when the plan has one. [heldFor]
+/// says what holds a paused run ([ongoingHoldText]).
+String ongoingRunText(
+  SequenceExecutionState exec,
+  SequenceProgress progress, {
+  String? heldFor,
+}) {
   final step = switch (exec) {
     SequenceExecutionState.running => _runningStepText(progress),
-    SequenceExecutionState.paused => 'Paused',
+    SequenceExecutionState.paused => heldFor ?? 'Paused',
     SequenceExecutionState.recovering => 'Recovering',
     SequenceExecutionState.stopping ||
     SequenceExecutionState.finalizing ||
@@ -191,6 +206,16 @@ String ongoingRunText(SequenceExecutionState exec, SequenceProgress progress) {
   final percent = done > 0 ? ' (${(done / total * 100).round()}%)' : '';
   return '$step · $done/$total exposures$percent';
 }
+
+/// What holds a run a manual action paused, in the notification's English:
+/// the action this phone runs, else a manual action from another window.
+/// Null when no action holds it.
+String? ongoingHoldText({
+  required bool held,
+  required ManualActionId? action,
+}) => held ? _english.text(runHeldForKey(action)) : null;
+
+final _english = SkotiqLocalizations(const Locale('en'));
 
 String _runningStepText(SequenceProgress progress) {
   switch (runningStepKind(progress)) {

@@ -1,6 +1,8 @@
 // The ongoing "Imaging" notification says, in one line, what the run is doing
 // now and how many frames it has, never the step's status paragraph.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/services/night_actions/night_action_api.dart'
+    show ManualActionId;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_mobile/services/foreground_service.dart';
 
@@ -109,5 +111,21 @@ void main() {
       ),
       'Exposing SII · 8 exposures',
     );
+  });
+
+  test('a run a manual action holds says what holds it', () {
+    expect(
+      ongoingRunText(
+        SequenceExecutionState.paused,
+        at('Smart Exposure', done: 5),
+        heldFor: ongoingHoldText(held: true, action: ManualActionId.autofocus),
+      ),
+      'Paused for autofocus · 5/75 exposures (7%)',
+    );
+    expect(
+      ongoingHoldText(held: true, action: null),
+      'Paused for a manual action',
+    );
+    expect(ongoingHoldText(held: false, action: ManualActionId.center), isNull);
   });
 }
