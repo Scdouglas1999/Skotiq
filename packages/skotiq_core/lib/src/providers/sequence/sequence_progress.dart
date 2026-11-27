@@ -231,6 +231,9 @@ void foldRunEvent(
     case SequencerEvent_ActionHold(:final held):
       run.setHeldByAction(held);
 
+    case SequencerEvent_MeridianFlipOutcome():
+      run.endFlipHolds();
+
     case SequencerEvent_Stopped():
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.idle);
 

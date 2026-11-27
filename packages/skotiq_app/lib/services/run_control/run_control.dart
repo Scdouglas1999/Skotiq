@@ -160,6 +160,23 @@ final nightRunPhaseProvider = Provider<NightRunPhase>((ref) {
   return NightRunPhase.ready;
 });
 
+/// The words for a run a manual action holds: the action's own when this
+/// window runs it, else a manual action started from another window.
+String runHeldForKey(ManualActionId? action) => switch (action) {
+      null => 'nightCtlPausedForAction',
+      ManualActionId.snapshot => 'nightCtlPausedForSnapshot',
+      ManualActionId.loop => 'nightCtlPausedForLoop',
+      ManualActionId.autofocus => 'nightCtlPausedForAutofocus',
+      // A plain solve never pauses the run; the key keeps the switch whole.
+      ManualActionId.solve => 'nightScrPausedForSolve',
+      ManualActionId.solveSync => 'nightCtlPausedForSolveSync',
+      ManualActionId.center => 'nightCtlPausedForCenter',
+      ManualActionId.dither => 'nightCtlPausedForDither',
+      ManualActionId.flip => 'nightCtlPausedForFlip',
+      ManualActionId.tracking => 'nightCtlPausedForTracking',
+      ManualActionId.cooler => 'nightCtlPausedForCooler',
+    };
+
 /// A rule a surface's run controls follow beyond the run's own state.
 enum RunGate {
   /// The backend can carry a command: a remote viewer whose host went away

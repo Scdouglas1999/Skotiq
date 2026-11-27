@@ -41,6 +41,18 @@ pub(crate) fn set(reason: Option<GuidingStopReason>) {
     }
 }
 
+/// Withdraw `reason` if it is still the one recorded; a reason given since
+/// (a stop someone asked for during a dither's settle) stays.
+pub(crate) fn withdraw(reason: GuidingStopReason) {
+    let mut current = reason_slot();
+    if *current != Some(reason) {
+        return;
+    }
+    *current = None;
+    drop(current);
+    publish(None);
+}
+
 /// The run ended: a hold it gave as the reason is over; a reason that says
 /// why guiding stopped stays.
 pub(crate) fn run_ended() {
@@ -50,10 +62,11 @@ pub(crate) fn run_ended() {
 }
 
 /// An operator's stop: recorded as such unless the run already said why it
-/// is stopping the guider. Returns whether it recorded it.
+/// is stopping the guider. A dither settling does not stop it, so it gives
+/// way. Returns whether it recorded it.
 pub(crate) fn note_operator_stop() -> bool {
     let mut current = reason_slot();
-    if current.is_some() {
+    if current.is_some_and(GuidingStopReason::stops_guiding) {
         return false;
     }
     *current = Some(GuidingStopReason::Operator);
@@ -108,6 +121,27 @@ mod tests {
             Some("dither_settle")
         );
         set(None);
+        assert_eq!(current(), None);
+    }
+
+    /// A dither withdraws only its own settle: a stop given while it
+    /// settled (a center's move, the operator's) keeps its reason, and an
+    /// operator's stop replaces the settle, which does not stop guiding.
+    #[test]
+    fn a_dither_withdraws_only_its_own_settle() {
+        let _slot = crate::simulator::sim_singleton_test_lock().blocking_lock();
+        set(Some(GuidingStopReason::DitherSettle));
+        set(Some(GuidingStopReason::MountMove));
+        withdraw(GuidingStopReason::DitherSettle);
+        assert_eq!(current(), Some(GuidingStopReason::MountMove));
+
+        set(Some(GuidingStopReason::DitherSettle));
+        assert!(note_operator_stop(), "the operator's stop is recorded");
+        withdraw(GuidingStopReason::DitherSettle);
+        assert_eq!(current(), Some(GuidingStopReason::Operator));
+
+        set(Some(GuidingStopReason::DitherSettle));
+        withdraw(GuidingStopReason::DitherSettle);
         assert_eq!(current(), None);
     }
 

@@ -109,6 +109,11 @@ struct ScriptedDomeRotatorOps {
     guider_start_calls: AtomicU32,
     /// Every reason the run gave for stopping the guider, in order.
     guider_stop_reasons: Mutex<Vec<Option<crate::GuidingStopReason>>>,
+    /// The reason the guider has recorded, as the device layer keeps it.
+    guider_stop_reason: Mutex<Option<crate::GuidingStopReason>>,
+    /// When `Some`, someone else stops the guider for this reason while a
+    /// dither settles, and the dither fails.
+    stop_during_dither: Option<crate::GuidingStopReason>,
     /// The guider lost its star and is searching for it (PHD2's LostLock):
     /// not guiding, but it guides again the moment it finds the star.
     guider_lost_lock: AtomicBool,
@@ -296,6 +301,8 @@ impl ScriptedDomeRotatorOps {
             solve_dec_offset_arcsec: 0.0,
             guider_start_calls: AtomicU32::new(0),
             guider_stop_reasons: Mutex::new(Vec::new()),
+            guider_stop_reason: Mutex::new(None),
+            stop_during_dither: None,
             fresh_star_selections: Mutex::new(Vec::new()),
             fresh_star_floors: Mutex::new(Vec::new()),
             no_guide_star: false,
@@ -569,6 +576,12 @@ impl ScriptedDomeRotatorOps {
     /// A guider whose every dither fails with `message`.
     fn with_dither_failing(mut self, error: impl Into<crate::device_ops::DeviceError>) -> Self {
         self.dither_error = Some(error.into());
+        self
+    }
+
+    /// A guider someone else stops for `reason` while each dither settles.
+    fn with_guider_stopped_during_dither(mut self, reason: crate::GuidingStopReason) -> Self {
+        self.stop_during_dither = Some(reason);
         self
     }
 
@@ -1043,6 +1056,11 @@ impl GuiderOps for ScriptedDomeRotatorOps {
         if let Some(error) = &self.dither_error {
             return Err(error.clone());
         }
+        if let Some(reason) = self.stop_during_dither {
+            *self.guider_stop_reason.lock().unwrap() = Some(reason);
+            self.guiding.store(false, Ordering::SeqCst);
+            return Err("guiding stopped before settle completed".into());
+        }
         self.inner.guider_dither(p, sp, st, sto, ra).await
     }
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
@@ -1115,6 +1133,13 @@ impl GuiderOps for ScriptedDomeRotatorOps {
     }
     async fn guider_note_stop_reason(&self, reason: Option<crate::GuidingStopReason>) {
         self.guider_stop_reasons.lock().unwrap().push(reason);
+        *self.guider_stop_reason.lock().unwrap() = reason;
+    }
+    async fn guider_withdraw_stop_reason(&self, reason: crate::GuidingStopReason) {
+        let mut current = self.guider_stop_reason.lock().unwrap();
+        if *current == Some(reason) {
+            *current = None;
+        }
     }
 }
 

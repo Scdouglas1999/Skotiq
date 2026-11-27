@@ -1,6 +1,8 @@
 // The ongoing "Imaging" notification says, in one line, what the run is doing
 // now and how many frames it has, never the step's status paragraph.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/services/night_actions/night_action_api.dart'
+    show ManualActionId;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_mobile/services/foreground_service.dart';
 
@@ -10,6 +12,7 @@ void main() {
     InstructionProgressDetail? reading,
     String? filter,
     int done = 0,
+    int total = 75,
     String? message,
   }) => SequenceProgress(
     currentNodeId: 'step',
@@ -17,7 +20,7 @@ void main() {
     nodeProgressStructuredDetail: {'step': ?reading},
     currentFilter: filter,
     completedExposures: done,
-    totalExposures: 75,
+    totalExposures: total,
     message: message,
   );
 
@@ -87,5 +90,42 @@ void main() {
       ongoingRunText(SequenceExecutionState.recovering, at('Smart Exposure')),
       'Recovering · 0/75 exposures',
     );
+  });
+
+  test('a Smart Exposure step names its filter and counts its frames', () {
+    expect(
+      ongoingRunText(
+        running,
+        at(
+          'Smart Exposure: Ha+OIII+SII',
+          filter: 'SII',
+          done: 8,
+          total: 0,
+          reading: const ExposureAdjustedProgressDetail(
+            adaptedSecs: 20,
+            nominalSecs: 20,
+            reasonWire: 'disabled',
+            unchanged: true,
+          ),
+        ),
+      ),
+      'Exposing SII · 8 exposures',
+    );
+  });
+
+  test('a run a manual action holds says what holds it', () {
+    expect(
+      ongoingRunText(
+        SequenceExecutionState.paused,
+        at('Smart Exposure', done: 5),
+        heldFor: ongoingHoldText(held: true, action: ManualActionId.autofocus),
+      ),
+      'Paused for autofocus · 5/75 exposures (7%)',
+    );
+    expect(
+      ongoingHoldText(held: true, action: null),
+      'Paused for a manual action',
+    );
+    expect(ongoingHoldText(held: false, action: ManualActionId.center), isNull);
   });
 }

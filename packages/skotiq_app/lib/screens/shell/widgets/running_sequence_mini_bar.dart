@@ -63,6 +63,9 @@ class RunningSequenceMiniBar extends ConsumerWidget {
       colors,
       context.l10n,
       pausedIdle: ref.watch(pausedRunIdleProvider),
+      heldFor: transport.phase == NightRunPhase.pausedForAction
+          ? runHeldForKey(ref.watch(runActionStateProvider).active)
+          : null,
     );
 
     Future<void> stopSequence() async {

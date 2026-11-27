@@ -95,7 +95,10 @@ pub(crate) async fn dither_once(
         )
     })
     .await;
-    ctx.run.device_ops.guider_note_stop_reason(None).await;
+    ctx.run
+        .device_ops
+        .guider_withdraw_stop_reason(crate::GuidingStopReason::DitherSettle)
+        .await;
     let result = match result {
         Err(crate::device_ops::DeviceError::NO_GUIDER) => {
             return DitherOutcome::Skipped(DitherSkip::NoGuider);

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart'
+    show runActionStateProvider;
 import 'package:skotiq_app/skotiq_app.dart'
     show
         androidNotificationsAuthorizedProvider,
@@ -104,6 +106,13 @@ class MobileSequenceHooks {
     _ref.listen<SequenceProgress>(
       sequenceProgressProvider,
       (previous, next) => _handleProgressUpdate(previous, next),
+    );
+
+    // A manual action's hold starts and ends without a progress change.
+    _ref.listen<String?>(
+      _ongoingHoldProvider,
+      (_, _) =>
+          _handleProgressUpdate(null, _ref.read(sequenceProgressProvider)),
     );
 
     // Build the mobile-direct event notifier and (re)subscribe whenever the
@@ -390,7 +399,11 @@ class MobileSequenceHooks {
         break;
     }
     if (_foregroundService.isRunning) {
-      _foregroundService.updateProgress(exec, progress);
+      _foregroundService.updateProgress(
+        exec,
+        progress,
+        heldFor: _ref.read(_ongoingHoldProvider),
+      );
     }
   }
 
@@ -470,6 +483,7 @@ class MobileSequenceHooks {
       _foregroundService.updateProgress(
         _ref.read(sequenceExecutionStateProvider),
         next,
+        heldFor: _ref.read(_ongoingHoldProvider),
       );
     }
   }
@@ -667,3 +681,15 @@ ImagingSessionChange imagingSessionChange({
     _ => ImagingSessionChange.keep,
   };
 }
+
+/// What holds the run, for the ongoing notification; null unless a manual
+/// action holds it paused.
+final _ongoingHoldProvider = Provider<String?>(
+  (ref) => ongoingHoldText(
+    held:
+        ref.watch(sequenceExecutionStateProvider) ==
+            SequenceExecutionState.paused &&
+        ref.watch(runHeldByActionProvider),
+    action: ref.watch(runActionStateProvider.select((s) => s.active)),
+  ),
+);
