@@ -67,14 +67,12 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
   }
 
   @override
-  Future<String?> _pairWithServer({
-    required String host,
-    required int port,
-    String scheme = 'http',
-    String? pinnedFingerprint,
+  Future<String?> _pairWithServer(
+    DiscoveredServer server, {
     String? initialCode,
-    String? serverName,
   }) async {
+    final host = server.host;
+    final port = server.webPort;
     final uiContext = _connectionUiContext;
     if (uiContext == null || !uiContext.mounted) {
       setState(() {
@@ -96,7 +94,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       builder: (ctx) => PairingCodeDialog(
         host: host,
         port: port,
-        serverName: serverName,
+        serverName: server.name,
         initialCode: initialCode,
       ),
     );
@@ -124,52 +122,42 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       _statusMessage = 'Pairing with $host:$port...';
     });
 
-    final pairing = MobilePairingService(
-      host: host,
-      port: port,
-      // A TLS-fronted tailnet rig answers pairing only on https; speaking the
-      // wrong scheme returns 400. Carry the scheme learned from the saved
-      // server / discovery record.
-      scheme: scheme,
-      // When the server identity is already known (saved server, prior
-      // /api/info), enforce it BEFORE the pairing code is transmitted so a
-      // MITM cannot harvest the code. Null on a genuine first-pair where the
-      // fingerprint is not yet known (LAN trust establishes it out-of-band).
-      pinnedFingerprint: pinnedFingerprint,
-    );
-
-    final RemotePairingVerifyResult result;
     try {
-      result = await pairing.pairWithCode(
+      final paired = await MobilePairingService.pairing().pairWithCode(
+        server,
         code: pairingInput.code,
-        requestAdminScope: pairingInput.admin,
+        deviceName: MobilePairingService.deviceName(),
+        fullAccess: pairingInput.admin,
+        normalizeCode: false,
       );
-    } on RemotePairingFingerprintMismatch catch (e) {
-      // Fail-closed: the pre-flight identity check refused to send the code.
-      // Surface it loudly rather than letting it read as a generic failure.
+      return paired.token;
+    } on RigPairingFailure catch (failure) {
+      final message = _phonePairingError(
+        failure,
+        fallback: 'Pairing failed (${failure.statusCode ?? 'unknown'}).',
+      );
       if (!mounted) return null;
       setState(() {
         _isDiscovering = false;
         _statusMessage = '';
-        _error = e.message;
+        _error = message;
       });
       return null;
     }
+  }
 
-    if (!mounted) return null;
-
-    if (!result.success || result.token == null || result.token!.isEmpty) {
-      setState(() {
-        _isDiscovering = false;
-        _statusMessage = '';
-        _error =
-            result.message ??
-            'Pairing failed (${result.statusCode ?? 'unknown'}).';
-      });
-      return null;
+  /// The phone's words for a refused pairing. A request that never reached
+  /// the host is rethrown to the connect flow's own error handling.
+  String _phonePairingError(
+    RigPairingFailure failure, {
+    required String fallback,
+  }) {
+    final cause = failure.cause;
+    if (failure.kind == RigPairingFailureKind.fingerprintMismatch) {
+      return failure.message;
     }
-
-    return result.token;
+    if (cause != null) throw cause;
+    return failure.hostMessage ?? fallback;
   }
 
   /// Prompt for a relay URL + appliance id, then dial through the relay.
@@ -318,40 +306,29 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     if ((authToken == null || authToken.isEmpty) &&
         data.pairingCode != null &&
         data.pairingCode!.isNotEmpty) {
-      final pairing = MobilePairingService(
-        host: data.host,
-        port: data.webPort,
-        // Speak the scheme the QR advertised (https for a TLS-fronted tailnet
-        // rig, which answers pairing only over https).
-        scheme: data.scheme,
-        // Verify the server's identity BEFORE the pairing code leaves the
-        // device. This runs the /api/info pre-flight inside the pairing
-        // client; a hostile node presenting its own pairing endpoint cannot
-        // harvest the code because the pin won't match.
-        pinnedFingerprint: data.fingerprint,
-      );
-      final RemotePairingVerifyResult result;
       try {
-        result = await pairing.pairWithCode(code: data.pairingCode!);
-      } on RemotePairingFingerprintMismatch catch (e) {
+        // The QR's fingerprint is checked before the code leaves the phone.
+        final paired = await MobilePairingService.pairing().pairWithCode(
+          data.toDiscoveredServer(),
+          code: data.pairingCode!,
+          deviceName: MobilePairingService.deviceName(),
+          fullAccess: true,
+          normalizeCode: false,
+        );
+        authToken = paired.token;
+      } on RigPairingFailure catch (failure) {
+        final message = _phonePairingError(
+          failure,
+          fallback: 'QR pairing failed.',
+        );
         if (!mounted) return;
         setState(() {
           _isDiscovering = false;
           _statusMessage = '';
-          _error = e.message;
+          _error = message;
         });
         return;
       }
-      if (!mounted) return;
-      if (!result.success || result.token == null) {
-        setState(() {
-          _isDiscovering = false;
-          _statusMessage = '';
-          _error = result.message ?? 'QR pairing failed.';
-        });
-        return;
-      }
-      authToken = result.token;
     }
 
     final server = data.toDiscoveredServer().copyWith(authToken: authToken);

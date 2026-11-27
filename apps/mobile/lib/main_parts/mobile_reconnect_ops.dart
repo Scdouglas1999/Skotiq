@@ -318,64 +318,62 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // to the unchanged code-dialog path below.
         if (enrichedServer.lanPairing) {
           try {
-            final lanPairing = MobilePairingService(
-              host: enrichedServer.host,
-              port: enrichedServer.webPort,
-              scheme: enrichedServer.scheme,
-              pinnedFingerprint: enrichedServer.fingerprint,
+            // Full access, as the code dialog pairs by default: a headless
+            // rig has no other screen to choose its capture folder, solver
+            // or backups on.
+            final paired = await MobilePairingService.pairing().pairOneTap(
+              enrichedServer,
+              deviceName: MobilePairingService.deviceName(),
+              fullAccess: true,
+              deviceType: PairingDeviceType.mobile,
             );
-            final lanResult = await lanPairing.lanClaim();
-            if (!_isCurrentConnectionOperation(operationGeneration))
+            if (!_isCurrentConnectionOperation(operationGeneration)) {
               return false;
-            if (lanResult != null &&
-                lanResult.success &&
-                lanResult.token != null &&
-                lanResult.token!.isNotEmpty) {
-              Log.info(
-                'One-tap LAN pairing succeeded for '
-                '${enrichedServer.host}:${enrichedServer.webPort} — '
-                'no code needed',
-                source: 'Discovery',
-              );
-              authToken = lanResult.token;
-              enrichedServer = enrichedServer.copyWith(authToken: authToken);
             }
-          } on RemotePairingFingerprintMismatch catch (e) {
-            // Fail-closed: the lan-claim pre-flight refused the identity.
-            // Surface it rather than silently dropping to the code dialog —
-            // a mismatch means the host we reached is not the one we trust.
-            if (!_isCurrentConnectionOperation(operationGeneration))
-              return false;
-            setState(() {
-              _isDiscovering = false;
-              _statusMessage = '';
-              _error = e.message;
-            });
-            return false;
-          } on RemotePairingException catch (e) {
-            // Transport / unexpected error from the one-tap path. Log and fall
-            // through to the code dialog — the operator can still pair by code.
-            Log.warning(
-              'One-tap LAN pairing unavailable, falling back to code: $e',
+            Log.info(
+              'One-tap LAN pairing succeeded for '
+              '${enrichedServer.host}:${enrichedServer.webPort} — '
+              'no code needed',
               source: 'Discovery',
             );
+            authToken = paired.token;
+            enrichedServer = enrichedServer.copyWith(authToken: authToken);
+          } on RigPairingFailure catch (failure) {
+            if (!_isCurrentConnectionOperation(operationGeneration)) {
+              return false;
+            }
+            switch (failure.kind) {
+              case RigPairingFailureKind.fingerprintMismatch:
+                // The host we reached is not the one we trust: say so
+                // rather than dropping to the code dialog.
+                setState(() {
+                  _isDiscovering = false;
+                  _statusMessage = '';
+                  _error = failure.message;
+                });
+                return false;
+              case RigPairingFailureKind.refused
+                  when failure.cause is RemotePairingException:
+                // The operator can still pair by code.
+                Log.warning(
+                  'One-tap LAN pairing unavailable, falling back to code: '
+                  '${failure.cause}',
+                  source: 'Discovery',
+                );
+              case RigPairingFailureKind.unreachable:
+                throw failure.cause!;
+              default:
+                break;
+            }
           }
         }
 
         if (!_isCurrentConnectionOperation(operationGeneration)) return false;
 
         if (authToken == null || authToken.isEmpty) {
-          final pairedToken = await _pairWithServer(
-            host: enrichedServer.host,
-            serverName: enrichedServer.name,
-            port: enrichedServer.webPort,
-            scheme: enrichedServer.scheme,
-            // Pin the server identity (when known from /api/info) so the
-            // pairing pre-flight verifies it before the code is sent — the
-            // MITM defense matters most on the Tailscale / Internet-reachable
-            // path.
-            pinnedFingerprint: enrichedServer.fingerprint,
-          );
+          // The host's identity (when /api/info gave one) is checked before
+          // the code is sent.
+          final pairedToken = await _pairWithServer(enrichedServer);
           if (!_isCurrentConnectionOperation(operationGeneration)) return false;
           if (pairedToken == null) {
             if (mounted) {

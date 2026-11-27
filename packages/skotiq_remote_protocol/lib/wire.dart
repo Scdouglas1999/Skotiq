@@ -9,6 +9,7 @@ export 'src/push/notification_payload.dart';
 export 'src/push/push_delivery_targets.dart';
 export 'src/link_version.dart';
 export 'src/host_advert.dart';
+export 'src/pairing_device_type.dart';
 export 'src/server_identity.dart';
 
 export 'src/wire/api_error.dart';

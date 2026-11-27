@@ -516,7 +516,8 @@ class PairingHandlers implements RouteSource {
     final deviceName =
         optionalString(payload, 'deviceName', maxLength: 128) ?? 'LAN device';
     final deviceType =
-        optionalString(payload, 'deviceType', maxLength: 32) ?? 'mobile';
+        optionalString(payload, 'deviceType', maxLength: 32) ??
+        PairingDeviceType.mobile.wireName;
     final requestedGrant = _resolveRequestedGrant(
       optionalString(payload, 'requestedScope', maxLength: 256) ?? 'control',
     );
@@ -675,7 +676,8 @@ class PairingHandlers implements RouteSource {
     final deviceName =
         optionalString(payload, 'deviceName', maxLength: 128) ?? 'Dashboard';
     final deviceType =
-        optionalString(payload, 'deviceType', maxLength: 32) ?? 'browser';
+        optionalString(payload, 'deviceType', maxLength: 32) ??
+        PairingDeviceType.browser.wireName;
     // `requestedScope` accepts the coarse names (`view`/`control`/`admin`) AND
     // a fine-grained spec (e.g. `camera:control,mount:view`). The wider cap
     // accommodates a multi-resource spec; coarse names stay short.
