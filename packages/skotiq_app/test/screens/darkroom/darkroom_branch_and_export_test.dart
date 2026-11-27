@@ -2279,9 +2279,8 @@ void main() {
     // One strip per VISIBLE SURFACE, which at this width is one: the desktop
     // split stacks the Recipe panel and the History stack in a single column.
     // Building the strip into each panel's body drew it twice, one above the
-    // other, and published two identical nodes to a screen reader — which this
-    // test used to pin as `findsNWidgets(2)`, mistaking a per-panel wrapper for
-    // a per-surface heading. It is handed to the layout's own header slot now,
+    // other, and published two identical nodes to a screen reader.
+    // It is handed to the layout's own header slot now,
     // because the layout is the only thing that knows how many surfaces there
     // are: the phone's segmented view still gets its strip over whichever panel
     // is selected.

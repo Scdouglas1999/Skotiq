@@ -825,8 +825,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
         ),
         const SizedBox(width: 6),
         // Abort: hold-to-confirm so a stray tap can't terminate an
-        // overnight run. Inner button stays keyed `mobile_recovery_abort`
-        // for parity with the desktop banner's widget-test patterns.
+        // overnight run.
         HoldToConfirmButton(
           key: const Key('mobile_recovery_abort_hold'),
           enabled: !_abortBusy,

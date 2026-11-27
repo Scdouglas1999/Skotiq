@@ -700,11 +700,6 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
               // overflow bar with its last lines simply gone. Half the canvas
               // is the ceiling, and a card shorter than that still lays out at
               // its own height, so the common case is unchanged.
-              //
-              // The pass-through this replaces was worth less than the words:
-              // it let a drag over the card pan a picture the same card is
-              // explaining is stale, and the picture above the card is still
-              // pannable either way.
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxHeight: _zoom.box.height / 2,

@@ -1,8 +1,5 @@
 // One rule for a folder the app writes into, on this computer and on a linked
-// host: a full path to a folder that exists and takes a file. The capture
-// panel used to store a picked folder unchecked, Settings created any typed
-// folder, and onboarding refused one that did not exist yet, so the same
-// folder was accepted on one screen and refused on another.
+// host: a full path to a folder that exists and takes a file.
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

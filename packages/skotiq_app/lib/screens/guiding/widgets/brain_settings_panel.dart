@@ -124,7 +124,6 @@ class _BrainSettingsPanelState extends State<BrainSettingsPanel> {
       if (!expectedKeys.contains(key)) _controllers.remove(key)?.dispose();
     }
 
-    // Update controllers if params changed externally.
     if (!_hasChanges) {
       _restoreControllers();
     }

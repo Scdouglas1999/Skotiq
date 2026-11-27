@@ -251,9 +251,7 @@ mixin _GuidingMobileSections
   Widget _buildNarrowSettingsTab(SkotiqColors colors) {
     final kind = ref.watch(connectedGuiderKindProvider);
 
-    // The built-in guider's settings are shown here. Before, this tab held
-    // two buttons to Equipment, whose phone layout reaches the form only
-    // through a camera, mount or focuser card's Settings.
+    // The built-in guider's settings are shown here.
     if (kind == GuiderKind.builtin) {
       final colors = SkotiqColors.of(context);
       return SingleChildScrollView(

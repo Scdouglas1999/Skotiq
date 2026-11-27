@@ -1,10 +1,4 @@
 // A palette search that matches nothing must SAY so.
-//
-// Before this, every palette surface built its category list straight from
-// `rankNodePaletteMatches` output; when that came back empty the ListView
-// rendered zero children and the panel body went blank between the search
-// field and the help tip. The operator could not tell a failed search from a
-// node that does not exist.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

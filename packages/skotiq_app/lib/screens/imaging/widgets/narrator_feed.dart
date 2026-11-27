@@ -119,7 +119,6 @@ class _NarratorFeedState extends State<NarratorFeed> {
     }
     final oldIds = _visible.map((e) => e.id).toSet();
 
-    // Remove anything no longer present (from the end of the list).
     for (var i = _visible.length - 1; i >= 0; i--) {
       if (!next.any((e) => e.id == _visible[i].id)) {
         final removed = _visible.removeAt(i);
