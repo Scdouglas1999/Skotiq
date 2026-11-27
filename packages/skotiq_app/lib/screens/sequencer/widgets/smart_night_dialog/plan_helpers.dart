@@ -116,11 +116,12 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     final twiStart = _twilightStart;
     final twiEnd = _twilightEnd;
     if (twiStart != null && twiEnd != null) {
+      final clock = ref.read(clockProvider);
       final overlaps = start.isBefore(twiEnd) && end.isAfter(twiStart);
       if (!overlaps) {
         context.showWarningSnackBar(
           'Your chosen window falls outside tonight\'s dark window '
-          '(${ClockFormat.dateHm(twiStart.toLocal())} – ${ClockFormat.dateHm(twiEnd.toLocal())}). '
+          '(${ClockFormat.dateHm(clock.wallClockOf(twiStart))} – ${ClockFormat.dateHm(clock.wallClockOf(twiEnd))}). '
           'Exposures will be in twilight or daylight.',
         );
       }
@@ -394,28 +395,33 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     setState(() => _draftOfferAnswered = true);
   }
 
+  /// Asks for a date and time on the site clock, the clock the window is
+  /// shown on, and returns the instant it names.
   Future<void> _pickDateTime({
     required DateTime initial,
     required void Function(DateTime) onPicked,
   }) async {
+    final clock = ref.read(clockProvider);
+    final shown = clock.wallClockOf(initial);
+    final day = DateTime(shown.year, shown.month, shown.day);
     final date = await showDatePicker(
       context: context,
-      initialDate: initial,
-      firstDate: initial.subtract(const Duration(days: 1)),
-      lastDate: initial.add(const Duration(days: 7)),
+      initialDate: day,
+      firstDate: day.subtract(const Duration(days: 1)),
+      lastDate: day.add(const Duration(days: 7)),
     );
     if (date == null || !mounted) return;
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
+      initialTime: TimeOfDay(hour: shown.hour, minute: shown.minute),
     );
     if (time == null) return;
-    onPicked(DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    ));
+    onPicked(
+      clock
+          .toInstant(
+            DateTime(date.year, date.month, date.day, time.hour, time.minute),
+          )
+          .toLocal(),
+    );
   }
 }

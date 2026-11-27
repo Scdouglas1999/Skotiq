@@ -22,6 +22,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
@@ -704,6 +705,79 @@ void main() {
       expect(find.text('Tonight\'s dark window'), findsOneWidget);
     });
   });
+
+  group('the window step reads on the site clock', () {
+    // Seven hours off the device's own zone, so the two clocks cannot agree.
+    final device = DateTime.now();
+    final site = FixedOffsetClock(
+      utcOffset: device.timeZoneOffset + const Duration(hours: 7),
+      label: 'Site',
+    );
+    final start = DateTime.utc(
+      device.year,
+      device.month,
+      device.day,
+      device.hour,
+      device.minute,
+    ).add(const Duration(hours: 2)).toLocal();
+    final end = start.add(const Duration(hours: 6));
+
+    Future<void> pumpWindow(WidgetTester tester) async {
+      await _pumpDialog(
+        tester,
+        settingsLoader: () async =>
+            const AppSettingsState(latitude: 40, longitude: -75),
+        overrides: [
+          clockProvider.overrideWithValue(site),
+          smartNightServiceProvider.overrideWith(
+            (ref) => _FixedWindowSmartNightService(ref, start, end),
+          ),
+        ],
+      );
+      await tester.pump();
+    }
+
+    testWidgets('labels', (tester) async {
+      await pumpWindow(tester);
+      expect(
+        find.text('Start: ${ClockFormat.dateHm(site.wallClockOf(start))}'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('End: ${ClockFormat.dateHm(site.wallClockOf(end))}'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the picker starts at the site time and keeps the instant',
+        (tester) async {
+      await pumpWindow(tester);
+      final wall = site.wallClockOf(start);
+      await tester.tap(find.text('Change').first);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<DatePickerDialog>(find.byType(DatePickerDialog))
+            .initialDate,
+        DateTime(wall.year, wall.month, wall.day),
+      );
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TimePickerDialog>(find.byType(TimePickerDialog))
+            .initialTime,
+        TimeOfDay(hour: wall.hour, minute: wall.minute),
+      );
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Start: ${ClockFormat.dateHm(wall)}'),
+        findsOneWidget,
+        reason: 'confirming the shown date and time keeps the same instant',
+      );
+    });
+  });
 }
 
 SmartNightPlan _draftPlan() {
@@ -753,4 +827,41 @@ SmartNightPlan _draftPlan() {
       windowEnd: now.add(const Duration(hours: 3)),
     ),
   );
+}
+
+/// A dark window fixed by the test, so the labels have known instants.
+class _FixedWindowSmartNightService extends SmartNightService {
+  _FixedWindowSmartNightService(Ref ref, this._start, this._end)
+      : super(
+          suggestionService: ref.watch(targetSuggestionServiceProvider),
+          logging: ref.watch(loggingServiceProvider),
+          floor: ref.watch(altitudeFloorProvider),
+        );
+
+  final DateTime _start;
+  final DateTime _end;
+
+  @override
+  ({
+    DateTime start,
+    DateTime end,
+    planetarium.TwilightTimes twilight
+  }) calculateWindow({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    DateTime? now,
+  }) =>
+      (start: _start, end: _end, twilight: const planetarium.TwilightTimes());
+
+  @override
+  ({
+    DateTime start,
+    DateTime end,
+    planetarium.TwilightTimes twilight
+  }) calculateRemainingWindow({
+    required double latitudeDeg,
+    required double longitudeDeg,
+    DateTime? now,
+  }) =>
+      (start: _start, end: _end, twilight: const planetarium.TwilightTimes());
 }
