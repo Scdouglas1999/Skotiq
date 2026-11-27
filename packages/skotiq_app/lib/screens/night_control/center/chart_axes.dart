@@ -3,7 +3,8 @@
 // gridlines, all fitted to the size the row gives the chart.
 //
 // The labels sit where SeriesChartPainter puts those values, so a tick reads
-// true against the line. Nothing here changes the chart's own ranges.
+// true against the line. The only range change: an axis narrower than its
+// labels can tell apart is widened around its middle.
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -71,6 +72,20 @@ class NightChartAxes extends StatelessWidget {
     final style = nightAxisStyle(context);
     final scaler = MediaQuery.textScalerOf(context);
     final labelHeight = scaler.scale(9);
+
+    final lines = _withReadableSpan(
+      this.lines,
+      SeriesChartPainter(
+        colors: colors,
+        lines: this.lines,
+        markers: markers,
+        highlights: highlights,
+        from: from,
+        to: to,
+        zeroLineY: zeroLineY,
+      ),
+      rightGrouped: rightGrouped,
+    );
 
     return LayoutBuilder(builder: (context, constraints) {
       final timeHeight = labelHeight + 3;
@@ -262,6 +277,42 @@ class NightChartAxes extends StatelessWidget {
       );
     });
   }
+}
+
+/// [lines] with each axis widened, around its middle, to at least the span
+/// its labels can tell apart: two decimals on round steps need 0.1, grouped
+/// whole numbers 10. A narrower range zooms into differences the labels print
+/// as one value.
+List<SeriesChartLine> _withReadableSpan(
+  List<SeriesChartLine> lines,
+  SeriesChartPainter painter, {
+  required bool rightGrouped,
+}) {
+  (double, double)? widened(SeriesChartAxis axis, double least) {
+    final range = painter.valueRange(axis);
+    if (range == null || range.$2 - range.$1 >= least) return null;
+    final mid = (range.$1 + range.$2) / 2;
+    return (mid - least / 2, mid + least / 2);
+  }
+
+  final left = widened(SeriesChartAxis.left, 0.1);
+  final right = widened(SeriesChartAxis.right, rightGrouped ? 10 : 0.1);
+  if (left == null && right == null) return lines;
+  return <SeriesChartLine>[
+    for (final line in lines)
+      switch (line.axis == SeriesChartAxis.left ? left : right) {
+        null => line,
+        (final lo, final hi) => SeriesChartLine(
+            points: line.points,
+            tone: line.tone,
+            axis: line.axis,
+            dashed: line.dashed,
+            stepped: line.stepped,
+            minY: lo,
+            maxY: hi,
+          ),
+      },
+  ];
 }
 
 /// Clock ticks on a round step whose labels, [labelWidth] wide and centered
