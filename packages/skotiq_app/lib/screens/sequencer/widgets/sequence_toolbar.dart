@@ -773,8 +773,13 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           final save =
               sequence == null ? null : () => saveOpenSequence(context, ref);
 
-          final isNarrowRow = constraints.maxWidth <
-              math.max(_narrowBarWidth, _barWidthFor(barToolbarWidth));
+          // The run's controls, when the layout hands them to this bar, are
+          // drawn by the compact row at any width: a phone on its side has
+          // no other place for them.
+          final carriesRun = widget.showStart || widget.transport != null;
+          final isNarrowRow = carriesRun ||
+              constraints.maxWidth <
+                  math.max(_narrowBarWidth, _barWidthFor(barToolbarWidth));
 
           // Below these the toolbar costs more than the canvas can spare and
           // the row overflows — measured, not guessed: at 486 px (a 1000 px
@@ -782,11 +787,14 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           // "Map" are ~90 px wider than their glyphs, and at 570 px even the
           // glyphs are 32 px too many. Nothing loses its name at either step:
           // the glyphs keep the tooltips and the menu entries keep the words.
-          final labelledToggles = constraints.maxWidth >=
-              math.max(
-                  _labelledToolbarWidth, _barWidthFor(labelledToolbarWidth));
-          final inlineToggles = constraints.maxWidth >=
-              math.max(_toggleToolbarWidth, _barWidthFor(toggledToolbarWidth));
+          final labelledToggles = !isNarrowRow &&
+              constraints.maxWidth >=
+                  math.max(_labelledToolbarWidth,
+                      _barWidthFor(labelledToolbarWidth));
+          final inlineToggles = !isNarrowRow &&
+              constraints.maxWidth >=
+                  math.max(
+                      _toggleToolbarWidth, _barWidthFor(toggledToolbarWidth));
 
           // When the bar cannot hold the toggle group, the toggles do not
           // vanish — they join the menu, with the words the buttons had.

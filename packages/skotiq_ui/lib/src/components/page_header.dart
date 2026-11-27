@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'adaptive_tab_bar.dart';
 
 import 'package:skotiq_design/skotiq_design.dart';
+import '../layout/shell_layout.dart';
 import '../tokens/shell_chrome_metrics.dart';
 import '../utils/text_measure.dart';
 import '../utils/touch_target.dart';
@@ -61,9 +62,7 @@ class PageHeader extends StatelessWidget {
     // Below the breakpoint the header is 48 and the tabs move to their own
     // scrollable row, because a title, a tab strip and an action will not
     // share 700 px without one of them being cut.
-    final narrow =
-        MediaQuery.sizeOf(buildContext).width <
-        ShellChromeMetrics.shellLayoutBreakpoint;
+    final narrow = ShellLayout.of(buildContext).narrowWindow;
 
     // The hairline is chrome, not content: a 48 px header with a 1 px bottom
     // border leaves its row 47, one pixel short of the Android touch minimum,

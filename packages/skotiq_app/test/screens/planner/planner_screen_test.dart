@@ -210,9 +210,14 @@ void main() {
           tonightSuggestionsProvider
               .overrideWith((ref) async => const [_searchableCandidate]),
         ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const PlannerScreen(),
+        // A phone held sideways.
+        child: ShellLayoutScope(
+          touchDevice: true,
+          drawsWindowFrame: false,
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const PlannerScreen(),
+          ),
         ),
       ),
     );
@@ -251,17 +256,22 @@ void main() {
           tonightSuggestionsProvider
               .overrideWith((ref) async => const [_searchableCandidate]),
         ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: Align(
-              alignment: Alignment.topCenter,
-              child: SizedBox(
-                // The outer planner tab strip consumes 52 px, leaving the
-                // Recommendation tab the same 34 px production slot measured
-                // after the shared shell resizes for the keyboard.
-                height: 86,
-                child: PlannerScreen(),
+        // A phone held sideways.
+        child: ShellLayoutScope(
+          touchDevice: true,
+          drawsWindowFrame: false,
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const Scaffold(
+              body: Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  // The outer planner tab strip consumes 52 px, leaving the
+                  // Recommendation tab the same 34 px production slot measured
+                  // after the shared shell resizes for the keyboard.
+                  height: 86,
+                  child: PlannerScreen(),
+                ),
               ),
             ),
           ),

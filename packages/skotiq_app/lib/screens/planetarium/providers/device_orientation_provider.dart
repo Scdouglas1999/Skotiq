@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
@@ -294,10 +292,7 @@ class DeviceOrientationNotifier extends StateNotifier<DeviceOrientationState> {
     );
   }
 
-  bool _isMobilePlatform() {
-    return defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.android;
-  }
+  bool _isMobilePlatform() => DeviceTraits.current.touchOs;
 
   @override
   void dispose() {

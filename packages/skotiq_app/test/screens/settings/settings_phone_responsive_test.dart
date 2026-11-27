@@ -16,10 +16,10 @@
 import 'dart:ui' show SemanticsAction, SemanticsFlag;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
 import 'package:skotiq_app/screens/settings/widgets/general_settings.dart';
@@ -57,31 +57,29 @@ const _phoneLandscape = <(String, Size)>[
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // Every case here is a phone; the layout reads the device class.
+  setUp(() => DeviceTraits.debugOverride = DeviceTraits.phone);
+  tearDown(() => DeviceTraits.debugOverride = null);
 
   testWidgets('search survives a shell-consumed landscape keyboard inset',
       (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    try {
-      await pumpAppScreen(
-        tester,
-        const SizedBox(height: 64, child: SettingsScreen()),
-        size: const Size(932, 430),
-        extraOverrides: _stubSettings(),
-      );
+    await pumpAppScreen(
+      tester,
+      const SizedBox(height: 64, child: SettingsScreen()),
+      size: const Size(932, 430),
+      extraOverrides: _stubSettings(),
+    );
 
-      final searchField = find.byType(TextField).first;
-      expect(tester.takeException(), isNull);
-      expect(searchField.hitTestable(), findsOneWidget);
-      expect(find.text('Settings'), findsNothing);
+    final searchField = find.byType(TextField).first;
+    expect(tester.takeException(), isNull);
+    expect(searchField.hitTestable(), findsOneWidget);
+    expect(find.text('Settings'), findsNothing);
 
-      await tester.tap(searchField);
-      await tester.enterText(searchField, 'latitude');
-      await tester.pump();
-      expect(tester.testTextInput.isVisible, isTrue);
-      expect(tester.takeException(), isNull);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
+    await tester.tap(searchField);
+    await tester.enterText(searchField, 'latitude');
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isTrue);
+    expect(tester.takeException(), isNull);
   });
 
   // Every test size/orientation: no overflow + a reachable, working search box.

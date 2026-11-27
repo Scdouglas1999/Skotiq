@@ -1,7 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
@@ -65,10 +63,6 @@ class _AnnotationOverlayState extends ConsumerState<AnnotationOverlay>
   CelestialObjectAnnotation? _currentHoveredObject;
   Timer? _hoverDebounceTimer;
   static const _hoverDebounceMs = 75; // Delay before showing tooltip
-
-  static bool get _isTouchPlatform =>
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.android;
 
   Animation<double> _createFadeAnimation(AnnotationSettings settings) {
     return Tween<double>(
@@ -253,7 +247,7 @@ class _AnnotationOverlayState extends ConsumerState<AnnotationOverlay>
     }
 
     // On touch platforms, tapping empty space toggles annotation visibility
-    if (_isTouchPlatform) {
+    if (SkotiqTouchTarget.isTouch(context)) {
       setState(() {
         _touchAnnotationsVisible = !_touchAnnotationsVisible;
       });
@@ -319,7 +313,7 @@ class _AnnotationOverlayState extends ConsumerState<AnnotationOverlay>
     );
 
     // On touch platforms: no fade, use tap-to-toggle visibility instead
-    if (_isTouchPlatform) {
+    if (SkotiqTouchTarget.isTouch(context)) {
       return Stack(
         children: [
           GestureDetector(

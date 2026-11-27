@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
-import 'package:skotiq_app/screens/shell/shell_chrome.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_app/screens/shell/widgets/side_navigation.dart';
 import 'package:skotiq_app/screens/shell/widgets/skotiq_bottom_navigation.dart';
 import 'package:skotiq_core/models.dart';
@@ -99,8 +99,8 @@ Future<void> _dispose(WidgetTester tester, HarnessHandle handle) async {
 }
 
 void main() {
-  setUp(() => ShellChrome.debugNativeMobileOverride = true);
-  tearDown(() => ShellChrome.debugNativeMobileOverride = null);
+  setUp(() => DeviceTraits.debugOverride = DeviceTraits.phone);
+  tearDown(() => DeviceTraits.debugOverride = null);
 
   testWidgets('upright: a bottom bar, no shell bar, insets applied once', (
     tester,

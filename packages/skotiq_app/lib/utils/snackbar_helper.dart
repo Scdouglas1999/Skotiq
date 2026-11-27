@@ -212,8 +212,8 @@ EdgeInsetsGeometry? _snackBarMargin(BuildContext context) {
   final width = media?.size.width ?? 0;
   final safeBottom = media?.padding.bottom ?? 0;
   final shellChrome = ShellChromeMetrics.contentStackBottomChromeHeight(
-        useBottomNav:
-            width > 0 && width < ShellChromeMetrics.shellLayoutBreakpoint,
+        useBottomNav: width > 0 &&
+            ShellLayout.of(context).navigation == ShellNavKind.bottomBar,
       ) +
       safeBottom;
   final lift = declared > shellChrome ? declared : shellChrome;

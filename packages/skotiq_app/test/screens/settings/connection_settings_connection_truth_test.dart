@@ -11,6 +11,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/indi_server_dialog.dart';
 import 'package:skotiq_app/screens/connection/rig_connect_entry.dart';
@@ -42,6 +43,11 @@ class _FailingRefreshSettingsNotifier extends AppSettingsNotifier {
   }
 }
 
+/// The host answers every heartbeat. The real provider ticks once a second
+/// for the life of the scope.
+Override _hostAnswering() =>
+    hostUnansweredSecondsProvider.overrideWith((ref) => Stream.value(null));
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -69,6 +75,7 @@ void main() {
           networkBackendConnectionStateProvider.overrideWith(
             (ref) => Stream.value(BackendConnectionState.connecting),
           ),
+          _hostAnswering(),
         ],
       );
 
@@ -100,11 +107,86 @@ void main() {
         networkBackendConnectionStateProvider.overrideWith(
           (ref) => Stream.value(BackendConnectionState.connected),
         ),
+        _hostAnswering(),
       ],
     );
 
     expect(find.text('Connected'), findsOneWidget);
     expect(find.text('Connecting...'), findsNothing);
+  });
+
+  // Settings > Connection reads the link status the title-bar chip reads: it
+  // had no reconnecting or not-answering state and called a dropped link
+  // "Connecting...".
+  for (final (state, unanswered, label)
+      in <(BackendConnectionState, int?, String)>[
+    (BackendConnectionState.reconnecting, null, 'Reconnecting...'),
+    (BackendConnectionState.disconnected, null, 'Server unreachable'),
+    (BackendConnectionState.connected, 12, 'Not answering'),
+  ]) {
+    testWidgets(
+        'status reads "$label" for a ${state.name} link'
+        '${unanswered == null ? '' : ' that stopped answering'}',
+        (tester) async {
+      final backend = NetworkBackend(
+        serverHost: '10.0.0.5',
+        serverPort: 8080,
+        webSocketPort: 8080,
+        autoConnectWebSocket: false,
+      );
+      addTearDown(backend.dispose);
+
+      await pumpAppScreen(
+        tester,
+        const ConnectionSettings(),
+        extraOverrides: [
+          appSettingsProvider.overrideWith(
+            () => _StubAppSettingsNotifier(const AppSettingsState()),
+          ),
+          backendProvider.overrideWith(
+            (ref) => TestBackendNotifier(ref, backend),
+          ),
+          networkBackendConnectionStateProvider.overrideWith(
+            (ref) => Stream.value(state),
+          ),
+          hostUnansweredSecondsProvider.overrideWith(
+            (ref) => Stream.value(unanswered),
+          ),
+        ],
+      );
+
+      expect(find.text(label), findsOneWidget);
+      expect(find.text('Connecting...'), findsNothing);
+      expect(find.text('Connected'), findsNothing);
+    });
+  }
+
+  testWidgets(
+      'a launch linked to a host that has not answered reads unreachable, '
+      'as the chip does', (tester) async {
+    await pumpAppScreen(
+      tester,
+      const ConnectionSettings(),
+      extraOverrides: [
+        appSettingsProvider.overrideWith(
+          () => _StubAppSettingsNotifier(const AppSettingsState()),
+        ),
+        backendProvider.overrideWith(
+          (ref) => TestBackendNotifier(ref, DisconnectedBackend()),
+        ),
+        remoteLaunchTargetProvider.overrideWithValue(
+          const RemoteLaunchTarget(
+            host: '192.168.1.50',
+            port: 8099,
+            name: 'DESKTOP-OBS01',
+            remembered: true,
+          ),
+        ),
+      ],
+    );
+
+    expect(find.text('Server unreachable'), findsOneWidget);
+    expect(find.text('Disconnected'), findsNothing);
   });
 
   // The page said "Saved on this device only" over discovery switches that
@@ -133,6 +215,7 @@ void main() {
         networkBackendConnectionStateProvider.overrideWith(
           (ref) => Stream.value(BackendConnectionState.connected),
         ),
+        _hostAnswering(),
       ],
     );
 
@@ -204,6 +287,7 @@ void main() {
         networkBackendConnectionStateProvider.overrideWith(
           (ref) => Stream.value(BackendConnectionState.connected),
         ),
+        _hostAnswering(),
       ],
     );
 

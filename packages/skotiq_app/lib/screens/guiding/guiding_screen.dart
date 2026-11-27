@@ -89,8 +89,7 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
     // phone in landscape (844 x 390) is above that yet still takes the
     // reflowed body, and squeezing the tab strip into the header row there
     // scrolls the last tab out of reach — so it gets the `bottom` slot.
-    final headerIsNarrow = MediaQuery.sizeOf(context).width <
-        ShellChromeMetrics.shellLayoutBreakpoint;
+    final headerIsNarrow = ShellLayout.of(context).narrowWindow;
 
     return Scaffold(
       // Connection/settings inputs live in modal dialogs that handle their

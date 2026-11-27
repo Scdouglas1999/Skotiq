@@ -55,8 +55,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
       },
     );
 
-    final narrow = MediaQuery.sizeOf(context).width <
-        ShellChromeMetrics.shellLayoutBreakpoint;
+    final narrow = ShellLayout.of(context).narrowWindow;
 
     void toggleHistory() => uiNotifier.toggleHistoryPanel();
     final historyTooltip = ui.showHistoryPanel
@@ -308,8 +307,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
               key: TourTarget.polarStartButton.key,
               // Just "Start" on a phone: the header already says what is
               // being started.
-              label: MediaQuery.sizeOf(context).width <
-                      ShellChromeMetrics.shellLayoutBreakpoint
+              label: ShellLayout.of(context).narrowWindow
                   ? 'Start'
                   : 'Start alignment',
               icon: SkotiqIcons.play,

@@ -1,5 +1,6 @@
 import 'startup/fujifilm_notice_after_connect.dart';
 import 'startup/mount_site_reconciliation_card.dart';
+import 'screens/shell/shell_chrome.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -172,7 +173,9 @@ class SkotiqApp extends ConsumerWidget {
                 child: result,
               );
             }
-            return RedNightScreen(child: result);
+            return DeviceShellLayoutScope(
+              child: RedNightScreen(child: result),
+            );
           },
         ),
       ),

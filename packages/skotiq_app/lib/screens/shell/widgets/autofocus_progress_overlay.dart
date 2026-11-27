@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_app/screens/shell/shell_chrome.dart';
 import 'package:skotiq_app/utils/v_curve_chart_data.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
@@ -93,8 +92,7 @@ class _AutofocusProgressOverlayState
     super.didChangeDependencies();
     if (_offsetInitialized) return;
     _offsetInitialized = true;
-    final useBottomNav =
-        ShellChrome.useBottomNavigation(MediaQuery.sizeOf(context).width);
+    final useBottomNav = ShellLayout.of(context).usesBottomNavigation;
     // With the bottom nav the pill starts bottom-LEFT: bottom-right is where
     // a screen's floating add button sits (Sequencer), and the pill now sits
     // as low as it.
@@ -135,8 +133,7 @@ class _AutofocusProgressOverlayState
     final width =
         math.min(isMinimized ? _minimizedWidth : _expandedWidth, maxWidth);
     final height = isMinimized ? _minimizedHeight : _expandedHeight;
-    final useBottomNav =
-        ShellChrome.useBottomNavigation(MediaQuery.sizeOf(context).width);
+    final useBottomNav = ShellLayout.of(context).usesBottomNavigation;
     final minBottomInset = ShellChromeMetrics.floatingOverlayBottomInset(
       context,
       useBottomNav: useBottomNav,

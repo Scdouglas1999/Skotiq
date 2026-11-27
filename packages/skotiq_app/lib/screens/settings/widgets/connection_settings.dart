@@ -12,6 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import '../../../tours/tour_target.dart';
+import '../../connection/link_status.dart';
 import '../../connection/rig_connect_entry.dart';
 import '../../connection/work_locally.dart';
 import '../../../widgets/indi_server_dialog.dart';
@@ -31,45 +32,40 @@ class ConnectionSettings extends ConsumerWidget {
     // The demo rig is not linked to anything: it offers the link as no
     // backend does.
     final isDisconnected = backend.hostPlace.offersLink;
-    // Live connection state — the authoritative signal for whether a network
-    // backend is actually connected, mid-handshake, or errored. Relying on
-    // `backend.remoteHost != null` alone would render a still-connecting (or a
-    // rolled-back/errored) session as "Connected".
+    // The link's live state, not merely that a link exists: a link still
+    // in its handshake, or rolled back, is not "Connected".
     final connState =
         ref.watch(networkBackendConnectionStateProvider).valueOrNull;
+    final unansweredSeconds =
+        ref.watch(hostUnansweredSecondsProvider).valueOrNull;
     final isConnected =
         isNetwork && connState == BackendConnectionState.connected;
-    final isConnectError =
-        isNetwork && connState == BackendConnectionState.error;
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     final settingsNotifier = ref.read(appSettingsProvider.notifier);
     final platformCapabilities =
         PlatformCapabilityMatrix.forPlatform(Platform.operatingSystem);
 
-    // Derive the status label/colour from the live connection state, not just
-    // the backend's runtime type.
-    String serverAddress = 'Not connected';
-    String connectionStatus = 'Disconnected';
-    Color statusColor = colors.textMuted;
-
+    final linkedLaunch = ref.watch(remoteLaunchTargetProvider);
+    final status = linkStatusFor(
+      linkState:
+          isNetwork ? connState ?? BackendConnectionState.connecting : null,
+      unansweredSeconds: unansweredSeconds,
+      hostPlace: backend.hostPlace,
+      linkedLaunch: linkedLaunch != null,
+    );
+    final look = LinkStatusLook.of(status);
+    final String serverAddress;
+    var connectionStatus = look.settingsLabel;
+    var statusColor = look.color(context);
     if (hostLink != null) {
       serverAddress = hostLink.address;
-      if (isConnected) {
-        connectionStatus = 'Connected';
-        statusColor = colors.success;
-      } else if (isConnectError) {
-        connectionStatus = 'Connection error';
-        statusColor = colors.error;
-      } else {
-        connectionStatus = 'Connecting...';
-        statusColor = colors.warning;
-      }
-    } else if (backend.hostPlace == HostPlace.demo) {
+    } else if (status == RemoteConnectionStatus.serverOffline) {
+      serverAddress = '${linkedLaunch!.host}:${linkedLaunch.port}';
+    } else if (status == RemoteConnectionStatus.demoRig) {
       serverAddress = 'Not linked: simulated equipment on this phone';
-      connectionStatus = 'Demo rig';
-      statusColor = colors.warning;
-    } else if (!isDisconnected) {
-      // FfiBackend (local mode)
+    } else if (isDisconnected) {
+      serverAddress = 'Not connected';
+    } else {
       serverAddress = 'Local';
       connectionStatus = 'Local Mode';
       statusColor = colors.primary;

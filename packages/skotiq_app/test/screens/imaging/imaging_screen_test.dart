@@ -53,6 +53,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_capture_bar.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_side_panel.dart';
@@ -658,6 +659,8 @@ void main() {
           'phone_no_overflow_${label}_$orientation: imaging screen has no '
           'RenderFlex overflow and the Snapshot control is present',
           (tester) async {
+        DeviceTraits.debugOverride = DeviceTraits.phone;
+        addTearDown(() => DeviceTraits.debugOverride = null);
         // No overflow-swallowing here: any RenderFlex overflow at this
         // size/orientation must fail the test.
         final handle = await pumpAppScreen(

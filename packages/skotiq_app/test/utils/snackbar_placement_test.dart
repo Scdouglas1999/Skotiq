@@ -22,17 +22,25 @@ Rect _barRect(WidgetTester tester) => tester.getRect(
           .first,
     );
 
-Future<BuildContext> _pumpHost(WidgetTester tester, {Widget? body}) async {
+Future<BuildContext> _pumpHost(
+  WidgetTester tester, {
+  Widget? body,
+  bool touchDevice = false,
+}) async {
   late BuildContext captured;
   await tester.pumpWidget(
-    MaterialApp(
-      theme: SkotiqTheme.dark,
-      home: Scaffold(
-        body: Builder(
-          builder: (context) {
-            captured = context;
-            return body ?? const SizedBox.expand();
-          },
+    ShellLayoutScope(
+      touchDevice: touchDevice,
+      drawsWindowFrame: !touchDevice,
+      child: MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              captured = context;
+              return body ?? const SizedBox.expand();
+            },
+          ),
         ),
       ),
     ),
@@ -115,6 +123,20 @@ void main() {
     final bar = _barRect(tester);
     expect(bar.left, closeTo(15, 0.5));
     expect(bar.right, closeTo(405, 0.5));
+  });
+
+  testWidgets('a tablet in portrait lifts the snackbar over its bottom bar',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final context = await _pumpHost(tester, touchDevice: true);
+    context.showInfoSnackBar('Saved');
+    await tester.pumpAndSettle();
+
+    final bar = _barRect(tester);
+    expect(bar.bottom, lessThanOrEqualTo(1280 - BottomNavMetrics.barHeight));
   });
 
   testWidgets('a messenger kept across an await places its snackbar the same',

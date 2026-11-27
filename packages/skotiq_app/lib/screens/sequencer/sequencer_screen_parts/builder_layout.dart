@@ -7,33 +7,17 @@ class _BuilderContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Phone-first reflow. We treat the builder as a phone whenever the
-    // *shorter* side of the region is below the phone breakpoint (`< 600`).
-    // That keeps a phone held in LANDSCAPE (e.g. 844×390) on the phone-first
-    // mobile builder — which uses the extra width for a side-by-side
-    // tree+properties split — instead of falling into the desktop 3-column
-    // layout, whose dense toolbar/header rows overflow at that height.
-    //
-    // `Responsive.isMobile` (`< 768`) would lump small tablets in with phones
-    // AND switch on width alone, dropping a rotated phone into the squished
-    // desktop path. Branching on the short side avoids both.
+    // A phone in either orientation takes the phone builder: on its side it
+    // uses the width for a tree + properties split, where the desktop
+    // 3-column layout's dense rows overflow the height. The device class, not
+    // this region's height: under the header, the tabs and a running plan's
+    // progress band a tablet in landscape has less than 600 dp left.
     return LayoutBuilder(
       builder: (context, constraints) {
-        // The DEVICE's short side, not this region's: under the header, the
-        // tabs and a running plan's progress band a tablet or an unfolded
-        // Fold in landscape has less than 600 dp of height left, and read
-        // as a phone held sideways it got a fixed tree / "Select a node"
-        // split with phone cards instead of the builder its size can hold.
-        final screen = MediaQuery.sizeOf(context);
-        final shortSide = screen.shortestSide;
-        if (BreakpointTokens.isPhone(shortSide)) {
+        if (ShellLayout.of(context).isPhone) {
           return _MobileBuilderLayout(colors: colors);
         }
-        // Thread this LayoutBuilder's width down to the desktop layout
-        // instead of opening a second nested LayoutBuilder. The outer builder
-        // is intentionally kept (not MediaQuery) so the short-side / split-
-        // pane logic stays correct when the sequencer is embedded in a
-        // sub-region (see the comment above).
+        // The desktop layout splits this region's own width.
         return _DesktopBuilderLayout(
           colors: colors,
           availableWidth: constraints.maxWidth,

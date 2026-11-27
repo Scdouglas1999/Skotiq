@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -20,7 +19,6 @@ _probe(
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
-  debugDefaultTargetPlatformOverride = platform;
   addTearDown(tester.view.reset);
 
   late bool isPhone;
@@ -30,26 +28,27 @@ _probe(
   late bool isPhoneLandscape;
   late bool isPhonePortrait;
 
+  final touch =
+      platform == TargetPlatform.android || platform == TargetPlatform.iOS;
   await tester.pumpWidget(
-    MaterialApp(
-      home: Builder(
-        builder: (context) {
-          isPhone = Responsive.isPhone(context);
-          isCompactPhone = Responsive.isCompactPhone(context);
-          isMobile = Responsive.isMobile(context);
-          isLandscape = Responsive.isLandscape(context);
-          isPhoneLandscape = Responsive.isPhoneLandscape(context);
-          isPhonePortrait = Responsive.isPhonePortrait(context);
-          return const SizedBox.shrink();
-        },
+    ShellLayoutScope(
+      touchDevice: touch,
+      drawsWindowFrame: !touch,
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) {
+            isPhone = Responsive.isPhone(context);
+            isCompactPhone = Responsive.isCompactPhone(context);
+            isMobile = Responsive.isMobile(context);
+            isLandscape = Responsive.isLandscape(context);
+            isPhoneLandscape = Responsive.isPhoneLandscape(context);
+            isPhonePortrait = Responsive.isPhonePortrait(context);
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     ),
   );
-
-  // The build has run and captured the values above; clear the platform
-  // override now so the framework's end-of-body foundation-vars invariant
-  // (which runs before tearDowns) sees it unset.
-  debugDefaultTargetPlatformOverride = null;
 
   return (
     isPhone: isPhone,
@@ -62,10 +61,6 @@ _probe(
 }
 
 void main() {
-  // Each test sets debugDefaultTargetPlatformOverride via _probe; reset it
-  // after every test so the framework's foundation-vars invariant holds.
-  tearDown(() => debugDefaultTargetPlatformOverride = null);
-
   group('mobile device-class detection (orientation-independent)', () {
     testWidgets('360x640 is a compact phone in portrait', (tester) async {
       final r = await _probe(tester, const Size(360, 640));
@@ -128,7 +123,7 @@ void main() {
     });
   });
 
-  group('desktop window-size detection (width-driven reflow preserved)', () {
+  group('desktop window-size detection', () {
     testWidgets('590-wide desktop window is a phone (narrow reflow)', (
       tester,
     ) async {
@@ -140,15 +135,25 @@ void main() {
       expect(r.isPhone, isTrue);
     });
 
-    testWidgets('844-wide desktop window is NOT a phone', (tester) async {
+    testWidgets('844x700 desktop window is NOT a phone', (tester) async {
+      final r = await _probe(
+        tester,
+        const Size(844, 700),
+        platform: TargetPlatform.windows,
+      );
+      expect(r.isPhone, isFalse);
+    });
+
+    testWidgets('a desktop window shorter than 600 is a phone on its side', (
+      tester,
+    ) async {
       final r = await _probe(
         tester,
         const Size(844, 390),
         platform: TargetPlatform.windows,
       );
-      // On desktop, width drives the tier — a wide window is not a phone even
-      // when short. (Contrast the mobile 844x390 case above.)
-      expect(r.isPhone, isFalse);
+      expect(r.isPhone, isTrue);
+      expect(r.isPhoneLandscape, isTrue);
     });
 
     testWidgets('maximized desktop is not a phone', (tester) async {

@@ -20,16 +20,24 @@ class _BackendNotifier extends BackendNotifier {
   }
 }
 
-Widget _host({required bool onFallback, SkotiqBackend? backend}) {
+Widget _host({
+  required bool onFallback,
+  SkotiqBackend? backend,
+  bool phone = false,
+}) {
   return ProviderScope(
     overrides: [
       if (backend != null)
         backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
       starCatalogFallbackProvider.overrideWithValue(onFallback),
     ],
-    child: MaterialApp(
-      theme: ThemeData(extensions: const [SkotiqColors.dark]),
-      home: const Scaffold(body: StarCatalogFallbackBanner()),
+    child: ShellLayoutScope(
+      touchDevice: phone,
+      drawsWindowFrame: !phone,
+      child: MaterialApp(
+        theme: ThemeData(extensions: const [SkotiqColors.dark]),
+        home: const Scaffold(body: StarCatalogFallbackBanner()),
+      ),
     ),
   );
 }
@@ -57,7 +65,9 @@ void main() {
   ) async {
     final backend = _MockNetworkBackend();
     when(() => backend.serverHost).thenReturn('192.168.1.100');
-    await tester.pumpWidget(_host(onFallback: true, backend: backend));
+    await tester.pumpWidget(
+      _host(onFallback: true, backend: backend, phone: true),
+    );
     await tester.pump();
 
     expect(

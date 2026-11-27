@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -28,7 +27,6 @@ _probe(
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
-  debugDefaultTargetPlatformOverride = platform;
   addTearDown(tester.view.reset);
 
   late bool isMobile;
@@ -37,24 +35,26 @@ _probe(
   late bool isDesktopLarge;
   late bool isUltraWide;
 
+  final touch =
+      platform == TargetPlatform.android || platform == TargetPlatform.iOS;
   await tester.pumpWidget(
-    MaterialApp(
-      home: Builder(
-        builder: (context) {
-          isMobile = Responsive.isMobile(context);
-          isTablet = Responsive.isTablet(context);
-          isDesktop = Responsive.isDesktop(context);
-          isDesktopLarge = Responsive.isDesktopLarge(context);
-          isUltraWide = Responsive.isUltraWide(context);
-          return const SizedBox.shrink();
-        },
+    ShellLayoutScope(
+      touchDevice: touch,
+      drawsWindowFrame: !touch,
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) {
+            isMobile = Responsive.isMobile(context);
+            isTablet = Responsive.isTablet(context);
+            isDesktop = Responsive.isDesktop(context);
+            isDesktopLarge = Responsive.isDesktopLarge(context);
+            isUltraWide = Responsive.isUltraWide(context);
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     ),
   );
-
-  // Clear the override before the framework's end-of-body foundation-vars
-  // invariant runs (it fires before tearDowns).
-  debugDefaultTargetPlatformOverride = null;
 
   return (
     isMobile: isMobile,
@@ -66,8 +66,6 @@ _probe(
 }
 
 void main() {
-  tearDown(() => debugDefaultTargetPlatformOverride = null);
-
   group('mobile-OS tier classification (shortest-side, orientation-stable)', () {
     testWidgets('905x369 Fold cover screen classifies as mobile, not desktop', (
       tester,

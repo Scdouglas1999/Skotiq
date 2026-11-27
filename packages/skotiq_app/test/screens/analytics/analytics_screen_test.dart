@@ -252,9 +252,13 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: _commonOverrides(),
-          child: MaterialApp(
-            theme: SkotiqTheme.dark,
-            home: const Scaffold(body: AnalyticsScreen()),
+          child: ShellLayoutScope(
+            touchDevice: true,
+            drawsWindowFrame: false,
+            child: MaterialApp(
+              theme: SkotiqTheme.dark,
+              home: const Scaffold(body: AnalyticsScreen()),
+            ),
           ),
         ),
       );
