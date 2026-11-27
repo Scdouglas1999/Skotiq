@@ -110,7 +110,7 @@ class _SubTile extends ConsumerWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${filterLabel(sub.filter)} · ${sub.exposureDuration.toInt()}s',
+                    '${frameCaption(filter: sub.filter, frameType: sub.frameType)} · ${sub.exposureDuration.toInt()}s',
                     style: SkotiqTypography.labelSm
                         .copyWith(color: colors.textPrimary),
                     maxLines: 1,

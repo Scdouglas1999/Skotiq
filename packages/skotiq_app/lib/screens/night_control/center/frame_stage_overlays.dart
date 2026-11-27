@@ -15,7 +15,7 @@ FramePillText _framePill(
   }
   // A dark or bias reads as its frame type, not the wheel's filter.
   final what = nightFilterExposure(
-    image.settings.frameType.coverOnLabel ?? image.settings.filter,
+    image.settings.frameType.caption(image.settings.filter),
     image.settings.exposureTime,
   );
   final purpose = framePurposeLabel(l10n, image);
