@@ -12,12 +12,14 @@ String runJobState(
     case SequenceExecutionState.idle:
       return 'idle';
     case SequenceExecutionState.running:
-      final node = (progress.currentNodeName ?? '').toLowerCase();
-      if (node.contains('autofocus') || node.contains('focus')) {
-        return 'focusing';
+      if (progress.currentNodeName case final name?) {
+        final node = name.toLowerCase();
+        if (node.contains('autofocus') || node.contains('focus')) {
+          return 'focusing';
+        }
+        if (node.contains('center')) return 'centering';
+        if (node.contains('guid')) return 'guiding';
       }
-      if (node.contains('center')) return 'centering';
-      if (node.contains('guid')) return 'guiding';
       return 'exposing';
     case SequenceExecutionState.paused:
       return 'paused';

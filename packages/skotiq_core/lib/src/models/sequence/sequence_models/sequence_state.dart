@@ -425,8 +425,10 @@ abstract class SequenceProgress with _$SequenceProgress {
 
   /// The message says only the frame count, which a surface showing the
   /// count beside it need not repeat.
-  bool get messageIsFrameCount =>
-      message?.startsWith(_frameCountPrefix) ?? false;
+  bool get messageIsFrameCount {
+    final said = message;
+    return said != null && said.startsWith(_frameCountPrefix);
+  }
 
   const factory SequenceProgress({
     @Default(SequenceExecutionState.idle) SequenceExecutionState state,
