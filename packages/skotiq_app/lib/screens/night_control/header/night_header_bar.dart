@@ -30,6 +30,7 @@ import '../left/night_time_format.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
 import '../../../router/app_routes.dart';
+import '../../../services/run_control/run_control.dart' show runHeldForKey;
 
 /// The header slot of [NightControlLayout].
 ///
@@ -714,10 +715,8 @@ class _RunPill extends StatelessWidget {
       NightRunPhase.armed => l10n.text('nightCtlPillArmed'),
       NightRunPhase.running => l10n.text('nightCtlPillRunning'),
       NightRunPhase.pausedByUser => l10n.text('nightCtlPillPaused'),
-      NightRunPhase.pausedForAction => switch (header.pausedFor) {
-          null => l10n.text('nightCtlPillPaused'),
-          final id => l10n.text(_pausedForKey(id)),
-        },
+      NightRunPhase.pausedForAction =>
+        l10n.text(runHeldForKey(header.pausedFor)),
       NightRunPhase.stopping => l10n.text('nightCtlPillStopping'),
       NightRunPhase.finished => switch (header.ending) {
           NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
@@ -727,20 +726,6 @@ class _RunPill extends StatelessWidget {
         },
     };
   }
-
-  static String _pausedForKey(ManualActionId id) => switch (id) {
-        ManualActionId.snapshot => 'nightCtlPausedForSnapshot',
-        ManualActionId.loop => 'nightCtlPausedForLoop',
-        ManualActionId.autofocus => 'nightCtlPausedForAutofocus',
-        // A plain solve never pauses the run; the key keeps the switch whole.
-        ManualActionId.solve => 'nightScrPausedForSolve',
-        ManualActionId.solveSync => 'nightCtlPausedForSolveSync',
-        ManualActionId.center => 'nightCtlPausedForCenter',
-        ManualActionId.dither => 'nightCtlPausedForDither',
-        ManualActionId.flip => 'nightCtlPausedForFlip',
-        ManualActionId.tracking => 'nightCtlPausedForTracking',
-        ManualActionId.cooler => 'nightCtlPausedForCooler',
-      };
 
   // A completed run reads as a success and a failed one as an error, like
   // the rig chip; a stopped or otherwise ended run is neutral.

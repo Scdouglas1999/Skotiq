@@ -27,14 +27,23 @@ class SequenceStatusVisuals {
   ///
   /// [pausedIdle] is [pausedRunIdleProvider]: a paused run whose step is
   /// still finishing reads as pausing, so the operator waits before touching
-  /// the rig.
+  /// the rig. [heldFor] names what holds a run a manual action paused
+  /// (`runHeldForKey`); the rig that action moves is not a step finishing.
   static SequenceStatusVisuals of(
     SequenceExecutionState state,
     SkotiqColors colors,
     SkotiqLocalizations l10n, {
     bool? pausedIdle,
+    String? heldFor,
   }) {
     switch (state) {
+      case SequenceExecutionState.paused when heldFor != null:
+        return SequenceStatusVisuals(
+          color: colors.warning,
+          label: l10n.text(heldFor),
+          icon: LucideIcons.pauseCircle,
+          variant: StatusDotVariant.static,
+        );
       case SequenceExecutionState.paused when pausedIdle == false:
         return SequenceStatusVisuals(
           color: colors.warning,
