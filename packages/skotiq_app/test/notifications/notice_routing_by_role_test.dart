@@ -504,7 +504,8 @@ NotificationRoutingMatrix? _storedMatrix(
 
 /// What the operator gets from [happening] in [role] under [setting]: each
 /// toast as `toast <level> <title>` and each queued phone push as
-/// `push <title>`, in the order they were raised.
+/// `push <title> [<eventType>]` (the phone keys its notification on the
+/// event type), in the order they were raised.
 Future<List<String>> _noticesFor(
   _Role role,
   _Happening happening,
@@ -573,7 +574,7 @@ Future<List<String>> _noticesFor(
     pushSub = container
         .read(pushNotificationServiceProvider)
         .notifications
-        .listen((p) => pushes.add('push ${p.title}'));
+        .listen((p) => pushes.add('push ${p.title} [${p.eventType}]'));
     container.listen<List<UiNotification>>(uiNotificationProvider, (
       previous,
       next,
@@ -669,18 +670,18 @@ const _expected = <String, List<String>>{
   ],
   'hostGui sequenceCompleted defaults': [
     'toast success Sequence complete',
-    'push Sequence complete',
+    'push Sequence complete [sequenceCompleted]',
   ],
   'hostGui sequenceFailed defaults': [
     'toast error Sequence failed',
-    'push Sequence failed',
+    'push Sequence failed [sequenceFailed]',
   ],
   'hostGui sequenceFailed rowOff': [
-    'push Critical · Sequencer',
+    'push Critical · Sequencer [Sequence failed]',
   ],
   'hostGui sequenceStopped defaults': [
     'toast info Sequence stopped',
-    'push Sequence stopped',
+    'push Sequence stopped [sequenceStopped]',
   ],
   'hostGui sequencePaused defaults': [
     'toast info Sequence paused',
@@ -690,18 +691,18 @@ const _expected = <String, List<String>>{
   ],
   'hostGui targetCompleted defaults': [
     'toast success Target complete: M31',
-    'push Target complete: M31',
+    'push Target complete: M31 [targetCompleted]',
   ],
   'hostGui meridianFlipPerformed defaults': [
     'toast info Meridian flip performed',
-    'push Meridian flip performed',
+    'push Meridian flip performed [meridianFlipPerformed]',
   ],
   'hostGui autofocusCompleted defaults': [
     'toast success Autofocus complete',
   ],
   'hostGui autofocusContinued defaults': [
     'toast info Autofocus failed: continuing',
-    'push Autofocus failed: continuing',
+    'push Autofocus failed: continuing [autofocusContinued]',
   ],
   'hostGui frameCaptured defaults': [
     'toast info Frame captured',
@@ -711,14 +712,14 @@ const _expected = <String, List<String>>{
   ],
   'hostGui problemNoticed defaults': [
     'toast warning Problem noticed: the run continues',
-    'push Problem noticed: the run continues',
+    'push Problem noticed: the run continues [problemNoticed]',
   ],
   'hostGui exposureFailed defaults': [
     'toast error Exposure failed',
-    'push Exposure failed',
+    'push Exposure failed [exposureFailed]',
   ],
   'hostGui exposureFailed rowOff': [
-    'push Critical · Imaging',
+    'push Critical · Imaging [Exposure failed]',
   ],
   'hostGui recoveryStarted defaults': [
     'toast warning Recovery started',
@@ -728,38 +729,38 @@ const _expected = <String, List<String>>{
   ],
   'hostGui recoveryGaveUp defaults': [
     'toast error Recovery gave up',
-    'push Recovery gave up',
+    'push Recovery gave up [recoveryGaveUp]',
   ],
   'hostGui recoveryGaveUp rowOff': [
-    'push Critical · Sequencer',
+    'push Critical · Sequencer [Recovery exhausted]',
   ],
   'hostGui guidingLost defaults': [
     'toast error Guiding lost',
-    'push Guiding lost',
+    'push Guiding lost [guidingLost]',
   ],
   'hostGui weatherUnsafe defaults': [
     'toast error Weather unsafe',
-    'push Weather unsafe',
+    'push Weather unsafe [weatherUnsafe]',
   ],
   'hostGui weatherUnsafe rowOff': [
-    'push Critical · Safety',
+    'push Critical · Safety [Weather unsafe]',
   ],
   'hostGui weatherSafeAgain defaults': [
     'toast success Weather safe again',
   ],
   'hostGui mountFault defaults': [
     'toast error Mount fault',
-    'push Mount fault',
+    'push Mount fault [mountFault]',
   ],
   'hostGui mountFault rowOff': [
-    'push Critical · Safety',
+    'push Critical · Safety [Mount moved on its own]',
   ],
   'hostGui diskSpaceLow defaults': [
     'toast error Disk space low',
-    'push Disk space low',
+    'push Disk space low [diskSpaceLow]',
   ],
   'hostGui diskSpaceLow rowOff': [
-    'push Critical · System',
+    'push Critical · System [Disk space low]',
   ],
   'hostGui equipmentDisconnected defaults': [
     'toast error Equipment disconnected',
@@ -802,18 +803,18 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon sequenceCompleted defaults': [
     'toast success Sequence complete',
-    'push Sequence complete',
+    'push Sequence complete [sequenceCompleted]',
   ],
   'hostDaemon sequenceFailed defaults': [
     'toast error Sequence failed',
-    'push Sequence failed',
+    'push Sequence failed [sequenceFailed]',
   ],
   'hostDaemon sequenceFailed rowOff': [
-    'push Critical · Sequencer',
+    'push Critical · Sequencer [Sequence failed]',
   ],
   'hostDaemon sequenceStopped defaults': [
     'toast info Sequence stopped',
-    'push Sequence stopped',
+    'push Sequence stopped [sequenceStopped]',
   ],
   'hostDaemon sequencePaused defaults': [
     'toast info Sequence paused',
@@ -823,18 +824,18 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon targetCompleted defaults': [
     'toast success Target complete: M31',
-    'push Target complete: M31',
+    'push Target complete: M31 [targetCompleted]',
   ],
   'hostDaemon meridianFlipPerformed defaults': [
     'toast info Meridian flip performed',
-    'push Meridian flip performed',
+    'push Meridian flip performed [meridianFlipPerformed]',
   ],
   'hostDaemon autofocusCompleted defaults': [
     'toast success Autofocus complete',
   ],
   'hostDaemon autofocusContinued defaults': [
     'toast info Autofocus failed: continuing',
-    'push Autofocus failed: continuing',
+    'push Autofocus failed: continuing [autofocusContinued]',
   ],
   'hostDaemon frameCaptured defaults': [
     'toast info Frame captured',
@@ -844,14 +845,14 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon problemNoticed defaults': [
     'toast warning Problem noticed: the run continues',
-    'push Problem noticed: the run continues',
+    'push Problem noticed: the run continues [problemNoticed]',
   ],
   'hostDaemon exposureFailed defaults': [
     'toast error Exposure failed',
-    'push Exposure failed',
+    'push Exposure failed [exposureFailed]',
   ],
   'hostDaemon exposureFailed rowOff': [
-    'push Critical · Imaging',
+    'push Critical · Imaging [Exposure failed]',
   ],
   'hostDaemon recoveryStarted defaults': [
     'toast warning Recovery started',
@@ -861,38 +862,38 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon recoveryGaveUp defaults': [
     'toast error Recovery gave up',
-    'push Recovery gave up',
+    'push Recovery gave up [recoveryGaveUp]',
   ],
   'hostDaemon recoveryGaveUp rowOff': [
-    'push Critical · Sequencer',
+    'push Critical · Sequencer [Recovery exhausted]',
   ],
   'hostDaemon guidingLost defaults': [
     'toast error Guiding lost',
-    'push Guiding lost',
+    'push Guiding lost [guidingLost]',
   ],
   'hostDaemon weatherUnsafe defaults': [
     'toast error Weather unsafe',
-    'push Weather unsafe',
+    'push Weather unsafe [weatherUnsafe]',
   ],
   'hostDaemon weatherUnsafe rowOff': [
-    'push Critical · Safety',
+    'push Critical · Safety [Weather unsafe]',
   ],
   'hostDaemon weatherSafeAgain defaults': [
     'toast success Weather safe again',
   ],
   'hostDaemon mountFault defaults': [
     'toast error Mount fault',
-    'push Mount fault',
+    'push Mount fault [mountFault]',
   ],
   'hostDaemon mountFault rowOff': [
-    'push Critical · Safety',
+    'push Critical · Safety [Mount moved on its own]',
   ],
   'hostDaemon diskSpaceLow defaults': [
     'toast error Disk space low',
-    'push Disk space low',
+    'push Disk space low [diskSpaceLow]',
   ],
   'hostDaemon diskSpaceLow rowOff': [
-    'push Critical · System',
+    'push Critical · System [Disk space low]',
   ],
   'hostDaemon equipmentDisconnected defaults': [
     'toast error Equipment disconnected',
