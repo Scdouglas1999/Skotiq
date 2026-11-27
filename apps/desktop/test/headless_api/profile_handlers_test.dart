@@ -434,7 +434,6 @@ void main() {
     // write that never named them.
     test('a partial update with unreadable previous settings keeps the '
         'install defaults of the keys it omits', () async {
-      when(() => profileBackend.updateSettings(any())).thenAnswer((_) async {});
       container.dispose();
       container = ProviderContainer(
         overrides: [
@@ -475,8 +474,6 @@ void main() {
 
     test('partial settings update merges onto current values instead of '
         'resetting omitted keys to model defaults', () async {
-      when(() => profileBackend.updateSettings(any())).thenAnswer((_) async {});
-
       Future<Response> post(Map<String, dynamic> settings) =>
           translateHandlerErrors(
             handlers.handleUpdateSettings(
@@ -539,9 +536,6 @@ void main() {
     test(
       'every host setting a client posts is applied and read back',
       () async {
-        when(
-          () => profileBackend.updateSettings(any()),
-        ).thenAnswer((_) async {});
         final response = await translateHandlerErrors(
           handlers.handleUpdateSettings(
             Request(
@@ -586,11 +580,7 @@ void main() {
       Future<AppSettingsState> stored() =>
           container.read(appSettingsProvider.future);
 
-      setUp(() {
-        when(
-          () => profileBackend.updateSettings(any()),
-        ).thenAnswer((_) async {});
-      });
+      setUp(() {});
 
       test('a link without admin access changes ordinary settings but not '
           'a credential, and is told which and why', () async {
@@ -866,11 +856,7 @@ void main() {
         return envelope['settings'] as Map<String, dynamic>;
       }
 
-      setUp(() {
-        when(
-          () => profileBackend.updateSettings(any()),
-        ).thenAnswer((_) async {});
-      });
+      setUp(() {});
 
       test('a rig that has never had a site reports null, not 0N 0E', () async {
         final settings = await getSettings();

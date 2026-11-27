@@ -7,8 +7,11 @@ import '../../models/settings/app_settings.dart' as models;
 ///
 /// What this role owns:
 ///   * Equipment-profile CRUD + active-profile selection.
-///   * App settings get / update (the user-visible preferences blob).
 ///   * Persisted observer location get / set.
+///
+/// The app settings document is not here: this process keeps its own in
+/// `appSettingsProvider`, and a linked client reads and writes the host's
+/// through [HostRigSettings].
 ///
 /// What this role deliberately does NOT own:
 ///   * Live device commands — see [DeviceBackend].
@@ -32,8 +35,6 @@ abstract class ProfileSettingsBackend {
 
   Future<EquipmentProfile?> getActiveProfile();
 
-  Future<models.AppSettings> getSettings();
-  Future<void> updateSettings(models.AppSettings settings);
   Future<models.ObserverLocation?> getLocation();
   Future<void> setLocation(models.ObserverLocation? location);
 }

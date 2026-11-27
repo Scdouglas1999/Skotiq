@@ -422,7 +422,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         },
       );
       try {
-        final remoteSettings = await backend.getSettings();
+        final remoteSettings = await ref
+            .read(linkedHostRigSettingsProvider)!
+            .getSettings();
         if (generation != _backendGeneration ||
             ref.backendScopeOver(backend).isStale) {
           throw StateError('Settings host changed while fetching.');

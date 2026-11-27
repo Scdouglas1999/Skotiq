@@ -2,47 +2,6 @@ part of '../network_backend.dart';
 
 mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
   @override
-  Future<models.AppSettings> getSettings() async {
-    final json = await _get(ProfileApi.getSettings);
-    final settingsJson = json['settings'];
-    if (settingsJson is! Map<String, dynamic>) {
-      throw StateError(
-        'GET /api/settings returned no settings object (HTTP 200)',
-      );
-    }
-    return models.AppSettings.fromJson(settingsJson);
-  }
-
-  @override
-  Future<void> updateSettings(models.AppSettings settings) async {
-    // Forward through the dedicated overload so
-    // origin-filtering callers can stamp a command id without changing
-    // the public interface of SkotiqBackend.
-    return updateSettingsWithCommandId(settings, commandId: null);
-  }
-
-  /// Variant of [updateSettings] that stamps the
-  /// outgoing POST with an `X-Skotiq-Command-Id` header so the
-  /// `settings.changed` events that come back over the WS carry the
-  /// `correlatingCommandId` and the calling client can ignore its own
-  /// echo. Callers track the same id locally; un-paired clients can
-  /// continue to call [updateSettings] and accept the echo as a no-op
-  /// (the diff against in-memory state will already be empty).
-  Future<void> updateSettingsWithCommandId(
-    models.AppSettings settings, {
-    required String? commandId,
-  }) async {
-    final extraHeaders = commandId == null
-        ? null
-        : <String, String>{'X-Skotiq-Command-Id': commandId};
-    await _post(
-      ProfileApi.updateSettings,
-      body: {'settings': settings.toJson()},
-      headers: extraHeaders,
-    );
-  }
-
-  @override
   Future<models.ObserverLocation?> getLocation() async {
     final json = await _get(ProfileApi.getLocation);
     if (json['location'] == null) return null;
