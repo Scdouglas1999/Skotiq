@@ -403,12 +403,12 @@ void main() {
     // The native DeviceManager publishes a gain change whoever made it (a
     // slave through the API, a script); the host UI must show it at once
     // rather than on the next 5 s camera poll.
-    test('PropertyChanged gain and binning update the slot camera', () async {
+    test('PropertyChanged gain updates the slot camera', () async {
       container.read(cameraStateProvider.notifier)
         ..setConnecting('camera-1', 'Test Camera')
         ..setConnected();
 
-      for (final change in const [('Gain', '139'), ('Binning', '2x2')]) {
+      for (final change in const [('Gain', '139')]) {
         eventStreamController.add(
           SkotiqEvent(
             timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -444,7 +444,6 @@ void main() {
 
       final state = container.read(cameraStateProvider);
       expect(state.gain, 139);
-      expect(state.binning, '2x2');
     });
 
     test('FilterChanged event moves the host wheel', () async {

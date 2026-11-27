@@ -1,0 +1,22 @@
+{
+  "CALIBRATOR": "Calibrator",
+  "COVER": "Cover",
+  "DOME_ABORT": "AbortSlew",
+  "DOME_HOME": "FindHome",
+  "DOME_PARK": "Park",
+  "DOME_SHUTTER": "Shutter",
+  "DOME_SLAVED": "Slaved",
+  "DOME_SLEW": "SlewToAzimuth",
+  "FILTER_NAMES": "FilterNames",
+  "GAIN": "Gain",
+  "MOUNT_ABORT": "AbortSlew",
+  "MOUNT_SLEW_ALT_AZ": "SlewToAltAz",
+  "MOUNT_SYNCED": "Synced",
+  "OFFSET": "Offset",
+  "READOUT_MODE": "ReadoutMode",
+  "ROTATOR_POSITION": "Position",
+  "ROTATOR_REVERSE": "Reverse",
+  "SWITCH_STATE": "SwitchState",
+  "SWITCH_VALUE": "SwitchValue",
+  "UNVERIFIED": "Unverified"
+}
