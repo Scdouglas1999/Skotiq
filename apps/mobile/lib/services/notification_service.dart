@@ -290,6 +290,19 @@ class MobileNotificationService implements MobileNotificationSink {
   static final Map<String, int> _categoryNotificationIds = {
     NotificationCategory.sequenceCompleted.storageKey: _sequenceCompleteId,
     NotificationCategory.sequenceFailed.storageKey: _sequenceFailedId,
+    NotificationCategory.recoveryGaveUp.storageKey: _sequenceFailedId,
+    NotificationCategory.meridianFlipPerformed.storageKey: _meridianFlipId,
+    NotificationCategory.diskSpaceLow.storageKey: _lowDiskSpaceId,
+    NotificationCategory.weatherUnsafe.storageKey: _safetyId,
+    NotificationCategory.mountFault.storageKey: _mountFaultId,
+    NotificationCategory.guidingLost.storageKey: _guidingLostId,
+    NotificationCategory.guidingRecovered.storageKey: _guidingLostId,
+    NotificationCategory.exposureFailed.storageKey: _exposureFailedId,
+    NotificationCategory.autofocusFailed.storageKey: _autofocusFailedId,
+    NotificationCategory.autofocusContinued.storageKey: _autofocusFailedId,
+    NotificationCategory.equipmentDisconnected.storageKey:
+        _equipmentDisconnectedId,
+    NotificationCategory.targetCompleted.storageKey: _targetCompletedId,
   };
 
   /// Auto-incrementing ID for push notifications from the desktop
