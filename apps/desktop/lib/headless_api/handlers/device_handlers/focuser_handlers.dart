@@ -77,7 +77,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     );
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'focuser.move-to',
+      operation: CommandOperation.focuserMoveTo,
       deviceId: deviceId,
     );
     try {
@@ -126,7 +126,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     }
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'focuser.move-relative',
+      operation: CommandOperation.focuserMoveRelative,
       deviceId: deviceId,
     );
     try {
@@ -190,7 +190,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     // even in the job-model path because the event correlator's matching is
     // independent of the job's own jobId — the two evolve in parallel.
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'focuser.autofocus.start',
+      operation: CommandOperation.focuserAutofocusStart,
       deviceId: deviceId,
     );
 
@@ -285,7 +285,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     final configJson = _requireCalibrationConfig(payload);
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'focuser.backlash-calibration.start',
+      operation: CommandOperation.focuserBacklashCalibrationStart,
       deviceId: deviceId,
     );
 
@@ -340,7 +340,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
   ) async {
     _logInfo('[API] POST /api/focuser/backlash-calibration/cancel');
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'focuser.backlash-calibration.cancel',
+      operation: CommandOperation.focuserBacklashCalibrationCancel,
     );
     final activeJobs = jobManager
         .list(operation: JobOperation.backlashCalibration.wire)
@@ -413,7 +413,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
   Future<Response> handleAutofocusCancel(Request request) async {
     _logInfo('[API] POST /api/focuser/autofocus/cancel');
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'focuser.autofocus.cancel',
+      operation: CommandOperation.focuserAutofocusCancel,
     );
     final activeJobs = jobManager
         .list(operation: JobOperation.autofocus.wire)

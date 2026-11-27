@@ -17,7 +17,7 @@ void main() {
     test('returns a non-empty UUID v4 string', () {
       final correlator = CommandCorrelator();
       final id = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
@@ -32,25 +32,23 @@ void main() {
     test('two consecutive calls return distinct UUIDs', () {
       final correlator = CommandCorrelator();
       final id1 = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
       final id2 = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
       expect(id1, isNot(equals(id2)));
     });
 
-    test('returns id even for an unknown operation kind', () {
-      // The impl explicitly documents that unknown operations are accepted —
-      // the id is returned to the caller but stampEvent will never match
-      // them because there's no completion-event mapping. We pin both
-      // halves of that contract here.
+    test('returns id for an operation no event completes', () {
+      // The id is returned to the caller, and stampEvent never matches it
+      // because no completion event names the operation.
       final correlator = CommandCorrelator();
       final id = correlator.beginCommand(
-        operation: 'some.unknown.op',
+        operation: CommandOperation.mountHome,
         deviceId: 'device:0',
       );
       expect(id, isNotEmpty);
@@ -59,7 +57,10 @@ void main() {
       // Stamping an unrelated, real completion event on a different op
       // does not consume our pending command.
       expect(
-        correlator.stampEvent(operation: 'mount.slew', deviceId: 'mount:0'),
+        correlator.stampEvent(
+          operation: CommandOperation.mountSlew,
+          deviceId: 'mount:0',
+        ),
         isNull,
       );
       // And the original pending command is still in the table.
@@ -69,9 +70,18 @@ void main() {
     test('pendingCount tracks outstanding commands', () {
       final correlator = CommandCorrelator();
       expect(correlator.pendingCount, 0);
-      correlator.beginCommand(operation: 'mount.slew', deviceId: 'mount:0');
-      correlator.beginCommand(operation: 'mount.slew', deviceId: 'mount:0');
-      correlator.beginCommand(operation: 'camera.expose', deviceId: 'cam:0');
+      correlator.beginCommand(
+        operation: CommandOperation.mountSlew,
+        deviceId: 'mount:0',
+      );
+      correlator.beginCommand(
+        operation: CommandOperation.mountSlew,
+        deviceId: 'mount:0',
+      );
+      correlator.beginCommand(
+        operation: CommandOperation.cameraExpose,
+        deviceId: 'cam:0',
+      );
       expect(correlator.pendingCount, 3);
     });
   });
@@ -80,12 +90,12 @@ void main() {
     test('matches by (operation, deviceId) and returns the registered id', () {
       final correlator = CommandCorrelator();
       final commandId = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
       final stamped = correlator.stampEvent(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
@@ -96,7 +106,7 @@ void main() {
       final correlator = CommandCorrelator();
 
       final stamped = correlator.stampEvent(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
@@ -112,20 +122,26 @@ void main() {
       // both the doc-comment and the brief.
       final correlator = CommandCorrelator();
       final first = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
       final second = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
       expect(
-        correlator.stampEvent(operation: 'mount.slew', deviceId: 'mount:0'),
+        correlator.stampEvent(
+          operation: CommandOperation.mountSlew,
+          deviceId: 'mount:0',
+        ),
         equals(first),
       );
       expect(
-        correlator.stampEvent(operation: 'mount.slew', deviceId: 'mount:0'),
+        correlator.stampEvent(
+          operation: CommandOperation.mountSlew,
+          deviceId: 'mount:0',
+        ),
         equals(second),
       );
     });
@@ -133,21 +149,33 @@ void main() {
     test('does not match across different (operation, deviceId) pairs '
         '(operation-or-device asymmetry)', () {
       final correlator = CommandCorrelator();
-      correlator.beginCommand(operation: 'camera.expose', deviceId: 'camera:0');
+      correlator.beginCommand(
+        operation: CommandOperation.cameraExpose,
+        deviceId: 'camera:0',
+      );
 
       // Same op, different device — no match.
       expect(
-        correlator.stampEvent(operation: 'camera.expose', deviceId: 'camera:1'),
+        correlator.stampEvent(
+          operation: CommandOperation.cameraExpose,
+          deviceId: 'camera:1',
+        ),
         isNull,
       );
       // Different op, same device — no match.
       expect(
-        correlator.stampEvent(operation: 'mount.slew', deviceId: 'camera:0'),
+        correlator.stampEvent(
+          operation: CommandOperation.mountSlew,
+          deviceId: 'camera:0',
+        ),
         isNull,
       );
       // Completely different — no match.
       expect(
-        correlator.stampEvent(operation: 'mount.slew', deviceId: 'mount:0'),
+        correlator.stampEvent(
+          operation: CommandOperation.mountSlew,
+          deviceId: 'mount:0',
+        ),
         isNull,
       );
 
@@ -158,12 +186,12 @@ void main() {
     test('after a successful match, the command is consumed', () {
       final correlator = CommandCorrelator();
       final commandId = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
       final first = correlator.stampEvent(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
       expect(first, equals(commandId));
@@ -171,7 +199,7 @@ void main() {
       // A second event for the same key must NOT keep stamping the
       // already-matched id. With no other pending commands, it returns null.
       final second = correlator.stampEvent(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
       expect(second, isNull);
@@ -183,16 +211,24 @@ void main() {
       // suffix (see _key in the impl). We pin that so a future "tighten
       // device-id semantics" change must update the test deliberately.
       final correlator = CommandCorrelator();
-      final id = correlator.beginCommand(operation: 'sequencer.start');
+      final id = correlator.beginCommand(
+        operation: CommandOperation.sequencerStart,
+      );
 
-      expect(correlator.stampEvent(operation: 'sequencer.start'), equals(id));
+      expect(
+        correlator.stampEvent(operation: CommandOperation.sequencerStart),
+        equals(id),
+      );
 
       final id2 = correlator.beginCommand(
-        operation: 'sequencer.start',
+        operation: CommandOperation.sequencerStart,
         deviceId: '',
       );
       expect(
-        correlator.stampEvent(operation: 'sequencer.start', deviceId: ''),
+        correlator.stampEvent(
+          operation: CommandOperation.sequencerStart,
+          deviceId: '',
+        ),
         equals(id2),
       );
     });
@@ -207,16 +243,16 @@ void main() {
         now: () => now,
       );
       correlator.beginCommand(
-        operation: 'plate-solve',
-        deviceId: 'platesolver:0',
+        operation: CommandOperation.mountHome,
+        deviceId: 'mount:0',
       );
 
       // Advance the clock past TTL.
       now = now.add(const Duration(minutes: 2));
 
       final stamped = correlator.stampEvent(
-        operation: 'plate-solve',
-        deviceId: 'platesolver:0',
+        operation: CommandOperation.mountHome,
+        deviceId: 'mount:0',
       );
       expect(stamped, isNull);
     });
@@ -227,9 +263,18 @@ void main() {
         ttl: const Duration(minutes: 1),
         now: () => now,
       );
-      correlator.beginCommand(operation: 'mount.slew', deviceId: 'mount:0');
-      correlator.beginCommand(operation: 'mount.slew', deviceId: 'mount:0');
-      correlator.beginCommand(operation: 'camera.expose', deviceId: 'cam:0');
+      correlator.beginCommand(
+        operation: CommandOperation.mountSlew,
+        deviceId: 'mount:0',
+      );
+      correlator.beginCommand(
+        operation: CommandOperation.mountSlew,
+        deviceId: 'mount:0',
+      );
+      correlator.beginCommand(
+        operation: CommandOperation.cameraExpose,
+        deviceId: 'cam:0',
+      );
       expect(correlator.pendingCount, 3);
 
       now = now.add(const Duration(minutes: 2));
@@ -243,7 +288,10 @@ void main() {
         ttl: const Duration(minutes: 30),
         now: () => now,
       );
-      correlator.beginCommand(operation: 'mount.slew', deviceId: 'mount:0');
+      correlator.beginCommand(
+        operation: CommandOperation.mountSlew,
+        deviceId: 'mount:0',
+      );
 
       // Advance by half the TTL: entry should still be live.
       now = now.add(const Duration(minutes: 15));
@@ -251,7 +299,7 @@ void main() {
       expect(correlator.pendingCount, 1);
 
       final stamped = correlator.stampEvent(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
       expect(stamped, isNotNull);
@@ -265,7 +313,7 @@ void main() {
         now: () => now,
       );
       final stale = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
@@ -274,13 +322,13 @@ void main() {
 
       // Register a fresh command at the new clock.
       final fresh = correlator.beginCommand(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
 
       // stampEvent should skip the stale entry and consume the fresh one.
       final stamped = correlator.stampEvent(
-        operation: 'mount.slew',
+        operation: CommandOperation.mountSlew,
         deviceId: 'mount:0',
       );
       expect(stamped, equals(fresh));
@@ -291,14 +339,23 @@ void main() {
   group('CommandCorrelator.clear', () {
     test('clear drops every pending command', () {
       final correlator = CommandCorrelator();
-      correlator.beginCommand(operation: 'mount.slew', deviceId: 'mount:0');
-      correlator.beginCommand(operation: 'camera.expose', deviceId: 'cam:0');
+      correlator.beginCommand(
+        operation: CommandOperation.mountSlew,
+        deviceId: 'mount:0',
+      );
+      correlator.beginCommand(
+        operation: CommandOperation.cameraExpose,
+        deviceId: 'cam:0',
+      );
       expect(correlator.pendingCount, 2);
 
       correlator.clear();
       expect(correlator.pendingCount, 0);
       expect(
-        correlator.stampEvent(operation: 'mount.slew', deviceId: 'mount:0'),
+        correlator.stampEvent(
+          operation: CommandOperation.mountSlew,
+          deviceId: 'mount:0',
+        ),
         isNull,
       );
     });
@@ -334,16 +391,16 @@ void main() {
         sequencer(
           const sk.SequencerEvent.started(sequenceName: 'n'),
         )?.operations,
-        contains('sequencer.start'),
+        contains(CommandOperation.sequencerStart),
       );
       expect(sequencer(const sk.SequencerEvent.paused())?.operations, [
-        'sequencer.pause',
+        CommandOperation.sequencerPause,
       ]);
       expect(sequencer(const sk.SequencerEvent.resumed())?.operations, [
-        'sequencer.resume',
+        CommandOperation.sequencerResume,
       ]);
       expect(sequencer(const sk.SequencerEvent.stopped())?.operations, [
-        'sequencer.stop',
+        CommandOperation.sequencerStop,
       ]);
     });
 
@@ -372,7 +429,7 @@ void main() {
           ),
         ),
       );
-      expect(completion?.operations.first, 'mount.slew');
+      expect(completion?.operations.first, CommandOperation.mountSlew);
       expect(completion?.deviceId, 'sim_mount_1');
     });
 

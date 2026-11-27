@@ -85,7 +85,7 @@ extension _SequencerSecondaryRig on SequencerHandlers {
     final offset = optionalInt(decoded, 'offset');
     final rigLabel = (decoded['rigLabel'] as String?) ?? 'Secondary';
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'sequencer.secondaryRig.start',
+      operation: CommandOperation.sequencerSecondaryRigStart,
     );
     await container
         .read(secondaryRigDriveProvider)
@@ -128,7 +128,7 @@ extension _SequencerSecondaryRig on SequencerHandlers {
   Future<Response> _handleSecondaryRigStop(Request request) async {
     _logInfo('[API] POST /api/sequencer/secondary-rig/stop');
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'sequencer.secondaryRig.stop',
+      operation: CommandOperation.sequencerSecondaryRigStop,
     );
     await container.read(secondaryRigDriveProvider).stop();
     return jsonOk({

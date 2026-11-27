@@ -266,7 +266,7 @@ extension CameraDeviceHandlers on DeviceHandlers {
     // backend.cameraStartExposure` (rare but possible on fast cameras) can
     // still be correlated.
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'camera.expose',
+      operation: CommandOperation.cameraExpose,
       deviceId: deviceId,
     );
 
@@ -386,7 +386,7 @@ extension CameraDeviceHandlers on DeviceHandlers {
     }
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'camera.abort',
+      operation: CommandOperation.cameraAbort,
       deviceId: deviceId,
     );
 

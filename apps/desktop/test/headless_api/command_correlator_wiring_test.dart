@@ -129,7 +129,7 @@ void main() {
         ),
       );
       final operation = completion?.operations.first;
-      expect(operation, 'sequencer.start');
+      expect(operation, CommandOperation.sequencerStart);
 
       final stamped = correlator.stampEvent(operation: operation!);
       expect(

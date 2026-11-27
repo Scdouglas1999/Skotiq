@@ -291,7 +291,7 @@ extension _SequencerLifecycle on SequencerHandlers {
           true;
     }
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'sequencer.start',
+      operation: CommandOperation.sequencerStart,
     );
     // Editor sequences use the Dart executor and lifecycle hooks. Headless
     // sequences are validated by handleSequencerLoad before entering the native
@@ -460,7 +460,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     }
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'sequencer.stop',
+      operation: CommandOperation.sequencerStop,
     );
     final executor = container.read(sequenceExecutorProvider);
     final stopped = executor.stop(preserveCheckpoint: preserveCheckpoint);
@@ -553,7 +553,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     _logInfo('[API] POST /api/sequencer/pause');
     await _requireRunInFlight('pause');
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'sequencer.pause',
+      operation: CommandOperation.sequencerPause,
     );
     final backend = container.read(sequencerBackendProvider);
     await backend.sequencerPause();
@@ -573,7 +573,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     _logInfo('[API] POST /api/sequencer/resume');
     await _requireRunInFlight('resume');
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'sequencer.resume',
+      operation: CommandOperation.sequencerResume,
     );
     final backend = container.read(sequencerBackendProvider);
     await backend.sequencerResume();
@@ -593,7 +593,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     _logInfo('[API] POST /api/sequencer/skip');
     await _requireRunInFlight('skip');
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'sequencer.skip',
+      operation: CommandOperation.sequencerSkip,
     );
     final backend = container.read(sequencerBackendProvider);
     await backend.sequencerSkip();
@@ -780,7 +780,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     }
 
     final commandId = commandCorrelator?.beginCommand(
-      operation: 'sequencer.load-and-start',
+      operation: CommandOperation.sequencerLoadAndStart,
     );
     try {
       await container.read(sequenceExecutorProvider).start();
