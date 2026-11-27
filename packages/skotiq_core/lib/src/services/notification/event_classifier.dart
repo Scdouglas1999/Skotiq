@@ -12,6 +12,7 @@
 import 'dart:convert';
 
 import '../../backend/bridge_event_codec.dart';
+import '../../backend/bridge_event_union.dart' as typed_union;
 import '../../backend/bridge_events.dart' as typed;
 import '../../models/backend/event_types.dart';
 import '../../errors/error_text.dart';
@@ -223,6 +224,14 @@ class NotificationEventClassifier {
       severity: severity,
     );
   }
+
+  /// The category [event] is told under by its kind and severity, without
+  /// the classifier's per-event state, or null when no category tells it.
+  static NotificationCategory? categoryOf(typed_union.SkotiqEvent event) =>
+      _categoryAndContext(
+        event.payload,
+        EventSeverity.values.byName(event.severity.name),
+      )?.$1;
 
   static bool _isDecisionRow(typed.EventPayload payload) =>
       payload is typed.EventPayload_Sequencer &&

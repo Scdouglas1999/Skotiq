@@ -799,10 +799,10 @@ const _expected = <String, List<String>>{
   ],
   'hostGui equipmentCritical defaults': [
     'toast error Equipment disconnected',
-    'push Critical · Equipment [Device error]',
+    'push Critical · Equipment [equipmentDisconnected]',
   ],
   'hostGui equipmentCritical rowOff': [
-    'push Critical · Equipment [Device error]',
+    'push Critical · Equipment [equipmentDisconnected]',
   ],
   'hostGui mountSlewIdle defaults': [
     'toast success Mount',
@@ -927,10 +927,10 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon equipmentCritical defaults': [
     'toast error Equipment disconnected',
-    'push Critical · Equipment [Device error]',
+    'push Critical · Equipment [equipmentDisconnected]',
   ],
   'hostDaemon equipmentCritical rowOff': [
-    'push Critical · Equipment [Device error]',
+    'push Critical · Equipment [equipmentDisconnected]',
   ],
   'hostDaemon mountSlewIdle defaults': [
     'toast success Mount',

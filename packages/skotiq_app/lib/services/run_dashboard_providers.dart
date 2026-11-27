@@ -1389,7 +1389,9 @@ final runCriticalAlertPushProvider = Provider<void>((ref) {
     router.routeCriticalPush(
       title: alert.title,
       body: alert.detail,
-      eventType: _routerCategoryOf(alert.event)?.storageKey ??
+      eventType: (_routerCategoryOf(alert.event) ??
+                  NotificationEventClassifier.categoryOf(alert.event))
+              ?.storageKey ??
           sk_events.skotiqEventDisplayTitle(alert.event),
       eventCategory: _bridgeCategoryToCore(alert.event.category),
     );
