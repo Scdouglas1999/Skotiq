@@ -112,6 +112,7 @@ Future<_Harness> _pumpPanel(
   String? destination,
   bool failSave = false,
   bool onHost = false,
+  bool nativeLibrary = true,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(420, 1600);
@@ -127,6 +128,7 @@ Future<_Harness> _pumpPanel(
       inMemoryDatabaseOverride(),
       isRemoteModeProvider.overrideWithValue(false),
       connectedCameraIdProvider.overrideWithValue(null),
+      savedFrameDecodesOnDeviceProvider.overrideWithValue(nativeLibrary),
       stackingMasterDestinationPickerProvider.overrideWithValue(
         (suggestedName) async {
           _log.add('pick:$suggestedName');
@@ -309,6 +311,23 @@ void main() {
     final picked = _log.firstWhere((e) => e.startsWith('pick:'));
     expect(picked, endsWith('.png'));
     expect(harness.service.saved, isEmpty);
+  });
+
+  testWidgets(
+      'a device without the native library is not offered a master it '
+      'cannot write', (tester) async {
+    await _pumpPanel(tester, onHost: true, nativeLibrary: false);
+
+    expect(
+      find.byKey(const ValueKey('stacking_panel_save_master_btn')),
+      findsNothing,
+    );
+    await tester.tap(find.text('Stop'));
+    await tester.pumpAndSettle();
+    expect(find.text('Save master'), findsNothing);
+    expect(find.text('Discard'), findsOneWidget);
+    expect(find.textContaining('This device cannot write the master'),
+        findsOneWidget);
   });
 
   testWidgets('a canceled destination leaves the stack running',
