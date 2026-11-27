@@ -285,6 +285,13 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _mountFaultId = 117;
   static const int _hostJobFailedId = 118;
 
+  /// The id each notification category is shown under, keyed by the
+  /// category's storage key, which is the `eventType` of the host's push.
+  static final Map<String, int> _categoryNotificationIds = {
+    NotificationCategory.sequenceCompleted.storageKey: _sequenceCompleteId,
+    NotificationCategory.sequenceFailed.storageKey: _sequenceFailedId,
+  };
+
   /// Auto-incrementing ID for push notifications from the desktop
   int _nextPushNotificationId = 200;
 
@@ -817,14 +824,12 @@ class MobileNotificationService implements MobileNotificationSink {
         androidPriority = Priority.high;
     }
 
-    // The phone tells a finished or failed run itself, under a fixed id. The
-    // host's push for the same run takes that id, so the two replace each
-    // other instead of showing the run twice.
+    // A push about a happening the phone also tells itself takes the id the
+    // phone tells it under, so the two replace each other in either order.
     final int id;
-    if (eventType == NotificationCategory.sequenceCompleted.storageKey) {
-      id = _sequenceCompleteId;
-    } else if (eventType == NotificationCategory.sequenceFailed.storageKey) {
-      id = _sequenceFailedId;
+    final categoryId = _categoryNotificationIds[eventType];
+    if (categoryId != null) {
+      id = categoryId;
     } else {
       id = _nextPushNotificationId++;
       // Wrap around to avoid overflow, keeping it above the reserved IDs
