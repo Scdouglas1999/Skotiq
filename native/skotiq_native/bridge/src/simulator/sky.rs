@@ -13,9 +13,9 @@
 //! path.
 //!
 //! This module reads ASTAP's OWN star database — the `catalog_path` of the
-//! persisted plate-solver preference, i.e. the very catalogue the solver will
-//! match against — so the simulated sky and the solver cannot disagree by
-//! construction. `tools/sim_fidelity/plate_solve_probe.py` is the reference
+//! persisted plate-solver preference, else the catalogue detection finds,
+//! i.e. the very catalogue the solver will match against — so the simulated
+//! sky and the solver cannot disagree by construction. `tools/sim_fidelity/plate_solve_probe.py` is the reference
 //! implementation this is a port of, and its measured result on ASTAP's D05 set
 //! is a solved centre inside one pixel at 1000mm, 400mm, 200mm and 135mm.
 //!
@@ -365,8 +365,10 @@ pub fn index_for(dir: &Path) -> Option<Arc<SkyIndex>> {
     }
 }
 
-/// The index for the catalogue the plate solver is configured to use, or `None`
-/// when no catalogue is configured or storage is not up yet.
+/// The index for the catalogue the plate solver is configured to use, or with
+/// none configured the one detection finds (the catalogue Settings → Plate
+/// Solving reports as detected); `None` when there is neither or storage is
+/// not up yet.
 ///
 /// Reading the SAME preference the solver reads is the point: it makes the
 /// simulated sky and the solver's database the same data, so a solve can only
@@ -379,10 +381,12 @@ pub fn index_for(dir: &Path) -> Option<Arc<SkyIndex>> {
 /// part, the index, is what [`index_for`] caches.
 pub fn configured_index() -> Option<Arc<SkyIndex>> {
     let pref = crate::state::get_platesolver_preference().ok()?;
-    if pref.catalog_path.is_empty() {
-        return None;
-    }
-    index_for(Path::new(&pref.catalog_path))
+    let dir = if pref.catalog_path.is_empty() {
+        skotiq_platesolve::detect_astap_catalog(None, None)?.path
+    } else {
+        PathBuf::from(&pref.catalog_path)
+    };
+    index_for(&dir)
 }
 
 #[cfg(test)]
