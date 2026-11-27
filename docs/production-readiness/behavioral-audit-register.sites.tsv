@@ -1826,7 +1826,6 @@ packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_e
 packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_exposure_rich.dart	_effectiveGain	literal_null_coalesce	1	V0121	return profile?.defaultGain ?? widget.node.gain ?? 0;
 packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_exposure_rich.dart	_effectiveOffset	literal_null_coalesce	1	V0121	return profile?.defaultOffset ?? widget.node.offset ?? 0;
 packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_exposure_rich.dart	build	literal_null_coalesce	1	V0121	value: (node.ditherEvery ?? 0).toDouble(),
-packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_flow_properties.dart	DateTime.now	guessed_now_timestamp	1	V0121	node.repeatUntil ?? DateTime.now()),
 packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_flow_properties.dart	build	literal_null_coalesce	1	O7-06	value: node.triggerThreshold ?? 0,
 packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_motion_flip_and_polar.dart	build	literal_null_coalesce	1	V0800	value: (node.gain ?? 0).toDouble(),
 packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_motion_flip_and_polar.dart	build	literal_null_coalesce	1	V0800	value: (node.offset ?? 0).toDouble(),
@@ -1894,8 +1893,6 @@ packages/skotiq_app/lib/screens/sequencer/widgets/smart_night_dialog/plan_helper
 packages/skotiq_app/lib/screens/sequencer/widgets/smart_night_dialog/step_views.dart	_buildEquipmentStep	literal_null_coalesce	1	V0121	'f/${(profile.calculatedFocalRatio ?? 0).toStringAsFixed(1)})',
 packages/skotiq_app/lib/screens/sequencer/widgets/target_header_card.dart	_buildConstraintsRow	literal_null_coalesce	1	O7-06	if ((node.minAltitude ?? 0) > 0 && node.maxAltitude != null)
 packages/skotiq_app/lib/screens/sequencer/widgets/target_header_card.dart	_buildConstraintsRow	literal_null_coalesce	1	O7-06	if ((node.minAltitude ?? 0) > 0)
-packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties.dart	DateTime.now	guessed_now_timestamp	1	V0002	node.endBefore ?? DateTime.now()),
-packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties.dart	DateTime.now	guessed_now_timestamp	1	V0002	node.startAfter ?? DateTime.now()),
 packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties.dart	build	literal_null_coalesce	1	O7-06	value: node.minAltitude ?? 0,
 packages/skotiq_app/lib/screens/sequencer/widgets/target_node_properties.dart	build	literal_null_coalesce	1	V0002	value: node.rotation ?? 0,
 packages/skotiq_app/lib/screens/sequencer/widgets/target_queue_panel.dart	build	guessed_now_timestamp	1	V0088	final now = tickAsync.valueOrNull ?? DateTime.now();
@@ -2100,9 +2097,6 @@ packages/skotiq_bridge/lib/src/event/sequencer.freezed.dart	-	nonconvergence_bes
 packages/skotiq_bridge/lib/src/event_display.dart	_filterSlot	literal_null_coalesce	1	V0906	final trimmed = name?.trim() ?? '';
 packages/skotiq_bridge/lib/src/event_display.dart	_guidingDetail	literal_null_coalesce	1	V0872	GuidingEvent_StopReason(reason: final r) => r ?? '',
 packages/skotiq_bridge/lib/src/event_wire/wire_values.dart	wireDouble	literal_null_coalesce	1	R9-100	wireOptDouble(data, key) ?? 0.0;
-packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeSettings	literal_null_coalesce	1	V0121	elevation: loc?.elevation ?? 0.0,
-packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeSettings	literal_null_coalesce	1	V0121	latitude: loc?.latitude ?? 0.0,
-packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeSettings	literal_null_coalesce	1	V0121	longitude: loc?.longitude ?? 0.0,
 packages/skotiq_core/lib/src/backend/ffi_backend/depthlock_operations.dart	createDepthLockGoal	literal_null_coalesce	1	V0768	goalId: goalId ?? '',
 packages/skotiq_core/lib/src/backend/ffi_backend/mount_guiding_operations.dart	isPhd2Running	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/backend/ffi_backend/native_runtime.dart	_NativeProcessState	simulated_runtime_path	1	U2-02	/// Dart-side copy of the flag `sequencerSetSimulationMode` last pushed.
@@ -3526,7 +3520,6 @@ packages/skotiq_core/lib/src/services/weather/providers/rainviewer_radar_provide
 packages/skotiq_core/lib/src/services/weather/radar_tile_decoder.dart	decodePng	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/weather/weather_alert_service.dart	generateAlertMessage	literal_null_coalesce	2	V0035	final etaMinutes = eta?.inMinutes ?? 0;
 packages/skotiq_core/lib/src/settings/setting.dart	decode	empty_catch	3	U2-05	} catch (_) {
-packages/skotiq_core/lib/src/utils/aligned_ticker.dart	delayToNextBoundary	guessed_now_timestamp	1	V0721	final nowUs = (now ?? DateTime.now()).toUtc().microsecondsSinceEpoch;
 packages/skotiq_core/lib/src/utils/export_target.dart	exportInitialDirectory	empty_catch	1	V0904	} catch (_) {
 packages/skotiq_core/lib/src/utils/legacy_install_migration.dart	migrateLegacyInstall	literal_null_coalesce	1	V0805	final relocated = (env[skotiqDataDirEnv] ?? '').trim().isNotEmpty;
 packages/skotiq_core/lib/src/utils/legacy_install_migration.dart	migrateLegacyInstall	literal_null_coalesce	1	V0805	if ((env[legacyVar] ?? '').trim().isNotEmpty) {
@@ -3541,7 +3534,6 @@ packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final majorPx = (dso.sizeArcMin ?? 0) / 60 * scale;
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final minorPx = (dso.minorAxisArcMin ?? dso.sizeArcMin ?? 0) / 60 * scale;
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final paRad = -((dso.positionAngle ?? 0) * SkyCanvasPainter._deg2rad);
-packages/skotiq_planetarium/lib/src/util/aligned_ticker.dart	delayToNextBoundary	guessed_now_timestamp	1	V0722	final nowUs = (now ?? DateTime.now()).toUtc().microsecondsSinceEpoch;
 packages/skotiq_planetarium/lib/src/widgets/fov_presets.dart	fromJson	literal_null_coalesce	1	V0121	color: Color((json['color'] as num?)?.toInt() ?? 0xFF00E676),
 packages/skotiq_planetarium/lib/src/widgets/fov_presets.dart	fromJson	literal_null_coalesce	1	V0121	positionAngleDeg: (json['positionAngleDeg'] as num?)?.toDouble() ?? 0,
 packages/skotiq_planetarium/lib/src/widgets/object_details_panel/header_sections.dart	_thumbnailFovDeg	literal_null_coalesce	1	V0294	final largestArcMin = math.max(majorArcMin ?? 0.0, minorArcMin ?? 0.0);
