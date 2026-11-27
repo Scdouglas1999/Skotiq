@@ -444,6 +444,23 @@ final List<_Happening> _happenings = [
     label: 'equipmentWarning',
   ),
   _Happening(
+    NotificationCategory.equipmentDisconnected,
+    (cell) => [
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.error(
+            deviceType: 'Mount',
+            deviceId: 'sim_mount_$cell',
+            message: 'Mount stopped answering ($cell)',
+          ),
+        ),
+        sk.EventSeverity.critical,
+      ),
+    ],
+    label: 'equipmentCritical',
+  ),
+  _Happening(
     NotificationCategory.mountMoved,
     (_) => [
       _mount(const sk.EquipmentEvent.mountSlewCompleted(
@@ -780,6 +797,13 @@ const _expected = <String, List<String>>{
   'hostGui equipmentWarning routingOff': [
     'toast warning Camera Warning',
   ],
+  'hostGui equipmentCritical defaults': [
+    'toast error Equipment disconnected',
+    'push Critical · Equipment [Device error]',
+  ],
+  'hostGui equipmentCritical rowOff': [
+    'push Critical · Equipment [Device error]',
+  ],
   'hostGui mountSlewIdle defaults': [
     'toast success Mount',
   ],
@@ -900,6 +924,13 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon equipmentConnectFailed defaults': [
     'toast error Camera Error',
+  ],
+  'hostDaemon equipmentCritical defaults': [
+    'toast error Equipment disconnected',
+    'push Critical · Equipment [Device error]',
+  ],
+  'hostDaemon equipmentCritical rowOff': [
+    'push Critical · Equipment [Device error]',
   ],
   'hostDaemon mountSlewIdle defaults': [
     'toast success Mount',
@@ -1149,6 +1180,15 @@ const _expected = <String, List<String>>{
   ],
   'linkedDesktop equipmentWarning routingOff': [
     'toast warning Camera Warning',
+  ],
+  'linkedDesktop equipmentCritical defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentCritical rowOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentCritical routingOff': [
+    'toast error Equipment disconnected',
   ],
   'linkedDesktop mountSlewIdle defaults': [
     'toast success Mount',
@@ -1422,6 +1462,15 @@ const _expected = <String, List<String>>{
   ],
   'linkedPhone equipmentWarning routingOff': [
     'toast warning Camera Warning',
+  ],
+  'linkedPhone equipmentCritical defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentCritical rowOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentCritical routingOff': [
+    'toast error Equipment disconnected',
   ],
   'linkedPhone mountSlewIdle defaults': [
     'toast success Mount',
