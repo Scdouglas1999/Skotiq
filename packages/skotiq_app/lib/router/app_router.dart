@@ -30,17 +30,22 @@ import '../app_frame.dart' show skotiqNavigatorObservers;
 import 'app_routes.dart';
 import 'query_word.dart';
 import 'page_transitions.dart';
+import 'place_bound_pages.dart';
 import 'route_not_found_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  late final GoRouter router;
+  final placeBound = PlaceBoundPages(
+    () => router.routeInformationProvider.value.uri.toString(),
+  );
+  router = GoRouter(
     initialLocation: AppRoute.tonight.path,
     observers: skotiqNavigatorObservers(),
     routes: [
       for (final route in _childrenOf(null, inShell: false)) _goRoute(route),
       ShellRoute(
         // Sheets and menus opened inside the shell use its navigator.
-        observers: skotiqNavigatorObservers(),
+        observers: [...skotiqNavigatorObservers(), placeBound],
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           for (final route in _childrenOf(null, inShell: true)) _goRoute(route),
@@ -52,6 +57,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       child: RouteNotFoundScreen(location: state.uri.toString()),
     ),
   );
+  placeBound.follow(router);
+  return router;
 });
 
 Iterable<AppRoute> _childrenOf(AppRoute? parent, {required bool inShell}) =>

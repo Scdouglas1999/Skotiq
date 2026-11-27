@@ -42,16 +42,16 @@ Widget _harness({
         (ref, targetId) async => existing,
       ),
       smartNightExposureContextProvider.overrideWith((ref) async => null),
+      effectiveFiltersProvider.overrideWithValue(availableFilters),
       if (wheelOnline)
         filterWheelStateProvider.overrideWith(_OnlineWheelWithNoSlots.new),
     ],
     child: MaterialApp(
       theme: SkotiqTheme.dark,
-      home: Scaffold(
+      home: const Scaffold(
         body: IntegrationGoalsEditor(
           targetId: 42,
           targetName: 'M92',
-          availableFilters: availableFilters,
         ),
       ),
     ),

@@ -150,4 +150,38 @@ void main() {
       );
     });
   });
+
+  group('scratch frames', () {
+    // Not a fixed folder in the system temp directory: every user and every
+    // instance on the machine shares that, so a second user cannot write it
+    // and two instances overwrite each other's live-view frame.
+    test('live under this instance\'s data root', () async {
+      final folder = await resolveSkotiqScratchFramesDirectory(
+        dataRoot: () => resolveSkotiqDataDirectory(
+          environment: {skotiqDataDirEnv: relocated.path},
+        ),
+      );
+
+      expect(p.isWithin(relocated.path, folder.path), isTrue);
+      expect(folder.existsSync(), isTrue);
+    });
+
+    test('the device backend saves none in the system temp directory', () {
+      final backend = Directory(p.join('lib', 'src', 'backend'));
+      final sources = [
+        File(p.join(backend.path, 'ffi_backend.dart')),
+        ...Directory(p.join(backend.path, 'ffi_backend'))
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.dart')),
+      ];
+      for (final source in sources) {
+        expect(
+          source.readAsStringSync(),
+          isNot(contains('Directory.systemTemp')),
+          reason: source.path,
+        );
+      }
+    });
+  });
 }

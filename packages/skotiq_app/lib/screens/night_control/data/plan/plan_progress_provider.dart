@@ -63,6 +63,10 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   // Frames count only once a run has taken them; before a run starts the
   // session list may still hold the previous one, and the true count is none.
   final done = <String, int>{for (final key in planned.keys) key: 0};
+  // The run's rows are those taken since it started; null counts every row
+  // of the session.
+  DateTime? rowsSince;
+  var continuesCheckpoint = false;
   if (phase.isRunLive || phase == NightRunPhase.finished) {
     final terminal = ref.watch(shownTerminalRunResultProvider);
     // A calibration run counts the session's light rows. A light run counts
@@ -72,52 +76,63 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     // continued in the interrupted night's session has them as rows too. A
     // linked client that did not continue a checkpoint itself counts every
     // row of the session: it may have joined after the run started.
-    final continuesCheckpoint =
-        ref.watch(framesDoneBeforeRunProvider).isNotEmpty ||
-            ref.watch(filterFramesDoneBeforeRunProvider).isNotEmpty;
+    continuesCheckpoint = ref.watch(framesDoneBeforeRunProvider).isNotEmpty ||
+        ref.watch(filterFramesDoneBeforeRunProvider).isNotEmpty;
     final sessionRows = terminal?.isCalibration == true ||
         (ref.watch(isRemoteModeProvider) && !continuesCheckpoint);
-    final startedAt = sessionRows ? null : ref.watch(runStartedAtProvider);
+    rowsSince = sessionRows ? null : ref.watch(runStartedAtProvider);
     for (final row in ref.watch(nightRunLightRowsProvider)) {
-      if (startedAt != null && row.capturedAt.isBefore(startedAt)) continue;
+      if (rowsSince != null && row.capturedAt.isBefore(rowsSince)) continue;
       final key = _filterKey(row.filter);
       done.update(key, (count) => count + 1, ifAbsent: () => 1);
     }
   }
 
   // A run continued from its checkpoint, ready or under way, already has the
-  // frames its steps took before it.
+  // frames its steps took before it, each as long as its step takes them.
+  final secsBefore = <String, double>{};
   if (phase.isRunLive ||
       phase == NightRunPhase.finished ||
       ref.watch(restoredCheckpointProvider) != null) {
     final before = ref.watch(framesDoneBeforeRunProvider);
     final beforeByFilter = ref.watch(filterFramesDoneBeforeRunProvider);
-    void add(String? filter, int frames) => done.update(
-          _filterKey(filter),
-          (count) => count + frames,
-          ifAbsent: () => frames,
-        );
+    // A filter the step no longer plans has frames and no known length.
+    void add(String? filter, int frames, double? exposureSecs) {
+      final key = _filterKey(filter);
+      done.update(key, (count) => count + frames, ifAbsent: () => frames);
+      if (exposureSecs == null) return;
+      final secs = frames * exposureSecs;
+      secsBefore.update(key, (sum) => sum + secs, ifAbsent: () => secs);
+    }
+
     for (final entry in tree.entries) {
       final node = entry.node;
       if (node is SmartExposureNode) {
         for (final MapEntry(key: filter, value: frames)
             in (beforeByFilter[node.id] ?? const <String, int>{}).entries) {
-          add(filter, frames);
+          final plan =
+              node.plans.where((p) => p.filterName == filter).firstOrNull;
+          add(filter, frames, plan?.durationSecs);
         }
         continue;
       }
       if (node is! ExposureNode || node.frameType != FrameType.light) continue;
       final frames = before[node.id];
-      if (frames != null) add(node.filter, frames);
+      if (frames != null) add(node.filter, frames, node.durationSecs);
     }
   }
 
   Duration secs(double s) => Duration(milliseconds: (s * 1000).round());
 
-  final acceptedSecs = <String, double>{};
+  // A run continued from its checkpoint counts what the checkpoint's frames
+  // integrated and its own rows on top, as its frame counts do; restored and
+  // not started, only the checkpoint's.
+  final acceptedSecs = <String, double>{...secsBefore};
   if (phase.isRunLive || phase == NightRunPhase.finished) {
+    final since = continuesCheckpoint ? rowsSince : null;
     for (final row in ref.watch(nightRunLightRowsProvider)) {
       if (!row.isAccepted) continue;
+      if (since != null && row.capturedAt.isBefore(since)) continue;
       acceptedSecs.update(
         _filterKey(row.filter),
         (sum) => sum + row.exposureDuration,

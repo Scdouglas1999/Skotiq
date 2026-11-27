@@ -11,16 +11,15 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
 
-/// The integration-goals editor for one target in a dialog, offering the
-/// active profile's filters. Plan > Projects and Analytics > Projects open it,
-/// so a goal set in one is the goal the other shows.
+/// The integration-goals editor for one target in a dialog. Plan > Projects
+/// and Analytics > Projects open it, so a goal set in one is the goal the
+/// other shows.
 Future<void> showIntegrationGoalsDialog(
   BuildContext context,
   WidgetRef ref, {
   required int targetId,
   required String targetName,
 }) {
-  final profile = ref.read(activeEquipmentProfileProvider);
   return showDialog<void>(
     context: context,
     builder: (_) => SkotiqDialog(
@@ -29,9 +28,6 @@ Future<void> showIntegrationGoalsDialog(
       child: IntegrationGoalsEditor(
         targetId: targetId,
         targetName: targetName,
-        availableFilters: profile != null
-            ? List<String>.from(profile.filterNames)
-            : const <String>[],
       ),
     ),
   );
@@ -48,13 +44,11 @@ Future<void> showIntegrationGoalsDialog(
 class IntegrationGoalsEditor extends ConsumerStatefulWidget {
   final int targetId;
   final String targetName;
-  final List<String> availableFilters;
 
   const IntegrationGoalsEditor({
     super.key,
     required this.targetId,
     required this.targetName,
-    required this.availableFilters,
   });
 
   @override
@@ -275,7 +269,10 @@ class _IntegrationGoalsEditorState
             .firstOrNull
             ?.goalIntegrationSecs ??
         0.0;
-    final wheelOnlineWithNoSlots = widget.availableFilters.isEmpty &&
+    // The filters the rig can select: the wheel's names, or the profile's
+    // when no wheel reports any.
+    final availableFilters = ref.watch(effectiveFiltersProvider);
+    final wheelOnlineWithNoSlots = availableFilters.isEmpty &&
         ref.watch(filterWheelStateProvider).connectionState ==
             DeviceConnectionState.connected;
 
@@ -361,7 +358,7 @@ class _IntegrationGoalsEditorState
                 ),
               const SizedBox(height: SkotiqTokens.spaceSm),
               _AddGoalRow(
-                availableFilters: widget.availableFilters,
+                availableFilters: availableFilters,
                 wheelOnlineWithNoSlots: wheelOnlineWithNoSlots,
                 existingFilters: progress.map((p) => p.goal.filter).toSet(),
                 exposureContext: exposureContext,

@@ -34,7 +34,6 @@ class _TargetDetail extends ConsumerWidget {
     final plan = row.target;
     final progress = plan.progress;
     final target = progress.target;
-    final profile = ref.watch(activeEquipmentProfileProvider);
     final muted = SkotiqTypography.bodySm.copyWith(color: colors.textMuted);
 
     final facts = [
@@ -139,9 +138,6 @@ class _TargetDetail extends ConsumerWidget {
                 IntegrationGoalsEditor(
                   targetId: target.id,
                   targetName: target.name,
-                  availableFilters: profile == null
-                      ? const <String>[]
-                      : List<String>.from(profile.filterNames),
                 ),
                 const _SectionGap(),
                 TargetConstraintsEditor(

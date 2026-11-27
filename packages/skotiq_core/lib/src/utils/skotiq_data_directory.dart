@@ -107,3 +107,11 @@ Future<Directory> resolveSkotiqDocumentsDirectory({
 Future<Directory> resolveSkotiqExportsDirectory({
   Future<Directory> Function() documents = resolveSkotiqDocumentsDirectory,
 }) async => _ensure(p.join((await documents()).path, 'Skotiq', 'exports'));
+
+/// Where this instance writes scratch frames (a live view's frame, a frame
+/// taken with no capture folder set): `scratch_frames` under the data root,
+/// created if absent. Not the system temp folder, which every user and every
+/// instance on the machine shares.
+Future<Directory> resolveSkotiqScratchFramesDirectory({
+  Future<Directory> Function() dataRoot = resolveSkotiqDataDirectory,
+}) async => _ensure(p.join((await dataRoot()).path, 'scratch_frames'));
