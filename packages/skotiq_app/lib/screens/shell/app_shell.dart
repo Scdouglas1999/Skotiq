@@ -336,6 +336,14 @@ class _AppShellState extends ConsumerState<AppShell> {
                     if (next != null) closePrompt();
                   },
                 );
+                // The checkpoint is the host's: a client that leaves the
+                // host closes its prompt, and the next link asks again.
+                final hostChange = ref.listenManual<SkotiqBackend>(
+                  backendProvider,
+                  (previous, next) {
+                    if (!identical(previous, next)) closePrompt();
+                  },
+                );
                 try {
                   return await showDialog<AppCheckpointRecoveryChoice>(
                     context: context,
@@ -353,6 +361,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 } finally {
                   hostRun.close();
                   restored.close();
+                  hostChange.close();
                 }
               },
               canRecover: () async =>
@@ -434,11 +443,15 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    // A companion that deferred recovery starts it once the host link exists.
+    // A companion that deferred recovery starts it once the host link exists,
+    // and asks again each time it links after leaving its host.
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-      if (_checkpointCheck != null) return;
-      if (!ref.read(remoteClientLaunchProvider) || !next.hostPlace.isLinked)
+      if (!ref.read(remoteClientLaunchProvider)) return;
+      if (!next.hostPlace.isLinked) {
+        if (previous?.hostPlace.isLinked ?? false) _checkpointCheck = null;
         return;
+      }
+      if (_checkpointCheck != null) return;
       // The listen callback can run before this widget's read of the
       // provider sees the new backend. The check has to run after that.
       WidgetsBinding.instance.addPostFrameCallback((_) {

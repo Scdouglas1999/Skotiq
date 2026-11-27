@@ -41,7 +41,7 @@ class _Swappable extends BackendNotifier {
   void use(SkotiqBackend backend) => state = backend;
 }
 
-_Host _hostWithCheckpoint() {
+_Host _hostWithCheckpoint({String run = 'Host NGC 891'}) {
   final host = _Host();
   when(() => host.eventStream)
       .thenAnswer((_) => const Stream<SkotiqEvent>.empty());
@@ -61,7 +61,7 @@ _Host _hostWithCheckpoint() {
   when(() => host.hasCheckpoint()).thenAnswer((_) async => true);
   when(() => host.getCheckpointInfo()).thenAnswer(
     (_) async => CheckpointInfo(
-      sequenceName: 'Host NGC 891',
+      sequenceName: run,
       timestamp: DateTime.now().toUtc(),
       completedExposures: 4,
       completedIntegrationSecs: 240,
@@ -150,6 +150,55 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('Host NGC 891'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 20));
+    });
+  }
+
+  for (final role in [LaunchRole.linkedClient, LaunchRole.mobile]) {
+    testWidgets(
+        '${role.name}: leaving the host closes its prompt, and the next link '
+        'asks again', (tester) async {
+      await _setUpView(tester);
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      late _Swappable notifier;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            launchRoleProvider.overrideWithValue(role),
+            backendProvider.overrideWith((ref) {
+              notifier = _Swappable(ref, DisconnectedBackend());
+              return notifier;
+            }),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const AppShell(child: SizedBox.shrink()),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      notifier.use(_hostWithCheckpoint());
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Host NGC 891'), findsOneWidget);
+
+      notifier.use(DisconnectedBackend());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Host NGC 891'), findsNothing);
+
+      notifier.use(_hostWithCheckpoint(run: 'Host M42'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Host M42'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 20));
