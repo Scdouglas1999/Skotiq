@@ -6,6 +6,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import 'command_action_result.dart';
+import 'run_control/run_control.dart';
 
 final sequenceActionServiceProvider =
     Provider((ref) => SequenceActionService(ref));
@@ -228,12 +229,16 @@ class SequenceActionService {
             }
           }));
 
-  Future<CommandActionResult> resume() => _single(
+  /// Resumes a paused run. While a manual action holds the pause, only that
+  /// action resumes it ([releasesHold]): any other resume would move the run
+  /// on while the action still uses the rig.
+  Future<CommandActionResult> resume({bool releasesHold = false}) => _single(
       _SequenceCommand.resume,
       () => _afterStart(() async {
             if (!_ref.read(sequenceExecutionStateProvider).canResume) {
               return CommandActionResult.ok;
             }
+            if (!releasesHold && _actionHoldsRun) return _heldByAction;
             try {
               await _executor.resume();
               return CommandActionResult.ok;
@@ -289,6 +294,7 @@ class SequenceActionService {
             if (!_ref.read(sequenceExecutionStateProvider).canSkip) {
               return CommandActionResult.ok;
             }
+            if (_actionHoldsRun) return _heldByAction;
             try {
               await _executor.skip();
               if (showFeedback) {
@@ -326,6 +332,16 @@ class SequenceActionService {
                   'Failed to reset sequence: ${userFacingError(e)}');
             }
           }));
+
+  bool get _actionHoldsRun =>
+      _ref.read(sequenceExecutionStateProvider) ==
+          SequenceExecutionState.paused &&
+      actionHoldsRun(_ref.read(runActionStateProvider));
+
+  static const _heldByAction = CommandActionResult.failure(
+    'A manual action holds the run paused; it resumes the run when it '
+    'finishes.',
+  );
 
   Future<CommandActionResult> _afterStart(
     Future<CommandActionResult> Function() body,

@@ -45,7 +45,7 @@ class RecordingSequenceActions extends SequenceActionService {
   }
 
   @override
-  Future<CommandActionResult> resume() async {
+  Future<CommandActionResult> resume({bool releasesHold = false}) async {
     calls.add('resume');
     return CommandActionResult.ok;
   }

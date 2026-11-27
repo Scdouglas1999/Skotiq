@@ -102,7 +102,7 @@ void main() {
       run.setLifecycle(SequenceExecutionState.paused);
       return CommandActionResult.ok;
     });
-    when(() => sequence.resume()).thenAnswer((_) async {
+    when(() => sequence.resume(releasesHold: true)).thenAnswer((_) async {
       run.setLifecycle(SequenceExecutionState.running);
       return CommandActionResult.ok;
     });
@@ -137,7 +137,7 @@ void main() {
     await container.read(nightActionApiProvider).autofocus();
 
     verify(() => sequence.pause()).called(1);
-    verify(() => sequence.resume()).called(1);
+    verify(() => sequence.resume(releasesHold: true)).called(1);
     verifyNeverParkedOrStopped();
     expect(container.read(sequenceExecutionStateProvider),
         SequenceExecutionState.running);
@@ -150,13 +150,13 @@ void main() {
   test('resume fails: the run stays paused, is never stopped or parked',
       () async {
     stubAutofocus(() async => throw Exception('No stars detected'));
-    when(() => sequence.resume()).thenAnswer(
+    when(() => sequence.resume(releasesHold: true)).thenAnswer(
       (_) async => const CommandActionResult.failure('bridge timeout'),
     );
 
     await container.read(nightActionApiProvider).autofocus();
 
-    verify(() => sequence.resume()).called(1);
+    verify(() => sequence.resume(releasesHold: true)).called(1);
     verifyNeverParkedOrStopped();
     expect(container.read(sequenceExecutionStateProvider),
         SequenceExecutionState.paused);

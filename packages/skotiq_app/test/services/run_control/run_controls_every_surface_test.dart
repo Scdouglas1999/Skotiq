@@ -135,9 +135,9 @@ const _expected = <String, List<String>>{
     'Resume+ Skip step+ Stop+'
   ],
   'paused by action hold': [
-    'Resume+ Stop+',
-    'Resume+ Stop+ Skip+',
-    'Resume+ Stop+ Skip+',
+    'Resume- Stop+',
+    'Resume- Stop+ Skip-',
+    'Resume- Stop+ Skip-',
     'Resume-(ncPlanActionOwnsResume) Skip step-(ncPlanActionInProgress) Stop+'
   ],
   'recovering': [
