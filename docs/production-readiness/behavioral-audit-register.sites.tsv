@@ -153,7 +153,6 @@ apps/mobile/lib/services/live_activity_lifecycle_provider.dart	_endActivity	lite
 apps/mobile/lib/services/live_activity_lifecycle_provider.dart	_endActivity	literal_null_coalesce	1	V0121	currentNodeName: progress.currentNodeName ?? '',
 apps/mobile/lib/services/live_activity_lifecycle_provider.dart	_flushUpdate	literal_null_coalesce	1	V0121	currentFilter: progress.currentFilter ?? '',
 apps/mobile/lib/services/live_activity_lifecycle_provider.dart	_flushUpdate	literal_null_coalesce	1	V0121	currentNodeName: progress.currentNodeName ?? '',
-apps/mobile/lib/services/live_activity_lifecycle_provider.dart	_jobStateForExecution	literal_null_coalesce	1	V0121	final node = (progress.currentNodeName ?? '').toLowerCase();
 apps/mobile/lib/services/live_activity_lifecycle_provider.dart	_startActivity	literal_null_coalesce	1	V0121	currentFilter: progress.currentFilter ?? '',
 apps/mobile/lib/services/live_activity_lifecycle_provider.dart	_startActivity	literal_null_coalesce	1	V0121	currentNodeName: progress.currentNodeName ?? '',
 apps/mobile/lib/services/live_activity_service.dart	isSupported	literal_null_coalesce	1	V0121	return result ?? false;
@@ -182,7 +181,6 @@ apps/mobile/lib/services/voice_control_lifecycle_provider.dart	_publishNow	liter
 apps/mobile/lib/services/voice_control_service.dart	isSupported	literal_null_coalesce	1	V0121	return result ?? false;
 apps/mobile/lib/services/watch_complication_lifecycle_provider.dart	_buildSnapshot	literal_null_coalesce	1	V0121	: (sequence?.name ?? '');
 apps/mobile/lib/services/watch_complication_lifecycle_provider.dart	_buildSnapshot	literal_null_coalesce	1	V0121	currentFilter: (progress.currentFilter ?? '').trim(),
-apps/mobile/lib/services/watch_complication_lifecycle_provider.dart	_jobStateFor	literal_null_coalesce	1	V0121	final node = (progress.currentNodeName ?? '').toLowerCase();
 apps/mobile/lib/services/watch_complication_service.dart	isSupported	literal_null_coalesce	1	V0121	return result ?? false;
 apps/mobile/lib/widgets/pairing_code_dialog.dart	initState	literal_null_coalesce	1	V0148	_codeController = TextEditingController(text: widget.initialCode ?? '');
 apps/mobile/lib/widgets/relay_connect_dialog.dart	build	literal_null_coalesce	1	V0148	onChanged: (v) => setState(() => _allowInsecure = v ?? false),
