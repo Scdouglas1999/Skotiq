@@ -863,9 +863,14 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
         // The solver paths here are copies too, but a changed one is a real
         // request: it goes to the preference the solver reads, or the write
-        // is acknowledged and the solver keeps the old program.
-        if (next.astapPath != before.astapPath ||
-            next.astrometryPath != before.astrometryPath) {
+        // is acknowledged and the solver keeps the old program. Changed is
+        // judged against the preference, which also changes through its own
+        // route and so can be ahead of the stored copy.
+        final solver = await _solverPreference();
+        final astapNow = solver?.astapPath ?? before.astapPath;
+        final astrometryNow = solver?.astrometryPath ?? before.astrometryPath;
+        if (next.astapPath != astapNow ||
+            next.astrometryPath != astrometryNow) {
           await _writeSolverPaths(
             astapPath: next.astapPath,
             astrometryPath: next.astrometryPath,

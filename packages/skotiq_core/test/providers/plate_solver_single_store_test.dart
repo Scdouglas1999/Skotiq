@@ -211,6 +211,45 @@ void main() {
     expect(container.read(appSettingsProvider).value!.astapPath, '/opt/astap');
   });
 
+  test(
+    'a solver path posted back to its earlier value reaches the preference',
+    () async {
+      // The host's Plate Solving page moves ASTAP from O to X; a linked client
+      // that sets it back to O must reach the store the solver reads, not be
+      // compared with a copy that still says O.
+      var preference = const PlateSolverPreference(
+        choice: PlateSolverChoice.astap,
+        astapPath: '/opt/old/astap',
+      );
+      when(
+        () => backend.getPlateSolverConfig(),
+      ).thenAnswer((_) async => preference);
+      when(() => backend.setPlateSolverConfig(any())).thenAnswer((call) async {
+        preference = call.positionalArguments.single as PlateSolverPreference;
+      });
+      when(
+        () => backend.detectPlateSolvers(),
+      ).thenAnswer((_) async => const PlateSolverDetection());
+      container = build();
+      await container.read(appSettingsProvider.future);
+      final saved = await container
+          .read(plateSolverSettingsNotifierProvider.notifier)
+          .updatePreference(preference.copyWith(astapPath: '/opt/new/astap'));
+      expect(saved, isTrue);
+      expect(preference.astapPath, '/opt/new/astap');
+
+      final notifier = container.read(appSettingsProvider.notifier);
+      final served = await notifier.exportHostSettings();
+      expect(served.astapPath, '/opt/new/astap');
+      await notifier.applyRemoteSettings(
+        served.copyWith(astapPath: '/opt/old/astap'),
+      );
+
+      expect(preference.astapPath, '/opt/old/astap');
+      expect((await notifier.exportHostSettings()).astapPath, '/opt/old/astap');
+    },
+  );
+
   test('loading settings refreshes a stale projection', () async {
     // A profile seeded by an older build: the row says ASTAP...
     await database.settingsDao.setSetting('plate_solver', 'ASTAP');
