@@ -13,6 +13,7 @@ import '../../night_control_contracts.dart';
 import '../../../../services/run_control/run_control.dart';
 import 'night_plan_inputs.dart';
 import 'plan_steps_provider.dart';
+import '../../../../services/night_session/night_now.dart';
 
 final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
   final phase = ref.watch(nightRunPhaseProvider);

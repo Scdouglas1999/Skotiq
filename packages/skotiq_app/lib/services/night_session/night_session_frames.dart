@@ -1,0 +1,108 @@
+// The observing night's frames, read from the captured_images table.
+//
+// The rows, not the in-memory `sessionImagesProvider` list, because only the
+// rows carry the grader's verdict (`isAccepted`), the sensor and focuser
+// readings and the solve, and because they survive an app restart. The
+// session id is resolved the way `recentSessionFramesProvider` resolves it:
+// the local run's id first, then, on a remote viewer that never started the
+// run, the host's active session.
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+
+import 'night_now.dart';
+import 'night_session_id.dart';
+
+/// The observing night Tonight shows: local noon to the next local noon,
+/// the night Darkroom groups frames by. It is the night of the run Tonight
+/// shows (a finished run stays on screen the next morning and afternoon),
+/// else the night it is now.
+final nightWindowProvider = Provider<({DateTime start, DateTime end})>((ref) {
+  final run = ref.watch(nightRunRowsProvider);
+  return observingNightWindow(
+    run.isNotEmpty ? run.first.capturedAt : ref.watch(nightSessionNowProvider),
+  );
+});
+
+/// Every captured_images row of the observing night, oldest first, across
+/// every run and session it held.
+///
+/// The frame strip, the HFR and star charts, the session counts and the
+/// integration read this. They followed one session, so a crash, an update
+/// or a restart mid-night (whose restored run opens a new session) started
+/// the night over on the host and on every linked client.
+final nightSessionRowsProvider = Provider<List<DbCapturedImage>>((ref) {
+  final window = ref.watch(nightWindowProvider);
+  return ref.watch(imageRowsCapturedBetweenProvider(window)).valueOrNull ??
+      const <DbCapturedImage>[];
+});
+
+/// Every captured_images row of the run's own session, oldest first: what
+/// the plan's progress counts. Empty without a session or while the rows
+/// load.
+final nightRunRowsProvider = Provider<List<DbCapturedImage>>((ref) {
+  final sessionId = ref.watch(nightSessionIdProvider);
+  if (sessionId == null) return const <DbCapturedImage>[];
+  return ref.watch(sessionImageRowsProvider(sessionId)).valueOrNull ??
+      const <DbCapturedImage>[];
+});
+
+/// The night's light frames, oldest first. Darks, flats and snapshots
+/// belong to other strips.
+final nightSessionLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
+  return ref
+      .watch(nightSessionRowsProvider)
+      .where((row) => row.isLight)
+      .toList(growable: false);
+});
+
+/// The run's own light frames, oldest first.
+final nightRunLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
+  return ref
+      .watch(nightRunRowsProvider)
+      .where((row) => row.isLight)
+      .toList(growable: false);
+});
+
+/// The grader's verdict on [row]: false when it was rejected, true when it
+/// was kept, null when nothing measured it. `isAccepted` defaults to true, so
+/// a kept frame with no HFR, star count or quality score was never graded.
+bool? nightFrameVerdict(DbCapturedImage row) {
+  if (!row.isAccepted) return false;
+  final measured =
+      row.hfr != null || row.starCount != null || row.qualityScore != null;
+  return measured ? true : null;
+}
+
+/// The run's verdict on a light frame and, for a reject, the reason it gave.
+typedef NightFrameRunVerdict = ({bool accepted, String? reason});
+
+/// The run's verdict on the light frame saved at [filePath]: the one verdict
+/// every screen shows (the strip, the frame pill, Last frame and the imaging
+/// screen's badge). Null when the frame is not a graded frame of the night.
+final nightFrameRunVerdictProvider =
+    Provider.family<NightFrameRunVerdict?, String?>((ref, filePath) {
+  if (filePath == null || filePath.isEmpty) return null;
+  final lights = ref.watch(nightSessionLightRowsProvider);
+  final number = nightFrameNumberForPath(lights, filePath);
+  if (number == null) return null;
+  final row = lights[number - 1];
+  final accepted = nightFrameVerdict(row);
+  if (accepted == null) return null;
+  final reason = row.rejectionReason?.trim();
+  return (
+    accepted: accepted,
+    reason: accepted || reason == null || reason.isEmpty ? null : reason,
+  );
+});
+
+/// The session frame number of the row saved at [filePath], or null.
+int? nightFrameNumberForPath(List<DbCapturedImage> lights, String? filePath) {
+  if (filePath == null || filePath.isEmpty) return null;
+  for (var i = lights.length - 1; i >= 0; i--) {
+    if (lights[i].filePath == filePath) return i + 1;
+  }
+  return null;
+}

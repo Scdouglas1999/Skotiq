@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
@@ -25,6 +24,7 @@ import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
+import 'package:skotiq_app/services/night_session/night_now.dart';
 
 Sequence _plan() {
   final root = InstructionSetNode(name: 'Root');

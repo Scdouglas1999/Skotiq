@@ -3,7 +3,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_core/database.dart';
@@ -11,6 +10,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import 'plan_test_support.dart';
+import 'package:skotiq_app/services/night_session/night_session_frames.dart';
 
 /// A session row: [filter], [secs] long, kept or rejected.
 DbCapturedImage _row(

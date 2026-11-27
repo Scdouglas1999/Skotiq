@@ -15,10 +15,11 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
-import '../session/session_frames_provider.dart';
 import 'night_plan_inputs.dart';
 import '../../../../services/run_control/run_control.dart';
 import 'plan_steps_provider.dart' show nightPlanLagProvider;
+import '../../../../services/night_session/night_now.dart';
+import '../../../../services/night_session/night_session_frames.dart';
 
 /// The run dashboard's key for frames taken without a filter.
 const String _unfiltered = 'Unfiltered';

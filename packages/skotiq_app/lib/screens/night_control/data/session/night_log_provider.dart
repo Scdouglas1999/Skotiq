@@ -44,7 +44,7 @@ import '../../../../services/run_dashboard_providers.dart'
 import '../../night_control_contracts.dart';
 import '../../../../services/night_session/night_session_events.dart';
 import 'session_format.dart';
-import 'session_frames_provider.dart';
+import '../../../../services/night_session/night_session_frames.dart';
 
 /// How many feed events the log keeps, oldest dropped first.
 const int kNightLogFeedLimit = 400;

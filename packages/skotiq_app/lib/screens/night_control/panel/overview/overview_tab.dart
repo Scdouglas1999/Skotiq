@@ -17,7 +17,6 @@ import 'package:skotiq_core/providers.dart'
 
 import '../../../equipment/utils/connect_all_action.dart';
 
-import '../../data/plan/night_plan_inputs.dart';
 import '../../../../services/run_control/run_control.dart';
 import '../../data/plan/scheduler_provider.dart';
 import '../../data/session/before_you_start_provider.dart';
@@ -36,6 +35,7 @@ import 'night_activity_panel.dart';
 import 'overview_sections.dart';
 import 'run_sections.dart';
 import '../../../../router/app_routes.dart';
+import '../../../../services/night_session/night_now.dart';
 
 /// Whether [phase] comes before tonight's run, when "Before you start"
 /// replaces the frame and session blocks.

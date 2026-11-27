@@ -11,8 +11,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
 import '../../../widgets/saved_frame/saved_frame_viewer.dart';
-import '../../night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_core/models.dart';
+import '../../../services/night_session/night_session_frames.dart';
 
 /// The "Session frames" tab: tonight's light frames as thumbnails, grouped by
 /// target and filter, newest group and newest frame first, each with its

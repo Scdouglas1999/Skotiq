@@ -12,15 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-
-/// Now, as a true instant (UTC), on Tonight's shared 30 s tick.
-///
-/// Tests override this with a fixed instant.
-final nightNowProvider = Provider<DateTime>((ref) {
-  final tick = ref.watch(tickerProvider(TickerCadence.thirtySeconds));
-  final now = tick.valueOrNull ?? ref.watch(clockProvider).nowUtc();
-  return now.toUtc();
-});
+import '../../../../services/night_session/night_now.dart';
 
 /// Moves times between true instants and the operator's clock.
 extension NightClockTimes on Clock {

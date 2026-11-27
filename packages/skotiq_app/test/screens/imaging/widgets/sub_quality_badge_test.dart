@@ -8,12 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/sub_quality_badge.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_app/services/night_session/night_session_frames.dart';
 
 const _kept = '/captures/IC405/IC405_Ha_0001.fits';
 const _rejected = '/captures/IC405/Reject/IC405_Ha_0002.fits';

@@ -17,7 +17,8 @@ import '../../night_control_contracts.dart';
 import 'session_events_provider.dart';
 import '../../../../services/night_session/night_session_events.dart';
 import 'session_format.dart';
-import 'session_frames_provider.dart';
+import '../../../../services/night_session/night_now.dart';
+import '../../../../services/night_session/night_session_frames.dart';
 
 /// The x range of the session charts: from the session start (or the first
 /// frame) to now while the session runs, or to the last frame after it.

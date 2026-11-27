@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/services/night_actions/manual_action_gating.dart';
 import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/panel_widgets.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
@@ -16,6 +15,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../../../harness/harness.dart';
+import 'package:skotiq_app/services/night_session/night_now.dart';
 
 /// The right panel's size at the owner's window.
 const Size kPanelSize = Size(300, 758);

@@ -10,7 +10,6 @@ import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_timeline_provider.dart';
@@ -24,6 +23,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';
+import 'package:skotiq_app/services/night_session/night_now.dart';
 
 /// Records the run commands instead of reaching an executor.
 class RecordingSequenceActions extends SequenceActionService {

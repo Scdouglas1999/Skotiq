@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../../../harness/mock_database.dart';
+import 'package:skotiq_app/services/night_session/night_session_frames.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

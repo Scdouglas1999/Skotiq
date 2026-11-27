@@ -4,18 +4,10 @@
 // so they follow the boards: a true minus sign, grouped focuser steps
 // ("45 484"), degrees with "°C". Unknown input returns null, never "0".
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 
 import '../../night_control_contracts.dart';
-import '../plan/night_plan_inputs.dart' show nightNowProvider;
-
-/// The session providers' "now": Tonight's [nightNowProvider] on the
-/// operator's clock. Tests pin it.
-final nightSessionNowProvider = Provider<DateTime>(
-  (ref) => ref.watch(nightNowProvider).toLocal(),
-);
 
 const String _minus = '−';
 const String _groupSeparator = ' ';

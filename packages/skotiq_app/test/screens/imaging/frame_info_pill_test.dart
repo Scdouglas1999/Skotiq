@@ -10,7 +10,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_hud.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_preview_area.dart';
 import 'package:skotiq_app/screens/imaging/widgets/sub_quality_badge.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_app/widgets/image_preview/overlay_painters.dart';
 import 'package:skotiq_core/models.dart';
@@ -19,6 +18,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_app/services/night_session/night_session_frames.dart';
 
 CapturedImageData _frame({
   ImageStats stats = const ImageStats(

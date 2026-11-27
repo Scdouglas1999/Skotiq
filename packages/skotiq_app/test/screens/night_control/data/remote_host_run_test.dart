@@ -21,6 +21,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/database.dart' as db;
 
 import 'plan/plan_test_support.dart';
+import 'package:skotiq_app/services/night_session/night_session_frames.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
