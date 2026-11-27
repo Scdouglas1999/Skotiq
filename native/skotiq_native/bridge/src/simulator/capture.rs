@@ -483,11 +483,7 @@ mod guard_tests {
 
     /// Fail the build if a THIRD simulated-capture path appears.
     ///
-    /// The original defect was not that the random-star painter existed — it was
-    /// that a second capture path quietly kept using it after the real-sky
-    /// renderer landed, and nothing said so. Severing the call site the audit
-    /// found proves that site was load-bearing, not that it was the only one.
-    /// So this asserts the property directly: outside the sanctioned simulator
+    /// This asserts the property directly: outside the sanctioned simulator
     /// modules, no bridge source may reach for a random number generator to
     /// place stars.
     ///

@@ -455,7 +455,7 @@ async fn only_what_the_camera_held_is_restored() {
 /// Rig, 2026-11-16 03:36: a manual Disconnect and Connect about five
 /// minutes after the run's reopen left the cooler off. The app switches the
 /// cooler off as part of a disconnect, and that off was kept as what the
-/// camera held. What the camera held, cooler on at -10, now survives any
+/// camera held. What the camera held, cooler on at -10, survives any
 /// number of reopens and that manual reconnect.
 #[tokio::test]
 async fn the_cooler_survives_two_reopens_and_then_a_manual_reconnect() {

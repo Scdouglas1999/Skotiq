@@ -57,8 +57,8 @@ const MIN_SOLVE_BUDGET_SECS: f64 = 5.0;
 /// Each rung hands the solver its own deadline, so the solver kills its child,
 /// says "ASTAP timed out after N seconds" and releases the gate. This watchdog
 /// is only for a solve that wedges somewhere other than the child process, so
-/// it must fire strictly later — on the rig both fired at 30 s and one frame
-/// was reported as two separate failures of itself.
+/// it must fire strictly later, or one frame is reported as two separate
+/// failures of itself.
 const SOLVE_WATCHDOG_MARGIN_SECS: f64 = 5.0;
 
 /// Where the telescope is thought to be, and how far around that to look.

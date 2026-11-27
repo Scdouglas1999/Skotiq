@@ -32,7 +32,7 @@ impl DeviceManager {
                 // Let the operator pick the specific camera/config via the ASCOM
                 // SetupDialog before connecting — but ONLY when one is present.
                 // In headless mode the modal dialog has nobody to dismiss it and
-                // would hang the connect forever (B1), so we skip it and rely on
+                // would hang the connect forever, so we skip it and rely on
                 // the driver's saved configuration.
                 if interactive_dialogs_allowed() {
                     camera.setup_dialog().await.map_err(|e| e.to_string())?;
