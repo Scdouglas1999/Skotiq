@@ -41,7 +41,7 @@
 //!
 //! # Refusing autofocus mid-cadence
 //!
-//! Per the brief, photometry runs require **constant cadence** —
+//! Photometry runs require **constant cadence** —
 //! skipping exposures to run autofocus would create a gap in the
 //! light curve. The recommended policy is documented in the
 //! validation rules and surfaced at sequence-edit time: photometry
@@ -582,7 +582,7 @@ mod tests {
         assert!((ec.duration_secs - 60.0).abs() < f64::EPSILON);
         assert!(ec.filter.is_none());
         assert!(ec.filter_index.is_none());
-        // The brief mandates no mid-burst dithering during photometry runs.
+        // No mid-burst dithering during photometry runs.
         assert!(matches!(ec.dither_every, None | Some(0)));
     }
 

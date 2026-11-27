@@ -35,8 +35,7 @@ pub(crate) fn ensure_unique_save_path(path: PathBuf) -> PathBuf {
     // parent and stem fallbacks here are defensive — by the time
     // we enter this function the caller has already passed a fully-formed
     // path. If the parent is None (file at filesystem root) we keep using an
-    // empty PathBuf so `.join()` writes into the cwd; that mirrors the
-    // pre-audit behaviour but is now explicit. If the stem is missing we
+    // empty PathBuf so `.join()` writes into the cwd. If the stem is missing we
     // fall back to "image" but log so the operator can audit how a stemless
     // path was constructed.
     let parent = match path.parent() {

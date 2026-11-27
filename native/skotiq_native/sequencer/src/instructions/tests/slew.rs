@@ -69,11 +69,8 @@ fn test_validate_slew_position_measures_ra_on_the_sky() {
 /// The owner's OnStep mount, 2026-09-14: the sequence asked for NGC7380 at
 /// J2000 RA 22.7892h / Dec 58.1324°, the device layer precessed that to
 /// JNOW 22.8070h / 58.2738° on the way out, the mount arrived at 22.8069h /
-/// 58.2739° — within 0.4" — and the old validation compared the JNOW read-back
-/// against the J2000 target and failed by RA 16.00' / Dec 8.49'. Every sequence
-/// containing a target node died on its first slew. It could not show up in a
-/// simulator run because the simulator is exempt from the conversion, so both
-/// sides of that comparison were J2000 there.
+/// 58.2739°, within 0.4". Compared against the J2000 target instead, the
+/// read-back is off by RA 16.00' / Dec 8.49'.
 mod readback_frame {
     use crate::instructions::slew::{validate_slew_position, SLEW_POSITION_TOLERANCE_DEG};
 
@@ -648,9 +645,9 @@ async fn slew_node_off_target(stop_on_quality_problems: bool) -> (NodeStatus, Ve
     (status, warnings)
 }
 
-/// A slew that lands off target leaves the mount at the target within a few
-/// arcminutes and centering follows, so by default the operator is told and
-/// the run goes on.
+/// A slew that lands a few arcminutes off target has the mount near the
+/// target and centering follows, so by default the operator is told and the
+/// run goes on.
 #[tokio::test(start_paused = true)]
 async fn a_slew_that_lands_off_target_notifies_and_the_run_goes_on() {
     let (status, warnings) = slew_node_off_target(false).await;

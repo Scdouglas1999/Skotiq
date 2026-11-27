@@ -498,7 +498,7 @@ impl MeridianFlipExecutor {
                 // imaging is routine end-of-target behaviour, and the result
                 // returned below is `Aborted`. Emitting `Failed` made the event
                 // logger print an ERROR banner reading "FLIP FAILED" for a
-                // deliberate skip (observed on the rig), which trips error
+                // deliberate skip, which trips error
                 // dashboards and tells the operator something broke when
                 // nothing did. `failure_action` is driven by `FlipResult`, not
                 // by this event, so the handling is unchanged.

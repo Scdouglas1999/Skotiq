@@ -15,7 +15,7 @@
 //!     already exposes via `apiStackingStart` / `apiStackingAddFrame`.
 //!     Driving it from inside the sequencer would duplicate that
 //!     plumbing and split the source of truth.
-//!   * The brief mandates that broadcast piggy-backs on whatever
+//!   * Broadcast piggy-backs on whatever
 //!     exposures the parent subtree already produces; an active
 //!     `BroadcastSession` plus a `FrameAccepted` event is enough for
 //!     Dart to do the rest.

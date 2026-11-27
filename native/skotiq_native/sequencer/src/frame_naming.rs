@@ -85,11 +85,8 @@ const SAVE_PATH_FRAME_NUMBER_CEILING: u32 = 1 << 20;
 ///
 /// `${frame}` in a save path is the next frame number not yet on disk for
 /// that name, in the frame's folder or its Reject folder, not the frame's
-/// place in this burst. A burst counting its own frames named the first frame
-/// of every Smart Exposure visit `..._0001` and the files collected collision
-/// suffixes (`NGC0891_L_0001_025.fits`, rig 2026-10-20); counted from the
-/// disk, the number continues across visits, bursts, and a run restarted from
-/// its checkpoint.
+/// place in this burst. Counted from the disk, the number continues across
+/// visits, bursts, and a run restarted from its checkpoint.
 ///
 /// Returns `Err` when the burst has no resolvable destination — no base
 /// `save_path` and no absolute `save_to`. The caller turns that into a node

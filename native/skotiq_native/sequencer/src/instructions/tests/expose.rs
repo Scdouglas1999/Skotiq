@@ -137,8 +137,6 @@ async fn requested_filter_without_wheel_fails_before_capture() {
 async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
-    // The owner's 8-position ZWO EFW, which the Smart Exposure node and the
-    // autofocus trigger were both driving.
     ctx.run.rig.filterwheel_id = Some("efw-1".to_string());
     let trigger_state = ctx
         .run

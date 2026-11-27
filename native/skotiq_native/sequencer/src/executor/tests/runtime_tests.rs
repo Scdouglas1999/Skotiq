@@ -704,10 +704,9 @@ async fn camera_idle_wait_holds_for_an_exposure_then_releases() {
         started.elapsed() < std::time::Duration::from_millis(100),
         "an idle camera must not delay a trigger action"
     );
-    // Hand it back before simulating a frame. The old API let the capture loop
-    // overwrite a live trigger claim outright, which is the frame-destroying
-    // race the claim exists to close; the token-based API refuses instead, so
-    // the release has to be real.
+    // Hand it back before simulating a frame: the token-based API refuses to
+    // let the capture loop overwrite a live trigger claim, so the release has
+    // to be real.
     state.write().await.imaging_train.release(idle_token);
 
     // A frame in flight holds the action until the frame releases it.
@@ -799,15 +798,6 @@ async fn imaging_train_claim_expires_rather_than_wedging() {
 }
 
 /// An estimate that runs a little long must NOT hand the devices over.
-///
-/// This is the measured defect the two-deadline design fixes. The old claim
-/// used `duration + 20 s` as both the estimate and the expiry, so a 180 s light
-/// whose readout overran released the camera while the sensor was still
-/// integrating; a drift-recenter trigger then started its own 5 s plate-solve
-/// exposure on the busy camera and failed on `did not complete within 65.0s
-/// timeout (5.0s requested exposure plus safety margin)` — a bound derived from
-/// its own request, with no relationship to the 180 s frame it was queued
-/// behind.
 #[tokio::test]
 async fn an_overrunning_exposure_keeps_the_imaging_train() {
     let mut state = crate::triggers::TriggerState::new();

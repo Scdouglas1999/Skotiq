@@ -3,7 +3,7 @@
 use super::*;
 
 /// A WarmCamera whose final "switch the cooler off" fails must not report
-/// success. On the reference rig (2026-08-09, L19) that call failed for
+/// success. On the reference rig (2026-08-09) that call failed for
 /// every request — the instruction ran its whole ramp, discarded the
 /// error, and reported "Camera warmed to ambient" with the TEC still
 /// powered.

@@ -26,9 +26,8 @@ pub async fn execute_park(ctx: &InstructionContext) -> InstructionResult {
 }
 
 /// A parked mount has nothing to guide on. The move above stops a guider
-/// only while it guides, and on the rig a run parked with PHD2
-/// still looping after a failed guide-star search, exposing the guide camera
-/// until someone noticed. Parking ends the guider's capture, guiding or
+/// only while it guides, so a PHD2 left looping would go on exposing the
+/// guide camera. Parking ends the guider's capture, guiding or
 /// looping, and the run no longer wants guiding.
 async fn stop_the_guider_for_park(ctx: &InstructionContext) {
     // The outcome is logged by the stop; a guider that does not answer never

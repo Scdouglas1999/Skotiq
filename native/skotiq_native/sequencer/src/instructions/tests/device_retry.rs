@@ -93,7 +93,7 @@ async fn a_failed_download_retries_the_frame_and_the_burst_completes() {
 
 /// The rig, 2026-11-16: after the camera's USB path dropped for 4 s the
 /// camera kept answering status reads while every exposure failed, and the
-/// run spent its retries on the broken session and failed. The retry now
+/// run spent its retries on the broken session and failed. The retry
 /// reopens the camera once, says so, and the frame lands.
 #[tokio::test(start_paused = true)]
 async fn a_broken_camera_session_is_reopened_before_the_retry() {
@@ -130,7 +130,7 @@ async fn a_broken_camera_session_is_reopened_before_the_retry() {
 
 /// Rig, 2026-11-16 03:36: the power box link kept flapping, the same frame
 /// broke the session again after its one reopen, and the frame used its
-/// retries on the broken session. Every broken-session failure now reopens
+/// retries on the broken session. Every broken-session failure reopens
 /// the camera, and a reopen that works does not use a retry.
 #[tokio::test(start_paused = true)]
 async fn a_flapping_camera_link_is_reopened_each_time_without_using_the_retries() {
@@ -573,7 +573,7 @@ fn lights(count: u32) -> ExposureConfig {
 /// Rig, 2026-11-17 05:3x: the power box dropped, the camera was reopened with
 /// its cooler back on, and the frame was taken again at once with the sensor
 /// at -5.7°C against its -10°C set-point, a light no dark matches. The
-/// retried frame now waits for the sensor to be back at its set-point.
+/// retried frame waits for the sensor to be back at its set-point.
 #[tokio::test(start_paused = true)]
 async fn a_frame_retried_on_a_reopened_camera_waits_for_the_set_point() {
     const FAILED: &str = "ZWO camera reported a failed exposure";
