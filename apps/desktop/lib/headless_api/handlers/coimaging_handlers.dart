@@ -10,6 +10,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'hub_error_status.dart';
 import 'package:skotiq_core/utils.dart';
 
 /// Headless API handlers for Collaborative Sky live co-imaging.
@@ -90,7 +91,7 @@ class CoImagingHandlers implements RouteSource {
         // "Failed to …" and cannot tell an unreachable hub from a missing
         // sharing consent from a session it already left.
         message: '$message: ${error.message}',
-        statusCode: _statusForKind(error.kind),
+        statusCode: hubStatusFor(error.kind, unknown: 500),
       );
     }
     _logger.error(
@@ -100,20 +101,6 @@ class CoImagingHandlers implements RouteSource {
     );
     return jsonError(code: code, message: message, statusCode: 500);
   }
-
-  static int _statusForKind(ConstellationErrorKind kind) => switch (kind) {
-    ConstellationErrorKind.network => 502,
-    ConstellationErrorKind.server => 503,
-    ConstellationErrorKind.auth => 401,
-    ConstellationErrorKind.notFound => 404,
-    ConstellationErrorKind.conflict => 409,
-    // The hub rejected the REQUEST (its 400/409 map to `protocol`), so this is
-    // the caller's fault, not ours. Reporting 500 tells a client to retry an
-    // identical request that can never succeed. Matches MosaicHandlers.
-    ConstellationErrorKind.protocol => 400,
-    ConstellationErrorKind.geometryMismatch => 409,
-    _ => 500,
-  };
 
   /// GET `/api/coimaging/sessions` — discover active co-imaging sessions on the
   /// configured hub (the participant's entry point).
