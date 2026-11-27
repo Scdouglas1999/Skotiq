@@ -372,7 +372,7 @@ class ProfileHandlers implements RouteSource {
     // engine-relevant fields and would report defaults for everything else.
     final notifier = container.read(appSettingsProvider.notifier);
     await container.read(appSettingsProvider.future);
-    final settings = notifier.exportRemoteSettings().toJson();
+    final settings = (await notifier.exportHostSettings()).toJson();
 
     // The site comes from the CANONICAL store, not from the settings
     // notifier's copy of it. Two things were wrong with the copy:
@@ -409,20 +409,21 @@ class ProfileHandlers implements RouteSource {
   /// The host's `app_settings` key/value rows that linked clients mirror:
   /// every row except the presentation preferences of this computer's own
   /// screen. The rows the settings notifier owns are served from its state, so
-  /// a value it holds but has not persisted yet is not reported as missing.
+  /// a value it holds but has not persisted yet is not reported as missing,
+  /// and the plate-solver rows from the native preference they copy.
   /// A request without admin access reads whether each credential is set,
   /// not its value.
   Future<Response> handleGetSettingsStore(Request request) async {
     final rows = await container.read(settingsDaoProvider).getAllSettings();
     final current = await container.read(appSettingsProvider.future);
-    final owned = container
-        .read(appSettingsProvider.notifier)
-        .storedRowsOf(current);
+    final notifier = container.read(appSettingsProvider.notifier);
+    final owned = notifier.storedRowsOf(current);
     final settings = <String, String>{
       for (final entry in rows.entries)
         if (!isDeviceLocalSettingKey(entry.key)) entry.key: entry.value,
       for (final key in AppSettingsNotifier.hostStoreKeys)
         if (owned[key] != null) key: owned[key]!,
+      ...await notifier.solverPreferenceRows(),
     };
     final adminAccess = requestHasAdminAccess(request);
     return jsonOk({
@@ -806,7 +807,7 @@ class ProfileHandlers implements RouteSource {
     settings_models.AppSettings? previous;
     try {
       await container.read(appSettingsProvider.future);
-      previous = settingsNotifier.exportRemoteSettings();
+      previous = await settingsNotifier.exportHostSettings();
     } on Object catch (e) {
       // Why: with no readable previous state there is nothing to merge onto
       // or diff against; proceeding with the posted map alone keeps the

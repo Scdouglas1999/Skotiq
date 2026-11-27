@@ -3,6 +3,7 @@ import 'database_provider.dart';
 import 'app_version_provider.dart';
 import '../services/backup_service.dart';
 import 'logging_service_provider.dart';
+import 'settings_provider.dart';
 
 final backupServiceProvider = Provider<BackupService>((ref) {
   final database = ref.watch(databaseProvider);
@@ -13,5 +14,10 @@ final backupServiceProvider = Provider<BackupService>((ref) {
     database: database,
     logger: logger,
     appVersion: appVersion,
+    // The plate-solver settings are copies of the native preference.
+    settingsOverlay: () async {
+      await ref.read(appSettingsProvider.future);
+      return ref.read(appSettingsProvider.notifier).solverPreferenceRows();
+    },
   );
 });
