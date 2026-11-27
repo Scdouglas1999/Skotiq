@@ -1,0 +1,17 @@
+{
+  "name": "Skotiq Constellation Hub",
+  "fingerprint": "8e2e3fd159e0d643fb91ab51b3b07269e178a40eed6ed02ca83750a878ba2a42",
+  "version": "6.0.0",
+  "healpixOrder": 9,
+  "tilePixels": 8,
+  "selfHosted": true,
+  "openSignup": true,
+  "acceptsRawSubs": true,
+  "requiresConsent": true,
+  "supportedLicenses": [
+    "cc0",
+    "cc-by",
+    "cc-by-sa",
+    "cc-by-nc"
+  ]
+}
