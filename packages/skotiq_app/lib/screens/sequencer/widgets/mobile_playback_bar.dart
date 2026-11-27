@@ -17,7 +17,15 @@ import '../../../utils/snackbar_helper.dart';
 class MobilePlaybackBar extends ConsumerWidget {
   final SkotiqColors colors;
 
-  const MobilePlaybackBar({super.key, required this.colors});
+  /// This bar is the tour's run-controls target; only one bar on a screen
+  /// may be.
+  final bool tourTarget;
+
+  const MobilePlaybackBar({
+    super.key,
+    required this.colors,
+    this.tourTarget = true,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,7 +45,7 @@ class MobilePlaybackBar extends ConsumerWidget {
       children: [
         // Play / Pause / Resume — the primary transport button.
         _MobilePlaybackButton(
-          key: TourTarget.sequencerTransport.key,
+          key: tourTarget ? TourTarget.sequencerTransport.key : null,
           colors: colors,
           icon: transport.resumes ? LucideIcons.play : LucideIcons.pause,
           label: transport.resumes ? 'Resume' : 'Pause',
