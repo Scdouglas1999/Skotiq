@@ -488,15 +488,14 @@ class _GuiderIdleCard extends ConsumerWidget {
           );
     final idle = guider.connected &&
         (state == Phd2State.stopped || state == Phd2State.selected);
-    final body = !guider.connected
-        ? switch (guider.guider.kind) {
+    // Connected, the note says the state; the card adds no second line.
+    final body = guider.connected
+        ? null
+        : switch (guider.guider.kind) {
             ProfileGuiderKind.phd2 => l10n.text('nightCtrGuideOpenBody'),
             ProfileGuiderKind.device => l10n.text('nightCtrGuideConnectBody'),
             ProfileGuiderKind.none => l10n.text('nightCtrGuideNoneBody'),
-          }
-        : idle
-            ? l10n.text('nightCtrGuideIdleBody')
-            : null;
+          };
 
     final String? loopReason = !guider.canCommand
         ? l10n.text('nightActWhyNoHost')

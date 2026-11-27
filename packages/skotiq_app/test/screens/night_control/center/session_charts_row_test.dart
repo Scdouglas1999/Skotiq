@@ -339,6 +339,28 @@ void main() {
     expect(find.text('No cooler readings yet'), findsOneWidget);
   });
 
+  // The note already says "Not guiding"; a second line that reads alike
+  // ("Connected · not looping") said the same thing twice.
+  testWidgets('an idle guider says it once, in the card note', (tester) async {
+    await pumpCenter(
+      tester,
+      centerOverrides(
+        NightFixtures.ready(),
+        guider: const NightGuiderIdleVm(
+          connected: true,
+          canCommand: true,
+          state: Phd2State.stopped,
+        ),
+      ),
+      child: const SessionChartsRow(),
+      size: const Size(744, 240),
+    );
+    expect(find.text('Not guiding'), findsOneWidget);
+    expect(find.text('Start looping'), findsOneWidget);
+    expect(_allText(tester), isNot(contains('not looping')));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a viewer that cannot command gets the reason, not the button',
       (tester) async {
     final handle = tester.ensureSemantics();
