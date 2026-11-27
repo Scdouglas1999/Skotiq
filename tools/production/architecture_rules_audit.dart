@@ -214,39 +214,27 @@ const _dartPackages = <String, _DartPackage>{
 
 /// The layering of the Rust workspace (`native/skotiq_native`), lowest first.
 const _rustCrates = <String, Set<String>>{
-  // Test support only (a dev-dependency): the fixture pins the crates' tests
-  // share with the app's tests.
-  'skotiq_wire_fixtures': {},
+  _rustTestSupport: {},
   // The frame vocabulary: the color filter array a camera reports and the
   // imaging code demosaics, and the filter-name rule, one crate below both.
-  'skotiq_frame': {'skotiq_wire_fixtures'},
-  'skotiq_device': {'skotiq_frame', 'skotiq_wire_fixtures'},
-  'skotiq_imaging': {'skotiq_frame', 'skotiq_wire_fixtures'},
+  'skotiq_frame': {},
+  'skotiq_device': {'skotiq_frame'},
+  'skotiq_imaging': {'skotiq_frame'},
   'skotiq_phd2': {},
   'skotiq_updater': {},
   'skotiq_platesolve': {'skotiq_imaging'},
-  'skotiq_processing': {
-    'skotiq_imaging',
-    'skotiq_platesolve',
-    'skotiq_wire_fixtures',
-  },
+  'skotiq_processing': {'skotiq_imaging', 'skotiq_platesolve'},
   'skotiq_alpaca': {'skotiq_device'},
   'skotiq_ascom': {'skotiq_device'},
   // An INDI camera sends its frames as FITS or XISF files, which the imaging
   // crate alone decodes, as the native drivers' camera raw files.
   'skotiq_indi': {'skotiq_device', 'skotiq_imaging'},
-  'skotiq_native': {
-    'skotiq_frame',
-    'skotiq_device',
-    'skotiq_imaging',
-    'skotiq_wire_fixtures',
-  },
+  'skotiq_native': {'skotiq_frame', 'skotiq_device', 'skotiq_imaging'},
   'skotiq_sequencer': {
     'skotiq_frame',
     'skotiq_device',
     'skotiq_imaging',
     'skotiq_platesolve',
-    'skotiq_wire_fixtures',
   },
   'skotiq_bridge': {
     'skotiq_alpaca',
@@ -260,9 +248,12 @@ const _rustCrates = <String, Set<String>>{
     'skotiq_platesolve',
     'skotiq_processing',
     'skotiq_sequencer',
-    'skotiq_wire_fixtures',
   },
 };
+
+/// Test support only: the fixture pins the crates' tests share with the app's
+/// tests. Every crate may take it as a dev-dependency, none as a dependency.
+const _rustTestSupport = 'skotiq_wire_fixtures';
 
 const _rustInstead =
     'Driver crates speak the skotiq_device vocabulary and know nothing of the '
@@ -1006,6 +997,7 @@ List<_Violation> _checkRustDirection() {
     String? name;
     String? section;
     final deps = <String, int>{};
+    final shipped = <String>{};
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i].trim();
       final header = RegExp(r'^\[(.+)\]$').firstMatch(line);
@@ -1014,7 +1006,12 @@ List<_Violation> _checkRustDirection() {
         final table = RegExp(
           r'(?:^|\.)(?:dependencies|dev-dependencies|build-dependencies)\.(skotiq_\w+)$',
         ).firstMatch(section!);
-        if (table != null) deps[table.group(1)!] = i + 1;
+        if (table != null) {
+          deps[table.group(1)!] = i + 1;
+          if (!section.contains('dev-dependencies')) {
+            shipped.add(table.group(1)!);
+          }
+        }
         continue;
       }
       if (section == 'package') {
@@ -1025,7 +1022,10 @@ List<_Violation> _checkRustDirection() {
             r'(?:^|\.)(?:dependencies|dev-dependencies|build-dependencies)$',
           ).hasMatch(section)) {
         final m = RegExp(r'^(skotiq_\w+)\s*[=.]').firstMatch(line);
-        if (m != null) deps[m.group(1)!] = i + 1;
+        if (m != null) {
+          deps[m.group(1)!] = i + 1;
+          if (!section.endsWith('dev-dependencies')) shipped.add(m.group(1)!);
+        }
       }
     }
     if (name == null) continue;
@@ -1045,6 +1045,7 @@ List<_Violation> _checkRustDirection() {
     }
     for (final MapEntry(key: dep, value: line) in deps.entries) {
       if (dep == name || allowed.contains(dep)) continue;
+      if (dep == _rustTestSupport && !shipped.contains(dep)) continue;
       final list = allowed.isEmpty
           ? 'no other Skotiq crate'
           : (allowed.toList()..sort()).join(', ');

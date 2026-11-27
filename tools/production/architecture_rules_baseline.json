@@ -11,7 +11,7 @@
       },
       "calibration_run.rs::is_calibration_only": {
         "count": 1,
-        "reason": "Domain predicate, Rust twin of eon_plan.dart isCalibrationOnlySequence."
+        "reason": "Domain predicate: a sequence that only takes calibration frames is exempt from the standard triggers."
       },
       "node_durations.dart::_SequenceTimeEstimatorNodeDurations._estimateNodeDuration": {
         "count": 1,
@@ -75,7 +75,7 @@
       },
       "services/centering_service.dart": {
         "count": 3,
-        "reason": "Holds a Riverpod Ref; reads coImagingSessionServiceProvider, deviceBackendProvider, exposureSettingsProvider. Remains: Other services import it (manual_centering.dart), so it stays in services/; its provider reads become arguments in a later round."
+        "reason": "Holds a Riverpod Ref; reads cameraStateProvider, coImagingSessionServiceProvider, filterWheelStateProvider, loggingServiceProvider, mountStateProvider. Remains: Other services import it (manual_centering.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/darkroom_build_jobs.dart": {
         "count": 6,
@@ -87,7 +87,7 @@
       },
       "services/device_reconnect_coordinator.dart": {
         "count": 4,
-        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, loggingServiceProvider, mountStateProvider, notificationServiceProvider, sequenceExecutionStateProvider, uiNotificationProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, mountStateProvider, runHeldByActionProvider, sequenceExecutionStateProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/device_service.dart": {
         "count": 22,
@@ -160,7 +160,7 @@
       },
       "services/centering_service.dart": {
         "count": 1,
-        "reason": "Holds a Riverpod Ref; reads coImagingSessionServiceProvider, deviceBackendProvider, exposureSettingsProvider. Remains: Other services import it (manual_centering.dart), so it stays in services/; its provider reads become arguments in a later round."
+        "reason": "Holds a Riverpod Ref; reads cameraStateProvider, coImagingSessionServiceProvider, filterWheelStateProvider, loggingServiceProvider, mountStateProvider. Remains: Other services import it (manual_centering.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/darkroom_build_jobs.dart": {
         "count": 1,
@@ -172,7 +172,7 @@
       },
       "services/device_reconnect_coordinator.dart": {
         "count": 1,
-        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, loggingServiceProvider, mountStateProvider, notificationServiceProvider, sequenceExecutionStateProvider, uiNotificationProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
+        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, mountStateProvider, runHeldByActionProvider, sequenceExecutionStateProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/device_service.dart": {
         "count": 1,

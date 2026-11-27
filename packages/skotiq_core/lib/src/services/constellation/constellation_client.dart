@@ -1,4 +1,4 @@
-// Pillar C ("Constellation") — the HTTP client for a Skotiq hub.
+// Constellation: the HTTP client for a Skotiq hub.
 //
 // A Constellation hub is a self-hosted, LAN-or-internet REST service
 // (`server/skotiq_hub/`, contract in `docs/skotiq_5_0_contracts.md`)
@@ -10,21 +10,18 @@
 // and the `order` query parameter pins the HEALPix tiling so a mismatched hub
 // is detected up front.
 //
-// Every request goes through one [HttpExchange], which maps a failure before
-// an HTTP status onto a network [ConstellationException]; `_throwForStatus`
-// classifies the HTTP status. The client is deliberately stateless beyond its
-// base URL + token so one instance can be created per hub from a provider.
+// Every request goes through one [HubTransport]. The client is deliberately
+// stateless beyond its base URL + token so one instance can be created per hub
+// from a provider.
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show File, FileSystemException, IOSink, SocketException;
+import 'dart:io' show File;
 
 import 'package:http/http.dart' as http;
 
-import '../http_exchange.dart';
 import 'constellation_models.dart';
-part 'constellation_client/transport.dart';
-part 'constellation_client/io_cleanup.dart';
+import 'hub_transport.dart';
 
 /// Thin REST client for one Constellation hub (one account / bearer token).
 ///
@@ -32,49 +29,38 @@ part 'constellation_client/io_cleanup.dart';
 /// transfers ([pushTile] / [pullTile]) stream the `.skt` blob to/from disk so a
 /// deep tile never has to be held in memory twice.
 class ConstellationClient {
-  /// Hub root, e.g. `https://hub.example.org` or `http://192.168.1.20:8088`.
-  /// The `/v1` base path is appended internally.
-  final Uri hubBaseUrl;
-
-  /// Account bearer token (scopes `contribute` / `read` / `admin`).
-  final String bearerToken;
-
-  final http.Client _client;
-  final bool _ownsClient;
-
   /// [client] is injectable for tests (`package:http/testing.dart` MockClient).
   /// When omitted a real client is created and owned here ([close] disposes it).
   /// A request fails when no bytes move for [timeout].
   ConstellationClient({
-    required this.hubBaseUrl,
-    required this.bearerToken,
+    required Uri hubBaseUrl,
+    required String bearerToken,
     http.Client? client,
     Duration timeout = const Duration(seconds: 60),
-  }) : _client = client ?? http.Client(),
-       _ownsClient = client == null {
-    _exchange = HttpExchange(
-      _client,
-      networkFailure: ConstellationException.network,
-      idleLimit: timeout,
-    );
-  }
+  }) : _hub = HubTransport(
+         hubBaseUrl: hubBaseUrl,
+         bearerToken: bearerToken,
+         client: client,
+         timeout: timeout,
+       );
 
-  late final HttpExchange _exchange;
+  final HubTransport _hub;
 
-  void close() {
-    if (_ownsClient) _client.close();
-  }
+  /// Hub root, e.g. `https://hub.example.org` or `http://192.168.1.20:8088`.
+  /// The `/v1` base path is appended internally.
+  Uri get hubBaseUrl => _hub.hubBaseUrl;
 
-  Map<String, String> get _authHeaders => {
-    'Authorization': 'Bearer $bearerToken',
-  };
+  /// Account bearer token (scopes `contribute` / `read` / `admin`).
+  String get bearerToken => _hub.bearerToken;
+
+  void close() => _hub.close();
 
   /// `GET /v1/info` — hub identity + tiling. Call before contributing so an
   /// order/tile-size mismatch is caught before any blob leaves the device.
   Future<HubInfo> info() async {
-    final response = await _send('GET', _v1('info'));
-    if (response.statusCode != 200) _throwForStatus(response, 'Hub info');
-    return HubInfo.fromJson(_decodeJson(response, 'Hub info'));
+    final response = await _hub.send('GET', _hub.v1('info'));
+    if (response.statusCode != 200) _hub.throwForStatus(response, 'Hub info');
+    return HubInfo.fromJson(_hub.decodeJson(response, 'Hub info'));
   }
 
   /// `GET /v1/targets` — the swarm's shared-target listing. The browse payload
@@ -82,9 +68,9 @@ class ConstellationClient {
   /// the decoded JSON is returned raw (a `List` or a `{ "targets": [...] }`
   /// envelope) for [ConstellationService] to map into [SharedTarget]s.
   Future<Object?> browseRaw() async {
-    final response = await _send('GET', _v1('targets'));
+    final response = await _hub.send('GET', _hub.v1('targets'));
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Browse shared targets');
+      _hub.throwForStatus(response, 'Browse shared targets');
     }
     try {
       return jsonDecode(response.body);
@@ -104,9 +90,9 @@ class ConstellationClient {
     required String publicKey,
     required String displayName,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('accounts'),
+      _hub.v1('accounts'),
       headers: {'Content-Type': 'application/json'},
       bodyBytes: utf8.encode(
         jsonEncode({'publicKey': publicKey, 'displayName': displayName}),
@@ -114,9 +100,9 @@ class ConstellationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Create account');
+      _hub.throwForStatus(response, 'Create account');
     }
-    return HubAccount.fromJson(_decodeJson(response, 'Create account'));
+    return HubAccount.fromJson(_hub.decodeJson(response, 'Create account'));
   }
 
   /// `POST /v1/tokens` — mint a fine-grained scoped token: the "hand a
@@ -138,9 +124,9 @@ class ConstellationClient {
     int? lifetimeSeconds,
     String? accountId,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('tokens'),
+      _hub.v1('tokens'),
       headers: {'Content-Type': 'application/json'},
       bodyBytes: utf8.encode(
         jsonEncode(<String, Object?>{
@@ -156,9 +142,9 @@ class ConstellationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Mint token');
+      _hub.throwForStatus(response, 'Mint token');
     }
-    return MintedToken.fromJson(_decodeJson(response, 'Mint token'));
+    return MintedToken.fromJson(_hub.decodeJson(response, 'Mint token'));
   }
 
   /// `POST /v1/targets` — create (or look up by name) a shared target so the
@@ -176,9 +162,9 @@ class ConstellationClient {
     required double radiusDeg,
     double priority = 0.5,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('targets'),
+      _hub.v1('targets'),
       headers: {'Content-Type': 'application/json'},
       bodyBytes: utf8.encode(
         jsonEncode({
@@ -192,9 +178,9 @@ class ConstellationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Create shared target');
+      _hub.throwForStatus(response, 'Create shared target');
     }
-    final body = _decodeJson(response, 'Create shared target');
+    final body = _hub.decodeJson(response, 'Create shared target');
     final target = body['target'];
     if (target is! Map<String, dynamic>) {
       throw const ConstellationException(
@@ -241,18 +227,18 @@ class ConstellationClient {
       'license': license,
       'attributionConsent': '$attributionConsent',
     };
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('tiles/$tileId/contributions', {'order': '$order'}),
+      _hub.v1('tiles/$tileId/contributions', {'order': '$order'}),
       headers: headers,
       bodyBytes: bytes,
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Push tile $tileId');
+      _hub.throwForStatus(response, 'Push tile $tileId');
     }
     return ContributionReceipt.fromJson(
-      _decodeJson(response, 'Push tile $tileId'),
+      _hub.decodeJson(response, 'Push tile $tileId'),
     );
   }
 
@@ -266,12 +252,12 @@ class ConstellationClient {
     required String outPath,
     bool finalized = true,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'GET',
-      _v1('tiles/$tileId', {'order': '$order', 'finalized': '$finalized'}),
+      _hub.v1('tiles/$tileId', {'order': '$order', 'finalized': '$finalized'}),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Pull tile $tileId');
+      _hub.throwForStatus(response, 'Pull tile $tileId');
     }
     final out = File(outPath);
     await out.parent.create(recursive: true);
@@ -282,15 +268,15 @@ class ConstellationClient {
   /// `DELETE /v1/contributions/{id}` — retract a prior contribution. The hub
   /// subtracts it from the fused tile (exact when no clipping is configured).
   Future<RetractionReceipt> retract(String remoteContributionId) async {
-    final response = await _send(
+    final response = await _hub.send(
       'DELETE',
-      _v1('contributions/$remoteContributionId'),
+      _hub.v1('contributions/$remoteContributionId'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Retract $remoteContributionId');
+      _hub.throwForStatus(response, 'Retract $remoteContributionId');
     }
     return RetractionReceipt.fromJson(
-      _decodeJson(response, 'Retract $remoteContributionId'),
+      _hub.decodeJson(response, 'Retract $remoteContributionId'),
     );
   }
 
@@ -316,9 +302,9 @@ class ConstellationClient {
         kind: ConstellationErrorKind.notFound,
       );
     }
-    final response = await _sendFile(
+    final response = await _hub.sendFile(
       'POST',
-      _v1('tiles/$tileId/subframes', {
+      _hub.v1('tiles/$tileId/subframes', {
         'order': '$order',
         if (capturedImageId != null) 'capturedImageId': '$capturedImageId',
         if (exposureSeconds != null) 'exposureSeconds': '$exposureSeconds',
@@ -335,10 +321,10 @@ class ConstellationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Push subframe for tile $tileId');
+      _hub.throwForStatus(response, 'Push subframe for tile $tileId');
     }
     return SubframeReceipt.fromJson(
-      _decodeJson(response, 'Push subframe for tile $tileId'),
+      _hub.decodeJson(response, 'Push subframe for tile $tileId'),
     );
   }
 
@@ -346,9 +332,12 @@ class ConstellationClient {
   /// A raw-sub deletion is a FILE-DELETE on the hub (the frame is removed), not
   /// a clean subtraction from a co-add.
   Future<void> deleteSubframe(String contributionId) async {
-    final response = await _send('DELETE', _v1('subframes/$contributionId'));
+    final response = await _hub.send(
+      'DELETE',
+      _hub.v1('subframes/$contributionId'),
+    );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Delete subframe $contributionId');
+      _hub.throwForStatus(response, 'Delete subframe $contributionId');
     }
   }
 
@@ -356,37 +345,43 @@ class ConstellationClient {
   /// available for this user right now. Returns null when the hub has no
   /// handoff state for the target (HTTP 404 is treated as "no claim").
   Future<HandoffClaim?> queryHandoff(int targetId) async {
-    final response = await _send('GET', _v1('handoff/$targetId'));
+    final response = await _hub.send('GET', _hub.v1('handoff/$targetId'));
     if (response.statusCode == 404) return null;
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Handoff query $targetId');
+      _hub.throwForStatus(response, 'Handoff query $targetId');
     }
     return HandoffClaim.fromJson(
-      _decodeJson(response, 'Handoff query $targetId'),
+      _hub.decodeJson(response, 'Handoff query $targetId'),
     );
   }
 
   /// `POST /v1/handoff/{targetId}/claim` — take the active-imager baton for a
   /// shared target so the swarm does not double-collect the same sky.
   Future<HandoffClaim?> claimHandoff(int targetId) async {
-    final response = await _send('POST', _v1('handoff/$targetId/claim'));
+    final response = await _hub.send(
+      'POST',
+      _hub.v1('handoff/$targetId/claim'),
+    );
     if (response.statusCode == 404) return null;
-    // 409 here means another user holds the baton — surfaced as a conflict so
-    // the caller can fall back to the next dark target.
+    // A 409 `handoffHeld` (another site holds the baton) reads as a conflict,
+    // so the caller can fall back to the next dark target.
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Handoff claim $targetId');
+      _hub.throwForStatus(response, 'Handoff claim $targetId');
     }
     return HandoffClaim.fromJson(
-      _decodeJson(response, 'Handoff claim $targetId'),
+      _hub.decodeJson(response, 'Handoff claim $targetId'),
     );
   }
 
   /// `POST /v1/handoff/{targetId}/release` — hand the baton back when this
   /// user's window on the target closes (set below the horizon / dawn).
   Future<void> releaseHandoff(int targetId) async {
-    final response = await _send('POST', _v1('handoff/$targetId/release'));
+    final response = await _hub.send(
+      'POST',
+      _hub.v1('handoff/$targetId/release'),
+    );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Handoff release $targetId');
+      _hub.throwForStatus(response, 'Handoff release $targetId');
     }
   }
 
@@ -404,9 +399,9 @@ class ConstellationClient {
     required String artifactRef,
     int limit = 200,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'GET',
-      _v1('attribution', {
+      _hub.v1('attribution', {
         'artifactType': artifactType,
         'artifactRef': artifactRef,
         'limit': '$limit',
@@ -419,10 +414,13 @@ class ConstellationClient {
       );
     }
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Attribution for $artifactType $artifactRef');
+      _hub.throwForStatus(
+        response,
+        'Attribution for $artifactType $artifactRef',
+      );
     }
     return ArtifactAttribution.fromJson(
-      _decodeJson(response, 'Attribution for $artifactType $artifactRef'),
+      _hub.decodeJson(response, 'Attribution for $artifactType $artifactRef'),
     );
   }
 
@@ -439,9 +437,9 @@ class ConstellationClient {
     double overlapPct = 15.0,
     double positionAngleDeg = 0.0,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('mosaics'),
+      _hub.v1('mosaics'),
       headers: {'Content-Type': 'application/json'},
       bodyBytes: utf8.encode(
         jsonEncode(<String, Object?>{
@@ -465,16 +463,18 @@ class ConstellationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Publish mosaic');
+      _hub.throwForStatus(response, 'Publish mosaic');
     }
-    return CollabMosaic.fromJson(_decodeJson(response, 'Publish mosaic'));
+    return CollabMosaic.fromJson(_hub.decodeJson(response, 'Publish mosaic'));
   }
 
   /// `GET /v1/mosaics` — list open/claimable collaborative mosaics.
   Future<List<CollabMosaic>> listMosaics() async {
-    final response = await _send('GET', _v1('mosaics'));
-    if (response.statusCode != 200) _throwForStatus(response, 'List mosaics');
-    final body = _decodeJson(response, 'List mosaics');
+    final response = await _hub.send('GET', _hub.v1('mosaics'));
+    if (response.statusCode != 200) {
+      _hub.throwForStatus(response, 'List mosaics');
+    }
+    final body = _hub.decodeJson(response, 'List mosaics');
     final list = body['mosaics'] as List? ?? const [];
     return list
         .whereType<Map<String, dynamic>>()
@@ -484,11 +484,13 @@ class ConstellationClient {
 
   /// `GET /v1/mosaics/{mosaicId}` — one mosaic + its per-panel state.
   Future<CollabMosaic> getMosaic(String mosaicId) async {
-    final response = await _send('GET', _v1('mosaics/$mosaicId'));
+    final response = await _hub.send('GET', _hub.v1('mosaics/$mosaicId'));
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Get mosaic $mosaicId');
+      _hub.throwForStatus(response, 'Get mosaic $mosaicId');
     }
-    return CollabMosaic.fromJson(_decodeJson(response, 'Get mosaic $mosaicId'));
+    return CollabMosaic.fromJson(
+      _hub.decodeJson(response, 'Get mosaic $mosaicId'),
+    );
   }
 
   /// `POST /v1/mosaics/{mosaicId}/panels/{panelIndex}/claim` — take the panel
@@ -499,9 +501,9 @@ class ConstellationClient {
     int panelIndex, {
     String? rigId,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('mosaics/$mosaicId/panels/$panelIndex/claim', {
+      _hub.v1('mosaics/$mosaicId/panels/$panelIndex/claim', {
         if (rigId != null && rigId.isNotEmpty) 'rigId': rigId,
       }),
     );
@@ -518,28 +520,31 @@ class ConstellationClient {
       );
     }
     if (status != 200) {
-      _throwForStatus(response, 'Claim panel $panelIndex of mosaic $mosaicId');
+      _hub.throwForStatus(
+        response,
+        'Claim panel $panelIndex of mosaic $mosaicId',
+      );
     }
     return MosaicPanelClaim.fromJson(
-      _decodeJson(response, 'Claim panel $panelIndex of mosaic $mosaicId'),
+      _hub.decodeJson(response, 'Claim panel $panelIndex of mosaic $mosaicId'),
     );
   }
 
   /// `POST /v1/mosaics/{mosaicId}/panels/{panelIndex}/release` — give the baton
   /// back. Returns whether a held claim was released.
   Future<bool> releasePanel(String mosaicId, int panelIndex) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('mosaics/$mosaicId/panels/$panelIndex/release'),
+      _hub.v1('mosaics/$mosaicId/panels/$panelIndex/release'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(
+      _hub.throwForStatus(
         response,
         'Release panel $panelIndex of mosaic $mosaicId',
       );
     }
-    final body = _decodeJson(response, 'Release panel $panelIndex');
-    return _requireBool(body, 'released', 'Release panel $panelIndex');
+    final body = _hub.decodeJson(response, 'Release panel $panelIndex');
+    return _hub.requireBool(body, 'released', 'Release panel $panelIndex');
   }
 
   /// `POST /v1/mosaics/{mosaicId}/panels/{panelIndex}/force-release` —
@@ -549,18 +554,22 @@ class ConstellationClient {
   /// whether a panel was evicted; 404 when there was nothing to free. The hub
   /// enforces that only the mosaic owner or an admin may call this.
   Future<bool> forceReleasePanel(String mosaicId, int panelIndex) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('mosaics/$mosaicId/panels/$panelIndex/force-release'),
+      _hub.v1('mosaics/$mosaicId/panels/$panelIndex/force-release'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(
+      _hub.throwForStatus(
         response,
         'Force-release panel $panelIndex of mosaic $mosaicId',
       );
     }
-    final body = _decodeJson(response, 'Force-release panel $panelIndex');
-    return _requireBool(body, 'released', 'Force-release panel $panelIndex');
+    final body = _hub.decodeJson(response, 'Force-release panel $panelIndex');
+    return _hub.requireBool(
+      body,
+      'released',
+      'Force-release panel $panelIndex',
+    );
   }
 
   /// `POST /v1/mosaics/{mosaicId}/panels/{panelIndex}/master` — stream the
@@ -583,9 +592,9 @@ class ConstellationClient {
         kind: ConstellationErrorKind.notFound,
       );
     }
-    final response = await _sendFile(
+    final response = await _hub.sendFile(
       'POST',
-      _v1('mosaics/$mosaicId/panels/$panelIndex/master', {
+      _hub.v1('mosaics/$mosaicId/panels/$panelIndex/master', {
         if (rigId != null && rigId.isNotEmpty) 'rigId': rigId,
       }),
       file,
@@ -602,10 +611,10 @@ class ConstellationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Push panel master $panelIndex');
+      _hub.throwForStatus(response, 'Push panel master $panelIndex');
     }
     return CollabMosaicPanel.fromJson(
-      _decodeJson(response, 'Push panel master $panelIndex'),
+      _hub.decodeJson(response, 'Push panel master $panelIndex'),
     );
   }
 
@@ -617,9 +626,9 @@ class ConstellationClient {
     int panelIndex,
     String outPath,
   ) async {
-    return _download(
+    return _hub.download(
       'GET',
-      _v1('mosaics/$mosaicId/panels/$panelIndex/master'),
+      _hub.v1('mosaics/$mosaicId/panels/$panelIndex/master'),
       outPath,
       'Pull panel master $panelIndex',
     );
@@ -638,25 +647,27 @@ class ConstellationClient {
         kind: ConstellationErrorKind.notFound,
       );
     }
-    final response = await _sendFile(
+    final response = await _hub.sendFile(
       'POST',
-      _v1('mosaics/$mosaicId/output'),
+      _hub.v1('mosaics/$mosaicId/output'),
       file,
       headers: {'Content-Type': 'application/octet-stream'},
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Push mosaic output');
+      _hub.throwForStatus(response, 'Push mosaic output');
     }
-    return CollabMosaic.fromJson(_decodeJson(response, 'Push mosaic output'));
+    return CollabMosaic.fromJson(
+      _hub.decodeJson(response, 'Push mosaic output'),
+    );
   }
 
   /// `GET /v1/mosaics/{mosaicId}/output` — download the finished mosaic to
   /// [outPath]. 404 (→ [ConstellationErrorKind.notFound]) until complete.
   Future<String> pullMosaicOutput(String mosaicId, String outPath) async {
-    return _download(
+    return _hub.download(
       'GET',
-      _v1('mosaics/$mosaicId/output'),
+      _hub.v1('mosaics/$mosaicId/output'),
       outPath,
       'Pull mosaic output',
     );
@@ -672,9 +683,9 @@ class ConstellationClient {
     double radiusDeg = 1.5,
     String? rigId,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('coimaging/sessions'),
+      _hub.v1('coimaging/sessions'),
       headers: {'Content-Type': 'application/json'},
       bodyBytes: utf8.encode(
         jsonEncode(<String, Object?>{
@@ -688,20 +699,20 @@ class ConstellationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Create co-imaging session');
+      _hub.throwForStatus(response, 'Create co-imaging session');
     }
     return CoImagingSession.fromJson(
-      _decodeJson(response, 'Create co-imaging session'),
+      _hub.decodeJson(response, 'Create co-imaging session'),
     );
   }
 
   /// `GET /v1/coimaging/sessions` — browse active co-imaging sessions.
   Future<List<CoImagingSession>> listCoImagingSessions() async {
-    final response = await _send('GET', _v1('coimaging/sessions'));
+    final response = await _hub.send('GET', _hub.v1('coimaging/sessions'));
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'List co-imaging sessions');
+      _hub.throwForStatus(response, 'List co-imaging sessions');
     }
-    final body = _decodeJson(response, 'List co-imaging sessions');
+    final body = _hub.decodeJson(response, 'List co-imaging sessions');
     final list = body['sessions'] as List? ?? const [];
     return list
         .whereType<Map<String, dynamic>>()
@@ -711,12 +722,15 @@ class ConstellationClient {
 
   /// `GET /v1/coimaging/sessions/{id}` — one session + participants + baton.
   Future<CoImagingSession> getCoImagingSession(String sessionId) async {
-    final response = await _send('GET', _v1('coimaging/sessions/$sessionId'));
+    final response = await _hub.send(
+      'GET',
+      _hub.v1('coimaging/sessions/$sessionId'),
+    );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Get co-imaging session $sessionId');
+      _hub.throwForStatus(response, 'Get co-imaging session $sessionId');
     }
     return CoImagingSession.fromJson(
-      _decodeJson(response, 'Get co-imaging session $sessionId'),
+      _hub.decodeJson(response, 'Get co-imaging session $sessionId'),
     );
   }
 
@@ -728,9 +742,9 @@ class ConstellationClient {
     String? rigId,
     String role = 'contribute',
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('coimaging/sessions/$sessionId/join', {
+      _hub.v1('coimaging/sessions/$sessionId/join', {
         if (rigId != null && rigId.isNotEmpty) 'rigId': rigId,
         'role': role,
       }),
@@ -746,41 +760,45 @@ class ConstellationClient {
       );
     }
     if (status != 200) {
-      _throwForStatus(response, 'Join co-imaging session $sessionId');
+      _hub.throwForStatus(response, 'Join co-imaging session $sessionId');
     }
     return CoImagingParticipant.fromJson(
-      _decodeJson(response, 'Join co-imaging session $sessionId'),
+      _hub.decodeJson(response, 'Join co-imaging session $sessionId'),
     );
   }
 
   /// `POST /v1/coimaging/sessions/{id}/leave` — leave the session.
   Future<bool> leaveCoImagingSession(String sessionId, {String? rigId}) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('coimaging/sessions/$sessionId/leave', {
+      _hub.v1('coimaging/sessions/$sessionId/leave', {
         if (rigId != null && rigId.isNotEmpty) 'rigId': rigId,
       }),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Leave co-imaging session $sessionId');
+      _hub.throwForStatus(response, 'Leave co-imaging session $sessionId');
     }
-    final body = _decodeJson(response, 'Leave co-imaging session');
-    return _requireBool(body, 'left', 'Leave co-imaging session $sessionId');
+    final body = _hub.decodeJson(response, 'Leave co-imaging session');
+    return _hub.requireBool(
+      body,
+      'left',
+      'Leave co-imaging session $sessionId',
+    );
   }
 
   /// `POST /v1/coimaging/sessions/{id}/close` — close the session (owner/admin
   /// only). Marks it `closed` on the hub and tears down its live preview
   /// subscribers; returns the closed session's state.
   Future<CoImagingSession> closeCoImagingSession(String sessionId) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('coimaging/sessions/$sessionId/close'),
+      _hub.v1('coimaging/sessions/$sessionId/close'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Close co-imaging session $sessionId');
+      _hub.throwForStatus(response, 'Close co-imaging session $sessionId');
     }
     return CoImagingSession.fromJson(
-      _decodeJson(response, 'Close co-imaging session $sessionId'),
+      _hub.decodeJson(response, 'Close co-imaging session $sessionId'),
     );
   }
 
@@ -797,9 +815,9 @@ class ConstellationClient {
     String? membershipToken,
     bool attributionConsent = true,
   }) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('coimaging/sessions/$sessionId/contributions', {
+      _hub.v1('coimaging/sessions/$sessionId/contributions', {
         'framesDelta': '$framesDelta',
         'integrationSecondsDelta': '$integrationSecondsDelta',
         if (rigId != null && rigId.isNotEmpty) 'rigId': rigId,
@@ -815,24 +833,24 @@ class ConstellationClient {
       },
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Record co-imaging contribution');
+      _hub.throwForStatus(response, 'Record co-imaging contribution');
     }
     return CoImagingAccounting.fromJson(
-      _decodeJson(response, 'Record co-imaging contribution'),
+      _hub.decodeJson(response, 'Record co-imaging contribution'),
     );
   }
 
   /// `GET /v1/coimaging/sessions/{id}/baton` — who holds the active-imager baton.
   Future<CoImagingBatonState> getCoImagingBaton(String sessionId) async {
-    final response = await _send(
+    final response = await _hub.send(
       'GET',
-      _v1('coimaging/sessions/$sessionId/baton'),
+      _hub.v1('coimaging/sessions/$sessionId/baton'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Get co-imaging baton $sessionId');
+      _hub.throwForStatus(response, 'Get co-imaging baton $sessionId');
     }
     return CoImagingBatonState.fromJson(
-      _decodeJson(response, 'Get co-imaging baton $sessionId'),
+      _hub.decodeJson(response, 'Get co-imaging baton $sessionId'),
     );
   }
 
@@ -840,31 +858,31 @@ class ConstellationClient {
   /// baton (the target is rising at this site). Returns null on a 409 (another
   /// site holds it) so the caller can keep pulling instead.
   Future<HandoffClaim?> claimCoImagingBaton(String sessionId) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('coimaging/sessions/$sessionId/baton/claim'),
+      _hub.v1('coimaging/sessions/$sessionId/baton/claim'),
     );
     if (response.statusCode == 409) return null;
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Claim co-imaging baton $sessionId');
+      _hub.throwForStatus(response, 'Claim co-imaging baton $sessionId');
     }
     return HandoffClaim.fromJson(
-      _decodeJson(response, 'Claim co-imaging baton $sessionId'),
+      _hub.decodeJson(response, 'Claim co-imaging baton $sessionId'),
     );
   }
 
   /// `POST /v1/coimaging/sessions/{id}/baton/release` — hand the baton east as
   /// the target sets at this site.
   Future<bool> releaseCoImagingBaton(String sessionId) async {
-    final response = await _send(
+    final response = await _hub.send(
       'POST',
-      _v1('coimaging/sessions/$sessionId/baton/release'),
+      _hub.v1('coimaging/sessions/$sessionId/baton/release'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Release co-imaging baton $sessionId');
+      _hub.throwForStatus(response, 'Release co-imaging baton $sessionId');
     }
-    final body = _decodeJson(response, 'Release co-imaging baton');
-    return _requireBool(
+    final body = _hub.decodeJson(response, 'Release co-imaging baton');
+    return _hub.requireBool(
       body,
       'released',
       'Release co-imaging baton $sessionId',
@@ -878,27 +896,13 @@ class ConstellationClient {
   /// long-lived `text/event-stream`, so callers MUST cancel the subscription to
   /// release the connection.
   Stream<CoImagingPreview> streamCoImagingEvents(String sessionId) async* {
-    final request = http.Request(
+    final streamed = await _hub.openUnbounded(
       'GET',
-      _v1('coimaging/sessions/$sessionId/events'),
+      _hub.v1('coimaging/sessions/$sessionId/events'),
+      'Co-imaging event stream',
     );
-    request.headers.addAll(_authHeaders);
-    final http.StreamedResponse streamed;
-    try {
-      streamed = await _client.send(request);
-    } on SocketException catch (e) {
-      throw ConstellationException(
-        'Cannot reach ${request.url.host}: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on http.ClientException catch (e) {
-      throw ConstellationException(
-        'Co-imaging event stream failed: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    }
     if (streamed.statusCode != 200) {
-      _throwForStatus(
+      _hub.throwForStatus(
         await http.Response.fromStream(streamed),
         'Co-imaging events $sessionId',
       );

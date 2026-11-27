@@ -1,9 +1,8 @@
 // HTTP client for a hub's shared calibration library
 // (`/v1/calibration/masters`).
 //
-// Every request goes through one [HttpExchange], which maps a failure before
-// an HTTP status onto a network [ConstellationException]; `_throwForStatus`
-// classifies the HTTP status. The calibration tuple + license ride as query
+// Every request goes through one [HubTransport], which also reads the hub's
+// HTTP status. The calibration tuple + license ride as query
 // params, the `Provenance` JSON as the base64-encoded `x-provenance-json`
 // header (ASCII-safe so non-Latin-1 attribution survives dart:io's header
 // validation), and the master FITS as the `application/octet-stream` body
@@ -19,7 +18,7 @@ import '../../models/calibration/calibration_library_models.dart';
 import '../../models/calibration/shared_calibration_models.dart';
 import '../../models/collaboration/collaboration_models.dart';
 import '../constellation/constellation_models.dart';
-import '../http_exchange.dart';
+import '../constellation/hub_transport.dart';
 
 /// One downloaded shared master: its FITS [bytes] plus the hub's AUTHORITATIVE
 /// record of what those bytes are ([master]).
@@ -44,116 +43,31 @@ class SharedCalibrationDownload {
 /// Thin REST client for one hub's shared calibration library (one account /
 /// bearer token).
 class SharedCalibrationClient {
-  /// Hub root, e.g. `https://hub.example.org` or `http://192.168.1.20:8088`.
-  /// The `/v1` base path is appended internally.
-  final Uri hubBaseUrl;
-
-  /// Account bearer token (scopes `contribute` / `read`, plus the per-action
-  /// `calibration.publish` / `calibration.download` grants).
-  final String bearerToken;
-
-  final http.Client _client;
-  final bool _ownsClient;
-
   /// [client] is injectable for tests (`package:http/testing.dart` MockClient).
   /// A request fails when no bytes move for [timeout].
   SharedCalibrationClient({
-    required this.hubBaseUrl,
-    required this.bearerToken,
+    required Uri hubBaseUrl,
+    required String bearerToken,
     http.Client? client,
     Duration timeout = const Duration(seconds: 60),
-  }) : _client = client ?? http.Client(),
-       _ownsClient = client == null {
-    _exchange = HttpExchange(
-      _client,
-      networkFailure: ConstellationException.network,
-      idleLimit: timeout,
-    );
-  }
+  }) : _hub = HubTransport(
+         hubBaseUrl: hubBaseUrl,
+         bearerToken: bearerToken,
+         client: client,
+         timeout: timeout,
+       );
 
-  late final HttpExchange _exchange;
+  final HubTransport _hub;
 
-  void close() {
-    if (_ownsClient) _client.close();
-  }
+  /// Hub root, e.g. `https://hub.example.org` or `http://192.168.1.20:8088`.
+  /// The `/v1` base path is appended internally.
+  Uri get hubBaseUrl => _hub.hubBaseUrl;
 
-  Map<String, String> get _authHeaders => {
-    'Authorization': 'Bearer $bearerToken',
-  };
+  /// Account bearer token (scopes `contribute` / `read`, plus the per-action
+  /// `calibration.publish` / `calibration.download` grants).
+  String get bearerToken => _hub.bearerToken;
 
-  Uri _v1(String relPath, [Map<String, String>? query]) {
-    final segments = <String>[
-      ...hubBaseUrl.pathSegments.where((s) => s.isNotEmpty),
-      'v1',
-      ...relPath.split('/').where((s) => s.isNotEmpty),
-    ];
-    return hubBaseUrl.replace(
-      pathSegments: segments,
-      queryParameters: query == null || query.isEmpty ? null : query,
-    );
-  }
-
-  Future<http.Response> _send(
-    String method,
-    Uri uri, {
-    Map<String, String>? headers,
-    List<int>? bodyBytes,
-  }) => _exchange.send(
-    method,
-    uri,
-    headers: {..._authHeaders, ...?headers},
-    body: bodyBytes,
-  );
-
-  Future<http.Response> _sendFile(
-    String method,
-    Uri uri,
-    File file, {
-    Map<String, String>? headers,
-  }) => _exchange.send(
-    method,
-    uri,
-    headers: {..._authHeaders, ...?headers},
-    file: file,
-  );
-
-  Never _throwForStatus(http.Response response, String operation) {
-    final status = response.statusCode;
-    final kind = switch (status) {
-      401 || 403 => ConstellationErrorKind.auth,
-      404 => ConstellationErrorKind.notFound,
-      405 || 423 => ConstellationErrorKind.conflict,
-      400 || 409 => ConstellationErrorKind.protocol,
-      >= 500 => ConstellationErrorKind.server,
-      _ => ConstellationErrorKind.unknown,
-    };
-    final body = response.body.trim();
-    throw ConstellationException(
-      '$operation failed (HTTP $status)'
-      '${body.isEmpty ? '' : ': $body'}',
-      kind: kind,
-      statusCode: status,
-    );
-  }
-
-  Map<String, dynamic> _decodeJson(http.Response response, String operation) {
-    final Object? decoded;
-    try {
-      decoded = jsonDecode(response.body);
-    } on FormatException catch (e) {
-      throw ConstellationException(
-        '$operation returned malformed JSON: $e',
-        kind: ConstellationErrorKind.protocol,
-      );
-    }
-    if (decoded is! Map<String, dynamic>) {
-      throw ConstellationException(
-        '$operation returned a non-object payload',
-        kind: ConstellationErrorKind.protocol,
-      );
-    }
-    return decoded;
-  }
+  void close() => _hub.close();
 
   /// `GET /v1/calibration/masters` — ranked remote masters matching [context]'s
   /// sensor + capture tuple. The hub returns the coarse sensor-keyed set; the
@@ -178,11 +92,14 @@ class SharedCalibrationClient {
       'limit': '$limit',
       if (masterType != null && masterType.isNotEmpty) 'masterType': masterType,
     };
-    final response = await _send('GET', _v1('calibration/masters', query));
+    final response = await _hub.send(
+      'GET',
+      _hub.v1('calibration/masters', query),
+    );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Query calibration masters');
+      _hub.throwForStatus(response, 'Query calibration masters');
     }
-    final body = _decodeJson(response, 'Query calibration masters');
+    final body = _hub.decodeJson(response, 'Query calibration masters');
     final list = body['masters'] as List? ?? const [];
     return list
         .whereType<Map<String, dynamic>>()
@@ -260,9 +177,9 @@ class SharedCalibrationClient {
       'frameCount': '$frameCount',
       if (darkCurrent != null) 'darkCurrent': '$darkCurrent',
     };
-    final response = await _sendFile(
+    final response = await _hub.sendFile(
       'POST',
-      _v1('calibration/masters', query),
+      _hub.v1('calibration/masters', query),
       file,
       headers: {
         'Content-Type': 'application/octet-stream',
@@ -278,10 +195,10 @@ class SharedCalibrationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Publish calibration master');
+      _hub.throwForStatus(response, 'Publish calibration master');
     }
     return SharedCalibrationMaster.fromJson(
-      _decodeJson(response, 'Publish calibration master'),
+      _hub.decodeJson(response, 'Publish calibration master'),
     );
   }
 
@@ -297,12 +214,12 @@ class SharedCalibrationClient {
   /// `x-master-meta` (or an unparseable one); callers that use the tuple must
   /// treat that as a refusal rather than falling back to the caller's copy.
   Future<SharedCalibrationDownload> downloadMasterBytes(String remoteId) async {
-    final response = await _send(
+    final response = await _hub.send(
       'GET',
-      _v1('calibration/masters/$remoteId/file'),
+      _hub.v1('calibration/masters/$remoteId/file'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Download calibration master $remoteId');
+      _hub.throwForStatus(response, 'Download calibration master $remoteId');
     }
     return SharedCalibrationDownload(
       bytes: response.bodyBytes,
@@ -326,12 +243,12 @@ class SharedCalibrationClient {
 
   /// `DELETE /v1/calibration/masters/<id>` — retract a published master.
   Future<void> deleteMaster(String remoteId) async {
-    final response = await _send(
+    final response = await _hub.send(
       'DELETE',
-      _v1('calibration/masters/$remoteId'),
+      _hub.v1('calibration/masters/$remoteId'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Delete calibration master $remoteId');
+      _hub.throwForStatus(response, 'Delete calibration master $remoteId');
     }
   }
 }

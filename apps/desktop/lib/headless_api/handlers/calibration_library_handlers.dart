@@ -9,6 +9,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'hub_error_status.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 
@@ -43,27 +44,6 @@ class CalibrationLibraryHandlers implements RouteSource {
   final ProviderContainer container;
   CalibrationLibraryHandlers(this.container);
 
-  /// Map a hub-transport failure onto its wire status.
-  ///
-  /// A hub fault on the share paths must not reach the generic trap as a 500
-  /// `internal_error`: "your hub is switched off" would read as "the appliance
-  /// is broken", and a remote client could not tell a retryable outage from a
-  /// request it must fix. Identical to `MosaicHandlers` / `CoImagingHandlers`
-  /// — one feature must not answer three different codes for one cause.
-  static int _hubStatusFor(ConstellationErrorKind kind) => switch (kind) {
-    // No answer from the hub at all — this appliance is the gateway.
-    ConstellationErrorKind.network => 502,
-    // The hub answered, but is itself unhealthy; retry later.
-    ConstellationErrorKind.server => 503,
-    ConstellationErrorKind.auth => 401,
-    ConstellationErrorKind.notFound => 404,
-    ConstellationErrorKind.conflict => 409,
-    ConstellationErrorKind.geometryMismatch => 409,
-    // The hub rejected the request itself — the caller must change it.
-    ConstellationErrorKind.protocol => 400,
-    _ => 502,
-  };
-
   Response _hubError(
     ConstellationException error, {
     required String code,
@@ -76,7 +56,7 @@ class CalibrationLibraryHandlers implements RouteSource {
     return jsonError(
       code: code,
       message: '$message: ${error.message}',
-      statusCode: _hubStatusFor(error.kind),
+      statusCode: hubStatusFor(error.kind, unknown: 502),
     );
   }
 

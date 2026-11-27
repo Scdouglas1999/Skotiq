@@ -5,8 +5,7 @@ import 'package:skotiq_plugins/skotiq_plugins.dart';
 
 /// Integration test demonstrating the complete plugin lifecycle
 
-/// Plugin storage in memory: the default file store writes under the user's
-/// real data directory (`XDG_DATA_HOME`/`HOME`), which a test must not touch.
+/// Plugin storage in memory.
 PluginContextFactory _memoryContexts() =>
     PluginContextFactory(storageFactory: (_) => InMemoryPluginStorage());
 
@@ -339,13 +338,28 @@ void main() {
 
     test('unsafe plugin ids are rejected before storage is created', () {
       expect(
-        () => FilePluginStorage('../outside'),
+        () => FilePluginStorage(
+          '../outside',
+          baseDirectoryProvider: () async => Directory.systemTemp,
+        ),
         throwsA(isA<PluginException>()),
       );
       expect(
-        () => FilePluginStorage('com.example/escape'),
+        () => FilePluginStorage(
+          'com.example/escape',
+          baseDirectoryProvider: () async => Directory.systemTemp,
+        ),
         throwsA(isA<PluginException>()),
       );
+    });
+
+    test('a host built without a storage factory keeps plugin storage in '
+        'memory', () async {
+      final factory = PluginContextFactory();
+      addTearDown(factory.dispose);
+
+      final storage = factory.createContext('com.skotiq.default-store').storage;
+      expect(storage, isA<InMemoryPluginStorage>());
     });
 
     test('Sandboxed plugin event bus blocks global subscriptions', () async {

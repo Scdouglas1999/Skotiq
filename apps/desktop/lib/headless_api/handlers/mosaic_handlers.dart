@@ -12,6 +12,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'hub_error_status.dart';
 import 'package:skotiq_core/utils.dart';
 
 class MosaicHandlers implements RouteSource {
@@ -202,26 +203,7 @@ class MosaicHandlers implements RouteSource {
     // retry, when the remedy is on the caller's side.
     if (error is StateError) return 409;
     if (error is ConstellationException) {
-      return switch (error.kind) {
-        // Same meanings as CoImagingHandlers / CalibrationLibraryHandlers —
-        // one cause must not answer three codes across the pillars.
-        // No answer from the hub at all — this appliance is the gateway.
-        ConstellationErrorKind.network => 502,
-        // The hub answered, but is itself unhealthy; retry later.
-        ConstellationErrorKind.server => 503,
-        ConstellationErrorKind.conflict => 409,
-        ConstellationErrorKind.notFound => 404,
-        // Not signed in / no hub configured is a client precondition, not an
-        // upstream-gateway failure — return 401 so clients prompt a sign-in
-        // instead of retrying a 5xx as transient (matches CoImagingHandlers).
-        ConstellationErrorKind.auth => 401,
-        // A geometry mismatch is semantically-invalid client data, not a server
-        // fault — surface it as a conflict rather than a generic 502.
-        ConstellationErrorKind.geometryMismatch => 409,
-        // The hub rejected the request itself — the caller must change it.
-        ConstellationErrorKind.protocol => 400,
-        _ => error.statusCode ?? 502,
-      };
+      return hubStatusFor(error.kind, unknown: error.statusCode ?? 502);
     }
     return 500;
   }
