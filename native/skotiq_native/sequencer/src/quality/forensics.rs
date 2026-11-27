@@ -657,7 +657,7 @@ mod tests {
         s
     }
 
-    // Cloud passage — the "production-finished" scenario from the brief:
+    // Cloud passage:
     // 9 rejects between 02:30 and 02:42, sky brightness drop of 0.7 mag
     // in 30s, cloud cover spike from 12% to 78%, 8 other frames in the
     // same window also rejected.

@@ -409,16 +409,12 @@ impl Node for RuntimeNode {
             return NodeStatus::Skipped;
         }
 
-        // resume short-circuit. On resume, `resume_from_checkpoint`
-        // walks the freshly-built tree and calls `mark_completed` on every
-        // already-Success node, then the executor re-walks the WHOLE tree.
-        // The intended (and documented) behaviour is to skip those completed
-        // nodes — but that short-circuit never existed, so this `execute`
-        // overwrote the restored `Success` with `Running` below and re-ran
-        // finished steps (re-slewing, re-exposing completed frames). Honour
-        // the restored completion here. Loops call `child.reset()` (→ Pending)
-        // before each iteration, so a legitimately-repeating child is never
-        // wrongly skipped.
+        // Resume short-circuit. On resume, `resume_from_checkpoint` walks the
+        // freshly-built tree and calls `mark_completed` on every already-Success
+        // node, then the executor re-walks the whole tree; a completed node is
+        // skipped here so finished steps are not run again. Loops call
+        // `child.reset()` (→ Pending) before each iteration, so a repeating
+        // child is never wrongly skipped.
         if self.status == NodeStatus::Success {
             tracing::debug!(
                 "Resume short-circuit: node '{}' already Success, skipping re-execution",

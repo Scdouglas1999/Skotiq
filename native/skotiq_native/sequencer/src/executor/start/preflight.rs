@@ -58,19 +58,8 @@ impl SequenceExecutor {
             self.reset().await;
 
             // `reset()` wipes SequenceProgress back to default, which zeroes the
-            // totals that `load_sequence()` seeded moments earlier — the caller
-            // loads the sequence and THEN starts it, so on every run after the
-            // first the recycle threw the denominator away.
-            //
-            // Observed on the live rig across four consecutive runs in one app
-            // launch: run 1 (from a fresh `Idle`) reported
-            // `completedExposures 3 / totalExposures 3, progressPercent 1.0`,
-            // while runs after a terminal state reported
-            // `completedExposures 3 / totalExposures 0, progressPercent 0.0` —
-            // a finished, fully successful run rendering as a 0% progress bar
-            // on both the Run Dashboard and the mobile cockpit.
-            //
-            // Re-seed from the retained sequence (reset deliberately keeps
+            // totals that `load_sequence()` seeded moments earlier (the caller
+            // loads the sequence and then starts it). Re-seed from the retained sequence (reset deliberately keeps
             // `self.sequence` so the same tree can be re-run).
             if let Some(sequence) = self.sequence.as_ref() {
                 self.publish_totals(sequence);
@@ -161,10 +150,7 @@ impl SequenceExecutor {
         // A `CenterTarget` node is not the only way a run reaches the solver.
         // The meridian-flip trigger re-centres after a flip (`auto_center`, ON
         // by default) and that solve lives in trigger configuration, not in the
-        // tree, so a walk for `CenterTarget` alone cannot see it. Observed on a
-        // fresh install: a sequence with no Center node showed a green "All
-        // Checks Passed" on a machine whose own Equipment panel said "No plate
-        // solver is configured", then met the missing solver mid-run.
+        // tree, so a walk for `CenterTarget` alone cannot see it.
         //
         // A flip MAY never fire (a short run, a target nowhere near the
         // meridian, a parked calibration block), so this one warns rather than

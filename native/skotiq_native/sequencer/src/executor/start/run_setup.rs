@@ -9,22 +9,14 @@ impl SequenceExecutor {
     pub(super) async fn prepare_run_triggers(&mut self) {
         // Per-run trigger hygiene. `TriggerManager` (and its `TriggerState`) are
         // built once in `SequenceExecutor::new()` and live for the whole process,
-        // so without this every latch set by run N is still set when run N+1
-        // starts. Observed on the live rig: run 1 selected "Filter 2" and left
-        // `autofocus_invalidated` set; run 2 — a different sequence selecting
-        // "Filter 4" — force-fired the HFR trigger one second after start with
-        // the reason `filter changed to Filter 2`.
+        // so without this every latch set by run N (such as
+        // `autofocus_invalidated`) is still set when run N+1 starts.
         //
         // Then disarm the standard autofocus-action triggers when this run has
         // no focuser. A filter or target change invalidates the autofocus state,
         // which makes the HFR trigger fire unconditionally on the next tick;
-        // with no focuser the executor's Autofocus arm cannot act, and it used
-        // to answer by pausing the run indefinitely (`Execution paused at
-        // boundary, waiting for resume...`) while `/api/sequencer/status` kept
-        // reporting `running`. Reproduced end to end: a two-node sequence
-        // (change filter, then expose) hung forever on the filter node, with no
-        // frames and no terminal event, on a rig whose focuser was simply not
-        // connected.
+        // with no focuser the executor's Autofocus arm cannot act, and the run
+        // would wait at the boundary indefinitely.
         {
             let mut manager = self.trigger_manager.write().await;
             if !self.resume_prepared {

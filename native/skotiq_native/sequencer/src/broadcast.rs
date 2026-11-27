@@ -10,9 +10,8 @@
 //!
 //!   * Only one broadcast can be active at a time (a single TCP port
 //!     is bound by the Dart-side broadcast handler).
-//!   * The brief explicitly says "two LiveStacking nodes in the same
-//!     sequence is a warning, not an error" — last-one-wins matches
-//!     that.
+//!   * Two LiveStacking nodes in the same sequence is a warning, not an
+//!     error; the last one wins.
 //!   * The bridge layer activates / deactivates the slot on
 //!     sequence start / stop, matching the lifecycle of every other
 //!     active-state singleton in `skotiq_sequencer`.

@@ -109,8 +109,8 @@ pub struct AdaptiveExposureConfig {
     pub max_exposure_secs: f64,
 
     /// Per-filter enable map. Filter name -> bool. When a filter name is
-    /// absent, the global `enabled_by_default` applies. The brief
-    /// calls out the typical use case: enable on Lum/clear, leave RGB at
+    /// absent, the global `enabled_by_default` applies. The typical
+    /// use case: enable on Lum/clear, leave RGB at
     /// fixed exposures because chromatic noise behaves differently.
     #[serde(default)]
     pub per_filter_enabled: HashMap<String, bool>,
@@ -570,12 +570,10 @@ mod tests {
         assert!(cfg.is_enabled_for_filter(None));
     }
 
-    /// Worked example from the brief: L:60s nominal, ref=21.5 mag/arcsec²,
-    /// site 19.2 (Bortle 6). The brief promises "each L sub is actually
-    /// ~142s". Note that exact value depends on the brief author's mental
-    /// math; our straight Pogson formula yields ≈ 499s (a 2.3 mag flux
-    /// ratio is huge). We document the actual physics here and let the
-    /// per-filter max ceiling do the practical clamping.
+    /// Worked example: L:60s nominal, ref=21.5 mag/arcsec², site 19.2
+    /// (Bortle 6). The straight Pogson formula yields ≈ 499s (a 2.3 mag flux
+    /// ratio is large); the per-filter max ceiling does the practical
+    /// clamping.
     #[test]
     fn worked_example_from_brief() {
         let cfg = AdaptiveExposureConfig::default();

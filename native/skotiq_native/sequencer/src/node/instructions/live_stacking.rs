@@ -84,11 +84,8 @@ impl InstructionNode for LiveStackingInstruction {
             );
         }
 
-        // Emit a structured Generic progress event so the run dashboard
-        // can render the "Broadcasting" indicator without subscribing to
-        // a separate event. Using `lifecycle` with `Success` here is
-        // intentional — the instruction itself has completed; the
-        // background broadcast carries on independently.
+        // A lifecycle message with `Success`: the instruction itself has
+        // completed; the background broadcast carries on independently.
         let message = match config.mode {
             crate::LiveStackingMode::BroadcastOnly => "Live stack broadcast armed",
             crate::LiveStackingMode::RecordAndBroadcast => {

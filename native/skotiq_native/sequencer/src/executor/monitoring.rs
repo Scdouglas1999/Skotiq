@@ -672,15 +672,8 @@ pub(super) async fn restore_tracking_after_recovery(
     }
     let mount_id = mount_id?;
 
-    // Never command tracking on a PARKED mount.
-    //
-    // Observed on the live rig: a MoveRotator failure on a rig with no rotator
-    // drove the recovery ladder, and this resume path then issued
-    // `set tracking = true` on a parked Pegasus NYX-101 — unprompted motion
-    // intent on stowed hardware, from a failure that had nothing to do with the
-    // mount. It was refused (0x80020009) only because the driver happened to
-    // reject it while parked; a mount that accepted would have started sidereal
-    // motion against its park latch.
+    // Never command tracking on a PARKED mount: a recovery for an unrelated
+    // device failure must not start sidereal motion on stowed hardware.
     //
     // A park is also a deliberate safe state — the operator, the weather rule,
     // or the dawn shutdown put it there — and automatic recovery must not take

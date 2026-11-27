@@ -788,8 +788,7 @@ mod tests {
 
     #[test]
     fn resume_at_trial_3_extends_plan_to_include_iter_3() {
-        // User-brief test: "simulate a checkpoint at exposure trial 3/N
-        // — confirm resume starts at trial 4". `completed_steps` after
+        // A checkpoint at exposure trial 3/N resumes at trial 4. `completed_steps` after
         // trial 3 = 6 (Filter, Position, Panel, Iter(1), Iter(2),
         // Iter(3) all done); the next step to execute is plan[6] which
         // should be Iter(4).

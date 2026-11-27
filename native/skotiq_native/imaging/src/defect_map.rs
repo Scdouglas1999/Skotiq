@@ -1340,8 +1340,8 @@ mod tests {
     /// Performance test: 26MP frame + 10k defects must complete in under
     /// 100 ms. Run with `--release` for representative numbers; in debug
     /// builds we still want the operation to be sub-second so the test
-    /// catches regressions even when run without optimisation. The 100 ms
-    /// requirement is the brief's stated capture-cadence ceiling.
+    /// catches regressions even when run without optimization. 100 ms is the
+    /// capture-cadence ceiling.
     #[test]
     fn correct_u16_slice_meets_performance_target_for_26mp_frame() {
         // 6248 × 4176 ≈ ASI2600MM / IMX571 native resolution.
@@ -1367,7 +1367,7 @@ mod tests {
 
         // Release-vs-debug threshold split: with `cargo test` (debug) the
         // 26 MP loop is ~5-10× slower than release. We require <100 ms in
-        // release (the brief), and <2 s in debug as a soft tripwire.
+        // release and <2 s in debug as a soft tripwire.
         let deadline_ms = if cfg!(debug_assertions) { 2_000 } else { 100 };
 
         // The fastest of three runs: the limit is on the work, and a single
@@ -1399,8 +1399,8 @@ mod tests {
         );
     }
 
-    /// End-to-end generate-from-darks scenario from the brief: "10 dark
-    /// frames with synthetic hot pixels → wizard detects them". This is
+    /// End-to-end generate-from-darks scenario: 10 dark frames with
+    /// synthetic hot pixels, and the wizard detects them. This is
     /// the canonical happy-path the wizard UX walks the user through.
     #[test]
     fn generate_from_darks_detects_synthetic_hot_pixels() {
@@ -1446,8 +1446,7 @@ mod tests {
     }
 
     /// Round-trip: build a map from darks → write to disk → read back →
-    /// identical entries. Mirrors the brief's "Round-trip" requirement
-    /// (save defect map, reload, identical entries).
+    /// identical entries.
     #[test]
     fn round_trip_build_save_reload_identical_entries() {
         let w = 32u32;

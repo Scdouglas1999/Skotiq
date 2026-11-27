@@ -729,7 +729,6 @@ async fn wait_for_trigger(
         return NodeStatus::Success;
     }
 
-    // Shown to the operator: times as a date, not as Unix seconds.
     let label = trigger.label();
     let mut emitted_initial = false;
     let poll = std::time::Duration::from_secs(u64::from(poll_secs));

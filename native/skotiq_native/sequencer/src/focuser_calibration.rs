@@ -1003,7 +1003,7 @@ mod tests {
         assert!(calibration.provenance().contains("no backlash larger than"));
     }
 
-    /// The case the brief singles out: a small negative must not be clamped
+    /// A small negative must not be clamped
     /// into a fake positive, and must not be refused either — inside the
     /// resolution limit it is noise about zero.
     #[test]

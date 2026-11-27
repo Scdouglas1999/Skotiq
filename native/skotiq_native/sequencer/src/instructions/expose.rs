@@ -966,9 +966,8 @@ enum GuidingForFrame {
 }
 
 /// How long a frame retried on a reopened camera waits for its sensor to come
-/// back to the set-point. A sensor that warmed during a power loss (the rig,
-/// 2026-11-17: -5.7°C against -10°C) is pulled back in about a minute and a
-/// half; a cooler that has not got there in this time is not going to soon.
+/// back to the set-point. A sensor that warmed a few degrees during a power
+/// loss is pulled back in about a minute and a half; a cooler that has not got there in this time is not going to soon.
 const REOPEN_SET_POINT_LIMIT: Duration = Duration::from_secs(10 * 60);
 
 /// Hold a frame until the sensor is at the cooler's set-point: a frame

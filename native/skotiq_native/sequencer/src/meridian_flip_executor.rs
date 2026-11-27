@@ -3216,8 +3216,7 @@ mod tests {
     }
 
     /// A mount that stopped tracking at its axis limit takes the flip slew and
-    /// does not move (the NYX-101 on 2026-11-03 failed four flips this way and
-    /// paused the run). The flip moves the axis off the limit and slews again.
+    /// does not move. The flip moves the axis off the limit and slews again.
     #[tokio::test(start_paused = true)]
     async fn a_flip_frees_a_mount_stuck_at_its_limit_and_slews_again() {
         let state = Arc::new(MockDeviceOpsState::default());

@@ -26,7 +26,7 @@
 //!   bright backup in poor conditions.
 //!
 //! The tier->floor mapping is user-tunable via `BrightnessTierPreferences`
-//! on `TargetSchedulerConfig` (defaults match the brief).
+//! on `TargetSchedulerConfig`.
 //!
 //! ## Decision flow
 //!
@@ -112,8 +112,8 @@ impl BrightnessTier {
     }
 }
 
-/// User-tunable conditions-score floors per brightness tier. Defaults match
-/// the brief: faint ≥ 70, medium ≥ 50, bright ≥ 30.
+/// User-tunable conditions-score floors per brightness tier. Defaults:
+/// faint ≥ 70, medium ≥ 50, bright ≥ 30.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct BrightnessTierPreferences {
     pub faint_min_score: f64,
@@ -552,7 +552,7 @@ mod tests {
 
     #[test]
     fn swaps_faint_galaxy_to_bright_nebula_when_transparency_drops() {
-        // The scenario from the brief: M51 (faint) currently running,
+        // M51 (faint) currently running,
         // conditions 45, swap threshold 60. The scheduler should swap to
         // M27 (bright).
         let scores = [
