@@ -23,7 +23,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/guide_distance.dart';
 import '../../../utils/guider_state_label.dart';
 import '../../../localization/skotiq_localizations.dart';
-import '../data/plan/night_run_phase_provider.dart';
+import '../../../services/run_control/run_control.dart';
 import '../data/session/session_format.dart';
 import '../data/session/session_series_provider.dart';
 import '../data/session/guide_series_provider.dart';

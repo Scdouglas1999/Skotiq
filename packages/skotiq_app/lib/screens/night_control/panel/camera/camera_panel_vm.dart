@@ -13,7 +13,7 @@ import 'package:skotiq_core/services.dart';
 
 import '../../../../services/night_actions/night_action_controller.dart';
 import '../../data/plan/night_header_provider.dart';
-import '../../data/plan/night_run_phase_provider.dart';
+import '../../../../services/run_control/run_control.dart';
 import '../../data/plan/plan_steps_provider.dart';
 import '../../data/session/before_you_start_provider.dart';
 import '../../data/session/session_stats_provider.dart';

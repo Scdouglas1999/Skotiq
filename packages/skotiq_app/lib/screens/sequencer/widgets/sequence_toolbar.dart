@@ -14,6 +14,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../services/command_action_result.dart';
 import '../../../services/mount_command_service.dart';
+import '../../../services/run_control/run_control.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
@@ -703,9 +704,10 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             _ToolbarAction(
               icon: LucideIcons.skipForward,
               label: 'Skip to next step',
-              onPressed: executionState.canSkip
-                  ? () => runSequenceAction(actionService.skip)
-                  : null,
+              onPressed:
+                  ref.watch(sequencerRunTransportProvider).skip?.enabled == true
+                      ? () => runSequenceAction(actionService.skip)
+                      : null,
             ),
             _ToolbarAction(
               icon: LucideIcons.rotateCcw,
@@ -966,7 +968,12 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                     label: 'Start',
                     icon: LucideIcons.play,
                     size: ButtonSize.small,
-                    onPressed: sequence == null || !executionState.canStart
+                    onPressed: sequence == null ||
+                            ref
+                                    .watch(sequencerRunTransportProvider)
+                                    .start
+                                    ?.enabled !=
+                                true
                         ? null
                         : () => startWithPreflight(context, ref),
                   ),

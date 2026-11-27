@@ -11,7 +11,7 @@ import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_timeline_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
@@ -249,8 +249,8 @@ class NightHarness {
 /// The board's header with [phase] and the controls the header provider
 /// would publish for it.
 NightHeaderVm headerFor(NightRunPhase phase, {ManualActionId? pausedFor}) {
-  const on = NightControlVm.enabled();
-  NightControlVm off(String key) => NightControlVm.disabled(NightText(key));
+  const on = RunControl.enabled();
+  RunControl off(String key) => RunControl.disabled(NightText(key));
   final base = NightFixtures.header(
     switch (phase) {
       NightRunPhase.running ||

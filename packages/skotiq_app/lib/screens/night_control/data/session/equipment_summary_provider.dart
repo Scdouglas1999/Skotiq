@@ -15,7 +15,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
 import '../../../../utils/guider_state_label.dart';
-import '../plan/night_run_phase_provider.dart';
+import '../../../../services/run_control/run_control.dart';
 import 'session_format.dart';
 
 /// PHD2 states in which the guider is doing useful work.

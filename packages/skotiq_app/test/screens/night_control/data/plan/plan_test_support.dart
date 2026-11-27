@@ -5,7 +5,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/screens/night_control/data/tonight_night.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/services/run_dashboard_providers.dart';
 import 'package:skotiq_core/backend.dart';
@@ -234,9 +234,9 @@ ProviderContainer planContainer({
       eventHistoryProvider.overrideWith((ref) => _FixedHistory(events)),
       recentSessionFramesProvider.overrideWithValue(sessionFrames),
       runDashboardFilterTotalsProvider.overrideWithValue(totals),
-      nightCameraConnectedProvider.overrideWithValue(cameraConnected),
+      runCameraConnectedProvider.overrideWithValue(cameraConnected),
       backendCanCommandProvider.overrideWithValue(canCommand),
-      nightPlanActionStateSeamProvider.overrideWithValue(action),
+      runActionStateProvider.overrideWithValue(action),
       nightArmedStartProvider.overrideWith(
         () => _FixedArmedStart(
           armedStartAt == null ? null : clock.toInstant(armedStartAt),

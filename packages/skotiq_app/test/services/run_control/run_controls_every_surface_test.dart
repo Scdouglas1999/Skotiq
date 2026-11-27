@@ -17,7 +17,6 @@ import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_toolbar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/shell/widgets/running_sequence_mini_bar.dart';
-import 'package:skotiq_app/services/night_actions/night_action_api.dart';
 import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
@@ -256,7 +255,7 @@ String _cell(WidgetTester tester, Finder region) {
 }
 
 String _tonight(NightHeaderVm header) {
-  String one(String label, NightControlVm? control) {
+  String one(String label, RunControl? control) {
     if (control == null) return '';
     if (control.enabled) return '$label+';
     return '$label-(${control.disabledReason?.key})';

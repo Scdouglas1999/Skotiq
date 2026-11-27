@@ -17,7 +17,7 @@ import '../../../../services/night_session/night_session_events.dart';
 import '../tonight_night.dart';
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
-import 'night_run_phase_provider.dart';
+import '../../../../services/run_control/run_control.dart';
 import 'night_target_provider.dart';
 import 'night_timeline_provider.dart';
 import 'plan_progress_provider.dart';

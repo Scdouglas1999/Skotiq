@@ -14,6 +14,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
 import '../../services/command_action_result.dart';
+import '../../services/run_control/run_control.dart';
 import '../../services/sequence_action_service.dart';
 import '../../utils/count_label.dart';
 import '../../utils/snackbar_helper.dart';
@@ -499,7 +500,6 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                 // The screen's one 56 px page header (06 §Sequencer).
                 _SequencerPageHeader(
                   controller: _tabController,
-                  executionState: executionState,
                   isPhone: isPhone,
                 ),
 

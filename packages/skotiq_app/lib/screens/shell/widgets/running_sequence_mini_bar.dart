@@ -9,6 +9,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../../../router/app_routes.dart';
 import '../../../widgets/run_status/sequence_status_visuals.dart';
+import '../../../services/run_control/run_control.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'package:skotiq_core/utils.dart';
@@ -54,10 +55,8 @@ class RunningSequenceMiniBar extends ConsumerWidget {
     final targetName = sessionState.targetName;
 
     final isRunning = executionState == SequenceExecutionState.running;
-    final isPaused = executionState == SequenceExecutionState.paused;
-    // Skip / play-pause only make sense while the run is live or paused — not
-    // while it's stopping or recovering (transient states the user can't drive).
-    final canDrive = isRunning || isPaused;
+    final transport = ref.watch(sequencerRunTransportProvider);
+    final canDrive = transport.pauseResume?.enabled == true;
 
     final visuals = SequenceStatusVisuals.of(
       executionState,
@@ -165,7 +164,7 @@ class RunningSequenceMiniBar extends ConsumerWidget {
               // wherever a stop is meaningful, including a retry from
               // stopFailed / cleanupFailed.
               HoldToConfirmButton(
-                enabled: executionState.canStop,
+                enabled: transport.stop?.enabled == true,
                 holdColor: colors.error,
                 confirmText: 'Hold to stop',
                 semanticsLabel: 'Stop the sequence',
@@ -175,21 +174,17 @@ class RunningSequenceMiniBar extends ConsumerWidget {
                     colors: colors,
                     icon: LucideIcons.square,
                     tooltip: 'Stop',
-                    isEnabled: executionState.canStop,
+                    isEnabled: transport.stop?.enabled == true,
                     onPressed: stopSequence,
                   ),
                 ),
               ),
               const SizedBox(width: 6),
-              // Skip current item — valid while the run is live OR paused
-              // (== canDrive above). Route through the canonical [canSkip] so
-              // this matches the toolbar / mobile playback bar instead of
-              // open-coding `isRunning`, which wrongly hid Skip while paused.
               _MiniControlButton(
                 colors: colors,
                 icon: LucideIcons.skipForward,
                 tooltip: 'Skip',
-                isEnabled: executionState.canSkip,
+                isEnabled: transport.skip?.enabled == true,
                 onPressed: () async {
                   final result =
                       await ref.read(sequenceActionServiceProvider).skip();

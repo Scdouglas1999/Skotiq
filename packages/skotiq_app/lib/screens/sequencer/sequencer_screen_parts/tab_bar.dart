@@ -11,15 +11,10 @@ part of '../sequencer_screen.dart';
 class _SequencerPageHeader extends ConsumerWidget {
   const _SequencerPageHeader({
     required this.controller,
-    required this.executionState,
     required this.isPhone,
   });
 
   final TabController controller;
-
-  /// The run's live state. Drives which transport button the header offers
-  /// (Start, or Pause/Resume + Stop) — never a status chip.
-  final SequenceExecutionState executionState;
 
   /// Form-factor decision computed once at the screen level so the header and
   /// the body agree on phone-vs-desktop.
@@ -80,9 +75,9 @@ class _SequencerPageHeader extends ConsumerWidget {
         ),
     ];
 
+    final transport = ref.watch(sequencerRunTransportProvider);
     final blocking = validation.errorCount + validation.warningCount;
-    final showsFix =
-        !isPhone && !executionState.canStop && validation.hasErrors;
+    final showsFix = !isPhone && !_runToStop(transport) && validation.hasErrors;
 
     return PageHeader(
       icon: SkotiqIcons.listOrdered,
@@ -155,7 +150,7 @@ class _SequencerPageHeader extends ConsumerWidget {
           SaveAsTemplateButton(iconOnly: isPhone),
         if (!isPhone)
           ..._transportActions(
-            executionState: executionState,
+            transport: transport,
             errorCount: validation.errorCount,
             onFix: openPreflight,
             onStart: () => openPreflight(armed: true),
@@ -173,8 +168,12 @@ class _SequencerPageHeader extends ConsumerWidget {
   /// Skip and Reset are deliberately absent — they belong to a run in flight,
   /// not to the page. They live on in the canvas bar's overflow menu, so no
   /// capability is lost.
+  /// A run is on that Stop can end.
+  static bool _runToStop(RunTransport transport) =>
+      transport.stop?.enabled == true;
+
   static List<Widget> _transportActions({
-    required SequenceExecutionState executionState,
+    required RunTransport transport,
     required int errorCount,
     required VoidCallback onFix,
     required VoidCallback onStart,
@@ -182,7 +181,7 @@ class _SequencerPageHeader extends ConsumerWidget {
     required VoidCallback onResume,
     required VoidCallback onStop,
   }) {
-    if (!executionState.canStop && errorCount > 0) {
+    if (!_runToStop(transport) && errorCount > 0) {
       // The plan cannot start as it stands, so the header does not offer a
       // green Start next to the error count: it offers the way to the fix.
       return <Widget>[
@@ -195,29 +194,30 @@ class _SequencerPageHeader extends ConsumerWidget {
         ),
       ];
     }
-    if (!executionState.canStop) {
+    if (!_runToStop(transport)) {
+      final canStart = transport.start?.enabled == true;
       return <Widget>[
         SkotiqButton(
           key: TourTarget.sequencerTransport.key,
           label: 'Start',
           icon: LucideIcons.play,
           variant: ButtonVariant.start,
-          onPressed: executionState.canStart ? onStart : null,
-          semanticsHint: executionState.canStart
-              ? null
-              : 'The sequence is finishing the last command.',
+          onPressed: canStart ? onStart : null,
+          semanticsHint:
+              canStart ? null : 'The sequence is finishing the last command.',
         ),
       ];
     }
+    final pauseResume = transport.pauseResume?.enabled == true;
     return <Widget>[
-      if (executionState.canPause)
+      if (pauseResume && !transport.resumes)
         SkotiqButton(
           label: 'Pause',
           icon: LucideIcons.pause,
           variant: ButtonVariant.secondary,
           onPressed: onPause,
         )
-      else if (executionState.canResume)
+      else if (pauseResume && transport.resumes)
         SkotiqButton(
           label: 'Resume',
           icon: LucideIcons.play,

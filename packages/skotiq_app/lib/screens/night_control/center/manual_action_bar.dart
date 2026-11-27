@@ -22,7 +22,7 @@ import '../../polar_alignment/polar_alignment_activity.dart';
 import '../../../services/night_actions/manual_action_gating.dart'
     show manualActionKey;
 import '../../../services/night_actions/night_action_controller.dart';
-import '../data/plan/night_run_phase_provider.dart';
+import '../../../services/run_control/run_control.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';
 import '../night_control_shortcuts.dart' show kNightShortcutKeys;

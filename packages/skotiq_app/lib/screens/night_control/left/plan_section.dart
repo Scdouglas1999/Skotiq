@@ -8,7 +8,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../data/plan/night_run_phase_provider.dart';
+import '../../../services/run_control/run_control.dart';
 import '../data/plan/plan_progress_provider.dart';
 import '../night_control_contracts.dart';
 import 'left_section_frame.dart';

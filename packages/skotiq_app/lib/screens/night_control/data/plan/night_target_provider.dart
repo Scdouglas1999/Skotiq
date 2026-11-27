@@ -14,7 +14,7 @@ import '../../night_control_contracts.dart';
 import '../../../../services/night_session/night_session_events.dart';
 import '../../../../services/night_session/night_flip.dart';
 import 'night_plan_inputs.dart';
-import 'night_run_phase_provider.dart';
+import '../../../../services/run_control/run_control.dart';
 
 /// Altitude samples across the night: one every ~14 minutes over eleven
 /// hours, the density the old night band drew its arc from.
