@@ -317,7 +317,10 @@ void main() {
         child: MaterialApp(
           theme: SkotiqTheme.dark,
           home: Scaffold(
-            body: PreFlightValidationDialog(onStartSequence: () {}),
+            body: PreFlightValidationDialog(
+              onStartSequence: () {},
+              simulationStart: _midNight,
+            ),
           ),
         ),
       ),
