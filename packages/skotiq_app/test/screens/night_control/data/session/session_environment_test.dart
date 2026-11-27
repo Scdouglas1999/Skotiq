@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
 import 'package:skotiq_app/services/night_actions/night_solver_status.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';

@@ -1,7 +1,7 @@
 // The Tonight header: title, run pill, plan and progress, the night strip and
 // the run controls (Tonight.dc.html, TonightReady.dc.html).
 //
-// Which controls show is the view model's call: a null NightControlVm is not
+// Which controls show is the view model's call: a null RunControl is not
 // shown, a disabled one shows its reason in the tooltip and the semantics
 // hint. Pause, Resume, Skip step, Stop and Start now go through
 // SequenceActionService; Start at dark goes through the action controller,
@@ -25,7 +25,6 @@ import '../../../services/night_actions/manual_action_gating.dart'
 import '../../../services/night_actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_plan_inputs.dart' show NightClockTimes;
-import '../data/plan/night_run_phase_provider.dart';
 import '../data/plan/night_timeline_provider.dart';
 import '../left/night_time_format.dart';
 import '../night_control_contracts.dart';
@@ -314,7 +313,7 @@ class NightHeaderBar extends ConsumerWidget {
           label: l10n.text('nightPlanDrawer'),
           icon: LucideIcons.panelLeftOpen,
           iconOnly: iconOnly,
-          control: const NightControlVm.enabled(),
+          control: const RunControl.enabled(),
           onPressed: openDrawer,
         ),
       );
@@ -326,7 +325,7 @@ class NightHeaderBar extends ConsumerWidget {
           label: l10n.text('nightCtlEditPlan'),
           glyph: LucideIcons.pencil,
           iconOnly: iconOnly,
-          control: const NightControlVm.enabled(),
+          control: const RunControl.enabled(),
           onPressed: () => context.go(AppRoute.sequencer.path),
         ),
       );
@@ -785,7 +784,7 @@ class _ButtonControl extends _Control {
   });
 
   final String label;
-  final NightControlVm control;
+  final RunControl control;
   final VoidCallback onPressed;
   final IconData? icon;
 
@@ -847,7 +846,7 @@ class _StopControl extends _Control {
   });
 
   final String label;
-  final NightControlVm control;
+  final RunControl control;
   final VoidCallback onConfirmed;
   final bool iconOnly;
 
@@ -869,29 +868,25 @@ class _StopControl extends _Control {
             control: control,
             child: Semantics(
               hint: _ReasonTooltip.reasonOf(context, control),
-              child: HoldToConfirmButton(
+              child: HoldToStop(
                 enabled: control.enabled,
                 holdColor: colors.error,
                 confirmText: l10n.text('nightCtlStopHold'),
                 semanticsLabel: l10n.text('nightCtlStopSemantics'),
                 onConfirmed: onConfirmed,
-                child: IgnorePointer(
-                  child: ExcludeSemantics(
-                    child: iconOnly
-                        ? SkotiqIconButton(
-                            icon: LucideIcons.square,
-                            tooltip: label,
-                            color: control.enabled ? colors.error : null,
-                            onPressed: control.enabled ? () {} : null,
-                          )
-                        : SkotiqButton(
-                            label: label,
-                            size: ButtonSize.small,
-                            variant: ButtonVariant.destructive,
-                            onPressed: control.enabled ? () {} : null,
-                          ),
-                  ),
-                ),
+                face: (onPressed) => iconOnly
+                    ? SkotiqIconButton(
+                        icon: LucideIcons.square,
+                        tooltip: label,
+                        color: control.enabled ? colors.error : null,
+                        onPressed: onPressed,
+                      )
+                    : SkotiqButton(
+                        label: label,
+                        size: ButtonSize.small,
+                        variant: ButtonVariant.destructive,
+                        onPressed: onPressed,
+                      ),
               ),
             ),
           );
@@ -966,11 +961,11 @@ class _ArmedControl extends _Control {
 class _ReasonTooltip extends StatelessWidget {
   const _ReasonTooltip({required this.control, required this.child});
 
-  final NightControlVm control;
+  final RunControl control;
   final Widget child;
 
   /// The reason a disabled control gives, or null for an enabled one.
-  static String? reasonOf(BuildContext context, NightControlVm control) {
+  static String? reasonOf(BuildContext context, RunControl control) {
     final reason = control.disabledReason;
     if (control.enabled || reason == null) return null;
     return reason.resolve(SkotiqLocalizations.of(context));

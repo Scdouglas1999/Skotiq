@@ -10,7 +10,7 @@ import '../tonight_night.dart';
 import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
-import 'night_run_phase_provider.dart';
+import '../../../../services/run_control/run_control.dart';
 
 /// One target's slot in the plan. Instants, not operator-clock times.
 class NightTargetWindow {

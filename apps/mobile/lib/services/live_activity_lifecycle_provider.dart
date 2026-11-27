@@ -7,6 +7,7 @@ import 'package:skotiq_core/providers.dart';
 
 import 'live_activity_service.dart';
 import 'package:skotiq_core/utils.dart';
+import 'run_job_state.dart';
 
 /// bridges the running sequence state to an iOS Live Activity.
 ///
@@ -58,49 +59,6 @@ class LiveActivityLifecycleController {
     SequenceExecutionState.recovering,
     SequenceExecutionState.stopping,
   };
-
-  /// Map [SequenceExecutionState] onto the `jobState` string the Swift
-  /// widget reads. We deliberately don't expose every internal state to
-  /// the widget — the widget only branches on the values listed in the
-  /// Swift `ContentState.jobState` doc.
-  String _jobStateForExecution(
-    SequenceExecutionState exec, {
-    required SequenceProgress progress,
-  }) {
-    switch (exec) {
-      case SequenceExecutionState.idle:
-        return 'idle';
-      case SequenceExecutionState.running:
-        // Inside `running` we further classify based on the current node
-        // name so the Dynamic Island can show AF/CT/GD icons. If the
-        // currentNodeName doesn't hint at a sub-state, default to
-        // 'exposing' — the most common steady-state.
-        final node = (progress.currentNodeName ?? '').toLowerCase();
-        if (node.contains('autofocus') || node.contains('focus')) {
-          return 'focusing';
-        }
-        if (node.contains('center')) return 'centering';
-        if (node.contains('guid')) return 'guiding';
-        return 'exposing';
-      case SequenceExecutionState.paused:
-        return 'paused';
-      case SequenceExecutionState.recovering:
-        return 'recovering';
-      case SequenceExecutionState.stopping:
-        return 'stopping';
-      case SequenceExecutionState.completed:
-        return 'completed';
-      case SequenceExecutionState.failed:
-        return 'failed';
-      case SequenceExecutionState.stopFailed:
-      case SequenceExecutionState.cleanupFailed:
-      case SequenceExecutionState.finalizing:
-        // The run has not settled (the stop / finalization / its cleanup is
-        // still pending); surface it to the widget as the transient 'stopping'
-        // vocabulary.
-        return 'stopping';
-    }
-  }
 
   /// Install the Riverpod listeners. Idempotent — calling start() twice
   /// is a programming error and will assert in debug. The matching
@@ -201,7 +159,7 @@ class LiveActivityLifecycleController {
       return;
     }
 
-    final jobState = _jobStateForExecution(execState, progress: progress);
+    final jobState = runJobState(execState, progress: progress);
     final elapsed = progress.elapsedSecs.round();
     final remaining = progress.estimatedRemainingSecs?.round();
     final targetName = progress.currentTarget?.trim().isNotEmpty == true
@@ -256,7 +214,7 @@ class LiveActivityLifecycleController {
 
     final elapsed = progress.elapsedSecs.round();
     final remaining = progress.estimatedRemainingSecs?.round();
-    final jobState = _jobStateForExecution(execState, progress: progress);
+    final jobState = runJobState(execState, progress: progress);
 
     try {
       await _service.update(
@@ -289,7 +247,7 @@ class LiveActivityLifecycleController {
     _activityId = null;
 
     final progress = _ref.read(sequenceProgressProvider);
-    final jobState = _jobStateForExecution(terminalState, progress: progress);
+    final jobState = runJobState(terminalState, progress: progress);
     final elapsed = progress.elapsedSecs.round();
     final remaining = progress.estimatedRemainingSecs?.round();
 

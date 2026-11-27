@@ -17,7 +17,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../data/plan/night_flip_provider.dart';
-import '../data/plan/night_run_phase_provider.dart';
+import '../../../services/run_control/run_control.dart';
 import '../data/plan/plan_steps_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';

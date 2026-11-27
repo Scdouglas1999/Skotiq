@@ -7,6 +7,7 @@ import 'package:skotiq_core/providers.dart';
 
 import 'watch_complication_service.dart';
 import 'package:skotiq_core/utils.dart';
+import 'run_job_state.dart';
 
 /// bridges Riverpod sequence + weather state to the Apple Watch
 /// complication.
@@ -110,50 +111,10 @@ class WatchComplicationLifecycleController {
       framesCompleted: progress.completedExposures,
       framesTotal: progress.totalExposures,
       currentFilter: (progress.currentFilter ?? '').trim(),
-      jobState: _jobStateFor(exec, progress: progress),
+      jobState: runJobState(exec, progress: progress),
       weatherSafe: safety.isSafe,
       weatherLabel: _alertLabel(safety.currentAlertLevel),
     );
-  }
-
-  /// Map a SequenceExecutionState (+ current node hint) onto the
-  /// vocabulary the watch widget understands. Same mapping as the iOS
-  /// Live Activity controller — kept independent rather than imported so
-  /// each widget target can evolve its vocabulary without forcing the
-  /// other.
-  String _jobStateFor(
-    SequenceExecutionState exec, {
-    required SequenceProgress progress,
-  }) {
-    switch (exec) {
-      case SequenceExecutionState.idle:
-        return 'idle';
-      case SequenceExecutionState.running:
-        final node = (progress.currentNodeName ?? '').toLowerCase();
-        if (node.contains('autofocus') || node.contains('focus')) {
-          return 'focusing';
-        }
-        if (node.contains('center')) return 'centering';
-        if (node.contains('guid')) return 'guiding';
-        return 'exposing';
-      case SequenceExecutionState.paused:
-        return 'paused';
-      case SequenceExecutionState.recovering:
-        return 'recovering';
-      case SequenceExecutionState.stopping:
-        return 'stopping';
-      case SequenceExecutionState.completed:
-        return 'completed';
-      case SequenceExecutionState.failed:
-        return 'failed';
-      case SequenceExecutionState.stopFailed:
-      case SequenceExecutionState.cleanupFailed:
-      case SequenceExecutionState.finalizing:
-        // The run has not settled (the stop / finalization / its cleanup is
-        // still pending); surface it to the complication as the transient
-        // 'stopping' vocabulary.
-        return 'stopping';
-    }
   }
 
   String _alertLabel(AlertLevel level) {

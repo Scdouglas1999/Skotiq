@@ -18,7 +18,7 @@ import 'package:skotiq_core/providers.dart'
 import '../../../equipment/utils/connect_all_action.dart';
 
 import '../../data/plan/night_plan_inputs.dart';
-import '../../data/plan/night_run_phase_provider.dart';
+import '../../../../services/run_control/run_control.dart';
 import '../../data/plan/scheduler_provider.dart';
 import '../../data/session/before_you_start_provider.dart';
 import '../../data/session/conditions_provider.dart';

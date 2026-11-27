@@ -24,7 +24,7 @@ import 'panel/night_right_panel.dart';
 import 'panel/solve/night_solve_tab.dart';
 import '../../services/night_session/night_recent_solves.dart';
 import 'center/frame_stage.dart' show nightIsBeforeRun;
-import 'data/plan/night_run_phase_provider.dart';
+import '../../services/run_control/run_control.dart';
 import 'run_warnings_banner.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 

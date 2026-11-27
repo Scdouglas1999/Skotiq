@@ -169,8 +169,8 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: PreFlightValidationDialog(),
+          home: Scaffold(
+            body: PreFlightValidationDialog(onStartSequence: () {}),
           ),
         ),
       ),
@@ -197,7 +197,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
+          home: Scaffold(
             body: VisualTimeline(colors: SkotiqColors.dark),
           ),
         ),
@@ -308,8 +308,8 @@ void main() {
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
-          home: const Scaffold(
-            body: PreFlightValidationDialog(),
+          home: Scaffold(
+            body: PreFlightValidationDialog(onStartSequence: () {}),
           ),
         ),
       ),

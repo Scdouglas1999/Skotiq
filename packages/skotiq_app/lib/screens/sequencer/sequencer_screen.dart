@@ -14,6 +14,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
 import '../../services/command_action_result.dart';
+import '../../services/run_control/run_control.dart';
 import '../../services/sequence_action_service.dart';
 import '../../utils/count_label.dart';
 import '../../utils/snackbar_helper.dart';
@@ -499,7 +500,6 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                 // The screen's one 56 px page header (06 §Sequencer).
                 _SequencerPageHeader(
                   controller: _tabController,
-                  executionState: executionState,
                   isPhone: isPhone,
                 ),
 
@@ -550,13 +550,21 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                       _LazyTab(
                         controller: _tabController,
                         index: SequencerTab.templates.index,
-                        builder: (_) => const TemplatesTab(),
+                        builder: (_) => _WithPhoneRunControls(
+                          isPhone: isPhone,
+                          colors: colors,
+                          child: const TemplatesTab(),
+                        ),
                       ),
                       // Saved sequence catalog (host DB / remote list-full).
                       _LazyTab(
                         controller: _tabController,
                         index: SequencerTab.sequences.index,
-                        builder: (_) => const SequenceLibraryTab(),
+                        builder: (_) => _WithPhoneRunControls(
+                          isPhone: isPhone,
+                          colors: colors,
+                          child: const SequenceLibraryTab(),
+                        ),
                       ),
                     ],
                   ),
@@ -566,6 +574,46 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
           },
         ),
       ),
+    );
+  }
+}
+
+/// A phone's library tab with the live run's controls above it. On a phone
+/// they ride in the Builder tab's toolbar, which the library tabs do not
+/// show; a desktop's page header carries them on every tab.
+class _WithPhoneRunControls extends ConsumerWidget {
+  const _WithPhoneRunControls({
+    required this.isPhone,
+    required this.colors,
+    required this.child,
+  });
+
+  final bool isPhone;
+  final SkotiqColors colors;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final live = isPhone &&
+        ref
+            .watch(sequencerRunTransportProvider.select((t) => t.phase))
+            .isRunLive;
+    if (!live) return child;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: SkotiqTokens.spaceLg,
+            vertical: SkotiqTokens.spaceXs,
+          ),
+          child: Align(
+            alignment: Alignment.centerRight,
+            // The Builder tab stays built offstage with the tour's bar.
+            child: MobilePlaybackBar(colors: colors, tourTarget: false),
+          ),
+        ),
+        Expanded(child: child),
+      ],
     );
   }
 }

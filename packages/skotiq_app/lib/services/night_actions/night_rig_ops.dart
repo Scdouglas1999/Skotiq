@@ -123,7 +123,8 @@ class ServiceNightRigOps implements NightRigOps {
   Future<CommandActionResult> pauseRun() => _sequence.pause();
 
   @override
-  Future<CommandActionResult> resumeRun() => _sequence.resume();
+  Future<CommandActionResult> resumeRun() =>
+      _sequence.resume(releasesHold: true);
 
   @override
   Future<CommandActionResult> startRun() => _sequence.startUnattended();

@@ -13,9 +13,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../../../services/night_actions/night_action_controller.dart';
-import '../../night_control_contracts.dart';
-
 /// Now, as a true instant (UTC), on Tonight's shared 30 s tick.
 ///
 /// Tests override this with a fixed instant.
@@ -51,11 +48,6 @@ extension NightClockTimes on Clock {
     return onClock.toUtc();
   }
 }
-
-/// The manual-action controller's state, for "Paused for autofocus".
-final nightPlanActionStateSeamProvider = Provider<ManualActionState>(
-  (ref) => ref.watch(nightActionStateProvider),
-);
 
 /// When an armed "Start at dark" fires, on the operator's clock; null when
 /// nothing is armed.

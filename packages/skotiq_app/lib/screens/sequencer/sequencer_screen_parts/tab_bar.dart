@@ -11,15 +11,10 @@ part of '../sequencer_screen.dart';
 class _SequencerPageHeader extends ConsumerWidget {
   const _SequencerPageHeader({
     required this.controller,
-    required this.executionState,
     required this.isPhone,
   });
 
   final TabController controller;
-
-  /// The run's live state. Drives which transport button the header offers
-  /// (Start, or Pause/Resume + Stop) — never a status chip.
-  final SequenceExecutionState executionState;
 
   /// Form-factor decision computed once at the screen level so the header and
   /// the body agree on phone-vs-desktop.
@@ -57,10 +52,7 @@ class _SequencerPageHeader extends ConsumerWidget {
         startWithPreflight(context, ref);
         return;
       }
-      showDialog<void>(
-        context: context,
-        builder: (_) => const PreFlightValidationDialog(),
-      );
+      showPreflight(context);
     }
 
     // Derive the strip from the single SequencerTab enum so adding a tab there
@@ -80,9 +72,9 @@ class _SequencerPageHeader extends ConsumerWidget {
         ),
     ];
 
+    final transport = ref.watch(sequencerRunTransportProvider);
     final blocking = validation.errorCount + validation.warningCount;
-    final showsFix =
-        !isPhone && !executionState.canStop && validation.hasErrors;
+    final showsFix = !isPhone && !_runToStop(transport) && validation.hasErrors;
 
     return PageHeader(
       icon: SkotiqIcons.listOrdered,
@@ -155,7 +147,7 @@ class _SequencerPageHeader extends ConsumerWidget {
           SaveAsTemplateButton(iconOnly: isPhone),
         if (!isPhone)
           ..._transportActions(
-            executionState: executionState,
+            transport: transport,
             errorCount: validation.errorCount,
             onFix: openPreflight,
             onStart: () => openPreflight(armed: true),
@@ -167,6 +159,9 @@ class _SequencerPageHeader extends ConsumerWidget {
     );
   }
 
+  /// A run owns the rig, from its start until it has finished stopping.
+  static bool _runToStop(RunTransport transport) => transport.phase.isRunLive;
+
   /// The header's transport: `start` "Start" while idle, `destructive` "Stop"
   /// plus `secondary` "Pause"/"Resume" once the executor owns the tree.
   ///
@@ -174,7 +169,7 @@ class _SequencerPageHeader extends ConsumerWidget {
   /// not to the page. They live on in the canvas bar's overflow menu, so no
   /// capability is lost.
   static List<Widget> _transportActions({
-    required SequenceExecutionState executionState,
+    required RunTransport transport,
     required int errorCount,
     required VoidCallback onFix,
     required VoidCallback onStart,
@@ -182,7 +177,7 @@ class _SequencerPageHeader extends ConsumerWidget {
     required VoidCallback onResume,
     required VoidCallback onStop,
   }) {
-    if (!executionState.canStop && errorCount > 0) {
+    if (!_runToStop(transport) && errorCount > 0) {
       // The plan cannot start as it stands, so the header does not offer a
       // green Start next to the error count: it offers the way to the fix.
       return <Widget>[
@@ -195,53 +190,54 @@ class _SequencerPageHeader extends ConsumerWidget {
         ),
       ];
     }
-    if (!executionState.canStop) {
+    if (!_runToStop(transport)) {
+      final start = transport.start;
       return <Widget>[
-        SkotiqButton(
-          key: TourTarget.sequencerTransport.key,
-          label: 'Start',
-          icon: LucideIcons.play,
-          variant: ButtonVariant.start,
-          onPressed: executionState.canStart ? onStart : null,
-          semanticsHint: executionState.canStart
-              ? null
-              : 'The sequence is finishing the last command.',
+        Builder(
+          builder: (context) => SkotiqButton(
+            key: TourTarget.sequencerTransport.key,
+            label: 'Start',
+            icon: LucideIcons.play,
+            variant: ButtonVariant.start,
+            onPressed: start?.enabled == true ? onStart : null,
+            semanticsHint:
+                start?.disabledReason?.resolve(SkotiqLocalizations.of(context)),
+          ),
         ),
       ];
     }
+    final pauseResume = transport.pauseResume;
     return <Widget>[
-      if (executionState.canPause)
-        SkotiqButton(
-          label: 'Pause',
-          icon: LucideIcons.pause,
-          variant: ButtonVariant.secondary,
-          onPressed: onPause,
-        )
-      else if (executionState.canResume)
-        SkotiqButton(
-          label: 'Resume',
-          icon: LucideIcons.play,
-          variant: ButtonVariant.secondary,
-          onPressed: onResume,
+      if (pauseResume != null)
+        Builder(
+          builder: (context) => SkotiqButton(
+            label: transport.resumes ? 'Resume' : 'Pause',
+            icon: transport.resumes ? LucideIcons.play : LucideIcons.pause,
+            variant: ButtonVariant.secondary,
+            onPressed: !pauseResume.enabled
+                ? null
+                : transport.resumes
+                    ? onResume
+                    : onPause,
+            semanticsHint: pauseResume.disabledReason
+                ?.resolve(SkotiqLocalizations.of(context)),
+          ),
         ),
       // Hold to confirm, as the Tonight header does: a stray tap on a Fold or
       // tablet must not end an overnight run.
       Builder(
-        builder: (context) => HoldToConfirmButton(
+        builder: (context) => HoldToStop(
           key: TourTarget.sequencerTransport.key,
+          enabled: transport.stop?.enabled == true,
           holdColor: context.skotiqColors.error,
           confirmText: 'Hold to stop',
           semanticsLabel: 'Stop the sequence',
           onConfirmed: onStop,
-          child: IgnorePointer(
-            child: ExcludeSemantics(
-              child: SkotiqButton(
-                label: 'Stop',
-                icon: LucideIcons.square,
-                variant: ButtonVariant.destructive,
-                onPressed: () {},
-              ),
-            ),
+          face: (onPressed) => SkotiqButton(
+            label: 'Stop',
+            icon: LucideIcons.square,
+            variant: ButtonVariant.destructive,
+            onPressed: onPressed,
           ),
         ),
       ),

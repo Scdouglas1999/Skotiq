@@ -208,10 +208,12 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
             ref.watch(currentSequenceProvider),
           )) ...[
             const SizedBox(height: SkotiqTokens.spaceMd),
-            const SkotiqBanner(
+            SkotiqBanner(
               title: 'The mount is parked',
-              message: 'Start unparks it before the run begins. Cancel to '
-                  'keep it parked.',
+              message: widget.onStartSequence == null
+                  ? 'Starting the run unparks it before the run begins.'
+                  : 'Start unparks it before the run begins. Cancel to '
+                      'keep it parked.',
               tone: BannerTone.warning,
             ),
           ],
@@ -496,9 +498,10 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
         !hasBlockingSimulationIssue &&
         (_result!.hasWarnings || hasSimulationWarnings);
 
+    final starts = widget.onStartSequence != null;
     return [
       SkotiqButton(
-        label: 'Cancel',
+        label: starts ? 'Cancel' : 'Close',
         variant: ButtonVariant.ghost,
         onPressed: () => Navigator.of(context).pop(),
       ),
@@ -514,21 +517,22 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
           _runValidation();
         },
       ),
-      _StartSequenceButton(
-        label: widget.startLabel,
-        canStart: canStart,
-        hasWarningsOnly: hasWarningsOnly,
-        blockedReason: _startBlockedReason(
+      if (starts)
+        _StartSequenceButton(
+          label: widget.startLabel,
           canStart: canStart,
           hasWarningsOnly: hasWarningsOnly,
-          hasBlockingSimulationIssue: hasBlockingSimulationIssue,
+          blockedReason: _startBlockedReason(
+            canStart: canStart,
+            hasWarningsOnly: hasWarningsOnly,
+            hasBlockingSimulationIssue: hasBlockingSimulationIssue,
+          ),
+          onPressed: (canStart || hasWarningsOnly)
+              ? () async {
+                  await _handleStartSequence();
+                }
+              : null,
         ),
-        onPressed: (canStart || hasWarningsOnly)
-            ? () async {
-                await _handleStartSequence();
-              }
-            : null,
-      ),
     ];
   }
 }

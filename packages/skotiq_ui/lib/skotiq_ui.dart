@@ -53,6 +53,7 @@ export 'src/components/skotiq_tooltip.dart';
 export 'src/components/focus_ring.dart';
 export 'src/components/section_well.dart';
 export 'src/components/hold_to_confirm_button.dart';
+export 'src/components/hold_to_stop.dart';
 export 'src/components/skotiq_stepper.dart';
 export 'src/components/science_info_button.dart';
 

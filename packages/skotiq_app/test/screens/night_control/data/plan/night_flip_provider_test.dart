@@ -12,7 +12,7 @@ import 'package:skotiq_app/services/night_actions/manual_action_gating.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
 import 'package:skotiq_app/services/night_session/night_flip.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';

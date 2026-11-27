@@ -45,6 +45,13 @@ Future<void> startWithPreflight(BuildContext context, WidgetRef ref) async {
   context.showCommandActionResult(result);
 }
 
+/// Shows the pre-flight checks for the sequence in the editor to look at, with
+/// no Start.
+Future<void> showPreflight(BuildContext context) => showDialog<void>(
+      context: context,
+      builder: (_) => const PreFlightValidationDialog(),
+    );
+
 /// Shows the pre-flight checks for the sequence in the editor. Completes with
 /// true once the operator pressed Start and the start's own steps (the
 /// carry-over choice, the unpark the dialog listed) are done; false when the
@@ -61,6 +68,9 @@ Future<bool> confirmPreflight(BuildContext context) async {
 }
 
 class PreFlightValidationDialog extends ConsumerStatefulWidget {
+  /// The start this check leads to. Null opens the checks to look at only:
+  /// no Start, so looking never unparks the mount or answers the carry-over
+  /// prompt.
   final VoidCallback? onStartSequence;
 
   /// The primary button's label; null for "Start sequence".

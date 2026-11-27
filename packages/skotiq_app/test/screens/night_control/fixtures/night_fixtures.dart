@@ -188,7 +188,7 @@ abstract final class NightFixtures {
     NightRunPhase phase, {
     ManualActionId? pausedFor,
   }) {
-    const enabled = NightControlVm.enabled();
+    const enabled = RunControl.enabled();
     final runLoaded = phase == NightRunPhase.running ||
         phase == NightRunPhase.pausedByUser ||
         phase == NightRunPhase.pausedForAction;
@@ -212,14 +212,14 @@ abstract final class NightFixtures {
       pauseResume: !runLoaded
           ? null
           : pausedFor != null
-              ? const NightControlVm.disabled(
+              ? const RunControl.disabled(
                   NightText('ncPlanActionOwnsResume'),
                 )
               : enabled,
       skipStep: !runLoaded
           ? null
           : pausedFor != null
-              ? const NightControlVm.disabled(
+              ? const RunControl.disabled(
                   NightText('ncPlanActionInProgress'),
                 )
               : enabled,

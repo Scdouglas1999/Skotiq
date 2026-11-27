@@ -12,7 +12,7 @@ import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_strip.dart';
 import 'package:skotiq_app/screens/night_control/center/night_center.dart';
 import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';

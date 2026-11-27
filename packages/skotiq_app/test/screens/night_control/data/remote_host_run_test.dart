@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';

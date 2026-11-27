@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../services/run_control/run_control.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../tours/tour_target.dart';
 import '../../../utils/snackbar_helper.dart';
-import 'preflight_validation_dialog.dart';
 
 /// Pause or resume, stop and skip for a phone's Sequencer, as compact
 /// buttons that sit in the plan row while a run is live.
@@ -19,50 +17,47 @@ import 'preflight_validation_dialog.dart';
 class MobilePlaybackBar extends ConsumerWidget {
   final SkotiqColors colors;
 
-  const MobilePlaybackBar({super.key, required this.colors});
+  /// This bar is the tour's run-controls target; only one bar on a screen
+  /// may be.
+  final bool tourTarget;
+
+  const MobilePlaybackBar({
+    super.key,
+    required this.colors,
+    this.tourTarget = true,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final executionState = ref.watch(sequenceExecutionStateProvider);
+    final transport = ref.watch(sequencerRunTransportProvider);
     Future<void> stopSequence() async {
       final result = await ref.read(sequenceActionServiceProvider).stop();
       if (!context.mounted) return;
       context.showCommandActionResult(result);
     }
 
-    // Centralized capabilities so completed/failed offer a functional
-    // Start (never a silent exact-idle no-op) and stopFailed/cleanupFailed
-    // keep an enabled Stop retry.
-    final canStart = executionState.canStart;
-    final canPause = executionState.canPause;
-    final canResume = executionState.canResume;
+    final pauseResume = transport.pauseResume?.enabled == true;
+    final canPause = pauseResume && !transport.resumes;
+    final canStop = transport.stop?.enabled == true;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Play / Pause / Resume — the primary transport button.
         _MobilePlaybackButton(
-          key: TourTarget.sequencerTransport.key,
+          key: tourTarget ? TourTarget.sequencerTransport.key : null,
           colors: colors,
-          icon: canPause ? LucideIcons.pause : LucideIcons.play,
-          label: canPause ? 'Pause' : (canResume ? 'Resume' : 'Start'),
+          icon: transport.resumes ? LucideIcons.play : LucideIcons.pause,
+          label: transport.resumes ? 'Resume' : 'Pause',
           isActive: canPause,
-          isEnabled: canStart || canPause || canResume,
+          isEnabled: pauseResume,
           isCompact: true,
           onPressed: () async {
-            if (canStart) {
-              await startWithPreflight(context, ref);
-            } else if (canPause) {
-              final result =
-                  await ref.read(sequenceActionServiceProvider).pause();
-              if (!context.mounted) return;
-              context.showCommandActionResult(result);
-            } else if (canResume) {
-              final result =
-                  await ref.read(sequenceActionServiceProvider).resume();
-              if (!context.mounted) return;
-              context.showCommandActionResult(result);
-            }
+            final service = ref.read(sequenceActionServiceProvider);
+            final result =
+                await (transport.resumes ? service.resume() : service.pause());
+            if (!context.mounted) return;
+            context.showCommandActionResult(result);
           },
         ),
 
@@ -71,25 +66,20 @@ class MobilePlaybackBar extends ConsumerWidget {
         // Stop button — hold-to-confirm so a thumb-slip during an
         // overnight session can't abort the run. Enabled wherever a stop
         // is meaningful, including a retry from stopFailed / cleanupFailed.
-        HoldToConfirmButton(
-          enabled: executionState.canStop,
+        HoldToStop(
+          enabled: canStop,
           holdColor: colors.error,
           confirmText: 'Hold to stop',
           semanticsLabel: 'Stop the sequence',
           onConfirmed: stopSequence,
-          // IgnorePointer so the inner InkWell does not consume the
-          // long-press event; gestures are owned exclusively by the
-          // surrounding [HoldToConfirmButton]. The visual styling is
-          // preserved so the affordance still reads as "Stop".
-          child: IgnorePointer(
-            child: _MobilePlaybackButton(
-              colors: colors,
-              icon: LucideIcons.square,
-              label: 'Stop',
-              isEnabled: executionState.canStop,
-              isCompact: true,
-              onPressed: stopSequence,
-            ),
+          faceSemantics: true,
+          face: (onPressed) => _MobilePlaybackButton(
+            colors: colors,
+            icon: LucideIcons.square,
+            label: 'Stop',
+            isEnabled: canStop,
+            isCompact: true,
+            onPressed: onPressed ?? stopSequence,
           ),
         ),
 
@@ -99,7 +89,7 @@ class MobilePlaybackBar extends ConsumerWidget {
           colors: colors,
           icon: LucideIcons.skipForward,
           label: 'Skip',
-          isEnabled: executionState.canSkip,
+          isEnabled: transport.skip?.enabled == true,
           isCompact: true,
           onPressed: () async {
             final result = await ref.read(sequenceActionServiceProvider).skip();

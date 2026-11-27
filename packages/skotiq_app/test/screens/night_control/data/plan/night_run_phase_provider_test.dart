@@ -3,7 +3,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -54,8 +54,8 @@ void main() {
     expect(header.targetCount, 2);
     expect(header.stepCount, 3);
     expect(header.targetIndex, isNull, reason: 'no run, no current target');
-    expect(header.startNow, const NightControlVm.enabled());
-    expect(header.startAtDark, const NightControlVm.enabled());
+    expect(header.startNow, const RunControl.enabled());
+    expect(header.startAtDark, const RunControl.enabled());
     expect(header.plannedDuration, isNotNull);
   });
 
@@ -111,7 +111,7 @@ void main() {
       expect(header.phase, NightRunPhase.finished,
           reason: 'released first: $releaseFirst');
       expect(header.planName, plan.name);
-      expect(header.startNow, const NightControlVm.enabled(),
+      expect(header.startNow, const RunControl.enabled(),
           reason: 'the plan can be started again');
     }
   });
@@ -231,9 +231,9 @@ void main() {
     expect(container.read(nightRunPhaseProvider), NightRunPhase.pausedByUser);
     final header = container.read(nightHeaderProvider);
     expect(header.pausedFor, isNull);
-    expect(header.pauseResume, const NightControlVm.enabled());
-    expect(header.skipStep, const NightControlVm.enabled());
-    expect(header.stop, const NightControlVm.enabled());
+    expect(header.pauseResume, const RunControl.enabled());
+    expect(header.skipStep, const RunControl.enabled());
+    expect(header.stop, const RunControl.enabled());
   });
 
   test('a pause the action controller made reads as paused for that action',
@@ -260,7 +260,7 @@ void main() {
       header.pauseResume?.disabledReason,
       const NightText('ncPlanActionOwnsResume'),
     );
-    expect(header.stop, const NightControlVm.enabled(),
+    expect(header.stop, const RunControl.enabled(),
         reason: 'Stop is never taken away from a paused run.');
   });
 

@@ -272,7 +272,7 @@ void main() {
     testWidgets(
         'an autofocus under way with no run reads in the pill, not "Not set '
         'up"', (tester) async {
-      const off = NightControlVm.disabled(NightText('ncPlanNoPlan'));
+      const off = RunControl.disabled(NightText('ncPlanNoPlan'));
       await _pumpHeader(
         tester,
         NightRunPhase.notSetUp,
@@ -337,7 +337,7 @@ void main() {
           planName: base.planName,
           pauseResume: base.pauseResume,
           skipStep: base.skipStep,
-          stop: const NightControlVm.disabled(NightText('ncPlanFinalizing')),
+          stop: const RunControl.disabled(NightText('ncPlanFinalizing')),
         ),
       );
       final node = tester.getSemantics(find.byType(HoldToConfirmButton));

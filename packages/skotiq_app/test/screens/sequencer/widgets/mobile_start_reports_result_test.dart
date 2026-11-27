@@ -1,11 +1,12 @@
-// The phone's Start runs through the pre-flight dialog, which closes before it
-// starts the run. The bar reported the start result on the dialog's own
-// context, gone by then, so a refused start said nothing on a phone.
+// The phone's Start (on the builder's toolbar while no run is live) runs
+// through the pre-flight dialog, which closes before it starts the run. The
+// result was reported on the dialog's own context, gone by then, so a refused
+// start said nothing on a phone.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/preflight_validation_dialog.dart';
+import 'package:skotiq_app/screens/sequencer/widgets/sequence_toolbar.dart';
 import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/services/sequence_action_service.dart';
 import 'package:skotiq_app/tours/tour_target.dart';
@@ -32,8 +33,8 @@ void main() {
       tester,
       const Scaffold(
         body: Align(
-          alignment: Alignment.bottomCenter,
-          child: MobilePlaybackBar(colors: SkotiqColors.dark),
+          alignment: Alignment.topCenter,
+          child: SequenceToolbar(colors: SkotiqColors.dark, showStart: true),
         ),
       ),
       size: const Size(390, 844),

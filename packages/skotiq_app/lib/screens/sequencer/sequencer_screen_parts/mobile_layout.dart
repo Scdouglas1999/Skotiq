@@ -64,9 +64,8 @@ class _MobileBuilderLayout extends ConsumerWidget {
     final executionState = ref.watch(sequenceExecutionStateProvider);
     final isRunning = executionState == SequenceExecutionState.running ||
         executionState == SequenceExecutionState.paused;
-    final transportLive = executionState.canStop ||
-        executionState.canResume ||
-        executionState.canSkip;
+    final transportLive =
+        ref.watch(sequencerRunTransportProvider).phase.isRunLive;
     // Read orientation once for the build-time decisions (the FAB
     // visibility check below). The onNodeTap closure keeps its own tap-time
     // read so a rotation between build and tap still routes correctly.

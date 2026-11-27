@@ -10,7 +10,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';
-import 'night_run_phase_provider.dart';
+import '../../../../services/run_control/run_control.dart';
 
 /// The step the run is executing; null when no run is live.
 ///

@@ -29,7 +29,7 @@ import '../../../widgets/image_preview/preview_display_scale.dart';
 import '../../../widgets/saved_frame/saved_frame_view.dart';
 import '../../../services/night_actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
-import '../data/plan/night_run_phase_provider.dart';
+import '../../../services/run_control/run_control.dart';
 import '../data/plan/night_target_provider.dart';
 import '../../../services/night_session/night_camera_exposure.dart';
 import '../data/session/session_frames_provider.dart';

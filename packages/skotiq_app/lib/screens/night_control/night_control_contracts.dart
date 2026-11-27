@@ -57,9 +57,12 @@ import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone, SeriesChartTone;
 
 import '../../services/night_actions/night_action_api.dart';
 import '../../services/night_actions/night_text.dart';
+import '../../services/run_control/run_control.dart';
 
 export '../../services/night_actions/night_action_api.dart';
 export '../../services/night_actions/night_text.dart';
+export '../../services/run_control/run_control.dart'
+    show NightRunPhase, NightRunPhaseFacts, RunControl;
 
 part 'contracts/plan_models.dart';
 part 'contracts/session_models.dart';
@@ -77,32 +80,6 @@ extension NightPanelTabLabel on NightPanelTab {
         NightPanelTab.guide => 'nightPanelTabGuide',
         NightPanelTab.solve => 'nightPanelTabSolve',
       };
-}
-
-/// Where tonight's run stands, as the header shows it.
-enum NightRunPhase {
-  /// No plan loaded, or the rig is not connected enough to start one.
-  notSetUp,
-
-  /// A plan is loaded and could start now.
-  ready,
-
-  /// "Start at dark" is armed; the run starts at astronomical dark.
-  armed,
-
-  running,
-
-  pausedByUser,
-
-  /// The action controller paused the run to perform a manual action, or a
-  /// manual Loop holds it. [ManualActionState.active] says which.
-  pausedForAction,
-
-  /// Stop was requested and the run is finalizing.
-  stopping,
-
-  /// The run ended (completed, stopped or failed) and nothing new is loaded.
-  finished,
 }
 
 /// The panel tab an action-bar button selects when pressed.

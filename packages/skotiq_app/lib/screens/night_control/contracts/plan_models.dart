@@ -1,33 +1,6 @@
 // Header, night strip and left-column view models.
 part of '../night_control_contracts.dart';
 
-/// Enabled state of one header control (Pause, Skip step, Start now...).
-/// Which controls exist is decided by [NightHeaderVm.phase]; this only says
-/// whether the shown one can be pressed.
-@immutable
-class NightControlVm {
-  const NightControlVm.enabled()
-      : enabled = true,
-        disabledReason = null;
-
-  const NightControlVm.disabled(NightText this.disabledReason)
-      : enabled = false;
-
-  final bool enabled;
-
-  /// Shown in the tooltip and the semantics hint when [enabled] is false.
-  final NightText? disabledReason;
-
-  @override
-  bool operator ==(Object other) =>
-      other is NightControlVm &&
-      other.enabled == enabled &&
-      other.disabledReason == disabledReason;
-
-  @override
-  int get hashCode => Object.hash(enabled, disabledReason);
-}
-
 /// The 48 px header: run pill, plan, progress line, timeline and controls.
 ///
 /// Board text "target 1 of 2 · step 7 of 12 · Ha 180 s · 44/60" comes from
@@ -112,11 +85,11 @@ class NightHeaderVm {
   final int? restoredFrames;
 
   /// Null when the control does not apply to [phase].
-  final NightControlVm? pauseResume;
-  final NightControlVm? skipStep;
-  final NightControlVm? stop;
-  final NightControlVm? startNow;
-  final NightControlVm? startAtDark;
+  final RunControl? pauseResume;
+  final RunControl? skipStep;
+  final RunControl? stop;
+  final RunControl? startNow;
+  final RunControl? startAtDark;
 
   @override
   bool operator ==(Object other) =>

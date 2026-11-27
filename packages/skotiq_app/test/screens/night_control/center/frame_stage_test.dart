@@ -10,7 +10,7 @@ import 'package:skotiq_app/widgets/image_preview/image_display.dart';
 import 'package:skotiq_app/widgets/image_preview/overlay_painters.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;

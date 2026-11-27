@@ -131,7 +131,8 @@ void main() {
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
-      _wrap(container, const PreFlightValidationDialog(), size: size),
+      _wrap(container, PreFlightValidationDialog(onStartSequence: () {}),
+          size: size),
     );
     await tester.pumpAndSettle();
     lastContainer = container;
