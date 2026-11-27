@@ -7,6 +7,7 @@ import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/snackbar_helper.dart';
+import 'link_rig_actions.dart' show useThisComputerInstead;
 
 /// Whether this build can stand up a local backend at all.
 ///
@@ -19,8 +20,14 @@ bool get canWorkLocally => DeviceTraits.current.nativeLibrary;
 /// [DisconnectedBackend], and say what happened.
 ///
 /// Shared by Settings, the disconnected banner, and the title-bar popover so
-/// superseded transitions are handled consistently.
+/// superseded transitions are handled consistently. The role is fixed for the
+/// life of the process, so a client launch (`--remote-host`) restarts as this
+/// computer's host ([useThisComputerInstead]) instead of swapping backends.
 Future<void> switchToLocalBackend(BuildContext context, WidgetRef ref) async {
+  if (ref.read(remoteClientLaunchProvider)) {
+    await useThisComputerInstead(context, ref);
+    return;
+  }
   try {
     await ref.read(backendProvider.notifier).useLocalBackend();
     if (context.mounted) {
