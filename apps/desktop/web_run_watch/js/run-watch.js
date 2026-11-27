@@ -1370,7 +1370,8 @@ function renderSnapshot(data) {
     wireString(progress.currentNodeName) || wireString(sequencer.currentNodeName) || '--';
   $('progress-filter').textContent = wireString(progress.currentFilter) || '--';
 
-  // Equipment. An ABSENT list is not an empty one. Guiding, weather and progress all tell a reading from an absence, so
+  // Equipment. An ABSENT list is not an empty one. Guiding, weather and
+  // progress all tell a reading from an absence, so
   // equipment does too — `--` for unknown, the sentence only for a list the
   // server actually sent and that was actually empty.
   const list = $('equipment-list');
