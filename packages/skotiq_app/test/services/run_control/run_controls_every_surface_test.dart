@@ -118,7 +118,7 @@ const _expected = <String, List<String>>{
   ],
   'idle, flip': [
     'Fix 1 error+',
-    'Start+',
+    'Start-',
     '',
     'Start at dark-(nightActBusyFlip) Start now-(nightActBusyFlip)'
   ],
