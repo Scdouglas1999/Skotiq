@@ -37,7 +37,8 @@ pub(super) fn build_progress_callback(
     } = args;
     let event_tx_clone = run_state.events().clone();
     // The percent each running node last reported, which a status report
-    // that does not move the step is published at.
+    // that does not move the step is published at. A report from a node the
+    // run never entered is not a step's progress and is not published.
     let node_percent: StdRwLock<HashMap<NodeId, f64>> = StdRwLock::new(HashMap::new());
     // The words of the status report each running node last published. A
     // step that repeats itself (a poll restating the same wait) goes out to
@@ -54,8 +55,7 @@ pub(super) fn build_progress_callback(
                     last_status.remove(&update.node_id);
                 }
                 None => {
-                    update.progress_percent =
-                        Some(percents.get(&update.node_id).copied().unwrap_or(0.0));
+                    update.progress_percent = percents.get(&update.node_id).copied();
                     let words = format!("{instruction}\n{}", detail.detail_text());
                     repeated_status = last_status
                         .get(&update.node_id)
@@ -86,6 +86,9 @@ pub(super) fn build_progress_callback(
                 let mut started = started_nodes.write();
                 if !started.contains(&update.node_id) {
                     started.insert(update.node_id.clone());
+                    // A step starts at 0 %, which its status reports go out at
+                    // until it reports a percent of its own.
+                    node_percent.write().insert(update.node_id.clone(), 0.0);
                     // A node names itself on its entry update. A message-less
                     // update names nothing: the seeded map holds the authored
                     // name, so a name is only ever confirmed, never replaced
