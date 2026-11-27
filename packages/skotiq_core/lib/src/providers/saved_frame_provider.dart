@@ -15,6 +15,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
+import '../backend/demo_backend/demo_fits.dart' show readDemoFitsFile;
+import '../backend/host_place.dart';
+import '../backend/remote_host.dart' show HostDataDispatch;
 import '../errors/error_text.dart';
 import '../models/backend/image_result.dart';
 import '../models/imaging/imaging_models.dart';
@@ -30,11 +33,13 @@ import '../models/imaging/saved_frame.dart';
 /// Decodes a frame file on this machine for the screen.
 typedef FrameFileDecoder = Future<bridge.FitsReadResult> Function(String path);
 
-/// The native decoder, the one the live frame's pixels come from.
-final frameFileDecoderProvider = Provider<FrameFileDecoder>(
-  (ref) =>
-      (path) => bridge.apiReadFitsFile(filePath: path),
-);
+/// The decoder the live frame's pixels come from: native, or on the demo rig
+/// the demo's own reader, since the phone it runs on has no native library.
+final frameFileDecoderProvider = Provider<FrameFileDecoder>((ref) {
+  final place = ref.watch(backendProvider.select((b) => b.hostPlace));
+  if (place == HostPlace.demo) return readDemoFitsFile;
+  return (path) => bridge.apiReadFitsFile(filePath: path);
+});
 
 /// The longest edge a host-drawn frame is sent at: plenty for a phone screen
 /// at 2-3x zoom, without a full sensor's RGBA in its memory.

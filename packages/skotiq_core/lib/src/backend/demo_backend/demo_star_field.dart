@@ -172,14 +172,42 @@ DemoFrame renderDemoFrame(DemoFrameRequest request) {
   }
 
   final raw = Uint16List(n);
+  for (var i = 0; i < n; i++) {
+    raw[i] = image[i].round().clamp(0, 65535);
+  }
+  final hasStars = isLightLike && starCount > 0;
+  final starSigma = request.starSigmaPx / request.binning;
+  return measureDemoSamples(
+    width: w,
+    height: h,
+    raw: raw,
+    // A Gaussian star's half-flux radius and full width at half maximum.
+    hfr: hasStars ? 1.1774 * starSigma : null,
+    fwhm: hasStars ? 2.3548 * starSigma : null,
+    starCount: starCount,
+  );
+}
+
+/// The screen stretch and measurements of the demo camera's [raw] samples:
+/// the same for a frame just rendered and for one read back from its file.
+DemoFrame measureDemoSamples({
+  required int width,
+  required int height,
+  required Uint16List raw,
+  double? hfr,
+  double? fwhm,
+  int starCount = 0,
+}) {
+  final w = width;
+  final h = height;
+  final n = w * h;
   final counts = Uint32List(65536);
   var sum = 0.0;
   var sumSq = 0.0;
   var lo = 65535;
   var hi = 0;
   for (var i = 0; i < n; i++) {
-    final v = image[i].round().clamp(0, 65535);
-    raw[i] = v;
+    final v = raw[i];
     counts[v]++;
     sum += v;
     sumSq += v.toDouble() * v;
@@ -221,8 +249,6 @@ DemoFrame renderDemoFrame(DemoFrameRequest request) {
     histogram[g]++;
   }
 
-  final hasStars = isLightLike && starCount > 0;
-  final starSigma = request.starSigmaPx / request.binning;
   return DemoFrame(
     width: w,
     height: h,
@@ -234,9 +260,8 @@ DemoFrame renderDemoFrame(DemoFrameRequest request) {
     mean: mean,
     median: median,
     stdDev: math.sqrt(variance),
-    // A Gaussian star's half-flux radius and full width at half maximum.
-    hfr: hasStars ? 1.1774 * starSigma : null,
-    fwhm: hasStars ? 2.3548 * starSigma : null,
+    hfr: hfr,
+    fwhm: fwhm,
     starCount: starCount,
   );
 }
