@@ -24,7 +24,11 @@ class _Linked extends BackendNotifier {
   _Linked(super.ref, SkotiqBackend backend) : super() {
     state = backend;
   }
+
+  void use(SkotiqBackend backend) => state = backend;
 }
+
+late _Linked _link;
 
 class _RecordingExecutor extends Fake implements SequenceExecutor {
   final calls = <String>[];
@@ -107,7 +111,7 @@ Future<ProviderContainer> _mountPhone(
       overrides: [
         databaseProvider.overrideWithValue(db),
         launchRoleProvider.overrideWithValue(LaunchRole.mobile),
-        backendProvider.overrideWith((ref) => _Linked(ref, host)),
+        backendProvider.overrideWith((ref) => _link = _Linked(ref, host)),
         sequenceExecutorProvider.overrideWithValue(executor),
       ],
       child: MaterialApp(
@@ -186,6 +190,36 @@ void main() {
     expect(find.text('Recover sequence?'), findsNothing);
     expect(executor.calls, ['restore']);
     verifyNever(() => host.discardCheckpoint());
+
+    await _unmount(tester);
+  });
+
+  testWidgets(
+      'a phone that relinks to its host does not offer a run that is '
+      'restored and waits for Start', (tester) async {
+    final host = _hostWithCheckpoint();
+    final executor = _RecordingExecutor();
+    final container = await _mountPhone(tester, host, executor);
+    await tester.tap(find.text('Restore'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    container
+        .read(runRecordProvider.notifier)
+        .setRestoredCheckpoint(_checkpoint);
+    await tester.pump();
+
+    _link.use(DisconnectedBackend());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    final relinked = _hostWithCheckpoint();
+    _link.use(relinked);
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Recover sequence?'), findsNothing);
+    expect(executor.calls, ['restore']);
+    verifyNever(() => relinked.discardCheckpoint());
 
     await _unmount(tester);
   });
