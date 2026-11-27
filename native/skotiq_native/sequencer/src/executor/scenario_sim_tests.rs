@@ -156,6 +156,8 @@ pub(crate) struct ScriptedDeviceOps {
     weather_safe: Arc<AtomicBool>,
     /// Guider lock state reported by `guider_get_status`.
     pub(crate) guiding: Arc<AtomicBool>,
+    /// Why the guider was stopped, as `guider_get_status` reports it.
+    pub(crate) guider_stop_reason: Arc<Mutex<Option<crate::GuidingStopReason>>>,
     /// If > 0, the guider auto-re-locks after this many `guider_start` calls
     /// (models PHD2 re-acquiring a star). 0 = never auto-relock.
     relock_after_starts: Arc<AtomicU32>,
@@ -245,6 +247,7 @@ impl ScriptedDeviceOps {
             connect_succeeds: Arc::new(AtomicBool::new(true)),
             weather_safe: Arc::new(AtomicBool::new(true)),
             guiding: Arc::new(AtomicBool::new(true)),
+            guider_stop_reason: Arc::new(Mutex::new(None)),
             relock_after_starts: Arc::new(AtomicU32::new(0)),
             guider_start_count: Arc::new(AtomicU32::new(0)),
             park_fails: Arc::new(AtomicBool::new(false)),
@@ -498,7 +501,7 @@ impl GuiderOps for ScriptedDeviceOps {
         }
         Ok(GuidingStatus {
             is_guiding: guiding,
-            stop_reason: None,
+            stop_reason: *self.guider_stop_reason.lock().unwrap(),
             rms_ra: 0.5,
             rms_dec: 0.4,
             rms_total: 0.64,
@@ -3322,6 +3325,53 @@ async fn a_star_lost_during_the_runs_own_move_is_not_a_lost_star() {
         fired_after_move,
         "a star still lost after the move must fire"
     );
+}
+
+/// A manual Center stops the guider (from the guider controls, or the
+/// host's own center for its move) while the run is guiding. That stop is
+/// asked for, not a lost star; the run's guiding is armed again once the
+/// guider guides, and a loss after that still fires.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_guider_stop_someone_asked_for_is_not_a_lost_star() {
+    for reason in [
+        crate::GuidingStopReason::Operator,
+        crate::GuidingStopReason::MountMove,
+    ] {
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        let mut executor = super::SequenceExecutor::new();
+        executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
+        let mut events = executor.handle().subscribe();
+        let mut executor = start_long_run(executor, ops.clone()).await;
+
+        *ops.guider_stop_reason.lock().unwrap() = Some(reason);
+        ops.guiding.store(false, Ordering::SeqCst);
+        let fired_on_stop =
+            guide_star_lost_fires(&mut events, std::time::Duration::from_secs(3)).await;
+
+        // The action restarts guiding; a start clears the reason.
+        *ops.guider_stop_reason.lock().unwrap() = None;
+        ops.guiding.store(true, Ordering::SeqCst);
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        let rearmed = {
+            let manager = executor.trigger_manager.read().await;
+            let armed = manager.state().read().await.guiding.is_enabled();
+            armed
+        };
+        ops.guiding.store(false, Ordering::SeqCst);
+        let fired_on_loss =
+            guide_star_lost_fires(&mut events, std::time::Duration::from_secs(5)).await;
+        let _ = executor.stop().await;
+
+        assert!(
+            !fired_on_stop,
+            "{reason:?}: a requested stop fired Guide Star Lost"
+        );
+        assert!(rearmed, "{reason:?}: guiding started again is armed again");
+        assert!(
+            fired_on_loss,
+            "{reason:?}: a real loss after the restart must fire"
+        );
+    }
 }
 
 /// The recovery must leave tracking alone while the mount is moving.

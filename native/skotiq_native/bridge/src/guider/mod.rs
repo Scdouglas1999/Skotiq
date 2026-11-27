@@ -188,11 +188,16 @@ impl Guider {
     }
 
     /// [`Self::stop`] from the guider controls: an operator's stop unless the
-    /// run already gave a reason.
+    /// run already gave a reason. The reason is recorded before the guider
+    /// stops, so the run never sees the stop without it, and withdrawn when
+    /// the stop fails.
     pub(crate) async fn stop_by_operator(self) -> Result<(), SkotiqError> {
-        self.stop().await?;
-        stop_reason::note_operator_stop();
-        Ok(())
+        let noted = stop_reason::note_operator_stop();
+        let stopped = self.stop().await;
+        if stopped.is_err() && noted {
+            stop_reason::set(None);
+        }
+        stopped
     }
 
     /// Move the guide star by up to `amount` guide-camera pixels and wait for

@@ -486,7 +486,9 @@ impl DevicePoller {
     }
 
     /// Guide Star Lost keys off the guider's is-guiding reading rather than
-    /// the RMS, which can stay low for a cycle after the star is gone.
+    /// the RMS, which can stay low for a cycle after the star is gone, and
+    /// off why the guider was stopped: a stop someone asked for is not a
+    /// lost star.
     async fn publish_guider_status<E>(&self, guide_status: Result<crate::GuidingStatus, E>) {
         let manager = self.trigger_manager.read().await;
         let trigger_state = manager.state();
@@ -495,14 +497,26 @@ impl DevicePoller {
             .as_ref()
             .map(|status| status.is_guiding)
             .map_err(|_| ());
+        let stop_reason = guide_status
+            .as_ref()
+            .ok()
+            .and_then(|status| status.stop_reason);
         let mount_tracking = state.telemetry.mount_is_tracking;
-        match state.guiding.observe_guider_on_mount(poll, mount_tracking) {
+        match state
+            .guiding
+            .observe_guider_on_mount(poll, stop_reason, mount_tracking)
+        {
             GuiderObservation::GuidingAgain => tracing::info!(
                 "[GUIDING] The guider is guiding again; dithers and guiding checks resume"
             ),
             GuiderObservation::GuidingWithoutTracking => tracing::warn!(
                 "[GUIDING] The guider reports guiding but the mount is not tracking; the run \
                  stays unguided until the mount tracks"
+            ),
+            GuiderObservation::StoppedOnRequest => tracing::info!(
+                "[GUIDING] The guider was stopped on request ({}); the run's guiding is \
+                 started again before its next light frame unless it is guiding by then",
+                stop_reason.map_or("", crate::GuidingStopReason::as_wire)
             ),
             GuiderObservation::Unchanged => {}
         }
