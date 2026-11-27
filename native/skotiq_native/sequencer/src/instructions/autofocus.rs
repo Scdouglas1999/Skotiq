@@ -596,11 +596,12 @@ async fn run_autofocus_admitted(
             }
         };
         if guider_status.is_guiding {
-            ctx.run
+            if let Err(error) = ctx
+                .run
                 .device_ops
-                .guider_note_stop_reason(Some(crate::GuidingStopReason::Autofocus))
-                .await;
-            if let Err(error) = ctx.run.device_ops.guider_stop().await {
+                .guider_stop_for(crate::GuidingStopReason::Autofocus)
+                .await
+            {
                 return InstructionResult::failure(format!(
                     "Autofocus is configured to pause guiding, but guiding could not be stopped: {}",
                     error
@@ -1017,11 +1018,12 @@ pub(crate) async fn resume_guiding_after_autofocus(
         // A Stop ends the wait, and the guider started for a run that is now
         // ending is stopped again.
         if ctx.cancellation_token.load(Ordering::Relaxed) {
-            ctx.run
+            if let Err(error) = ctx
+                .run
                 .device_ops
-                .guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
-                .await;
-            if let Err(error) = ctx.run.device_ops.guider_stop().await {
+                .guider_stop_for(crate::GuidingStopReason::RunStopped)
+                .await
+            {
                 tracing::warn!("Autofocus cleanup could not stop the guider: {error}");
             }
             return leave_guiding_stopped_for_stopped_run(ctx, result).await;

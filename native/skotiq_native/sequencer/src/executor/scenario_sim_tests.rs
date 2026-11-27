@@ -515,6 +515,10 @@ impl GuiderOps for ScriptedDeviceOps {
         ));
     }
 
+    async fn guider_run_ended(&self) {
+        self.record("guider_run_ended");
+    }
+
     async fn guider_start(&self, sp: f64, st: f64, sto: f64) -> DeviceResult<()> {
         self.record("guider_start");
         if self.guider_start_fails.load(Ordering::SeqCst) {

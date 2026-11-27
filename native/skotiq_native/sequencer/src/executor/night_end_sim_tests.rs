@@ -1249,11 +1249,30 @@ fn short_plan() -> SequenceDefinition {
     sequence
 }
 
-/// Night test 2026-11-26: the park's "paused while the mount moves" read on
-/// the guider after the run had ended. A run that ends with the guider
-/// stopped leaves no reason behind; a guider still guiding keeps its own.
+/// The park's "paused while the mount moves" read on the guider after the
+/// run had ended. However the run ends (completed, guider still guiding, or
+/// failed), it tells the guider its holds are over, after any stop it made.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn a_finished_run_clears_a_stale_guiding_hold() {
+async fn every_run_end_ends_the_runs_guiding_holds() {
+    let assert_ended_last = |calls: Vec<String>| {
+        let guider_calls: Vec<&String> =
+            calls.iter().filter(|c| c.starts_with("guider_")).collect();
+        assert_eq!(
+            guider_calls.last().map(|c| c.as_str()),
+            Some("guider_run_ended"),
+            "calls={calls:?}"
+        );
+        assert_eq!(
+            calls.iter().filter(|c| *c == "guider_run_ended").count(),
+            1,
+            "calls={calls:?}"
+        );
+        assert!(
+            !calls.iter().any(|c| c == "guider_stop_reason:none"),
+            "calls={calls:?}"
+        );
+    };
+
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guiding.store(false, Ordering::SeqCst);
     let executor = start_night(super::SequenceExecutor::new(), ops.clone(), short_plan()).await;
@@ -1261,15 +1280,7 @@ async fn a_finished_run_clears_a_stale_guiding_hold() {
         wait_until_finished(&executor).await,
         super::ExecutorState::Completed
     );
-    let calls = ops.calls();
-    assert_eq!(
-        calls
-            .iter()
-            .rfind(|c| c.starts_with("guider_stop_reason:"))
-            .map(String::as_str),
-        Some("guider_stop_reason:none"),
-        "calls={calls:?}"
-    );
+    assert_ended_last(ops.calls());
 
     let ops = Arc::new(ScriptedDeviceOps::new());
     let executor = start_night(super::SequenceExecutor::new(), ops.clone(), short_plan()).await;
@@ -1277,13 +1288,8 @@ async fn a_finished_run_clears_a_stale_guiding_hold() {
         wait_until_finished(&executor).await,
         super::ExecutorState::Completed
     );
-    let calls = ops.calls();
-    assert!(
-        !calls.iter().any(|c| c == "guider_stop_reason:none"),
-        "calls={calls:?}"
-    );
+    assert_ended_last(ops.calls());
 
-    // A failed run keeps whatever reason may explain it.
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guiding.store(false, Ordering::SeqCst);
     let mut plan = night_plan(node("park", "Park mount", NodeType::Park));
@@ -1298,9 +1304,5 @@ async fn a_finished_run_clears_a_stale_guiding_hold() {
         wait_until_finished(&executor).await,
         super::ExecutorState::Failed
     );
-    let calls = ops.calls();
-    assert!(
-        !calls.iter().any(|c| c == "guider_stop_reason:none"),
-        "calls={calls:?}"
-    );
+    assert_ended_last(ops.calls());
 }

@@ -28,8 +28,9 @@ abstract class PhotometryQualityGates with _$PhotometryQualityGates {
       _$PhotometryQualityGatesFromJson(json);
 }
 
-/// Standard photometric bands recognised by the Dart-side validator.
-/// Matches `SciencePhotometryConfig::is_photometric_filter_name` in Rust.
+/// The photometric filter names a photometry step accepts. The sequencer's
+/// `PHOTOMETRIC_FILTER_BANDS` is the same list, held together by
+/// `test_fixtures/wire_words/photometric_bands.json`.
 const Set<String> kPhotometricFilterBands = {
   'V',
   'B',

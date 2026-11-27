@@ -27,6 +27,9 @@ struct Record {
     /// loop starting a new pass runs them again, so that status is not
     /// progress.
     from_earlier_pass: HashSet<NodeId>,
+    /// Seconds of integration the steps inside each integration-time Loop
+    /// have collected in the loop's current run.
+    loop_integration: HashMap<NodeId, f64>,
 }
 
 /// Shared handle; cloning shares the record.
@@ -40,8 +43,7 @@ pub struct ResumeSnapshot {
     pub from_earlier_pass: HashSet<NodeId>,
 }
 
-/// Frames the plan's Take Exposures steps have taken, as a checkpoint keeps
-/// them.
+/// What the plan's frame-taking steps had done, as a checkpoint keeps it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BurstFrames {
     /// Frames each burst had taken in its current pass, while it runs or
@@ -49,6 +51,10 @@ pub struct BurstFrames {
     pub in_pass: HashMap<NodeId, u32>,
     /// Frames each step has taken over the whole plan.
     pub in_plan: HashMap<NodeId, u32>,
+    /// Seconds of integration each integration-time Loop's steps had
+    /// collected in its current run; `None` from a checkpoint written before
+    /// it was kept.
+    pub loop_integration: Option<HashMap<NodeId, f64>>,
 }
 
 impl BurstFrames {
@@ -56,6 +62,7 @@ impl BurstFrames {
         Self {
             in_pass: checkpoint.exposure_frames_taken.clone(),
             in_plan: checkpoint.exposure_frames_done.clone(),
+            loop_integration: checkpoint.loop_integration_secs.clone(),
         }
     }
 }
@@ -70,12 +77,16 @@ impl ResumeRecord {
     ) -> Self {
         let mut bursts = HashSet::new();
         collect_bursts(root, &mut bursts);
+        let loop_integration = frames.loop_integration.unwrap_or_else(|| {
+            loop_integration_from_frames(root, &frames.in_plan, &frames.in_pass)
+        });
         Self(Arc::new(parking_lot::RwLock::new(Record {
             loop_passes_finished,
             bursts,
             frames_taken: frames.in_pass,
             frames_done: frames.in_plan,
             from_earlier_pass: HashSet::new(),
+            loop_integration,
         })))
     }
 
@@ -93,6 +104,7 @@ impl ResumeRecord {
         for id in body {
             record.loop_passes_finished.remove(&id);
             record.frames_taken.remove(&id);
+            record.loop_integration.remove(&id);
             record.from_earlier_pass.insert(id);
         }
         if passes_finished > 0 {
@@ -137,6 +149,29 @@ impl ResumeRecord {
         self.0.write().frames_taken.remove(id);
     }
 
+    /// Seconds of integration the steps inside the loop `id` have collected
+    /// in its current run; `None` before any of them was credited.
+    pub fn loop_integration(&self, id: &str) -> Option<f64> {
+        self.0.read().loop_integration.get(id).copied()
+    }
+
+    /// Steps inside `loops` collected `secs` of integration.
+    pub fn credit_integration(&self, loops: &[NodeId], secs: f64) {
+        if loops.is_empty() {
+            return;
+        }
+        let mut record = self.0.write();
+        for id in loops {
+            *record.loop_integration.entry(id.clone()).or_insert(0.0) += secs;
+        }
+    }
+
+    /// The loop `id` ended other than by a stop; a later run of it starts
+    /// its integration over.
+    pub fn loop_ended(&self, id: &str) {
+        self.0.write().loop_integration.remove(id);
+    }
+
     pub fn snapshot(&self) -> ResumeSnapshot {
         let record = self.0.read();
         ResumeSnapshot {
@@ -144,10 +179,70 @@ impl ResumeRecord {
             frames: BurstFrames {
                 in_pass: record.frames_taken.clone(),
                 in_plan: record.frames_done.clone(),
+                loop_integration: Some(record.loop_integration.clone()),
             },
             from_earlier_pass: record.from_earlier_pass.clone(),
         }
     }
+}
+
+/// The integration-time loops' integration a checkpoint without it implies:
+/// the frames each loop's bursts finished, at their planned length. A burst a
+/// stop cut short is credited when the resumed run finishes it. The frames
+/// are counted over the whole plan, so a loop inside another loop's later
+/// pass is credited its earlier passes too: it ends early rather than
+/// imaging again what was taken.
+fn loop_integration_from_frames(
+    root: &dyn Node,
+    in_plan: &HashMap<NodeId, u32>,
+    in_pass: &HashMap<NodeId, u32>,
+) -> HashMap<NodeId, f64> {
+    fn finished_secs(
+        node: &dyn Node,
+        in_plan: &HashMap<NodeId, u32>,
+        in_pass: &HashMap<NodeId, u32>,
+    ) -> f64 {
+        let own = match node.node_type() {
+            NodeType::TakeExposure(config) => match in_plan.get(node.id()) {
+                Some(done) => {
+                    let finished = in_pass
+                        .get(node.id())
+                        .map_or(*done, |cut| done.saturating_sub(*cut));
+                    config.duration_secs * f64::from(finished)
+                }
+                None => 0.0,
+            },
+            _ => 0.0,
+        };
+        own + node
+            .children()
+            .iter()
+            .map(|child| finished_secs(child.as_ref(), in_plan, in_pass))
+            .sum::<f64>()
+    }
+    fn walk(
+        node: &dyn Node,
+        in_plan: &HashMap<NodeId, u32>,
+        in_pass: &HashMap<NodeId, u32>,
+        out: &mut HashMap<NodeId, f64>,
+    ) {
+        if let NodeType::Loop(config) = node.node_type() {
+            if config.condition == crate::LoopCondition::IntegrationTime {
+                let secs = finished_secs(node, in_plan, in_pass);
+                if secs > 0.0 {
+                    out.insert(node.id().clone(), secs);
+                }
+            }
+        }
+        for child in node.children() {
+            walk(child.as_ref(), in_plan, in_pass, out);
+        }
+    }
+    let mut out = HashMap::new();
+    if !in_plan.is_empty() {
+        walk(root, in_plan, in_pass, &mut out);
+    }
+    out
 }
 
 fn collect_bursts(node: &dyn Node, out: &mut HashSet<NodeId>) {

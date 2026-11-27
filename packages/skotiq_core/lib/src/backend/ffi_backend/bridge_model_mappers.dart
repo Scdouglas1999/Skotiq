@@ -70,46 +70,6 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
     }
   }
 
-  models.AppSettings _fromBridgeSettings(bridge.AppSettings s) {
-    final loc = s.location != null ? _fromBridgeLocation(s.location!) : null;
-    return models.AppSettings(
-      location: loc,
-      theme: s.theme,
-      language: s.language,
-      autoConnect: s.autoConnect,
-      latitude: loc?.latitude ?? 0.0,
-      longitude: loc?.longitude ?? 0.0,
-      elevation: loc?.elevation ?? 0.0,
-      fileNamingPattern: '',
-      meridianFlipMinutes: 5,
-      autoFocusEveryMinutes: 60,
-      ditherEveryFrames: 3,
-      plateSolveTimeout: 60,
-      plateSolveSearchRadius: 30.0,
-      discordWebhook: '',
-      pushoverKey: '',
-      pushoverUser: '',
-    );
-  }
-
-  bridge.AppSettings _toBridgeSettings(models.AppSettings s) {
-    final loc =
-        s.location ??
-        (s.latitude != 0.0 || s.longitude != 0.0
-            ? models.ObserverLocation(
-                latitude: s.latitude,
-                longitude: s.longitude,
-                elevation: s.elevation,
-              )
-            : null);
-    return bridge.AppSettings(
-      location: loc != null ? _toBridgeLocation(loc) : null,
-      theme: s.theme,
-      language: s.language,
-      autoConnect: s.autoConnect,
-    );
-  }
-
   models.ObserverLocation _fromBridgeLocation(bridge.ObserverLocation l) {
     return models.ObserverLocation(
       latitude: l.latitude,

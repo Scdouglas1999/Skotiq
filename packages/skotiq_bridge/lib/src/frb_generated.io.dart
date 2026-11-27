@@ -202,9 +202,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiTargetScoreNow dco_decode_api_target_score_now(dynamic raw);
 
   @protected
-  AppSettings dco_decode_app_settings(dynamic raw);
-
-  @protected
   AutofocusConfigApi dco_decode_autofocus_config_api(dynamic raw);
 
   @protected
@@ -258,9 +255,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiScoringWeights dco_decode_box_autoadd_api_scoring_weights(dynamic raw);
-
-  @protected
-  AppSettings dco_decode_box_autoadd_app_settings(dynamic raw);
 
   @protected
   AutofocusConfigApi dco_decode_box_autoadd_autofocus_config_api(dynamic raw);
@@ -1229,9 +1223,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  AppSettings sse_decode_app_settings(SseDeserializer deserializer);
-
-  @protected
   AutofocusConfigApi sse_decode_autofocus_config_api(
     SseDeserializer deserializer,
   );
@@ -1303,9 +1294,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiScoringWeights sse_decode_box_autoadd_api_scoring_weights(
     SseDeserializer deserializer,
   );
-
-  @protected
-  AppSettings sse_decode_box_autoadd_app_settings(SseDeserializer deserializer);
 
   @protected
   AutofocusConfigApi sse_decode_box_autoadd_autofocus_config_api(
@@ -2493,16 +2481,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_api_scoring_weights();
     cst_api_fill_to_wire_api_scoring_weights(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_app_settings> cst_encode_box_autoadd_app_settings(
-    AppSettings raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    final ptr = wire.cst_new_box_autoadd_app_settings();
-    cst_api_fill_to_wire_app_settings(raw, ptr.ref);
     return ptr;
   }
 
@@ -4270,19 +4248,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_app_settings(
-    AppSettings apiObj,
-    wire_cst_app_settings wireObj,
-  ) {
-    wireObj.location = cst_encode_opt_box_autoadd_observer_location(
-      apiObj.location,
-    );
-    wireObj.theme = cst_encode_String(apiObj.theme);
-    wireObj.language = cst_encode_String(apiObj.language);
-    wireObj.auto_connect = cst_encode_bool(apiObj.autoConnect);
-  }
-
-  @protected
   void cst_api_fill_to_wire_autofocus_config_api(
     AutofocusConfigApi apiObj,
     wire_cst_autofocus_config_api wireObj,
@@ -4423,14 +4388,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_api_scoring_weights> wireObj,
   ) {
     cst_api_fill_to_wire_api_scoring_weights(apiObj, wireObj.ref);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_box_autoadd_app_settings(
-    AppSettings apiObj,
-    ffi.Pointer<wire_cst_app_settings> wireObj,
-  ) {
-    cst_api_fill_to_wire_app_settings(apiObj, wireObj.ref);
   }
 
   @protected
@@ -8349,9 +8306,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_app_settings(AppSettings self, SseSerializer serializer);
-
-  @protected
   void sse_encode_autofocus_config_api(
     AutofocusConfigApi self,
     SseSerializer serializer,
@@ -8435,12 +8389,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_api_scoring_weights(
     ApiScoringWeights self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_app_settings(
-    AppSettings self,
     SseSerializer serializer,
   );
 
@@ -12991,18 +12939,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  WireSyncRust2DartDco wire__crate__api__storage__api_get_settings() {
-    return _wire__crate__api__storage__api_get_settings();
-  }
-
-  late final _wire__crate__api__storage__api_get_settingsPtr =
-      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-        'frbgen_skotiq_bridge_wire__crate__api__storage__api_get_settings',
-      );
-  late final _wire__crate__api__storage__api_get_settings =
-      _wire__crate__api__storage__api_get_settingsPtr
-          .asFunction<WireSyncRust2DartDco Function()>();
-
   void wire__crate__api__imaging__api_get_star_crops_from_last_image(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
@@ -17128,24 +17064,6 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  WireSyncRust2DartDco wire__crate__api__storage__api_update_settings(
-    ffi.Pointer<wire_cst_app_settings> settings,
-  ) {
-    return _wire__crate__api__storage__api_update_settings(settings);
-  }
-
-  late final _wire__crate__api__storage__api_update_settingsPtr =
-      _lookup<
-        ffi.NativeFunction<
-          WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_app_settings>)
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__storage__api_update_settings');
-  late final _wire__crate__api__storage__api_update_settings =
-      _wire__crate__api__storage__api_update_settingsPtr
-          .asFunction<
-            WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_app_settings>)
-          >();
-
   void wire__crate__api__frame_file__api_write_frame_wcs(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
@@ -17848,18 +17766,6 @@ class RustLibWire implements BaseWire {
   late final _cst_new_box_autoadd_api_scoring_weights =
       _cst_new_box_autoadd_api_scoring_weightsPtr
           .asFunction<ffi.Pointer<wire_cst_api_scoring_weights> Function()>();
-
-  ffi.Pointer<wire_cst_app_settings> cst_new_box_autoadd_app_settings() {
-    return _cst_new_box_autoadd_app_settings();
-  }
-
-  late final _cst_new_box_autoadd_app_settingsPtr =
-      _lookup<
-        ffi.NativeFunction<ffi.Pointer<wire_cst_app_settings> Function()>
-      >('frbgen_skotiq_bridge_cst_new_box_autoadd_app_settings');
-  late final _cst_new_box_autoadd_app_settings =
-      _cst_new_box_autoadd_app_settingsPtr
-          .asFunction<ffi.Pointer<wire_cst_app_settings> Function()>();
 
   ffi.Pointer<wire_cst_autofocus_config_api>
   cst_new_box_autoadd_autofocus_config_api() {
@@ -19845,17 +19751,6 @@ final class wire_cst_list_frame_card_update extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
-}
-
-final class wire_cst_app_settings extends ffi.Struct {
-  external ffi.Pointer<wire_cst_observer_location> location;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> theme;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> language;
-
-  @ffi.Bool()
-  external bool auto_connect;
 }
 
 final class wire_cst_list_prim_f_64_strict extends ffi.Struct {

@@ -34,10 +34,11 @@ async fn finish_the_run(
 /// Stop the guider before the rig is put away. Guiding is device state the
 /// node tree does not own. Returns whether it is stopped (or there is none).
 async fn stop_guiding(rig: &Rig, run: &RunControl) -> bool {
-    rig.device_ops()
-        .guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
-        .await;
-    match rig.device_ops().guider_stop().await {
+    match rig
+        .device_ops()
+        .guider_stop_for(crate::GuidingStopReason::RunStopped)
+        .await
+    {
         Ok(()) => true,
         // An unguided rig has nothing to stop; reporting it would bury the
         // abort's real cause.

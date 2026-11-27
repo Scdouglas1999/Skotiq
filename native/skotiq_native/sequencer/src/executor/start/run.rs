@@ -726,23 +726,17 @@ impl Run {
 
     /// A stopped run ends the guiding it started. Guiding the run did not
     /// start (the operator's, from before the run) is not the run's to end.
-    /// A trigger that parked the rig has already stopped the guider. Returns
-    /// what the operator needs to hear about a guider that is still guiding.
+    /// A trigger that parked the rig has already stopped the guider. However
+    /// the run ends, the holds it gave the guider as reasons end with it.
+    /// Returns what the operator needs to hear about a guider that is still
+    /// guiding.
     async fn end_the_runs_guiding(&self, result: NodeStatus) -> Option<String> {
-        if result == NodeStatus::Success {
-            // A run that ran to its end leaves no hold behind: the park's
-            // "paused while the mount moves" read on after the night (night
-            // test 2026-11-26). A guider still guiding keeps what it has; a
-            // failed run keeps the reason that may explain it.
-            let guiding = matches!(
-                self.device_ops.guider_get_status().await,
-                Ok(status) if status.is_guiding
-            );
-            if !guiding {
-                self.device_ops.guider_note_stop_reason(None).await;
-            }
-            return None;
-        }
+        let note = self.stop_the_runs_guiding(result).await;
+        self.device_ops.guider_run_ended().await;
+        note
+    }
+
+    async fn stop_the_runs_guiding(&self, result: NodeStatus) -> Option<String> {
         if result != NodeStatus::Cancelled {
             return None;
         }
@@ -758,9 +752,9 @@ impl Run {
                 "The guider is still guiding: it was started outside this run.".to_string()
             });
         }
-        ops.guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
+        let stopped = ops
+            .guider_stop_for(crate::GuidingStopReason::RunStopped)
             .await;
-        let stopped = ops.guider_stop().await;
         {
             let mut state = trigger_state.write().await;
             state.set_guiding_enabled(false);

@@ -155,6 +155,11 @@ pub struct SessionCheckpoint {
     /// Empty in checkpoints written before it existed.
     #[serde(default)]
     pub exposure_frames_done: HashMap<NodeId, u32>,
+    /// Seconds of integration each running integration-time Loop's steps had
+    /// collected, keyed by the loop's id. `None` in checkpoints written before
+    /// it existed; a resume then works it out from the frames above.
+    #[serde(default)]
+    pub loop_integration_secs: Option<HashMap<NodeId, f64>>,
     /// How the run ended, when it ended on its own terms: stopped by the
     /// operator, failed, or ended early by a trigger (dawn, weather). `None`
     /// while it runs, so a checkpoint still `None` after the app restarts
@@ -224,6 +229,7 @@ impl SessionCheckpoint {
             loop_iterations: HashMap::new(),
             exposure_frames_taken: HashMap::new(),
             exposure_frames_done: HashMap::new(),
+            loop_integration_secs: None,
         }
     }
 

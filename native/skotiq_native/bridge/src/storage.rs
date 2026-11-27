@@ -104,21 +104,41 @@ pub struct ObserverLocation {
     pub elevation: f64,
 }
 
+/// `settings.json`: the observing site is the only value native code keeps
+/// there. `theme`, `language` and `auto_connect` are still written because
+/// older builds require them to read the file; nothing reads them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppSettings {
-    pub location: Option<ObserverLocation>,
-    pub theme: String,
-    pub language: String,
-    pub auto_connect: bool,
+struct SettingsFile {
+    location: Option<ObserverLocation>,
+    #[serde(default = "SettingsFile::legacy_theme")]
+    theme: String,
+    #[serde(default = "SettingsFile::legacy_language")]
+    language: String,
+    #[serde(default = "SettingsFile::legacy_auto_connect")]
+    auto_connect: bool,
 }
 
-impl Default for AppSettings {
+impl SettingsFile {
+    fn legacy_theme() -> String {
+        "dark".to_string()
+    }
+
+    fn legacy_language() -> String {
+        "en".to_string()
+    }
+
+    fn legacy_auto_connect() -> bool {
+        true
+    }
+}
+
+impl Default for SettingsFile {
     fn default() -> Self {
         Self {
             location: None,
-            theme: "dark".to_string(),
-            language: "en".to_string(),
-            auto_connect: true,
+            theme: Self::legacy_theme(),
+            language: Self::legacy_language(),
+            auto_connect: Self::legacy_auto_connect(),
         }
     }
 }
@@ -140,22 +160,27 @@ impl SettingsStorage {
         Ok(Self { storage_path })
     }
 
-    pub fn load_settings(&self) -> Result<AppSettings, String> {
+    fn load(&self) -> Result<SettingsFile, String> {
         if !self.storage_path.exists() {
-            return Ok(AppSettings::default());
+            return Ok(SettingsFile::default());
         }
 
         let data = fs::read_to_string(&self.storage_path)
             .map_err(|e| format!("Failed to read settings file: {}", e))?;
 
-        let settings: AppSettings = serde_json::from_str(&data)
-            .map_err(|e| format!("Failed to parse settings JSON: {}", e))?;
-
-        Ok(settings)
+        serde_json::from_str(&data).map_err(|e| format!("Failed to parse settings JSON: {}", e))
     }
 
-    pub fn save_settings(&self, settings: &AppSettings) -> Result<(), String> {
-        let json = serde_json::to_string_pretty(settings)
+    /// The observing site the file records.
+    pub fn load_location(&self) -> Result<Option<ObserverLocation>, String> {
+        Ok(self.load()?.location)
+    }
+
+    /// Record `location` as the observing site, keeping the rest of the file.
+    pub fn save_location(&self, location: Option<ObserverLocation>) -> Result<(), String> {
+        let mut file = self.load()?;
+        file.location = location;
+        let json = serde_json::to_string_pretty(&file)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
 
         fs::write(&self.storage_path, json)
@@ -169,8 +194,7 @@ impl SettingsStorage {
 
 /// Persisted plate-solver UX configuration: user-overridden executable +
 /// catalog paths and the active solver preference. Lives in its own
-/// `platesolver.json` so it can evolve independently of the global
-/// `AppSettings` schema (which is duplicated in headless API consumers).
+/// `platesolver.json` so it can evolve independently of `settings.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlateSolverPreference {
     /// User-configured ASTAP executable path. Empty string means "auto".
@@ -244,6 +268,50 @@ impl PlateSolverStorage {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    /// The file older builds wrote loads its site; saving a site keeps the
+    /// keys those builds require to read the file back.
+    #[test]
+    fn settings_file_stays_readable_both_ways() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path().join("settings.json");
+        std::fs::write(
+            &path,
+            r#"{"location":{"latitude":41.5,"longitude":-71.25,"elevation":30.0},
+               "theme":"light","language":"de","auto_connect":false}"#,
+        )
+        .unwrap();
+        let storage = SettingsStorage::new(temp_dir.path().to_path_buf()).unwrap();
+        let site = storage.load_location().unwrap().expect("site");
+        assert_eq!((site.latitude, site.longitude), (41.5, -71.25));
+
+        storage.save_location(None).unwrap();
+        let written: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            written,
+            serde_json::json!({
+                "location": null,
+                "theme": "light",
+                "language": "de",
+                "auto_connect": false,
+            })
+        );
+
+        std::fs::write(&path, r#"{"location":null}"#).unwrap();
+        storage
+            .save_location(Some(ObserverLocation {
+                latitude: 10.0,
+                longitude: 20.0,
+                elevation: 0.0,
+            }))
+            .unwrap();
+        let written: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for key in ["theme", "language", "auto_connect"] {
+            assert!(written.get(key).is_some(), "{key} missing: {written}");
+        }
+    }
 
     #[test]
     fn test_save_and_load_profile() {

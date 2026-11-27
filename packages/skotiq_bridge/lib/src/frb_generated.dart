@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1686779812;
+  int get rustContentHash => -802436953;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -637,8 +637,6 @@ abstract class RustLibApi extends BaseApi {
   Future<SafetyStatus> crateApiDevicesEnvironmentApiGetSafetyMonitorStatus({
     required String deviceId,
   });
-
-  AppSettings crateApiStorageApiGetSettings();
 
   Future<List<StarCropApi>> crateApiImagingApiGetStarCropsFromLastImage({
     required String deviceId,
@@ -1295,8 +1293,6 @@ abstract class RustLibApi extends BaseApi {
     required String filePath,
     required List<FrameCardUpdate> cards,
   });
-
-  void crateApiStorageApiUpdateSettings({required AppSettings settings});
 
   Future<void> crateApiFrameFileApiWriteFrameWcs({
     required String filePath,
@@ -5146,27 +5142,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         debugName: "api_get_safety_monitor_status",
         argNames: ["deviceId"],
       );
-
-  @override
-  AppSettings crateApiStorageApiGetSettings() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          return wire.wire__crate__api__storage__api_get_settings();
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_app_settings,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiStorageApiGetSettingsConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiStorageApiGetSettingsConstMeta =>
-      const TaskConstMeta(debugName: "api_get_settings", argNames: []);
 
   @override
   Future<List<StarCropApi>> crateApiImagingApiGetStarCropsFromLastImage({
@@ -10276,31 +10251,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  void crateApiStorageApiUpdateSettings({required AppSettings settings}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          var arg0 = cst_encode_box_autoadd_app_settings(settings);
-          return wire.wire__crate__api__storage__api_update_settings(arg0);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiStorageApiUpdateSettingsConstMeta,
-        argValues: [settings],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiStorageApiUpdateSettingsConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_update_settings",
-        argNames: ["settings"],
-      );
-
-  @override
   Future<void> crateApiFrameFileApiWriteFrameWcs({
     required String filePath,
     required FrameWcs wcs,
@@ -11509,20 +11459,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  AppSettings dco_decode_app_settings(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-    return AppSettings(
-      location: dco_decode_opt_box_autoadd_observer_location(arr[0]),
-      theme: dco_decode_String(arr[1]),
-      language: dco_decode_String(arr[2]),
-      autoConnect: dco_decode_bool(arr[3]),
-    );
-  }
-
-  @protected
   AutofocusConfigApi dco_decode_autofocus_config_api(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -11659,12 +11595,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiScoringWeights dco_decode_box_autoadd_api_scoring_weights(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_api_scoring_weights(raw);
-  }
-
-  @protected
-  AppSettings dco_decode_box_autoadd_app_settings(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_app_settings(raw);
   }
 
   @protected
@@ -16072,23 +16002,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  AppSettings sse_decode_app_settings(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_location = sse_decode_opt_box_autoadd_observer_location(
-      deserializer,
-    );
-    var var_theme = sse_decode_String(deserializer);
-    var var_language = sse_decode_String(deserializer);
-    var var_autoConnect = sse_decode_bool(deserializer);
-    return AppSettings(
-      location: var_location,
-      theme: var_theme,
-      language: var_language,
-      autoConnect: var_autoConnect,
-    );
-  }
-
-  @protected
   AutofocusConfigApi sse_decode_autofocus_config_api(
     SseDeserializer deserializer,
   ) {
@@ -16260,14 +16173,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_api_scoring_weights(deserializer));
-  }
-
-  @protected
-  AppSettings sse_decode_box_autoadd_app_settings(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_app_settings(deserializer));
   }
 
   @protected
@@ -22008,15 +21913,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_app_settings(AppSettings self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_box_autoadd_observer_location(self.location, serializer);
-    sse_encode_String(self.theme, serializer);
-    sse_encode_String(self.language, serializer);
-    sse_encode_bool(self.autoConnect, serializer);
-  }
-
-  @protected
   void sse_encode_autofocus_config_api(
     AutofocusConfigApi self,
     SseSerializer serializer,
@@ -22171,15 +22067,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_api_scoring_weights(self, serializer);
-  }
-
-  @protected
-  void sse_encode_box_autoadd_app_settings(
-    AppSettings self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_app_settings(self, serializer);
   }
 
   @protected

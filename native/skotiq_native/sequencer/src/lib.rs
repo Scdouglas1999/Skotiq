@@ -589,29 +589,43 @@ impl SciencePhotometryConfig {
 
     /// Static check usable in validation without constructing a config.
     pub fn is_photometric_filter_name(name: &str) -> bool {
-        // Accept the standard Johnson-Cousins (V, B, R, I), Sloan/SDSS
-        // (g, r, i, z), Clear, and the CV (clear with V-band photometric
-        // transformation) labels used by AAVSO observers.
-        let n = name.trim();
-        matches!(
-            n,
-            "V" | "B"
-                | "R"
-                | "I"
-                | "U"
-                | "g"
-                | "r"
-                | "i"
-                | "z"
-                | "g'"
-                | "r'"
-                | "i'"
-                | "z'"
-                | "Clear"
-                | "CV"
-                | "CR"
-                | "CB"
-        )
+        PHOTOMETRIC_FILTER_BANDS.contains(&name.trim())
+    }
+}
+
+/// The photometric filter names a photometry step accepts: Johnson-Cousins
+/// (U, B, V, R, I), Sloan/SDSS (g, r, i, z, primed or not), Clear, and the
+/// AAVSO unfiltered labels (CV, CR, CB: clear reduced to V, R or B). The app's
+/// list is held to this one by `test_fixtures/wire_words/photometric_bands.json`.
+pub const PHOTOMETRIC_FILTER_BANDS: [&str; 17] = [
+    "V", "B", "R", "I", "U", "g", "r", "i", "z", "g'", "r'", "i'", "z'", "Clear", "CV", "CR", "CB",
+];
+
+#[cfg(test)]
+mod photometric_bands_fixture_tests {
+    const FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/wire_words/photometric_bands.json"
+    );
+
+    /// Regenerate with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer
+    /// photometric_bands_fixture`.
+    #[test]
+    fn photometric_bands_fixture() {
+        let value = serde_json::json!(super::PHOTOMETRIC_FILTER_BANDS);
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+            text.push('\n');
+            std::fs::write(FIXTURE, text).expect("write fixture");
+            return;
+        }
+        let committed: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(FIXTURE).expect("fixture"))
+                .expect("JSON");
+        assert_eq!(
+            committed, value,
+            "the photometric bands changed; regenerate the fixture and update the app"
+        );
     }
 }
 
@@ -1064,10 +1078,7 @@ pub struct SmartExposureCheckpoint {
     /// `rotate_filters` is false).
     pub current_plan_index: usize,
     /// Accumulated integration seconds attributed to this SmartExposure
-    /// node, used for the per-node `integration_budget_secs` cap. The
-    /// global `completed_integration_secs` on ExecutionContext is shared
-    /// across the whole sequence, so SmartExposure tracks its own slice
-    /// here for the budget comparison.
+    /// node, used for the per-node `integration_budget_secs` cap.
     pub completed_integration_secs: f64,
     /// DepthLock goals this node has already retired, keyed by goal id with
     /// the revision the verdict was for. Recorded so a resumed run neither

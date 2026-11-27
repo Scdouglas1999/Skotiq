@@ -11,8 +11,7 @@ use crate::event::guiding::GuidingEvent;
 use crate::event::imaging::ImagingEvent;
 use crate::event::system::{SafetyEvent, SystemEvent};
 use crate::storage::{
-    AppSettings, ObserverLocation, PlateSolverPreference, PlateSolverStorage, ProfileStorage,
-    SettingsStorage,
+    ObserverLocation, PlateSolverPreference, PlateSolverStorage, ProfileStorage, SettingsStorage,
 };
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
@@ -155,14 +154,6 @@ impl AppState {
         Ok(())
     }
 
-    pub fn get_settings(&self) -> Result<AppSettings, String> {
-        get_settings_storage()?.load_settings()
-    }
-
-    pub fn update_settings(&self, settings: &AppSettings) -> Result<(), String> {
-        get_settings_storage()?.save_settings(settings)
-    }
-
     /// Get observer location from in-memory state
     /// This is the primary accessor - reads from runtime state, not file
     /// `None` means exactly one thing: this user has no observing site on
@@ -250,9 +241,8 @@ impl AppState {
         tracing::debug!("Observer location updated in memory");
 
         // Also persist to settings file if storage is initialized (best-effort)
-        if let Ok(mut settings) = self.get_settings() {
-            settings.location = location;
-            if let Err(e) = self.update_settings(&settings) {
+        if let Ok(storage) = get_settings_storage() {
+            if let Err(e) = storage.save_location(location) {
                 tracing::warn!("Failed to persist observer location to file: {}", e);
                 // Don't fail - in-memory state is already updated
             } else {
@@ -271,8 +261,8 @@ impl AppState {
     /// settings that named it, and absence is the one state whose whole job is
     /// to survive.
     pub fn load_observer_location_from_settings(&self) {
-        if let Ok(settings) = self.get_settings() {
-            match &settings.location {
+        if let Ok(location) = get_settings_storage().and_then(|storage| storage.load_location()) {
+            match &location {
                 Some(loc) => tracing::info!(
                     "Loading observer location from settings: lat={}, lon={}, elev={}",
                     loc.latitude,
@@ -282,7 +272,7 @@ impl AppState {
                 None => tracing::info!("Settings have no observer location"),
             }
             let mut loc_guard = self.write_observer_location();
-            *loc_guard = settings.location;
+            *loc_guard = location;
         }
     }
 

@@ -452,7 +452,7 @@ impl Node for RuntimeNode {
                 logic::target_header::execute_target_header(self, config.clone(), context).await
             }
             NodeType::Loop(config) => {
-                logic::loop_node::execute_loop(self, config.clone(), context).await
+                logic::loop_node::execute_loop_node(self, config.clone(), context).await
             }
             NodeType::Parallel(config) => {
                 logic::parallel::execute_parallel(self, config.clone(), context).await

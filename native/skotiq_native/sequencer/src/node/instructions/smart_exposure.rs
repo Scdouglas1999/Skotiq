@@ -466,12 +466,8 @@ async fn execute_smart_exposure(
                 return NodeStatus::Skipped;
             }
 
-            // Bookkeeping
-            // ExposureInstruction handles its own integration counter
-            // updates against the SHARED context.completed_integration_secs.
-            // We additionally track a SmartExposure-LOCAL slice here so the
-            // per-node `integration_budget_secs` cap is independent of any
-            // other node's contributions.
+            // The burst credits the loops this node runs inside; this node's
+            // own slice is for its `integration_budget_secs` cap.
             state.completed_integration_secs += plan.duration_secs * f64::from(chunk);
             taken += chunk;
             state

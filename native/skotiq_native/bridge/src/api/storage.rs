@@ -1,6 +1,6 @@
 use crate::error::SkotiqError;
 use crate::state::{get_state, EquipmentProfile};
-use crate::storage::{AppSettings, ObserverLocation};
+use crate::storage::ObserverLocation;
 
 // Equipment profiles
 
@@ -87,22 +87,6 @@ pub(crate) fn init_settings_storage(storage_path: String) -> Result<(), SkotiqEr
     get_state().load_observer_location_from_settings();
 
     Ok(())
-}
-
-/// Get application settings
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_get_settings() -> Result<AppSettings, SkotiqError> {
-    get_state()
-        .get_settings()
-        .map_err(|e| SkotiqError::OperationFailed(e))
-}
-
-/// Update application settings
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_update_settings(settings: AppSettings) -> Result<(), SkotiqError> {
-    get_state()
-        .update_settings(&settings)
-        .map_err(|e| SkotiqError::OperationFailed(e))
 }
 
 /// Get observer location

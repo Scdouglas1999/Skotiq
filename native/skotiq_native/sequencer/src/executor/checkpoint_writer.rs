@@ -94,6 +94,7 @@ impl CheckpointWriter {
         checkpoint.loop_iterations = resume.loop_passes_finished;
         checkpoint.exposure_frames_taken = resume.frames.in_pass;
         checkpoint.exposure_frames_done = resume.frames.in_plan;
+        checkpoint.loop_integration_secs = resume.frames.loop_integration;
         checkpoint.budget_states = sources.budget_registry.snapshot().await;
         checkpoint.smart_exposure_states = sources.smart_exposure_states.read().await.clone();
         checkpoint

@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1686779812;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -802436953;
 
 // Section: executor
 
@@ -3021,22 +3021,6 @@ fn wire__crate__api__devices__environment__api_get_safety_monitor_status_impl(
                     .await,
                 )
             }
-        },
-    )
-}
-fn wire__crate__api__storage__api_get_settings_impl(
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_get_settings",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                let output_ok = crate::api::storage::api_get_settings()?;
-                Ok(output_ok)
-            })())
         },
     )
 }
@@ -6982,24 +6966,6 @@ fn wire__crate__api__frame_file__api_update_frame_cards_impl(
         },
     )
 }
-fn wire__crate__api__storage__api_update_settings_impl(
-    settings: impl CstDecode<crate::storage::AppSettings>,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_update_settings",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let api_settings = settings.cst_decode();
-            transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                let output_ok = crate::api::storage::api_update_settings(api_settings)?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
 fn wire__crate__api__frame_file__api_write_frame_wcs_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     file_path: impl CstDecode<String>,
@@ -8688,22 +8654,6 @@ impl SseDecode for crate::api::target_scoring::ApiTargetScoreNow {
             moon_distance_deg: var_moonDistanceDeg,
             runnable: var_runnable,
             skip_reason: var_skipReason,
-        };
-    }
-}
-
-impl SseDecode for crate::storage::AppSettings {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_location = <Option<crate::storage::ObserverLocation>>::sse_decode(deserializer);
-        let mut var_theme = <String>::sse_decode(deserializer);
-        let mut var_language = <String>::sse_decode(deserializer);
-        let mut var_autoConnect = <bool>::sse_decode(deserializer);
-        return crate::storage::AppSettings {
-            location: var_location,
-            theme: var_theme,
-            language: var_language,
-            auto_connect: var_autoConnect,
         };
     }
 }
@@ -14668,26 +14618,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::target_scoring::ApiTargetScor
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::storage::AppSettings {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.location.into_into_dart().into_dart(),
-            self.theme.into_into_dart().into_dart(),
-            self.language.into_into_dart().into_dart(),
-            self.auto_connect.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::storage::AppSettings {}
-impl flutter_rust_bridge::IntoIntoDart<crate::storage::AppSettings>
-    for crate::storage::AppSettings
-{
-    fn into_into_dart(self) -> crate::storage::AppSettings {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::imaging::AutofocusConfigApi {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -19507,16 +19437,6 @@ impl SseEncode for crate::api::target_scoring::ApiTargetScoreNow {
     }
 }
 
-impl SseEncode for crate::storage::AppSettings {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Option<crate::storage::ObserverLocation>>::sse_encode(self.location, serializer);
-        <String>::sse_encode(self.theme, serializer);
-        <String>::sse_encode(self.language, serializer);
-        <bool>::sse_encode(self.auto_connect, serializer);
-    }
-}
-
 impl SseEncode for crate::api::imaging::AutofocusConfigApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -24120,17 +24040,6 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::storage::AppSettings> for wire_cst_app_settings {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::AppSettings {
-            crate::storage::AppSettings {
-                location: self.location.cst_decode(),
-                theme: self.theme.cst_decode(),
-                language: self.language.cst_decode(),
-                auto_connect: self.auto_connect.cst_decode(),
-            }
-        }
-    }
     impl CstDecode<crate::api::imaging::AutofocusConfigApi> for wire_cst_autofocus_config_api {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::api::imaging::AutofocusConfigApi {
@@ -24266,13 +24175,6 @@ mod io {
         fn cst_decode(self) -> crate::api::target_scoring::ApiScoringWeights {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::api::target_scoring::ApiScoringWeights>::cst_decode(*wrap).into()
-        }
-    }
-    impl CstDecode<crate::storage::AppSettings> for *mut wire_cst_app_settings {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::storage::AppSettings {
-            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::storage::AppSettings>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::api::imaging::AutofocusConfigApi> for *mut wire_cst_autofocus_config_api {
@@ -28309,21 +28211,6 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
-    impl NewWithNullPtr for wire_cst_app_settings {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                location: core::ptr::null_mut(),
-                theme: core::ptr::null_mut(),
-                language: core::ptr::null_mut(),
-                auto_connect: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_app_settings {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
     impl NewWithNullPtr for wire_cst_autofocus_config_api {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -31239,12 +31126,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_get_settings(
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__storage__api_get_settings_impl()
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_get_star_crops_from_last_image(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
@@ -32780,13 +32661,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_update_settings(
-        settings: *mut wire_cst_app_settings,
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__storage__api_update_settings_impl(settings)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__frame_file__api_write_frame_wcs(
         port_: i64,
         file_path: *mut wire_cst_list_prim_u_8_strict,
@@ -33059,14 +32933,6 @@ mod io {
     ) -> *mut wire_cst_api_scoring_weights {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_api_scoring_weights::new_with_null_ptr(),
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_app_settings(
-    ) -> *mut wire_cst_app_settings {
-        flutter_rust_bridge::for_generated::new_leak_box_ptr(
-            wire_cst_app_settings::new_with_null_ptr(),
         )
     }
 
@@ -34358,14 +34224,6 @@ mod io {
         moon_distance_deg: f64,
         runnable: bool,
         skip_reason: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_app_settings {
-        location: *mut wire_cst_observer_location,
-        theme: *mut wire_cst_list_prim_u_8_strict,
-        language: *mut wire_cst_list_prim_u_8_strict,
-        auto_connect: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

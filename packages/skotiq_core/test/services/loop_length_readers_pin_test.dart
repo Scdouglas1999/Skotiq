@@ -128,7 +128,7 @@ void main() {
       frames: 0,
       framesArePerPass: false,
     ),
-    // The executor repeats an integration-time loop while the run's
+    // The executor repeats an integration-time loop while its own steps'
     // integration is short of the target, so the loop takes several passes
     // and the timeline advances by all of them, as the tree row does.
     _Case(
