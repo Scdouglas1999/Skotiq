@@ -32,6 +32,23 @@ pub async fn execute_loop(
     config: LoopConfig,
     context: &mut ExecutionContext,
 ) -> NodeStatus {
+    if config.condition != LoopCondition::IntegrationTime {
+        return run_loop(node, config, context).await;
+    }
+    context.integration_loops.push(node.id().clone());
+    let status = run_loop(node, config, context).await;
+    context.integration_loops.pop();
+    if status != NodeStatus::Cancelled {
+        context.resume.loop_ended(node.id());
+    }
+    status
+}
+
+async fn run_loop(
+    node: &mut RuntimeNode,
+    config: LoopConfig,
+    context: &mut ExecutionContext,
+) -> NodeStatus {
     // do NOT reset current_iteration here. A fresh run already has it at
     // 0 (from_definition / reset), and a nested re-run is preceded by the
     // parent's reset() — so the only time it's non-zero on entry is a RESUME,

@@ -27,6 +27,9 @@ struct Record {
     /// loop starting a new pass runs them again, so that status is not
     /// progress.
     from_earlier_pass: HashSet<NodeId>,
+    /// Seconds of integration the steps inside each integration-time Loop
+    /// have collected in the loop's current run.
+    loop_integration: HashMap<NodeId, f64>,
 }
 
 /// Shared handle; cloning shares the record.
@@ -38,6 +41,7 @@ pub struct ResumeSnapshot {
     pub loop_passes_finished: HashMap<NodeId, u32>,
     pub frames: BurstFrames,
     pub from_earlier_pass: HashSet<NodeId>,
+    pub loop_integration: HashMap<NodeId, f64>,
 }
 
 /// Frames the plan's Take Exposures steps have taken, as a checkpoint keeps
@@ -76,6 +80,7 @@ impl ResumeRecord {
             frames_taken: frames.in_pass,
             frames_done: frames.in_plan,
             from_earlier_pass: HashSet::new(),
+            loop_integration: HashMap::new(),
         })))
     }
 
@@ -93,6 +98,7 @@ impl ResumeRecord {
         for id in body {
             record.loop_passes_finished.remove(&id);
             record.frames_taken.remove(&id);
+            record.loop_integration.remove(&id);
             record.from_earlier_pass.insert(id);
         }
         if passes_finished > 0 {
@@ -137,6 +143,34 @@ impl ResumeRecord {
         self.0.write().frames_taken.remove(id);
     }
 
+    /// Seconds of integration the steps inside the loop `id` have collected
+    /// in its current run.
+    pub fn loop_integration(&self, id: &str) -> f64 {
+        self.0
+            .read()
+            .loop_integration
+            .get(id)
+            .copied()
+            .unwrap_or(0.0)
+    }
+
+    /// Steps inside `loops` collected `secs` of integration.
+    pub fn credit_integration(&self, loops: &[NodeId], secs: f64) {
+        if loops.is_empty() {
+            return;
+        }
+        let mut record = self.0.write();
+        for id in loops {
+            *record.loop_integration.entry(id.clone()).or_insert(0.0) += secs;
+        }
+    }
+
+    /// The loop `id` ended other than by a stop; a later run of it starts
+    /// its integration over.
+    pub fn loop_ended(&self, id: &str) {
+        self.0.write().loop_integration.remove(id);
+    }
+
     pub fn snapshot(&self) -> ResumeSnapshot {
         let record = self.0.read();
         ResumeSnapshot {
@@ -146,6 +180,7 @@ impl ResumeRecord {
                 in_plan: record.frames_done.clone(),
             },
             from_earlier_pass: record.from_earlier_pass.clone(),
+            loop_integration: record.loop_integration.clone(),
         }
     }
 }

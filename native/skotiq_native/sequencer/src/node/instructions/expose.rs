@@ -265,6 +265,9 @@ impl InstructionNode for ExposeInstruction {
                 let mut counter = context.completed_integration_secs.write().await;
                 *counter += total_exposure_time;
             }
+            context
+                .resume
+                .credit_integration(&context.integration_loops, total_exposure_time);
 
             // coordinate the budget credit with the
             // image grader. A rejected frame is data that won't end up in

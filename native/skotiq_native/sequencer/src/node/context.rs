@@ -228,6 +228,9 @@ pub struct ExecutionContext {
     /// Where the run stands inside its loops and bursts, kept current by the
     /// nodes so a checkpoint saved while the tree runs can record it.
     pub resume: crate::node::resume::ResumeRecord,
+    /// The integration-time Loops this step runs inside, outermost first.
+    /// Each is credited the integration its steps collect.
+    pub integration_loops: Vec<NodeId>,
     /// DepthLock verdict source, installed by the host at start. `None`
     /// when the host has no goal store; a bound plan then warns once and
     /// stays count-bounded.
@@ -475,6 +478,7 @@ impl ExecutionContext {
             safety_fail_mode: Arc::new(parking_lot::RwLock::new(SafetyFailMode::default())),
             smart_exposure_states: Arc::new(RwLock::new(std::collections::HashMap::new())),
             resume: crate::node::resume::ResumeRecord::default(),
+            integration_loops: Vec::new(),
             // No checkpoint manager outside a session: wizard step state
             // is not persisted and every run starts at step 0. The
             // executor installs its own Arc at start().
