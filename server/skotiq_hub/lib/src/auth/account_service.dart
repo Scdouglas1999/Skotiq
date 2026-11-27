@@ -136,7 +136,7 @@ class AccountService {
     // A suspended account must not receive a fresh token: the resolve-time
     // kill switch already fails its tokens closed, but a 200 here writes a
     // false "successful login" audit row and grows the token table for an
-    // account moderation has locked out (hub-sweep finding H1). The password
+    // account moderation has locked out. The password
     // was still verified above so this path costs the same PBKDF2 work.
     if (row['suspended_at'] != null) return null;
     final id = row['id'] as String;

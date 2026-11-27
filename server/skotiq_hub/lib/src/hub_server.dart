@@ -513,9 +513,7 @@ class HubServer {
 
   /// Audit every non-2xx handler response so authorization denials (401/403),
   /// consent rejections (400), and contribution rejections (422) all leave a
-  /// trail — the gap that previously let authz probing, repeated forbidden
-  /// attempts, and un-consented upload floods bypass `/v1/audit` and the abuse
-  /// auto-flag entirely (denials are RETURNED, not thrown, so the errorTrap
+  /// trail (denials are RETURNED, not thrown, so the errorTrap
   /// never saw them and the success-path `_audit.record` calls never ran).
   ///
   /// Handlers self-audit their SUCCESS (2xx/201) paths; this captures only the

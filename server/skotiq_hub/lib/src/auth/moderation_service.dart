@@ -31,8 +31,7 @@ class ModerationService {
 
   /// Rolling window the abuse tally is bounded to. Only rejects/denials NEWER
   /// than this count, so a flaky rig that accrues a handful of quality
-  /// rejections across months of normal use never crosses the lifetime-cumulative
-  /// threshold that used to permanently auto-suspend honest accounts.
+  /// rejections across months of normal use never crosses the threshold.
   static const Duration defaultAbuseWindow = Duration(hours: 72);
 
   bool isSuspended(String accountId) {
