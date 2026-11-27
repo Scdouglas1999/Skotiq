@@ -451,7 +451,7 @@ List<SummaryFragment> nodeSummary(
                   for (final plan in plans)
                     StaticFragment(
                       '${plan.filterName.isEmpty ? '#${(plan.filterIndex ?? 0) + 1}' : plan.filterName}'
-                      ' ${plan.count}×${QuantityFormat.trimmed(plan.durationSecs)}s',
+                      ' ${plan.count}×${QuantityFormat.exposure(plan.durationSecs, space: false)}',
                       emphasized: true,
                     ),
                   if (_depthLockedFilters(plans) != null)

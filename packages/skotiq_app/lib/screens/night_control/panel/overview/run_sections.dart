@@ -84,8 +84,8 @@ class NightAdaptiveExposureSection extends StatelessWidget {
           value: l10n.text(
             'nightAdaptiveSecondsOfPlan',
             params: <String, String>{
-              'secs': _seconds(decision.adaptedSecs),
-              'planned': _seconds(decision.nominalSecs),
+              'secs': QuantityFormat.exposure(decision.adaptedSecs),
+              'planned': QuantityFormat.exposure(decision.nominalSecs),
             },
           ),
         ),

@@ -73,7 +73,7 @@ class NightSolveSettingsSection extends ConsumerWidget {
           items: [
             MetricGridItem(
               label: l10n.text('nightScopeSolveExposure'),
-              value: '${_number(exposure)} s',
+              value: QuantityFormat.exposure(exposure),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSolveBinning'),

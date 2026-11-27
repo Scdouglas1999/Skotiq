@@ -39,7 +39,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
               _reviewRow(
                 colors,
                 f.filterName,
-                '${_loopCount}x ${f.exposureSecs.round()}s (${f.binning.label})',
+                '${_loopCount}x ${QuantityFormat.exposure(f.exposureSecs, space: false)} (${f.binning.label})',
               ),
               _buildExposureRationale(colors, f),
             ],
@@ -291,7 +291,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
 
     for (final f in enabledFilters) {
       treeLines.add(_TreeLine(
-        '${f.filterName}: ${f.exposureSecs.round()}s',
+        '${f.filterName}: ${QuantityFormat.exposure(f.exposureSecs, space: false)}',
         LucideIcons.camera,
         2,
       ));

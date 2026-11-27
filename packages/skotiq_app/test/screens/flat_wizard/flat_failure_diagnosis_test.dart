@@ -50,7 +50,7 @@ void main() {
       ),
     );
     expect(result, isNotNull);
-    expect(result!.reason, contains('2.00'));
+    expect(result!.reason, contains('the fixed 2 s exposure'));
     expect(result.reason, contains('fixed'));
     expect(result.reason, isNot(contains('30')));
     expect(result.reason, contains('40%'));
@@ -62,7 +62,7 @@ void main() {
       failed(min: 0.001, max: 30, lastExposure: 30),
     );
     expect(result, isNotNull);
-    expect(result!.reason, contains('30.0'));
+    expect(result!.reason, contains('at the 30 s maximum'));
     expect(result.reason, contains('maximum'));
     expect(result.reason, isNot(contains('fixed')));
   });

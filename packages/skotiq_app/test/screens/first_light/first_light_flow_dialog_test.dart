@@ -239,7 +239,7 @@ void main() {
       await _pumpDialog(tester, state: const FirstLightState());
 
       expect(
-        find.textContaining('120 seconds is the most this flow will run'),
+        find.textContaining('120 s is the most this flow will run'),
         findsOneWidget,
       );
     });

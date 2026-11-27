@@ -163,7 +163,7 @@ class NodeTimingSection extends ConsumerWidget {
         _DurationDetail(
           label: 'Exposures',
           value:
-              '${exposure.count} x ${exposure.durationSecs.toStringAsFixed(exposure.durationSecs == exposure.durationSecs.truncate() ? 0 : 1)}s',
+              '${exposure.count} x ${QuantityFormat.exposure(exposure.durationSecs, space: false)}',
         ),
         _DurationDetail(
           label: 'Download overhead',
@@ -333,7 +333,7 @@ class NodeTimingSection extends ConsumerWidget {
         _DurationDetail(
           label: 'Frames',
           value:
-              '${phot.count} x ${phot.exposureSecs.toStringAsFixed(phot.exposureSecs == phot.exposureSecs.truncate() ? 0 : 1)}s',
+              '${phot.count} x ${QuantityFormat.exposure(phot.exposureSecs, space: false)}',
         ),
         _DurationDetail(
           label: 'Filter',

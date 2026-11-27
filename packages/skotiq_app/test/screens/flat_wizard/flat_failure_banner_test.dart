@@ -149,7 +149,7 @@ void main() {
 
     expect(
       find.textContaining(
-          'at the 30.0 s maximum exposure the frame only reached 20120 ADU'),
+          'at the 30 s maximum exposure the frame only reached 20120 ADU'),
       findsOneWidget,
     );
     expect(find.textContaining('short of the 50% target'), findsOneWidget);
@@ -173,7 +173,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'even at the 0.001 s minimum exposure the frame reached 48000 ADU',
+        'even at the 1 ms minimum exposure the frame reached 48000 ADU',
         findRichText: true,
       ),
       findsOneWidget,

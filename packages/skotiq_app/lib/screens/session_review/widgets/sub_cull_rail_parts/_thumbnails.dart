@@ -207,7 +207,7 @@ class _BlinkView extends ConsumerWidget {
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
             '${sub.fileName} · ${frameCaption(filter: sub.filter, frameType: sub.frameType)} · '
-            '${sub.exposureDuration.toInt()}s'
+            '${QuantityFormat.exposure(sub.exposureDuration, space: false)}'
             '${sub.hfr != null ? ' · HFR ${sub.hfr!.toStringAsFixed(2)}' : ''}',
             textAlign: TextAlign.center,
             maxLines: 2,

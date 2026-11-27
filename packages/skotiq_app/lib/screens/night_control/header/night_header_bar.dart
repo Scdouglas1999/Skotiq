@@ -575,7 +575,7 @@ class _InfoRow extends ConsumerWidget {
       final exposure = [
         if (header.currentFilter case final filter?) filter,
         if (header.currentExposureSecs case final secs?)
-          '${QuantityFormat.trimmed(secs)} s',
+          QuantityFormat.exposure(secs),
       ].join(' ');
       if (exposure.isNotEmpty) parts.add(exposure);
       if (header.framesDone case final done?) {

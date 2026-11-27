@@ -178,7 +178,7 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               SizedBox(
                 width: 40,
                 child: Text(
-                  '${config.exposureTime.toInt()}s',
+                  QuantityFormat.exposure(config.exposureTime, space: false),
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize11,
                       color: colors.textPrimary),

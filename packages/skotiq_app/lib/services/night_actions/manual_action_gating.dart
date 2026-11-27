@@ -266,7 +266,7 @@ NightText? _sub(NightActionInputs inputs, ManualActionId id) {
     case ManualActionId.snapshot:
       final seconds = inputs.exposureSeconds;
       if (seconds == null || !seconds.isFinite || seconds <= 0) return null;
-      return NightText.literal('${QuantityFormat.trimmed(seconds)} s');
+      return NightText.literal(QuantityFormat.exposure(seconds));
     case ManualActionId.autofocus:
       final filter = inputs.filterName;
       return filter == null || filter.isEmpty

@@ -475,7 +475,8 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
 
   String _buildDescription(List<_FilterExposureConfig> enabledFilters) {
     final filterSummary = enabledFilters
-        .map((f) => '${f.filterName}: ${_loopCount}x${f.exposureSecs.round()}s')
+        .map((f) =>
+            '${f.filterName}: ${_loopCount}x${QuantityFormat.exposure(f.exposureSecs, space: false)}')
         .join(', ');
     final features = <String>[];
     if (_enableAutofocus) features.add('autofocus');

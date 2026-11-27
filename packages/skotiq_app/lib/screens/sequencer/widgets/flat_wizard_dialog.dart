@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -343,7 +344,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
             setState(() {
               _calculationStatus =
                   '$filter (${i + 1}/${snapshot.filters.length}): iteration '
-                  '$iteration: ${exposure.toStringAsFixed(3)}s, ADU '
+                  '$iteration: ${QuantityFormat.exposure(exposure, space: false)}, ADU '
                   '${adu.toStringAsFixed(0)}';
             });
           },
@@ -637,7 +638,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
                       _buildReviewRow(
                         '$filter:',
                         _results[filter]?.success == true
-                            ? '${_results[filter]!.exposure.toStringAsFixed(3)}s '
+                            ? '${QuantityFormat.exposure(_results[filter]!.exposure, space: false)} '
                                 '× $_framesPerFilter'
                             : 'Not calculated',
                       ),
@@ -856,7 +857,7 @@ class _FlatWizardDialogState extends ConsumerState<FlatWizardDialog> {
           ),
           Text(
             isCalibrated
-                ? '${result!.exposure.toStringAsFixed(3)}s @ '
+                ? '${QuantityFormat.exposure(result!.exposure, space: false)} @ '
                     '${result.adu.toStringAsFixed(0)} ADU'
                 : isFailed
                     ? 'Failed'

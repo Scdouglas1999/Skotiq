@@ -347,7 +347,7 @@ extension _PhotometricWizardFrameSelection
               ),
               subtitle: Text(
                 '${img.filter ?? "No filter"} | '
-                '${img.exposureDuration.toStringAsFixed(1)}s | '
+                '${QuantityFormat.exposure(img.exposureDuration, space: false)} | '
                 'Stars: ${img.starCount ?? "?"} | '
                 // Altitude and airmass, because this step's own
                 // instructions ask the user to build an airmass spread and

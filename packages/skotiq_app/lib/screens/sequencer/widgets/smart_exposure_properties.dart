@@ -943,7 +943,7 @@ class _EstimateSummary extends ConsumerWidget {
     }
     return node.plans
         .map((p) =>
-            '${p.filterName}: ${p.count}×${p.durationSecs.toStringAsFixed(0)}s')
+            '${p.filterName}: ${p.count}×${QuantityFormat.exposure(p.durationSecs, space: false)}')
         .join(' • ');
   }
 }

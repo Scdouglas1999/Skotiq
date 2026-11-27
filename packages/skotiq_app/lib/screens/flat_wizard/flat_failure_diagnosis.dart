@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 
@@ -117,11 +118,7 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
   );
 }
 
-String _formatSeconds(double seconds) {
-  if (seconds >= 10) return '${seconds.toStringAsFixed(1)} s';
-  if (seconds >= 0.1) return '${seconds.toStringAsFixed(2)} s';
-  return '${seconds.toStringAsFixed(3)} s';
-}
+String _formatSeconds(double seconds) => QuantityFormat.exposure(seconds);
 
 String _formatRatio(double ratio) {
   if (ratio >= 10) return '${ratio.round()}x';

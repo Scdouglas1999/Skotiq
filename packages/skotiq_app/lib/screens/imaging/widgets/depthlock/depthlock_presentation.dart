@@ -147,11 +147,11 @@ String depthLockMasterSummary(CalibrationMasterRecord record) {
     }
   } else {
     if (frames != null && exposure != null) {
-      parts.add('$frames × ${_seconds(exposure)}');
+      parts.add('$frames × ${QuantityFormat.exposure(exposure)}');
     } else if (frames != null) {
       parts.add('$frames frames');
     } else if (exposure != null) {
-      parts.add(_seconds(exposure));
+      parts.add(QuantityFormat.exposure(exposure));
     }
     if (record.temperature != null) {
       parts.add(formatCelsius(record.temperature!, decimals: 0));
@@ -165,10 +165,6 @@ String depthLockMasterSummary(CalibrationMasterRecord record) {
   // render an empty line.
   return parts.isEmpty ? 'No details recorded' : parts.join(' · ');
 }
-
-String _seconds(double value) => value >= 1
-    ? '${value.toStringAsFixed(0)} s'
-    : '${value.toStringAsFixed(2)} s';
 
 /// Integration time for [frames] exposures of this goal, in hours.
 double depthLockHours({required int frames, required double exposureSecs}) =>
