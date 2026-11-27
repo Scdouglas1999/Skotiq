@@ -262,6 +262,9 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
     // save into its own database, where nothing reads it.
     final pushConfigEditable =
         !isRemoteController || ref.watch(hostSettingsStoreProvider) != null;
+    // Which events reach every phone stays with admin links, as the host's
+    // other shared settings do; without admin access it is shown, not changed.
+    final pushReadOnly = pushConfigEditable && credentialsHidden;
     final AsyncValue<PushNotificationConfig>? pushConfigAsync =
         pushConfigEditable ? ref.watch(pushNotificationConfigProvider) : null;
     // Real delivery state, so the critical-alert row can stop asserting a
@@ -469,6 +472,16 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
               SettingsSection(
                 title: 'Push to phones',
                 children: [
+                  if (pushReadOnly)
+                    const SettingRow(
+                      title: 'Shared by every phone',
+                      subtitle: 'These settings apply to every phone linked '
+                          'to the imaging computer.',
+                      trailing: AdminOnlyNotice(
+                        text: 'Which events reach every phone is changed on '
+                            'the imaging computer, or link with admin access.',
+                      ),
+                    ),
                   SettingRow(
                     title: 'Push to phones',
                     subtitle: isRemoteController
@@ -479,6 +492,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                             'computer. Each one can be turned off here.',
                     trailing: SettingsSwitch(
                       value: pushConfig.enabled,
+                      enabled: !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -491,7 +505,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When a run finishes.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifySequenceCompleted,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -504,7 +518,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When a run fails or is stopped.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifySequenceFailed,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -517,7 +531,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When the mount flips.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyMeridianFlip,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -530,7 +544,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When the weather turns unsafe.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyWeatherUnsafe,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -543,7 +557,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When the guide star stays lost.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyGuidingLost,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -556,7 +570,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When an exposure fails.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyExposureFailed,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -569,7 +583,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When autofocus fails.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyAutofocusFailed,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -582,7 +596,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When a device drops.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyEquipmentDisconnected,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)

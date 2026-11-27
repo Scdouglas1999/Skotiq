@@ -34,11 +34,15 @@ class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 /// The host's key/value store as a linked client reaches it.
 class _HostStore extends Mock implements HostRigSettings {
+  _HostStore({this.adminAccess = true});
+
+  /// Whether the link has admin access, as the host reports it.
+  final bool adminAccess;
   final Map<String, String> rows = {};
 
   @override
   Future<HostSettingsRows> getSettingsStore() async =>
-      HostSettingsRows(Map.of(rows), adminAccess: false);
+      HostSettingsRows(Map.of(rows), adminAccess: adminAccess);
 
   @override
   Future<void> updateSettingsStore(
@@ -164,7 +168,7 @@ void main() {
 
   // A headless host has no screen: a linked phone edits which events the host
   // pushes to phones, in the host's own store.
-  testWidgets('a linked phone edits the host push config on the host',
+  testWidgets('an admin-linked phone edits the host push config on the host',
       (tester) async {
     final remote = _MockNetworkBackend();
     when(() => remote.eventStream).thenAnswer((_) => const Stream.empty());
@@ -269,5 +273,60 @@ void main() {
       (jsonDecode(stored!) as Map<String, dynamic>)['notifyGuidingLost'],
       isFalse,
     );
+  });
+
+  // Which events reach every phone is the host's, like its other shared
+  // settings: a link without admin access sees them and the reason, and
+  // cannot change them.
+  testWidgets('a control-scope phone sees the host push config read-only',
+      (tester) async {
+    final remote = _MockNetworkBackend();
+    when(() => remote.eventStream).thenAnswer((_) => const Stream.empty());
+    final host = _HostStore(adminAccess: false);
+    final store = HostSettingsStore(host, () => const Stream.empty());
+    addTearDown(store.dispose);
+
+    await pumpAppScreen(
+      tester,
+      const SingleChildScrollView(child: NotificationSettings()),
+      settle: false,
+      extraOverrides: [
+        launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+        backendProvider.overrideWith(
+          (ref) => TestBackendNotifier(ref, remote),
+        ),
+        hostSettingsStoreProvider.overrideWithValue(store),
+        appSettingsProvider.overrideWith(_LoadedAppSettings.new),
+        remoteHomeAssistantHostSettingsProvider.overrideWith(
+          (ref) async => null,
+        ),
+      ],
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.text('Guiding lost'), findsOneWidget);
+    expect(
+      find.textContaining('Which events reach every phone is changed on the '
+          'imaging computer'),
+      findsOneWidget,
+    );
+    final guiding = find.ancestor(
+      of: find.text('Guiding lost'),
+      matching: find.byType(SettingRow),
+    );
+    final toggle = find.descendant(
+      of: guiding,
+      matching: find.byType(SettingsSwitch),
+    );
+    expect(tester.widget<SettingsSwitch>(toggle).enabled, isFalse);
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle, warnIfMissed: false);
+    await tester.pump(SettingsSwitch.writeDelay);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(host.rows['push_notification_config'], isNull);
   });
 }

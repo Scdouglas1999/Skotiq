@@ -50,6 +50,10 @@ enum AdminOnly {
   /// It is part of what stays with admin links: the host's backups, where it
   /// downloads from, and how it is reached.
   administration,
+
+  /// It decides what every phone linked to the host is pushed, so one link
+  /// changing it changes it for all of them.
+  everyPhone,
 }
 
 sealed class Setting<T> {

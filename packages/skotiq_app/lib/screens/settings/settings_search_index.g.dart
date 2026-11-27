@@ -505,6 +505,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Sequence failed',
     'Set on the imaging computer',
     'Set up on the imaging computer',
+    'Shared by every phone',
     'Silent notification',
     'Sound',
     'Sound an alarm here when a run hits a critical',
@@ -522,6 +523,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'The key of your Pushover application.',
     'The phone settings appear once they have',
     'The URL itself authenticates the request, so it is stored securely.',
+    'These settings apply to every phone linked',
     'This broker is separate from notification MQTT on',
     'URL',
     'Use STARTTLS',
@@ -1037,6 +1039,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
     'The phone settings appear once they have': 'Loading',
     'The URL itself authenticates the request, so it is stored securely.':
         'Webhook URL',
+    'These settings apply to every phone linked': 'Shared by every phone',
     'This broker is separate from notification MQTT on':
         'Runs on the imaging host',
     'Uses the imaging host\'s MQTT broker and its password.':
