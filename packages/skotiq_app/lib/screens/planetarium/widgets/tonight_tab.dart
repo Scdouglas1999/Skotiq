@@ -173,6 +173,7 @@ class TonightTab extends ConsumerWidget {
               DarknessCard(
                 twilight: twilight,
                 colors: colors,
+                clock: clock,
               ),
             const SizedBox(height: 16),
             InfoCard(

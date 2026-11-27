@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/providers.dart' show Clock, ClockTimeOfDay;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../data/session/session_format.dart';
@@ -35,6 +36,7 @@ class NightChartAxes extends StatelessWidget {
     this.leftUnit = '',
     this.leftTicks,
     this.rightGrouped = false,
+    this.clock,
   });
 
   final List<SeriesChartLine> lines;
@@ -54,6 +56,11 @@ class NightChartAxes extends StatelessWidget {
 
   /// Right labels as grouped whole numbers (`45 484`).
   final bool rightGrouped;
+
+  /// The clock the time scale reads, with every time on the chart an instant:
+  /// ticks fall on that clock's round hours. Null labels the fields of the
+  /// chart's times as given.
+  final Clock? clock;
 
   /// Below this chart height the scales are left out rather than crowded.
   static const double minChartHeight = 18;
@@ -144,6 +151,7 @@ class NightChartAxes extends StatelessWidget {
         painter: painter,
         width: plotWidth,
         labelWidth: clockWidth,
+        clock: clock,
       );
 
       // Labels closer than a line apart: keep the outer ones.
@@ -245,6 +253,7 @@ class NightChartAxes extends StatelessWidget {
                   width: math.max(0, plotWidth),
                   labelWidth: clockWidth,
                   style: style,
+                  clock: clock,
                 ),
               ),
             ),
@@ -257,6 +266,7 @@ class NightChartAxes extends StatelessWidget {
 
 /// Clock ticks on a round step whose labels, [labelWidth] wide and centered
 /// on their ticks (the outer ones held inside [width]), all fit side by side.
+/// With a [clock] the step is round on that clock and the ticks are instants.
 ///
 /// Counting labels by width alone let the first label, pushed right to stay
 /// inside the scale, cover the second, and the scale read 02:00, 06:00, 08:00.
@@ -265,15 +275,23 @@ List<DateTime> nightClockTicks({
   required SeriesChartPainter painter,
   required double width,
   required double labelWidth,
+  Clock? clock,
 }) {
   final range = painter.timeRange;
   if (range == null || width <= 0) return const <DateTime>[];
+  final from = DateTime.fromMillisecondsSinceEpoch(range.$1);
+  final to = DateTime.fromMillisecondsSinceEpoch(range.$2);
   for (var most = (width / labelWidth).floor(); most > 0; most--) {
-    final ticks = ChartScale.clockTicks(
-      DateTime.fromMillisecondsSinceEpoch(range.$1),
-      DateTime.fromMillisecondsSinceEpoch(range.$2),
-      most,
-    );
+    final ticks = clock == null
+        ? ChartScale.clockTicks(from, to, most)
+        : [
+            for (final t in ChartScale.clockTicks(
+              clock.wallClockOf(from),
+              clock.wallClockOf(to),
+              most,
+            ))
+              clock.toInstant(t),
+          ];
     if (_labelLefts(painter, ticks, width, labelWidth).length == ticks.length) {
       return ticks;
     }
@@ -309,6 +327,7 @@ class _TimeScale extends StatelessWidget {
     required this.width,
     required this.labelWidth,
     required this.style,
+    this.clock,
   });
 
   final SeriesChartPainter painter;
@@ -316,6 +335,7 @@ class _TimeScale extends StatelessWidget {
   final double width;
   final double labelWidth;
   final TextStyle style;
+  final Clock? clock;
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +347,7 @@ class _TimeScale extends StatelessWidget {
           top: 3,
           width: labelWidth,
           child: Text(
-            ClockFormat.hm(t),
+            clock?.hm(t) ?? ClockFormat.hm(t),
             style: style,
             maxLines: 1,
             softWrap: false,

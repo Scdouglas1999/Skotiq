@@ -236,7 +236,7 @@ String _candidateCountLabel(
 
 /// The column-header row above the candidates: the count on the left and the
 /// three measured columns named over their values, all in `eyebrow`.
-class _CandidateColumnHeader extends StatelessWidget {
+class _CandidateColumnHeader extends ConsumerWidget {
   final String count;
 
   /// The widths the rows beneath use, or null when the list is too narrow
@@ -253,7 +253,8 @@ class _CandidateColumnHeader extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final clock = ref.watch(clockProvider);
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
     final countLabel = Text(
@@ -287,10 +288,7 @@ class _CandidateColumnHeader extends StatelessWidget {
               windowLabel: l10n.text('plannerColWindow'),
               windowScale: switch (night) {
                 null => null,
-                final n => (
-                    ClockFormat.hm(n.start.toLocal()),
-                    ClockFormat.hm(n.end.toLocal())
-                  ),
+                final n => (clock.hm(n.start), clock.hm(n.end)),
               },
               columns: grid,
             ),
@@ -345,7 +343,7 @@ class _PlannerCandidateRow extends ConsumerWidget {
       dense: true,
       readouts: [
         Readout(
-          value: _transitValue(visibility),
+          value: _transitValue(visibility, ref.watch(clockProvider)),
           label: l10n.text('plannerColTransit'),
           size: ReadoutSize.sm,
         ),
@@ -428,15 +426,15 @@ String _candidateDetailLine(TargetSuggestion suggestion) {
 
 /// "01:08 · 85°" — the transit time and the altitude it transits at, or null
 /// when the target has no transit tonight.
-String? _transitValue(TargetVisibilityInfo visibility) {
+String? _transitValue(TargetVisibilityInfo visibility, Clock clock) {
   final time = visibility.transitTime;
   final altitude = visibility.transitAltitude;
   if (time == null && altitude == null) return null;
-  final clock = time == null ? null : ClockFormat.hm(time);
+  final at = time == null ? null : clock.hm(time);
   final alt = altitude == null ? null : '${altitude.round()}°';
-  if (clock == null) return alt;
-  if (alt == null) return clock;
-  return '$clock · $alt';
+  if (at == null) return alt;
+  if (alt == null) return at;
+  return '$at · $alt';
 }
 
 /// "6h 40m", with the minutes CARRIED into the hour so a rounded 60 never
