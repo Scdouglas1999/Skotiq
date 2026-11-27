@@ -32,7 +32,7 @@ void main() {
         200,
       ),
     );
-    final result = await GeolocationService.fetchLocationFromIP();
+    final result = await GeolocationService.fetchLocation();
     expect(result, (39.9815, -75.3566, 'Broomall, Pennsylvania'));
   });
 }
