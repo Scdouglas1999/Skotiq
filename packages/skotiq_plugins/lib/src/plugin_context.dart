@@ -155,8 +155,7 @@ class FilePluginStorage implements PluginStorage {
   /// `<base>/skotiq_plugins/storage/<pluginId>.json`.
   ///
   /// [baseDirectoryProvider] gives the data root; the app passes its own
-  /// (see `resolveSkotiqDataDirectory` in skotiq_core). Without one the file
-  /// lives under [legacyPluginStorageDirectory].
+  /// (see `resolveSkotiqDataDirectory` in skotiq_core).
   ///
   /// When [legacyBaseDirectoryProvider] is given and this plugin has no file
   /// under the data root yet, the file found under the legacy root is copied
@@ -167,10 +166,9 @@ class FilePluginStorage implements PluginStorage {
   /// id never reaches the filesystem.
   FilePluginStorage(
     this._pluginId, {
-    Future<Directory> Function()? baseDirectoryProvider,
+    required Future<Directory> Function() baseDirectoryProvider,
     Future<Directory> Function()? legacyBaseDirectoryProvider,
-  }) : _baseDirectoryProvider =
-           baseDirectoryProvider ?? legacyPluginStorageDirectory,
+  }) : _baseDirectoryProvider = baseDirectoryProvider,
        _legacyBaseDirectoryProvider = legacyBaseDirectoryProvider {
     assertSafePluginId(_pluginId);
   }
@@ -555,9 +553,8 @@ class PluginContextFactory {
   /// Creates a factory.
   ///
   /// [storageFactory] builds the [PluginStorage] for each plugin context.
-  /// The app passes a [FilePluginStorage] under its data root; the default is
-  /// a [FilePluginStorage] under [legacyPluginStorageDirectory]. Tests inject
-  /// [InMemoryPluginStorage] so nothing touches the disk.
+  /// The app passes a [FilePluginStorage] under its data root; without one
+  /// each plugin gets an [InMemoryPluginStorage], so nothing touches the disk.
   ///
   /// [loggerFactory] builds each plugin's [PluginLogger]; it defaults to
   /// [ConsolePluginLogger], whose records reach the app log.
@@ -566,8 +563,7 @@ class PluginContextFactory {
     PluginStorage Function(String pluginId)? storageFactory,
     PluginLogger Function(String pluginId)? loggerFactory,
   }) : _policy = policy,
-       _storageFactory =
-           storageFactory ?? ((pluginId) => FilePluginStorage(pluginId)),
+       _storageFactory = storageFactory ?? ((_) => InMemoryPluginStorage()),
        _loggerFactory = loggerFactory ?? ConsolePluginLogger.new;
 
   /// Publishes [eventName] from the app to every plugin listening on the
