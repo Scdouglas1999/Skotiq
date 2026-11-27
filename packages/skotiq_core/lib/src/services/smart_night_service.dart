@@ -508,11 +508,13 @@ class SmartNightService {
       );
     }
     if (settings.polarAlignmentIsStale(context.daysSinceLastPolarAlignment)) {
+      final added = settings.prependPolarAlignmentIfStale
+          ? 'A polar alignment instruction has been prepended.'
+          : 'The plan does not include one.';
       warnings.add(
         'Last polar alignment was '
         '${context.daysSinceLastPolarAlignment} days ago '
-        '(threshold: ${settings.polarAlignmentStaleAfterDays} days). '
-        'A polar alignment instruction has been prepended.',
+        '(threshold: ${settings.polarAlignmentStaleAfterDays} days). $added',
       );
     }
     if (context.rainOrCloudProbability != null &&

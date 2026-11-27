@@ -606,6 +606,36 @@ void main() {
       expect(plan.warnings.any((w) => w.contains('polar alignment')), isTrue);
     });
 
+    test('a stale polar alignment the plan does not add is not said to be '
+        'prepended', () {
+      final plan = service.build(
+        profile: monoProfile,
+        availableFilters: monoProfile.filterNames,
+        latitudeDeg: _siteLatitude,
+        longitudeDeg: _siteLongitude,
+        planTimer: PlanTimer(site: (latitude: 41.0, longitude: -73.0)),
+        context: SmartNightContext(
+          windowStart: siteTime(2026, 5, 17, 22),
+          windowEnd: siteTime(2026, 5, 18, 5),
+          bortleClass: 4,
+          daysSinceLastPolarAlignment: 30,
+        ),
+        selectedSuggestions: [fakeSuggestion(id: 1, name: 'M51')],
+        strategy: SmartNightStrategy.autoLrgb,
+        settings: const SmartNightSettings(prependPolarAlignmentIfStale: false),
+      );
+
+      expect(
+        plan.sequence.nodes.values.whereType<PolarAlignmentNode>(),
+        isEmpty,
+      );
+      final notice = plan.warnings.singleWhere(
+        (w) => w.contains('Last polar alignment was 30 days ago'),
+      );
+      expect(notice, isNot(contains('prepended')));
+      expect(notice, contains('The plan does not include one.'));
+    });
+
     test(
       'polar alignment node targets the correct celestial pole by latitude',
       () {
