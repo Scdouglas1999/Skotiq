@@ -478,7 +478,9 @@ Future<RunningHostServer> startHostServer({
 Future<String?> firstLanAddress() async =>
     pickLanAddress(await NetworkInterface.list());
 
-/// The address of [interfaces] the connect banner names.
+/// The address of [interfaces] the connect banner names: a LAN address before
+/// a tailnet one, which only devices on the tailnet reach.
 @visibleForTesting
 String? pickLanAddress(List<NetworkInterface> interfaces) =>
+    LocalAddresses.lanIpv4(interfaces, skipTailnet: true) ??
     LocalAddresses.lanIpv4(interfaces, skipTailnet: false);
