@@ -3349,6 +3349,25 @@ test('the dashboard shows each run state with its badge and controls', () => {
   assert.deepEqual(seen, DASHBOARD_RUN_STATE);
 });
 
+// The controls come from the host's rows (RunStateScript.pageControls), which
+// run_state_script_test.dart checks against the app's rule.
+test('the dashboard enables the run controls the host allows it', () => {
+  const doc = makeDocument(Object.values(SEQ_BUTTONS));
+  const update = build(
+    ['document', 'refusedControls'],
+    [fn('updateSequencerButtons')],
+    'updateSequencerButtons',
+  )(doc, new Map());
+  for (const c of RUN_STATE_CASES) {
+    const held = c.heldByAction === true;
+    update(c.state, held);
+    const allowed = RUN_STATE.controls('dashboard', c.state || 'idle', held);
+    for (const [key, id] of Object.entries(SEQ_BUTTONS)) {
+      assert.equal(!doc.getElementById(id).disabled, allowed[key], `${c.name}: ${key}`);
+    }
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Guider state: the badge and the guiding controls for every word
 // GET /api/guider/status names (test_fixtures/guider_state/words.json, plus a

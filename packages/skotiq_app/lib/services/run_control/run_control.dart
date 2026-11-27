@@ -96,30 +96,43 @@ final runCameraConnectedProvider = Provider<bool>((ref) {
       DeviceConnectionState.connected;
 });
 
+/// The phase of a run the executor reports as [execution], or null when no
+/// run is under way (idle, completed, failed) and the plan and the night
+/// decide the phase. [heldByAction] is whether a manual action holds the run.
+NightRunPhase? liveRunPhaseOf(
+  SequenceExecutionState execution, {
+  required bool heldByAction,
+}) =>
+    switch (execution) {
+      SequenceExecutionState.running ||
+      // Recovery is the run handling a fault on its own; it is still the
+      // run, and the controls say what is unavailable.
+      SequenceExecutionState.recovering =>
+        NightRunPhase.running,
+      SequenceExecutionState.paused => heldByAction
+          ? NightRunPhase.pausedForAction
+          : NightRunPhase.pausedByUser,
+      SequenceExecutionState.stopping ||
+      SequenceExecutionState.finalizing ||
+      // A failed stop or cleanup is still on its way to stopped: Stop is
+      // offered again, Start is not.
+      SequenceExecutionState.stopFailed ||
+      SequenceExecutionState.cleanupFailed =>
+        NightRunPhase.stopping,
+      SequenceExecutionState.idle ||
+      SequenceExecutionState.completed ||
+      SequenceExecutionState.failed =>
+        null,
+    };
+
 final nightRunPhaseProvider = Provider<NightRunPhase>((ref) {
   final execution = ref.watch(sequenceExecutionStateProvider);
-  switch (execution) {
-    case SequenceExecutionState.running ||
-          // Recovery is the run handling a fault on its own; it is still the
-          // run, and the controls say what is unavailable.
-          SequenceExecutionState.recovering:
-      return NightRunPhase.running;
-    case SequenceExecutionState.paused:
-      return ref.watch(runHeldByActionProvider)
-          ? NightRunPhase.pausedForAction
-          : NightRunPhase.pausedByUser;
-    case SequenceExecutionState.stopping ||
-          SequenceExecutionState.finalizing ||
-          // A failed stop or cleanup is still on its way to stopped: Stop is
-          // offered again, Start is not.
-          SequenceExecutionState.stopFailed ||
-          SequenceExecutionState.cleanupFailed:
-      return NightRunPhase.stopping;
-    case SequenceExecutionState.idle ||
-          SequenceExecutionState.completed ||
-          SequenceExecutionState.failed:
-      break;
-  }
+  final live = liveRunPhaseOf(
+    execution,
+    heldByAction: execution == SequenceExecutionState.paused &&
+        ref.watch(runHeldByActionProvider),
+  );
+  if (live != null) return live;
 
   if (ref.watch(nightArmedStartProvider) != null) {
     return NightRunPhase.armed;

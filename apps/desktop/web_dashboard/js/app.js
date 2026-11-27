@@ -3981,11 +3981,10 @@
     }
   }
 
-  /// Enable exactly the run controls the executor state admits.
-  /// [heldByAction]: a manual action holds the run paused, and the host
-  /// refuses Resume until the action releases it.
+  /// Enable exactly the run controls the host allows this page for the
+  /// executor state. [heldByAction]: a manual action holds the run paused.
   function updateSequencerButtons(stateStr, heldByAction) {
-    const phase = RUN_STATE.view(stateStr || 'idle').phase;
+    const allowed = RUN_STATE.controls('dashboard', stateStr || 'idle', heldByAction);
     const set = (id, enabled) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -3999,14 +3998,10 @@
       }
       el.disabled = !enabled;
     };
-    const running = phase === 'running';
-    const paused = phase === 'paused';
-    const recovering = phase === 'recovering';
-    const stopRetry = phase === 'stopRetry';
-    set('btn-seq-start', phase === 'idle' || phase === 'ended');
-    set('btn-seq-pause', running);
-    set('btn-seq-resume', paused && !heldByAction);
-    set('btn-seq-stop', running || paused || recovering || stopRetry);
+    set('btn-seq-start', allowed.start);
+    set('btn-seq-pause', allowed.pause);
+    set('btn-seq-resume', allowed.resume);
+    set('btn-seq-stop', allowed.stop);
   }
 
   /// The run state a `/api/sequencer/status` reply actually names, or null
