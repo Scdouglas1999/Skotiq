@@ -251,13 +251,12 @@ mixin _GuidingMobileSections
   }
 
   Widget _buildNarrowSettingsTab(SkotiqColors colors) {
-    final guiderId = ref.watch(guiderStateProvider).deviceId;
-    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
+    final kind = ref.watch(connectedGuiderKindProvider);
 
     // The built-in guider's settings are shown here. Before, this tab held
     // two buttons to Equipment, whose phone layout reaches the form only
     // through a camera, mount or focuser card's Settings.
-    if (!isPhd2Guider && ref.watch(isBuiltinGuiderProvider)) {
+    if (kind == GuiderKind.builtin) {
       final colors = SkotiqColors.of(context);
       return SingleChildScrollView(
         padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
@@ -283,8 +282,7 @@ mixin _GuidingMobileSections
     }
 
     // The demo rig's guider is simulated on the phone and has no settings.
-    if (!isPhd2Guider &&
-        ref.watch(backendProvider).hostPlace == HostPlace.demo) {
+    if (kind == GuiderKind.demo) {
       return const SingleChildScrollView(
         padding: EdgeInsets.all(SkotiqTokens.spaceMd),
         child: EmptyState.compact(
@@ -296,7 +294,7 @@ mixin _GuidingMobileSections
       );
     }
 
-    if (!isPhd2Guider) {
+    if (kind == GuiderKind.external) {
       return Padding(
         padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
         child: Column(

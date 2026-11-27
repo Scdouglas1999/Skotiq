@@ -95,12 +95,18 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
         : profileGuider;
   }
 
+  /// The kind of [_selectedGuiderId].
+  GuiderKind _selectedGuiderKind() => guiderKindOf(
+        _selectedGuiderId(),
+        ref.watch(backendProvider.select((b) => b.hostPlace)),
+      );
+
   /// The one muted fact beside the page title: which guider, connected or not.
   String _connectionLabel(bool isConnected) {
     final guiderState = ref.watch(guiderStateProvider);
-    final guiderId = _selectedGuiderId();
-    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
-    final isBuiltinGuider = guiderId == builtinGuiderDeviceId;
+    final kind = _selectedGuiderKind();
+    final isPhd2Guider = kind == GuiderKind.phd2;
+    final isBuiltinGuider = kind == GuiderKind.builtin;
     final name = isBuiltinGuider
         ? 'Built-in guider'
         : isPhd2Guider
