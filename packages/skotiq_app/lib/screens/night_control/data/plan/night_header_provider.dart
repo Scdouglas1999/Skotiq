@@ -146,11 +146,13 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
       (_, FlipHoldProgressDetail()) => kFlipWaitShort,
       _ => null,
     },
-    // A dark or bias is taken with the cover on, wherever the wheel sits, so
-    // it reads as its frame type ("Dark 55 s"), not as the wheel's filter.
+    // A calibration step reads as what it is for ("Dark 55 s", "Flat Ha
+    // 2 s"), not as the wheel's filter alone.
     currentFilter: switch (activeNode) {
-      ExposureNode(:final frameType) when frameType.coverOnLabel != null =>
-        frameType.coverOnLabel,
+      ExposureNode(:final frameType, :final filter)
+          when frameType != FrameType.light &&
+              frameType != FrameType.snapshot =>
+        frameType.caption(_nonEmpty(progress?.currentFilter) ?? filter),
       // A plan the phone does not hold (the end-of-night darks) names its
       // frame type when the step starts.
       null when progress?.currentFrameType?.coverOnLabel != null =>

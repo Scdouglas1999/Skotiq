@@ -146,6 +146,29 @@ void main() {
     expect(container.read(nightHeaderProvider).currentFilter, 'Dark');
   });
 
+  test('a flat reads as a flat through the filter it is taken in', () {
+    final plan = TwoTargetPlan().sequence;
+    final flat = (plan.nodes['m74-l']! as ExposureNode)
+        .copyWith(frameType: FrameType.flat);
+    final container = planContainer(
+      now: evening,
+      sequence: plan.copyWith(nodes: {...plan.nodes, 'm74-l': flat}),
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: bostonTime(2026, 10, 19, 19, 50),
+      ),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.running,
+        currentNodeId: 'm74-l',
+        currentFilter: 'Ha',
+        nodeStatuses: {'m74-l': NodeStatus.running},
+      ),
+    );
+    addTearDown(container.dispose);
+    expect(container.read(nightHeaderProvider).currentFilter, 'Flat Ha');
+  });
+
   // A plan the phone does not hold (the end-of-night darks, a dark plan the
   // desktop started): the run engine names the step's frame type when the
   // step starts. Its header read "G 55 s" (night test finding 40).
