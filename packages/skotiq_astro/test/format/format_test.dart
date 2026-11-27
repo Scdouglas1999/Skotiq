@@ -222,10 +222,32 @@ void main() {
     });
   });
 
-  test('QuantityFormat.exposure reads milliseconds below a tenth', () {
-    expect(QuantityFormat.exposure(0.005), '5 ms');
-    expect(QuantityFormat.exposure(0.1), '0.1 s');
-    expect(QuantityFormat.exposure(300), '300 s');
+  test('QuantityFormat.exposure keeps three significant digits', () {
+    const cases = <(double, String)>[
+      (0, '0 s'),
+      (0.000032, '0.032 ms'),
+      (0.001, '1 ms'),
+      (0.005, '5 ms'),
+      (0.0055, '5.5 ms'),
+      (0.05, '50 ms'),
+      (0.099, '99 ms'),
+      (0.1, '0.1 s'),
+      (0.123, '0.123 s'),
+      (0.15, '0.15 s'),
+      (0.25, '0.25 s'),
+      (0.5, '0.5 s'),
+      (1.234, '1.23 s'),
+      (1.25, '1.25 s'),
+      (2.5, '2.5 s'),
+      (12.34, '12.3 s'),
+      (30, '30 s'),
+      (300, '300 s'),
+      (300.5, '300.5 s'),
+    ];
+    for (final (seconds, label) in cases) {
+      expect(QuantityFormat.exposure(seconds), label, reason: '$seconds');
+    }
     expect(QuantityFormat.exposure(2.5, space: false), '2.5s');
+    expect(QuantityFormat.exposure(0.005, space: false), '5 ms');
   });
 }

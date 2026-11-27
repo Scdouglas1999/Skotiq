@@ -3,16 +3,29 @@
 library;
 
 abstract final class QuantityFormat {
-  /// [value] with up to [maxDecimals] places and no trailing zeros: `30`,
-  /// `2.5`, `0.25`. `-0` reads `0`.
-  /// An exposure length: seconds to one decimal ("2.5 s"), and milliseconds
-  /// below a tenth of a second ("5 ms"), where seconds would read "0 s".
+  /// An exposure length to three significant digits, trailing zeros dropped:
+  /// "300 s", "12.5 s", "2.5 s", "1.25 s", "0.25 s", and milliseconds below a
+  /// tenth of a second ("5 ms", "0.032 ms"), so a short frame never reads
+  /// "0 s". From 10 s it keeps one decimal ("300.5 s").
   /// [space] puts a space before "s" ("2.5 s") or not ("2.5s").
   static String exposure(double seconds, {bool space = true}) {
-    if (seconds > 0 && seconds < 0.1) return '${trimmed(seconds * 1000)} ms';
-    return '${trimmed(seconds)}${space ? ' ' : ''}s';
+    if (seconds > 0 && seconds < 0.1) {
+      final ms = seconds * 1000;
+      return '${trimmed(ms, maxDecimals: _exposureDecimals(ms))} ms';
+    }
+    final value = trimmed(seconds, maxDecimals: _exposureDecimals(seconds));
+    return '$value${space ? ' ' : ''}s';
   }
 
+  static int _exposureDecimals(double value) {
+    final magnitude = value.abs();
+    if (magnitude >= 10) return 1;
+    if (magnitude >= 1) return 2;
+    return 3;
+  }
+
+  /// [value] with up to [maxDecimals] places and no trailing zeros: `30`,
+  /// `2.5`, `0.25`. `-0` reads `0`.
   static String trimmed(double value, {int maxDecimals = 1}) {
     var text = value.toStringAsFixed(maxDecimals);
     if (text.contains('.')) {
