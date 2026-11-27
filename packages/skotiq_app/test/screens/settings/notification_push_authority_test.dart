@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/widgets/notification_settings.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -29,14 +32,27 @@ class _FailingPushConfig extends PushNotificationConfigNotifier {
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
-int _unexpectedRemotePushLoads = 0;
+/// The host's key/value store as a linked client reaches it.
+class _HostStore extends Mock implements HostRigSettings {
+  final Map<String, String> rows = {};
 
-class _CountingPushConfig extends PushNotificationConfigNotifier {
   @override
-  Future<PushNotificationConfig> build() async {
-    _unexpectedRemotePushLoads++;
-    return const PushNotificationConfig();
+  Future<HostSettingsRows> getSettingsStore() async =>
+      HostSettingsRows(Map.of(rows), adminAccess: false);
+
+  @override
+  Future<void> updateSettingsStore(
+    Map<String, String> settings, {
+    List<String> remove = const [],
+  }) async {
+    rows.addAll(settings);
   }
+}
+
+class _StubPushConfig extends PushNotificationConfigNotifier {
+  @override
+  Future<PushNotificationConfig> build() async =>
+      const PushNotificationConfig();
 }
 
 void main() {
@@ -109,11 +125,13 @@ void main() {
     expect(find.text('Push to phones'), findsNothing);
   });
 
-  testWidgets('remote controller never edits a local push/routing copy',
+  // The alert routes keep a local copy only on the host. A linked controller
+  // edits phone pushes on the host (the next test); its routing section says
+  // where the routes are set up instead of editing a copy of its own.
+  testWidgets('remote controller never edits a local routing copy',
       (tester) async {
     final remote = _MockNetworkBackend();
     when(() => remote.eventStream).thenAnswer((_) => const Stream.empty());
-    _unexpectedRemotePushLoads = 0;
 
     await pumpAppScreen(
       tester,
@@ -124,7 +142,7 @@ void main() {
           (ref) => TestBackendNotifier(ref, remote),
         ),
         appSettingsProvider.overrideWith(_LoadedAppSettings.new),
-        pushNotificationConfigProvider.overrideWith(_CountingPushConfig.new),
+        pushNotificationConfigProvider.overrideWith(_StubPushConfig.new),
         remoteHomeAssistantHostSettingsProvider.overrideWith(
           (ref) async => null,
         ),
@@ -132,13 +150,70 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Set on the imaging computer'), findsOneWidget);
     expect(
       find.text('Set up on the imaging computer'),
       findsOneWidget,
     );
-    expect(find.text('Push to phones'), findsNothing);
     expect(find.text('Send alerts'), findsNothing);
-    expect(_unexpectedRemotePushLoads, 0);
+  });
+
+  // A headless host has no screen: a linked phone edits which events the host
+  // pushes to phones, in the host's own store.
+  testWidgets('a linked phone edits the host push config on the host',
+      (tester) async {
+    final remote = _MockNetworkBackend();
+    when(() => remote.eventStream).thenAnswer((_) => const Stream.empty());
+    final host = _HostStore();
+    final store = HostSettingsStore(host, () => const Stream.empty());
+    addTearDown(store.dispose);
+
+    final handle = await pumpAppScreen(
+      tester,
+      const SingleChildScrollView(child: NotificationSettings()),
+      settle: false,
+      extraOverrides: [
+        launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+        backendProvider.overrideWith(
+          (ref) => TestBackendNotifier(ref, remote),
+        ),
+        hostSettingsStoreProvider.overrideWithValue(store),
+        appSettingsProvider.overrideWith(_LoadedAppSettings.new),
+        remoteHomeAssistantHostSettingsProvider.overrideWith(
+          (ref) async => null,
+        ),
+      ],
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.text('Set on the imaging computer'), findsNothing);
+    final guiding = find.ancestor(
+      of: find.text('Guiding lost'),
+      matching: find.byType(SettingRow),
+    );
+    expect(guiding, findsOneWidget);
+    expect(find.text('Send a test'), findsNothing,
+        reason: 'the host has no route that sends a test push');
+
+    final toggle = find.descendant(
+      of: guiding,
+      matching: find.byType(SettingsSwitch),
+    );
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pump(SettingsSwitch.writeDelay);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    final written = jsonDecode(host.rows['push_notification_config']!)
+        as Map<String, dynamic>;
+    expect(written['notifyGuidingLost'], isFalse);
+    expect(
+      await handle.database.settingsDao.getSetting('push_notification_config'),
+      isNull,
+      reason: 'nothing is saved in the phone database',
+    );
   });
 }

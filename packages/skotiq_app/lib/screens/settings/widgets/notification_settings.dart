@@ -255,12 +255,15 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
     final authority = ref.watch(backendProvider);
-    // Phones pair with the imaging computer, so a client launch never edits
-    // push config, linked or not.
     final isRemoteController = ref.watch(isRemoteClientProvider);
     final credentialsHidden = hostRefusesAdminOnly(ref);
+    // The push config is a row of the imaging host's store. A client edits
+    // it only while its settings store is the host's; before that it would
+    // save into its own database, where nothing reads it.
+    final pushConfigEditable =
+        !isRemoteController || ref.watch(hostSettingsStoreProvider) != null;
     final AsyncValue<PushNotificationConfig>? pushConfigAsync =
-        isRemoteController ? null : ref.watch(pushNotificationConfigProvider);
+        pushConfigEditable ? ref.watch(pushNotificationConfigProvider) : null;
     // Real delivery state, so the critical-alert row can stop asserting a
     // capability the system may not have.
     final pushTargetsAsync = ref.watch(pushDeliveryTargetsProvider);
@@ -416,7 +419,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 ),
               ],
             ),
-            if (isRemoteController)
+            if (!pushConfigEditable)
               const SettingsSection(
                 title: 'Push to phones',
                 children: [
@@ -468,8 +471,12 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 children: [
                   SettingRow(
                     title: 'Push to phones',
-                    subtitle: 'Send these events to phones paired with this '
-                        'computer. Each one can be turned off here.',
+                    subtitle: isRemoteController
+                        ? 'Send these events to phones paired with the '
+                            'imaging computer. Each one can be turned off '
+                            'here.'
+                        : 'Send these events to phones paired with this '
+                            'computer. Each one can be turned off here.',
                     trailing: SettingsSwitch(
                       value: pushConfig.enabled,
                       onChanged: (value) {
@@ -583,20 +590,23 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                       },
                     ),
                   ),
-                  SettingRow(
-                    title: 'Send a test',
-                    subtitle: 'Sends a test to paired phones. If it does not '
-                        'arrive, the log says why.',
-                    trailing: SkotiqButton(
-                      label: 'Send test',
-                      variant: ButtonVariant.secondary,
-                      size: ButtonSize.small,
-                      isLoading: _activeTest == _NotificationTest.push,
-                      onPressed: (pushConfig.enabled && _activeTest == null)
-                          ? _testPushToMobile
-                          : null,
+                  // The test is sent by this process's own broadcaster; the
+                  // imaging host has no route that sends one for a client.
+                  if (!isRemoteController)
+                    SettingRow(
+                      title: 'Send a test',
+                      subtitle: 'Sends a test to paired phones. If it does not '
+                          'arrive, the log says why.',
+                      trailing: SkotiqButton(
+                        label: 'Send test',
+                        variant: ButtonVariant.secondary,
+                        size: ButtonSize.small,
+                        isLoading: _activeTest == _NotificationTest.push,
+                        onPressed: (pushConfig.enabled && _activeTest == null)
+                            ? _testPushToMobile
+                            : null,
+                      ),
                     ),
-                  ),
                 ],
               ),
             // A linked client cannot reach the host's keyring, so it edits
