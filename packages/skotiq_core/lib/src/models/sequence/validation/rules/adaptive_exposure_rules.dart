@@ -86,7 +86,7 @@ class AdaptiveExposureBoundsRule implements SequenceValidator {
               category: ValidationCategory.exposures,
               title: 'Adaptive exposure per-filter min must be > 0',
               description:
-                  'Exposure "${node.name}" filter "$filter" has min_exposure_secs = ${min.toStringAsFixed(1)}s.',
+                  'Exposure "${node.name}" filter "$filter" has min_exposure_secs = ${QuantityFormat.exposure(min, space: false)}.',
               affectedNodeId: node.id,
               resolutionHint:
                   'Set a positive per-filter minimum (or remove the override).',
@@ -101,8 +101,8 @@ class AdaptiveExposureBoundsRule implements SequenceValidator {
               title: 'Adaptive exposure per-filter bounds inverted',
               description:
                   'Exposure "${node.name}" filter "$filter" has '
-                  'per-filter min ${min.toStringAsFixed(1)}s > '
-                  'effective max ${max.toStringAsFixed(1)}s.',
+                  'per-filter min ${QuantityFormat.exposure(min, space: false)} > '
+                  'effective max ${QuantityFormat.exposure(max, space: false)}.',
               affectedNodeId: node.id,
               resolutionHint:
                   'Either lower the per-filter min or raise the per-filter / global max.',
@@ -183,8 +183,8 @@ class AdaptiveExposureNominalOutOfBoundsRule implements SequenceValidator {
             category: ValidationCategory.exposures,
             title: 'Nominal exposure below adaptive min',
             description:
-                'Exposure "${node.name}" has nominal duration ${nominal.toStringAsFixed(1)}s '
-                'but the adaptive minimum (for filter "${node.filter ?? "(none)"}") is ${min.toStringAsFixed(1)}s. '
+                'Exposure "${node.name}" has nominal duration ${QuantityFormat.exposure(nominal, space: false)} '
+                'but the adaptive minimum (for filter "${node.filter ?? "(none)"}") is ${QuantityFormat.exposure(min, space: false)}. '
                 'Every frame will be clamped to the minimum.',
             affectedNodeId: node.id,
             resolutionHint:
@@ -199,8 +199,8 @@ class AdaptiveExposureNominalOutOfBoundsRule implements SequenceValidator {
             category: ValidationCategory.exposures,
             title: 'Nominal exposure above adaptive max',
             description:
-                'Exposure "${node.name}" has nominal duration ${nominal.toStringAsFixed(1)}s '
-                'but the adaptive maximum (for filter "${node.filter ?? "(none)"}") is ${max.toStringAsFixed(1)}s. '
+                'Exposure "${node.name}" has nominal duration ${QuantityFormat.exposure(nominal, space: false)} '
+                'but the adaptive maximum (for filter "${node.filter ?? "(none)"}") is ${QuantityFormat.exposure(max, space: false)}. '
                 'Every frame will be clamped to the maximum.',
             affectedNodeId: node.id,
             resolutionHint:

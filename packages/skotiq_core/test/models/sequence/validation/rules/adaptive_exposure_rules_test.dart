@@ -83,6 +83,35 @@ void main() {
     });
   });
 
+  group('exposure values in the messages', () {
+    test('sub-second bounds read as the exposure fields show them', () {
+      const cfg = AdaptiveExposureConfig(
+        minExposureSecs: 0.01,
+        maxExposureSecs: 0.04,
+        perFilterMinSecs: {'L': 0.06},
+      );
+      final issues = AdaptiveExposureBoundsRule().validate(
+        _sequenceWith(_exp(adaptive: cfg)),
+      );
+      final inverted = issues.singleWhere(
+        (i) => i.title.contains('per-filter bounds inverted'),
+      );
+      expect(inverted.description, contains('min 60 ms > effective max 40 ms'));
+    });
+
+    test('a nominal below the minimum names both values', () {
+      const cfg = AdaptiveExposureConfig(
+        minExposureSecs: 0.08,
+        maxExposureSecs: 600,
+      );
+      final issues = AdaptiveExposureNominalOutOfBoundsRule().validate(
+        _sequenceWith(_exp(adaptive: cfg, duration: 0.02)),
+      );
+      expect(issues.single.description, contains('duration 20 ms'));
+      expect(issues.single.description, contains('is 80 ms.'));
+    });
+  });
+
   group('AdaptiveExposureNoFilterEnabledRule', () {
     final rule = AdaptiveExposureNoFilterEnabledRule();
 
