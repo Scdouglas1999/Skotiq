@@ -263,7 +263,7 @@ class _TotalsStrip extends ConsumerWidget {
             ),
             Readout(
               size: ReadoutSize.sm,
-              label: 'Autofocus runs',
+              label: 'Autofocus succeeded',
               value: totals?.autofocusRuns?.toString(),
             ),
             Readout(

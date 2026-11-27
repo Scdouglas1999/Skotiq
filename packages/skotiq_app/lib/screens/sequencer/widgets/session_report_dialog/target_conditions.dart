@@ -14,7 +14,7 @@ class _MountStatsRow extends StatelessWidget {
       runSpacing: 6,
       children: [
         _StatChip(
-            label: 'Autofocus runs',
+            label: 'Autofocus succeeded',
             value: '${mount.autofocusRuns}',
             colors: colors),
         _StatChip(

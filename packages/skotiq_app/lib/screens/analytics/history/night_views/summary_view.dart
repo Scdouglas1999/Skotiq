@@ -253,7 +253,7 @@ class _RunPanel extends StatelessWidget {
                   )
                 : null,
           ),
-          count('Autofocus runs', stats.autofocusRuns),
+          count('Autofocus succeeded', stats.autofocusRuns),
           count('Meridian flips', stats.meridianFlips),
           count('Dithers', stats.ditherCount),
           count('Trigger fires', stats.triggerFires),
