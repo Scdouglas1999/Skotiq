@@ -18,6 +18,8 @@ part 'sequence_time_estimator/target_window.dart';
 /// calculates target visibility windows based on observer location, and
 /// identifies timing conflicts where nodes may execute outside their target's
 /// visibility window.
+DateTime _ownFields(DateTime instant) => instant;
+
 class SequenceTimeEstimator {
   /// Per-operation overhead model. Single source of truth shared with the
   /// tree-row rollup ([nodeRollupDurationProvider]) and the pre-flight
@@ -39,12 +41,20 @@ class SequenceTimeEstimator {
     this.overhead = defaultEstimatorOverhead,
     this.autofocus = const AutofocusSettings(),
     this.floor,
+    this.wallClock = _ownFields,
   });
 
   /// The site's altitude floor. The run holds every target to it in the
   /// direction the target stands (it waits to clear it and leaves when it
   /// drops below), so the estimate does too. Null holds targets to nothing.
   final AltitudeFloor? floor;
+
+  /// An instant's wall-clock fields on the clock the plan's times print on
+  /// (Settings > Location timezone). By default a time prints its own fields.
+  final DateTime Function(DateTime instant) wallClock;
+
+  /// [instant] as `HH:MM` on [wallClock].
+  String _hm(DateTime instant) => ClockFormat.hm(wallClock(instant));
 
   /// The time one autofocus run the executor adds by itself takes.
   Duration get addedAutofocusDuration => AutofocusRun.fromSettings(
@@ -292,16 +302,16 @@ class SequenceTimeEstimator {
         final startAfter = _effectiveStartAfter(targetNode);
         if (startAfter != null && timing.estimatedStart.isBefore(startAfter)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(timing.estimatedStart)} '
-            'before target start time ${ClockFormat.hm(startAfter)}',
+            '$targetName: "${timing.nodeName}" scheduled at ${_hm(timing.estimatedStart)} '
+            'before target start time ${_hm(startAfter)}',
           );
         }
 
         final endBefore = _effectiveEndBefore(targetNode);
         if (endBefore != null && timing.estimatedEnd.isAfter(endBefore)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" ends at ${ClockFormat.hm(timing.estimatedEnd)} '
-            'after target end time ${ClockFormat.hm(endBefore)}',
+            '$targetName: "${timing.nodeName}" ends at ${_hm(timing.estimatedEnd)} '
+            'after target end time ${_hm(endBefore)}',
           );
         }
       }
@@ -322,12 +332,12 @@ class SequenceTimeEstimator {
         final start = timing.estimatedStart;
         if (window.riseTime != null && start.isBefore(window.riseTime!)) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(start)} '
+            '$targetName: "${timing.nodeName}" scheduled at ${_hm(start)} '
             'before target rises at ${_formatTimeRelativeTo(window.riseTime!, start)}',
           );
         } else if (window.setTime != null) {
           conflicts.add(
-            '$targetName: "${timing.nodeName}" scheduled at ${ClockFormat.hm(start)} '
+            '$targetName: "${timing.nodeName}" scheduled at ${_hm(start)} '
             'after target sets at ${_formatTimeRelativeTo(window.setTime!, start)}',
           );
         }
@@ -344,7 +354,7 @@ class SequenceTimeEstimator {
           !window.isCircumpolar &&
           !window.isVisibleAt(end)) {
         conflicts.add(
-          '$targetName: "${timing.nodeName}" ends at ${ClockFormat.hm(end)} '
+          '$targetName: "${timing.nodeName}" ends at ${_hm(end)} '
           'after target sets at ${_formatTimeRelativeTo(window.setTime!, end)}',
         );
       }

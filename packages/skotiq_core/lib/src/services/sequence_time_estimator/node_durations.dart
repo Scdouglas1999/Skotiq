@@ -212,7 +212,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       case LoopConditionType.untilTime:
         final until = node.repeatUntil;
         if (until != null) {
-          return 'Loop until ${ClockFormat.hm(until)} - showing single iteration';
+          return 'Loop until ${_hm(until)} - showing single iteration';
         }
         return 'Time-based loop - showing single iteration estimate';
       case LoopConditionType.untilAltitude:
@@ -242,14 +242,16 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
   /// node scheduled at "12:47" reads as a time that already passed even when
   /// it is tomorrow morning's rise.
   String _formatTimeRelativeTo(DateTime time, DateTime reference) {
+    final wall = wallClock(time);
+    final referenceWall = wallClock(reference);
     final sameDay =
-        time.year == reference.year &&
-        time.month == reference.month &&
-        time.day == reference.day;
-    if (sameDay) return ClockFormat.hm(time);
-    final month = time.month.toString().padLeft(2, '0');
-    final day = time.day.toString().padLeft(2, '0');
-    return '${ClockFormat.hm(time)} on $month-$day';
+        wall.year == referenceWall.year &&
+        wall.month == referenceWall.month &&
+        wall.day == referenceWall.day;
+    if (sameDay) return ClockFormat.hm(wall);
+    final month = wall.month.toString().padLeft(2, '0');
+    final day = wall.day.toString().padLeft(2, '0');
+    return '${ClockFormat.hm(wall)} on $month-$day';
   }
 
   /// When a wait for [twilightType] reached at [currentTime] ends: the
