@@ -450,8 +450,8 @@ fn saved_master_sums_the_integration_of_the_frames_it_stacked() {
     let _g = singleton_guard();
     let _ = api_stacking_stop();
 
-    let dir = std::env::temp_dir().join("sk-bridge-stack-master");
-    std::fs::create_dir_all(&dir).expect("temp dir");
+    let scratch = tempfile::tempdir().expect("temp dir");
+    let dir = scratch.path();
     let reference = dir.join("reference.fits");
     let second = dir.join("second.fits");
     let master = dir.join("master.fits");
@@ -479,7 +479,6 @@ fn saved_master_sums_the_integration_of_the_frames_it_stacked() {
     assert_eq!(header.get_int("NFRAMES"), Some(2));
 
     let _ = api_stacking_stop();
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The file path is how every capture reaches the live stack (a snapshot,
@@ -490,8 +489,8 @@ fn a_frame_file_of_another_filter_does_not_enter_the_stack() {
     let _g = singleton_guard();
     let _ = api_stacking_stop();
 
-    let dir = std::env::temp_dir().join("sk-bridge-stack-filter");
-    std::fs::create_dir_all(&dir).expect("temp dir");
+    let scratch = tempfile::tempdir().expect("temp dir");
+    let dir = scratch.path();
     let write = |name: &str, filter: &str| {
         let path = dir.join(name);
         let image = ImageData::from_u16(IMG_W, IMG_H, 1, &make_star_plane(IMG_W, IMG_H));
@@ -523,7 +522,6 @@ fn a_frame_file_of_another_filter_does_not_enter_the_stack() {
     assert_eq!(stats.last_other_filter.as_deref(), Some("R"));
 
     let _ = api_stacking_stop();
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// Saving with no stack running fails loudly rather than writing an empty
