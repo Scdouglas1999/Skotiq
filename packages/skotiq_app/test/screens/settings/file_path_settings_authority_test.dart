@@ -42,7 +42,7 @@ void main() {
       Completer<String?>(),
     ];
     var pickerCalls = 0;
-    final writes = <(String, String)>[];
+    final writes = <(HostPathSetting, String)>[];
     final firstBackend = DisconnectedBackend();
 
     final handle = await pumpAppScreen(
@@ -115,7 +115,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(writes, [('image', '/current-host-images')]);
+    expect(writes, [(HostPathSetting.imageOutput, '/current-host-images')]);
     expect(tester.takeException(), isNull);
   });
 }
