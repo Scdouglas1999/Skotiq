@@ -4,6 +4,27 @@
 // who manages multiple rigs (e.g. observatory + travel scope + backyard
 // pier) can roam between them without re-pairing each time.
 //
+// Why a dedicated service (rather than just extending
+// EnhancedSkotiqDiscovery): the existing discovery layer was built
+// around a single "last server" slot — host/port/auth-token/fingerprint
+// pairs all share one SharedPreferences key set. Adding multi-server
+// support there would force every consumer to either accept a list
+// signature or pick an index, breaking the QR/manual-entry seam.
+// Keeping the multi-server list separate means:
+//
+//   1. `SavedServersService` is a pure data store; it does not
+//      drive backend connections directly.
+//   2. The screen calls `EnhancedSkotiqDiscovery.saveLastServer`
+//      after connect succeeds, then `SavedServersService.upsert` to
+//      mirror the same record into the roaming list. Existing callers
+//      that read `loadLastServer()` (auto-reconnect on startup, LAN push
+//      receiver) keep working without changes.
+//   3. Migration is one-way: on first read of `SavedServersService` we
+//      look at `loadLastServer()` and ensure its record exists in the
+//      list. Removing a saved server only removes it from the list — the
+//      "current/last" slot stays untouched until the user explicitly
+//      disconnects.
+//
 // Auth tokens are sensitive — the desktop's PairingService issues bearer
 // tokens that are equivalent to a password against the headless API.
 // They are persisted exclusively in `flutter_secure_storage` (Keychain /
@@ -434,7 +455,8 @@ class SavedServersStorageKeys {
 ///
 /// The service is *not* a Notifier; the screen treats the on-disk state
 /// as the source of truth and re-loads after every mutation. This keeps
-/// the contract simple.
+/// the contract simple and matches how
+/// `EnhancedSkotiqDiscovery.saveLastServer` is used elsewhere.
 ///
 /// All methods are `Future`-returning; the few that have to hit secure
 /// storage are documented per-method.
