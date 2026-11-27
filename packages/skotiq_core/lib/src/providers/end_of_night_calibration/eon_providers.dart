@@ -1,5 +1,6 @@
 import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../database/rows/frame_type_record.dart';
+import '../../models/sequence/run_stop_classification.dart' show RunStopOrigin;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -193,7 +194,7 @@ class ProviderEonRig implements EonRig {
   @override
   Future<void> stopRun() => _ref
       .read(sequenceExecutorProvider)
-      .stop(origin: 'end-of-night calibration');
+      .stop(origin: RunStopOrigin.endOfNightCalibration);
 
   @override
   Future<List<DbCapturedImage>> framesOfRun(int runId) => _ref

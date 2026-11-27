@@ -1123,7 +1123,7 @@ class SequenceExecutor {
       // A rollback's native stop is nobody's press: without this, the
       // executor records 'Operator: stop' for a launch that failed on its
       // own — at 2 a.m. under the autopilot, with nobody at the keyboard.
-      stopOrigin: 'rollback',
+      stopOrigin: RunStopOrigin.rollback,
     );
     _lifecycle.claim(f);
     try {
@@ -1377,7 +1377,7 @@ class SequenceExecutor {
     if (f.nativeStopRequired && !f.nativeStopConfirmed) {
       final confirmation = f.nativeStopConfirmation ??= Completer<void>();
       try {
-        await _backend.sequencerStop(origin: f.stopOrigin);
+        await _backend.sequencerStop(origin: f.stopOrigin?.wire);
         // A BOUNDED wait for the authoritative terminal: the command returning
         // only means it was accepted, and the camera may still be exposing.
         // The terminal can legitimately never arrive (the broadcast receiver
@@ -1489,11 +1489,11 @@ class SequenceExecutor {
     // carries its commander's origin; a natural 'stopped' terminal nobody
     // commanded is a native safety abort, which must not pause the autopilot
     // as if a human had asked it to stand down.
-    final String? endOrigin;
+    final RunStopOrigin? endOrigin;
     if (f.nativeStopRequired) {
-      endOrigin = f.stopOrigin ?? 'operator';
+      endOrigin = f.stopOrigin ?? RunStopOrigin.operator;
     } else if (f.runStatus.endedByStop) {
-      endOrigin = 'safety';
+      endOrigin = RunStopOrigin.safety;
     } else {
       endOrigin = null;
     }
@@ -1779,10 +1779,9 @@ class SequenceExecutor {
     }
   }
 
-  /// How the most recently settled run ended: 'operator' / 'scheduler' /
-  /// 'rollback' / 'safety' (native-side abort with no stop() commander) /
-  /// null (completed, failed, or nothing settled yet).
-  String? get lastRunEndOrigin => _lifecycle.lastRunEndOrigin;
+  /// Who ended the most recently settled run; see
+  /// [RunLifecycle.lastRunEndOrigin].
+  RunStopOrigin? get lastRunEndOrigin => _lifecycle.lastRunEndOrigin;
 
   /// The caller declares checkpoint intent via [preserveCheckpoint]:
   ///   * `true` for an operator Stop (`SequenceActionService.stop`) — the
@@ -1795,7 +1794,7 @@ class SequenceExecutor {
   ///
   /// The default is destructive, so a bare `stop()` is a deliberate hard stop
   /// (e.g. [reset]).
-  Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
+  Future<void> stop({bool preserveCheckpoint = false, RunStopOrigin? origin}) {
     _ensureBackendAuthority();
     final hostRun = _hostRun;
     if (hostRun != null) {
@@ -1826,7 +1825,7 @@ class SequenceExecutor {
       // upgrades toward the operator: a human retrying a system stop has
       // commanded one, and an operator's episode stays theirs. Only the
       // stopFailed half re-sends the native stop and so records the press.
-      if (origin == null || origin == 'operator') {
+      if (origin == null || origin == RunStopOrigin.operator) {
         f.stopOrigin = origin;
       }
       _setExecutionState(

@@ -16,6 +16,7 @@ import '../models/readiness/readiness_models.dart';
 import '../models/scheduler/scheduler_readiness.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/sequence/active_plan_owner.dart';
+import '../models/sequence/run_stop_classification.dart' show RunStopOrigin;
 import '../models/sequence/sequence_models.dart';
 import 'safe_rig_service.dart';
 import 'equipment/safety_monitor_state_provider.dart';

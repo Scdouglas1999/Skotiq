@@ -236,16 +236,42 @@ String sequenceStoppedMessage(SequenceStopDecision? decision) {
   }
 }
 
+/// Who stopped a run, by the origin word the app sends the run engine with
+/// the stop (the engine's `StopOrigin::from_wire` reads it back).
+enum RunStopOrigin {
+  /// A human.
+  operator('operator'),
+
+  /// The autopilot, on an unattended re-plan.
+  scheduler('scheduler'),
+
+  /// A launch that failed and was rolled back.
+  rollback('rollback'),
+
+  /// The disk-space watchdog.
+  diskWatchdog('disk-watchdog'),
+
+  /// The end-of-night calibration taking the rig.
+  endOfNightCalibration('end-of-night calibration'),
+
+  /// A native abort no stop commanded; never sent.
+  safety('safety');
+
+  const RunStopOrigin(this.wire);
+
+  final String wire;
+
+  /// The origin [wire] names; null for a word the app does not send.
+  static RunStopOrigin? fromWire(String? wire) =>
+      values.where((origin) => origin.wire == wire).firstOrNull;
+}
+
 /// The operator-facing name of a system stop's `origin`. Unknown origins are
 /// printed verbatim: naming the real caller is more useful than a generic
 /// "the system", and it is what the log says too.
-String sequenceStopOriginLabel(String origin) {
-  switch (origin) {
-    case 'rollback':
-      return 'the launch rollback';
-    case 'disk-watchdog':
-      return 'the disk-space watchdog';
-    default:
-      return origin;
-  }
-}
+String sequenceStopOriginLabel(String origin) =>
+    switch (RunStopOrigin.fromWire(origin)) {
+      RunStopOrigin.rollback => 'the launch rollback',
+      RunStopOrigin.diskWatchdog => 'the disk-space watchdog',
+      _ => origin,
+    };

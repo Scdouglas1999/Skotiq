@@ -22,7 +22,7 @@ class _StoppingExecutor extends Fake implements SequenceExecutor {
   var stops = 0;
 
   @override
-  Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
+  Future<void> stop({bool preserveCheckpoint = false, RunStopOrigin? origin}) {
     stops++;
     return stopped.future;
   }
