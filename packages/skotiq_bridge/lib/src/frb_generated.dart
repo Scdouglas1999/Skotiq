@@ -10950,6 +10950,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Map<String, Map<String, int>> dco_decode_Map_String_Map_String_u_32_None_None(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Map.fromEntries(
+      dco_decode_list_record_string_map_string_u_32_none(
+        raw,
+      ).map((e) => MapEntry(e.$1, e.$2)),
+    );
+  }
+
+  @protected
   Map<String, double> dco_decode_Map_String_f_64_None(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return Map.fromEntries(
@@ -12193,8 +12205,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CheckpointInfoApi dco_decode_checkpoint_info_api(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return CheckpointInfoApi(
       sequenceName: dco_decode_String(arr[0]),
       timestamp: dco_decode_String(arr[1]),
@@ -12204,6 +12216,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ageSeconds: dco_decode_i_64(arr[5]),
       ended: dco_decode_opt_String(arr[6]),
       framesDoneByStep: dco_decode_Map_String_u_32_None(arr[7]),
+      filterFramesDoneByStep: dco_decode_Map_String_Map_String_u_32_None_None(
+        arr[8],
+      ),
     );
   }
 
@@ -13501,6 +13516,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<(String, Map<String, int>)>
+  dco_decode_list_record_string_map_string_u_32_none(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_record_string_map_string_u_32_none)
+        .toList();
+  }
+
+  @protected
   List<(String, int)> dco_decode_list_record_string_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_record_string_u_32).toList();
@@ -14264,6 +14288,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('Expected 2 elements, got ${arr.length}');
     }
     return (dco_decode_String(arr[0]), dco_decode_Map_String_f_64_None(arr[1]));
+  }
+
+  @protected
+  (String, Map<String, int>) dco_decode_record_string_map_string_u_32_none(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (dco_decode_String(arr[0]), dco_decode_Map_String_u_32_None(arr[1]));
   }
 
   @protected
@@ -15275,6 +15311,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_record_string_map_string_f_64_none(
+      deserializer,
+    );
+    return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
+  Map<String, Map<String, int>> sse_decode_Map_String_Map_String_u_32_None_None(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_list_record_string_map_string_u_32_none(
       deserializer,
     );
     return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
@@ -16917,6 +16964,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_ageSeconds = sse_decode_i_64(deserializer);
     var var_ended = sse_decode_opt_String(deserializer);
     var var_framesDoneByStep = sse_decode_Map_String_u_32_None(deserializer);
+    var var_filterFramesDoneByStep =
+        sse_decode_Map_String_Map_String_u_32_None_None(deserializer);
     return CheckpointInfoApi(
       sequenceName: var_sequenceName,
       timestamp: var_timestamp,
@@ -16926,6 +16975,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ageSeconds: var_ageSeconds,
       ended: var_ended,
       framesDoneByStep: var_framesDoneByStep,
+      filterFramesDoneByStep: var_filterFramesDoneByStep,
     );
   }
 
@@ -18719,6 +18769,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<(String, Map<String, int>)>
+  sse_decode_list_record_string_map_string_u_32_none(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, Map<String, int>)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_string_map_string_u_32_none(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<(String, int)> sse_decode_list_record_string_u_32(
     SseDeserializer deserializer,
   ) {
@@ -19832,6 +19897,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_field0 = sse_decode_String(deserializer);
     var var_field1 = sse_decode_Map_String_f_64_None(deserializer);
+    return (var_field0, var_field1);
+  }
+
+  @protected
+  (String, Map<String, int>) sse_decode_record_string_map_string_u_32_none(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_Map_String_u_32_None(deserializer);
     return (var_field0, var_field1);
   }
 
@@ -21447,6 +21522,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_Map_String_Map_String_u_32_None_None(
+    Map<String, Map<String, int>> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_record_string_map_string_u_32_none(
+      self.entries.map((e) => (e.key, e.value)).toList(),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_Map_String_f_64_None(
     Map<String, double> self,
     SseSerializer serializer,
@@ -22797,6 +22884,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.ageSeconds, serializer);
     sse_encode_opt_String(self.ended, serializer);
     sse_encode_Map_String_u_32_None(self.framesDoneByStep, serializer);
+    sse_encode_Map_String_Map_String_u_32_None_None(
+      self.filterFramesDoneByStep,
+      serializer,
+    );
   }
 
   @protected
@@ -24290,6 +24381,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_record_string_map_string_u_32_none(
+    List<(String, Map<String, int>)> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_string_map_string_u_32_none(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_record_string_u_32(
     List<(String, int)> self,
     SseSerializer serializer,
@@ -25201,6 +25304,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.$1, serializer);
     sse_encode_Map_String_f_64_None(self.$2, serializer);
+  }
+
+  @protected
+  void sse_encode_record_string_map_string_u_32_none(
+    (String, Map<String, int>) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.$1, serializer);
+    sse_encode_Map_String_u_32_None(self.$2, serializer);
   }
 
   @protected

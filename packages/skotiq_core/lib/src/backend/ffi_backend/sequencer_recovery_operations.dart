@@ -355,6 +355,7 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
       ageSeconds: info.ageSeconds.toInt(),
       ended: info.ended,
       framesDoneByStep: info.framesDoneByStep,
+      filterFramesDoneByStep: info.filterFramesDoneByStep,
     );
   }
 

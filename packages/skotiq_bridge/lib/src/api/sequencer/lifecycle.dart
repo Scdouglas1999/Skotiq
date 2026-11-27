@@ -211,6 +211,10 @@ class CheckpointInfoApi {
   /// empty for a checkpoint written before it was recorded.
   final Map<String, int> framesDoneByStep;
 
+  /// Frames each Smart Exposure step of the plan already has, by node id
+  /// and then filter name.
+  final Map<String, Map<String, int>> filterFramesDoneByStep;
+
   const CheckpointInfoApi({
     required this.sequenceName,
     required this.timestamp,
@@ -220,6 +224,7 @@ class CheckpointInfoApi {
     required this.ageSeconds,
     this.ended,
     required this.framesDoneByStep,
+    required this.filterFramesDoneByStep,
   });
 
   @override
@@ -231,7 +236,8 @@ class CheckpointInfoApi {
       canResume.hashCode ^
       ageSeconds.hashCode ^
       ended.hashCode ^
-      framesDoneByStep.hashCode;
+      framesDoneByStep.hashCode ^
+      filterFramesDoneByStep.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -245,5 +251,6 @@ class CheckpointInfoApi {
           canResume == other.canResume &&
           ageSeconds == other.ageSeconds &&
           ended == other.ended &&
-          framesDoneByStep == other.framesDoneByStep;
+          framesDoneByStep == other.framesDoneByStep &&
+          filterFramesDoneByStep == other.filterFramesDoneByStep;
 }

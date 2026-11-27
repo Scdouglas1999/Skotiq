@@ -83,6 +83,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_Map_String_Map_String_f_64_None_None(dynamic raw);
 
   @protected
+  Map<String, Map<String, int>> dco_decode_Map_String_Map_String_u_32_None_None(
+    dynamic raw,
+  );
+
+  @protected
   Map<String, double> dco_decode_Map_String_f_64_None(dynamic raw);
 
   @protected
@@ -703,6 +708,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_list_record_string_map_string_f_64_none(dynamic raw);
 
   @protected
+  List<(String, Map<String, int>)>
+  dco_decode_list_record_string_map_string_u_32_none(dynamic raw);
+
+  @protected
   List<(String, int)> dco_decode_list_record_string_u_32(dynamic raw);
 
   @protected
@@ -937,6 +946,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (String, Map<String, int>) dco_decode_record_string_map_string_u_32_none(
+    dynamic raw,
+  );
+
+  @protected
   (String, int) dco_decode_record_string_u_32(dynamic raw);
 
   @protected
@@ -1056,6 +1070,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Map<String, Map<String, double>>
   sse_decode_Map_String_Map_String_f_64_None_None(SseDeserializer deserializer);
+
+  @protected
+  Map<String, Map<String, int>> sse_decode_Map_String_Map_String_u_32_None_None(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Map<String, double> sse_decode_Map_String_f_64_None(
@@ -1852,6 +1871,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<(String, Map<String, int>)>
+  sse_decode_list_record_string_map_string_u_32_none(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<(String, int)> sse_decode_list_record_string_u_32(
     SseDeserializer deserializer,
   );
@@ -2148,6 +2173,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (String, Map<String, int>) sse_decode_record_string_map_string_u_32_none(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer);
 
   @protected
@@ -2302,6 +2332,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_list_record_string_map_string_f_64_none(
+      raw.entries.map((e) => (e.key, e.value)).toList(),
+    );
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_record_string_map_string_u_32_none>
+  cst_encode_Map_String_Map_String_u_32_None_None(
+    Map<String, Map<String, int>> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_list_record_string_map_string_u_32_none(
       raw.entries.map((e) => (e.key, e.value)).toList(),
     );
   }
@@ -3306,6 +3347,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     );
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_record_string_map_string_f_64_none(
+        raw[i],
+        ans.ref.ptr[i],
+      );
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_record_string_map_string_u_32_none>
+  cst_encode_list_record_string_map_string_u_32_none(
+    List<(String, Map<String, int>)> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_record_string_map_string_u_32_none(
+      raw.length,
+    );
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_record_string_map_string_u_32_none(
         raw[i],
         ans.ref.ptr[i],
       );
@@ -4838,6 +4897,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.frames_done_by_step = cst_encode_Map_String_u_32_None(
       apiObj.framesDoneByStep,
     );
+    wireObj.filter_frames_done_by_step =
+        cst_encode_Map_String_Map_String_u_32_None_None(
+          apiObj.filterFramesDoneByStep,
+        );
   }
 
   @protected
@@ -6617,6 +6680,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_record_string_map_string_u_32_none(
+    (String, Map<String, int>) apiObj,
+    wire_cst_record_string_map_string_u_32_none wireObj,
+  ) {
+    wireObj.field0 = cst_encode_String(apiObj.$1);
+    wireObj.field1 = cst_encode_Map_String_u_32_None(apiObj.$2);
+  }
+
+  @protected
   void cst_api_fill_to_wire_record_string_u_32(
     (String, int) apiObj,
     wire_cst_record_string_u_32 wireObj,
@@ -8111,6 +8183,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_Map_String_Map_String_u_32_None_None(
+    Map<String, Map<String, int>> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_Map_String_f_64_None(
     Map<String, double> self,
     SseSerializer serializer,
@@ -9137,6 +9215,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_record_string_map_string_u_32_none(
+    List<(String, Map<String, int>)> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_record_string_u_32(
     List<(String, int)> self,
     SseSerializer serializer,
@@ -9511,6 +9595,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_string_map_string_f_64_none(
     (String, Map<String, double>) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_string_map_string_u_32_none(
+    (String, Map<String, int>) self,
     SseSerializer serializer,
   );
 
@@ -19083,6 +19173,25 @@ class RustLibWire implements BaseWire {
             Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_record_string_map_string_u_32_none>
+  cst_new_list_record_string_map_string_u_32_none(int len) {
+    return _cst_new_list_record_string_map_string_u_32_none(len);
+  }
+
+  late final _cst_new_list_record_string_map_string_u_32_nonePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_record_string_map_string_u_32_none>
+          Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_record_string_map_string_u_32_none');
+  late final _cst_new_list_record_string_map_string_u_32_none =
+      _cst_new_list_record_string_map_string_u_32_nonePtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_record_string_map_string_u_32_none>
+            Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_record_string_u_32> cst_new_list_record_string_u_32(
     int len,
   ) {
@@ -20145,6 +20254,20 @@ final class wire_cst_list_record_string_u_32 extends ffi.Struct {
   external int len;
 }
 
+final class wire_cst_record_string_map_string_u_32_none extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+
+  external ffi.Pointer<wire_cst_list_record_string_u_32> field1;
+}
+
+final class wire_cst_list_record_string_map_string_u_32_none
+    extends ffi.Struct {
+  external ffi.Pointer<wire_cst_record_string_map_string_u_32_none> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_checkpoint_info_api extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> sequence_name;
 
@@ -20165,6 +20288,9 @@ final class wire_cst_checkpoint_info_api extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> ended;
 
   external ffi.Pointer<wire_cst_list_record_string_u_32> frames_done_by_step;
+
+  external ffi.Pointer<wire_cst_list_record_string_map_string_u_32_none>
+  filter_frames_done_by_step;
 }
 
 final class wire_cst_cover_calibrator_capabilities extends ffi.Struct {

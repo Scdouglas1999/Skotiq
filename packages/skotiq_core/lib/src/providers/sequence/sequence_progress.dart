@@ -59,6 +59,12 @@ final framesDoneBeforeRunProvider = runRecordProvider.select(
   (run) => run.framesDoneBeforeRun,
 );
 
+/// Frames each Smart Exposure step of the loaded plan already had before the
+/// run that is ready or under way, by node id and then filter name.
+final filterFramesDoneBeforeRunProvider = runRecordProvider.select(
+  (run) => run.filterFramesDoneBeforeRun,
+);
+
 /// The run's counters, current step and per-step status.
 final sequenceProgressProvider = runRecordProvider.select(
   (run) => run.progress,

@@ -2261,7 +2261,10 @@ class SequenceExecutor {
     _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(info);
     _ref
         .read(runRecordProvider.notifier)
-        .setFramesDoneBeforeRun(info.framesDoneByStep);
+        .setFramesDoneBeforeRun(
+          info.framesDoneByStep,
+          byFilter: info.filterFramesDoneByStep,
+        );
     _logger.info(
       'Restored "${info.sequenceName}" from its checkpoint '
       '(${info.completedExposures} frames, '

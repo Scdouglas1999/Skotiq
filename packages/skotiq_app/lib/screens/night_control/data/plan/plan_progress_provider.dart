@@ -73,7 +73,8 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     // linked client that did not continue a checkpoint itself counts every
     // row of the session: it may have joined after the run started.
     final continuesCheckpoint =
-        ref.watch(framesDoneBeforeRunProvider).isNotEmpty;
+        ref.watch(framesDoneBeforeRunProvider).isNotEmpty ||
+            ref.watch(filterFramesDoneBeforeRunProvider).isNotEmpty;
     final sessionRows = terminal?.isCalibration == true ||
         (ref.watch(isRemoteModeProvider) && !continuesCheckpoint);
     final startedAt = sessionRows ? null : ref.watch(runStartedAtProvider);
@@ -90,16 +91,24 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
       phase == NightRunPhase.finished ||
       ref.watch(restoredCheckpointProvider) != null) {
     final before = ref.watch(framesDoneBeforeRunProvider);
+    final beforeByFilter = ref.watch(filterFramesDoneBeforeRunProvider);
+    void add(String? filter, int frames) => done.update(
+          _filterKey(filter),
+          (count) => count + frames,
+          ifAbsent: () => frames,
+        );
     for (final entry in tree.entries) {
       final node = entry.node;
+      if (node is SmartExposureNode) {
+        for (final MapEntry(key: filter, value: frames)
+            in (beforeByFilter[node.id] ?? const <String, int>{}).entries) {
+          add(filter, frames);
+        }
+        continue;
+      }
       if (node is! ExposureNode || node.frameType != FrameType.light) continue;
       final frames = before[node.id];
-      if (frames == null) continue;
-      done.update(
-        _filterKey(node.filter),
-        (count) => count + frames,
-        ifAbsent: () => frames,
-      );
+      if (frames != null) add(node.filter, frames);
     }
   }
 

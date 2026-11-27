@@ -532,6 +532,11 @@ impl CheckpointManager {
                 age_seconds: checkpoint.age_seconds(),
                 ended: checkpoint.ended,
                 frames_done_by_step: checkpoint.exposure_frames_done,
+                filter_frames_done_by_step: checkpoint
+                    .smart_exposure_states
+                    .into_iter()
+                    .map(|(node, state)| (node, state.per_filter_completed))
+                    .collect(),
             })),
             None => Ok(None),
         }
@@ -682,6 +687,10 @@ pub struct CheckpointInfo {
     /// Frames each Take Exposures step of the plan has taken, by node id.
     #[serde(default)]
     pub frames_done_by_step: HashMap<NodeId, u32>,
+    /// Frames each Smart Exposure step has taken per filter, by node id. A
+    /// step that finished all its plans has no entry: its state is cleared.
+    #[serde(default)]
+    pub filter_frames_done_by_step: HashMap<NodeId, HashMap<String, u32>>,
 }
 
 /// The file names a host moves when it adopts an earlier build's
@@ -1210,6 +1219,30 @@ mod tests {
     }
 
     // SmartExposure cross-process resume.
+
+    /// What the app reads to show a restored Smart Exposure's progress per
+    /// filter: Tonight's plan read 0 of 24 L for a run restored at 7 frames.
+    #[test]
+    fn checkpoint_info_tells_the_frames_each_smart_exposure_filter_has() {
+        let dir = test_dir("info_smart_filters");
+        let manager = CheckpointManager::new(&dir);
+        let mut checkpoint = SessionCheckpoint::new(SequenceDefinition::new("M74".to_string()));
+        checkpoint.sequence.root_node_id = Some("root".to_string());
+        let mut state = SmartExposureCheckpoint::default();
+        state.per_filter_completed.insert("L".to_string(), 3);
+        state.per_filter_completed.insert("R".to_string(), 2);
+        checkpoint.set_smart_exposure_state("smart", state);
+        manager.save(&checkpoint).unwrap();
+
+        let info = manager.get_checkpoint_info().unwrap().unwrap();
+        let _ = fs::remove_dir_all(&dir);
+        let smart = info
+            .filter_frames_done_by_step
+            .get("smart")
+            .expect("the Smart Exposure step's filters");
+        assert_eq!(smart.get("L"), Some(&3));
+        assert_eq!(smart.get("R"), Some(&2));
+    }
 
     #[test]
     fn smart_exposure_state_round_trips_through_session_checkpoint_serde() {
