@@ -343,9 +343,28 @@ class LinkedHostFolders extends HostFolders {
     return folderCheckOf(result);
   }
 
-  /// The host makes no folder on request from a client, so this is [check].
+  /// The host makes a missing folder inside its allowed folders, as the
+  /// folder browser's New folder does.
   @override
-  Future<FolderCheck> prepare(String path) => check(path);
+  Future<FolderCheck> prepare(String path) async {
+    final verdict = await check(path);
+    if (verdict is! FolderMissing) return verdict;
+    try {
+      return folderCheckOf(
+        await _files.validateRemoteDirectory(
+          path.trim(),
+          mustExist: true,
+          mustBeWritable: true,
+          create: true,
+        ),
+      );
+    } catch (error) {
+      return FolderUnchecked(
+        'Could not ask the imaging host to make this folder: '
+        '${userFacingError(error)}',
+      );
+    }
+  }
 }
 
 /// What the host's answer about a folder means for the folder pickers.

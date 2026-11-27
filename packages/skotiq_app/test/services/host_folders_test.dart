@@ -118,6 +118,49 @@ void main() {
       );
     });
 
+    test('preparing a folder the host does not have yet makes it there',
+        () async {
+      when(
+        () => host.validateRemoteDirectory(
+          '/mnt/captures/2026-11-27',
+          mustExist: true,
+          mustBeWritable: true,
+        ),
+      ).thenAnswer(
+        (_) async => const HostDirectoryVerdict(
+          valid: false,
+          exists: false,
+          writable: false,
+        ),
+      );
+      when(
+        () => host.validateRemoteDirectory(
+          '/mnt/captures/2026-11-27',
+          mustExist: true,
+          mustBeWritable: true,
+          create: true,
+        ),
+      ).thenAnswer(
+        (_) async => const HostDirectoryVerdict(
+          valid: true,
+          exists: true,
+          writable: true,
+          normalizedPath: '/mnt/captures/2026-11-27',
+        ),
+      );
+
+      expect(
+        await folders.prepare('/mnt/captures/2026-11-27'),
+        isA<FolderUsable>(),
+      );
+      verify(() => host.validateRemoteDirectory(
+            '/mnt/captures/2026-11-27',
+            mustExist: true,
+            mustBeWritable: true,
+            create: true,
+          )).called(1);
+    });
+
     test('a host that does not answer leaves the folder unchecked', () async {
       when(
         () => host.validateRemoteDirectory(
@@ -146,7 +189,7 @@ void main() {
       expect(container.read(hostFoldersProvider), isA<LocalFolders>());
     });
 
-    test('are the linked host\'s, and a missing one is not made', () async {
+    test('are the linked host\'s, which makes a missing one', () async {
       final backend = _MockNetworkBackend();
       when(() => backend.validateRemoteDirectory(
                 any(),
@@ -155,10 +198,18 @@ void main() {
               ))
           .thenAnswer((_) async =>
               HostDirectoryVerdict.fromJson({'valid': false, 'exists': false}));
+      when(() => backend.validateRemoteDirectory(
+                any(),
+                mustExist: any(named: 'mustExist'),
+                mustBeWritable: any(named: 'mustBeWritable'),
+                create: true,
+              ))
+          .thenAnswer((_) async => HostDirectoryVerdict.fromJson(
+              {'valid': true, 'exists': true, 'writable': true}));
       final folders = containerOn(backend).read(hostFoldersProvider);
 
       expect(folders, isA<LinkedHostFolders>());
-      expect(await folders.prepare('/mnt/new'), isA<FolderMissing>());
+      expect(await folders.prepare('/mnt/new'), isA<FolderUsable>());
     });
   });
 }
