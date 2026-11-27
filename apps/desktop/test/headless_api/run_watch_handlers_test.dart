@@ -180,9 +180,7 @@ void main() {
     // A headless run loads its wire JSON straight into the native executor,
     // so nothing ever populates `currentSequenceProvider` and nothing ever
     // calls `setTotals` with an integration total: the live progress arrives
-    // here with a real frame count and `totalIntegrationSecs == 0.0`. The
-    // snapshot used to publish that zero as a known denominator, and the phone
-    // rendered "24s / 0s" — a total the run had already passed.
+    // here with a real frame count and `totalIntegrationSecs == 0.0`.
     test('an unknown integration total is null, never zero', () async {
       final progress = container.read(runRecordProvider.notifier);
       progress.setTotals(12);
@@ -350,8 +348,7 @@ void main() {
     test('SSE forwards an injected event to a subscribed client', () async {
       // Subscribe an SSE client, push an event into the broadcast
       // controller, assert the client receives a `data:` frame
-      // containing our eventType. This is the wave-6 round-trip the
-      // brief calls out as the integration test for the event stream.
+      // containing our eventType.
       final response = handlers.handleEventStream(
         Request('GET', Uri.parse('http://localhost/api/run-watch/events')),
       );

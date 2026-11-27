@@ -578,11 +578,7 @@
    * and is not retried here.
    *
    * Returns `{ok: true}` once an AUTHENTICATED request has succeeded, and
-   * `{ok: false, kind, message}` otherwise. The outcome is load-bearing: the
-   * sign-in overlay used to dismiss itself before this function had run, so a
-   * rejected bearer left an operator on a permanently "Disconnected" dashboard
-   * with `#login-status` frozen at "Signing in..." and the only account of the
-   * failure in a toast that expired after three seconds.
+   * `{ok: false, kind, message}` otherwise.
    */
   async function handleConnect() {
     const url = normalizeServerUrl(document.getElementById('server-url').value);
@@ -665,10 +661,7 @@
         state.serverInfo = info;
 
         // Show the pairing/token bar only when the server wants auth AND we
-        // do not already hold a credential. Before this, `authRequired` alone
-        // kept the full Device/Pair/Token/Apply bar permanently expanded on
-        // every paired browser — ~40% of a phone viewport spent on controls
-        // the operator needed exactly once.
+        // do not already hold a credential.
         setAuthBarVisible(
           info.authRequired && !token && !api.hasSessionCookie,
         );
@@ -1269,9 +1262,7 @@
   // =========================================================================
   // Link health
   //
-  // `api.isConnected` is set once at connect and never cleared, so a dead
-  // backend left the header on a green "Connected" and the sequencer badge on
-  // "running" indefinitely — measured at 65 s after SIGKILL with no change.
+  // `api.isConnected` is set once at connect and never cleared.
   // The block below is the dashboard's answer to "is what I am looking at
   // real": one reachability probe, one banner, one status flip.
   // =========================================================================
@@ -1361,16 +1352,6 @@
   // The page's data clock
   //
   // Everything that ages data reads it here, on one tick, from one `now`.
-  //
-  // Before this there were two clocks and they disagreed. The header counted
-  // from the last completed exchange with the server; each panel counted from
-  // its own last successful refresh, behind a `wsHealthy` gate that hid the
-  // count entirely whenever the event socket was alive. So a single failing
-  // route — /api/sequencer/status answering 500 while the daemon stayed up and
-  // the socket stayed busy — left the Run panel painting a frozen run as live:
-  // measured at "running / Exposure L / 3% / Frame 2 of 20" under a green
-  // "Connected" header for 45 s while the rig was at 13.75% and frame 11, with
-  // no banner and the stale badge that would have said so suppressed.
   //
   // One clock, one verdict, and the panels subscribe to it.
   // =========================================================================
@@ -1492,10 +1473,7 @@
     if (opsSeqEta) opsSeqEta.textContent = '--';
     // The node, the target and the message are the last claims about a run
     // whose source has stopped answering; they read as live text with nothing
-    // around them to say otherwise. `ops-seq-current-target` was the one this
-    // list forgot: measured across a SIGTERM it went on naming the run for
-    // 68 s beside a Run panel that had already gone to "--" and a banner
-    // saying every value below might be wrong.
+    // around them to say otherwise.
     for (const id of ['seq-node', 'ops-seq-current-node',
       'ops-seq-current-target']) {
       const el = document.getElementById(id);
@@ -1612,8 +1590,7 @@
   }
 
   /// This panel's data source refused. Recorded so the page can say the panel
-  /// is stale while the server is plainly there answering everything else —
-  /// the failure used to reach nothing but a log line.
+  /// is stale while the server is plainly there answering everything else.
   function markPanelUnconfirmed(panelKey) {
     state.panelLastFailure[panelKey] = Date.now();
   }
@@ -1670,9 +1647,7 @@
     if (e && (e.kind === 'unreachable' || e.kind === 'timeout')) {
       return what + ' failed: no answer from the server';
     }
-    // A refusal the server explained. Its own words, not its JSON: the log
-    // panel used to carry the whole 403 body, which reads as a product fault
-    // rather than as the scope decision it is.
+    // A refusal the server explained. Its own words, not its JSON.
     if (e && e.kind === 'scope_denied') {
       return what + ' refused: ' + describeScopeRefusal(e, what);
     }
@@ -1711,8 +1686,7 @@
 
   async function fetchAllStatus() {
     // Honour the server's own retry window instead of firing a dozen requests
-    // into a bucket we know is empty: each would be refused, and each refusal
-    // used to print the limiter's JSON body into the operator's log.
+    // into a bucket we know is empty: each would be refused.
     if (api.rateLimitRemainingSecs > 0) {
       repaintDataState();
       return;
@@ -1806,12 +1780,7 @@
   // A sequencer event says "something moved"; it does not carry the panel's
   // full state, so three GETs — status, checkpoints, analytics — go out to
   // fetch it. Firing that trio once per event was the whole storm: the
-  // executor emits Progress/InstructionProgress several times a second, and a
-  // measured 75 s sim run put 274 red ERROR lines in the operator's Event Log,
-  // every one of them this page's own request coming back 429 (147 refusals
-  // across five routes server-side in a 45 s run). The refusals then marked
-  // four panels stale, which re-armed the failing-panel retry in
-  // checkStaleness() and asked for everything again.
+  // executor emits Progress/InstructionProgress several times a second.
   //
   // So the burst is COALESCED. The first event of a quiet period refreshes
   // immediately; every event that lands while a refresh is already scheduled
@@ -2608,10 +2577,7 @@
   /// Controls this credential has been refused, keyed by button id, holding
   /// the sentence the refusal produced.
   ///
-  /// A read-only session renders the same control cluster a control-scope one
-  /// does, so before this every press posted a request the rig had already
-  /// refused once, the failure went out as a toast that faded, and the button
-  /// stayed live. A control this credential cannot use is disabled and carries
+  /// A control this credential cannot use is disabled and carries
   /// its reason, which is a thing the operator can still read a minute later.
   const refusedControls = new Map();
 
@@ -3606,9 +3572,7 @@
   // The live preview is a PER-PROCESS fact. `/api/camera/last-image/jpeg`
   // serves the driver's in-memory buffer, which holds the last exposure taken
   // since the server started and is empty again after a relaunch — while the
-  // frames themselves are on disk and listed by `/api/images`. The panel used
-  // to print "No image captured yet" over that 404, an absolute measured on
-  // the same screen whose gallery said "14 images — 2 rejected". So when the
+  // frames themselves are on disk and listed by `/api/images`. So when the
   // buffer is empty the panel reads the library's newest row and shows THAT,
   // labelled for what it is, and only says nothing was captured when the
   // library is empty too.
@@ -3880,10 +3844,7 @@
       el.appendChild(createStatusRow('State', String(cs.cameraState)));
     }
     // A row is omitted when the camera reports no figure, and that is the only
-    // reason it may be omitted: `ccdTemperature: null` used to reach
-    // `null.toFixed` and throw, taking the Cooler and Exposure rows below it
-    // off the panel along with the temperature — a cooling camera rendered as
-    // a camera with no cooler at all.
+    // reason it may be omitted.
     const ccdTemperature = wireNumber(cs.ccdTemperature);
     if (ccdTemperature != null) {
       const tempClass = ccdTemperature <= -10
@@ -4020,18 +3981,14 @@
     }
   }
 
-  /// Enable exactly the run controls the executor state admits. Before this
-  /// every button was always tappable — at IDLE, Pause/Resume/Stop looked
-  /// live, fired a request, and surfaced an error toast; in the dark on a
-  /// phone that reads as "the rig is broken", not "wrong button".
+  /// Enable exactly the run controls the executor state admits.
   function updateSequencerButtons(stateStr) {
     const phase = RUN_STATE.view(stateStr || 'idle').phase;
     const set = (id, enabled) => {
       const el = document.getElementById(id);
       if (!el) return;
       // A control the rig has already refused for this credential stays
-      // refused, whatever the run state would otherwise admit — the next
-      // status poll used to hand it straight back.
+      // refused, whatever the run state would otherwise admit.
       const refusal = refusedControls.get(id);
       if (refusal) {
         el.disabled = true;
@@ -4800,14 +4757,7 @@
     // The TARGET, from the field that carries it. `/api/sequencer/status` now
     // publishes `currentTarget` — the executor's own `SequenceProgress`
     // target, the same one `/api/run-watch/snapshot` has always carried.
-    //
-    // What this replaces: the analytics session name, falling back to the
-    // current node's name. On a headless run the imaging session is named
-    // after the SEQUENCE, so a target called "M Long Field" rendered as
-    // "M long night" for the whole run; once the run ended and the session
-    // went null, the fallback named the Loop ROOT NODE and the field read
-    // "Live root". Mid-autofocus it read "Autofocus (HFR Degradation)". The
-    // panel never once showed the target. A run that has named no target
+    // A run that has named no target
     // leaves this unknown, and unknown renders as "--" — not as the nearest
     // string to hand.
     if (targetEl) targetEl.textContent = s.currentTarget || '--';
@@ -4960,9 +4910,6 @@
     // mount panel's goto inputs are also populated so a manual abort/retry
     // is one tap away.
     // A coordinate the catalogue did not send as a number is not a coordinate.
-    // `Number(target.ra)` used to hand NaN to the slew call and print "RA NaNh"
-    // in the log beside it, so the operator watched a mount being commanded to
-    // a place that does not exist.
     const targetRa = wireNumber(target.ra);
     const targetDec = wireNumber(target.dec);
     if (targetRa == null || targetDec == null) {
@@ -7118,10 +7065,7 @@
   /// Reading host settings is control-scope on the appliance — the payload
   /// carries the operator's Discord webhook, Pushover key and host filesystem
   /// paths (see `path_classification.dart`) — so a read-only session is
-  /// refused it by design. The panel used to answer that by leaving every row
-  /// at "--", which reads as "this host has no observer, no save path, no
-  /// coordinates" on a fully configured rig; the reason existed only as one
-  /// line buried in the Event Log.
+  /// refused it by design.
   function saySettingsWithheld(sentence) {
     for (const id of SETTINGS_VALUE_IDS) {
       const el = document.getElementById(id);
@@ -7161,10 +7105,7 @@
       const settings = settingsResp && settingsResp.settings;
       const loc = locResp && locResp.location;
       // Key names come from what GET /api/settings and GET
-      // /api/settings/location actually emit. The previous four —
-      // observatoryName, defaultSavePath, plateSolveSolver, elevationMeters —
-      // exist in no server response, so those rows read "--" on a fully
-      // configured host and the panel silently lied about being empty.
+      // /api/settings/location actually emit.
       setEl('settings-observer-name',
         settings && settings.observerName ? settings.observerName : '--');
       setEl('settings-save-path',
@@ -7470,10 +7411,7 @@
   // A thumbnail can legitimately fail: `/api/images/<id>/thumbnail` returns
   // 404 "Image file not found" whenever the FITS behind a surviving DB row is
   // gone — moved to external storage that is currently detached, pruned, or
-  // deleted by hand. Both failure paths used to set `display:none` on the
-  // <img>, which collapsed the card's 100px media slot and left a bare
-  // timestamp, so a gallery of unreachable frames rendered as a list of dates
-  // with no hint that anything was missing. Keep the slot and label it.
+  // deleted by hand. Keep the slot and label it.
   function markGalleryThumbUnavailable(img, reason) {
     if (!img || !img.parentNode) return;
     const placeholder = document.createElement('div');

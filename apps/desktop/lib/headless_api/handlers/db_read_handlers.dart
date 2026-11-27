@@ -1,5 +1,4 @@
-// API surface for DB tables the phone could not see
-// before this wave (sequence_runs, observation_logs (notes journal),
+// API surface for DB tables (sequence_runs, observation_logs (notes journal),
 // guide_rms_history, polar_alignment_history) plus paginated reads on
 // the calibration tables (dark_library, flat_history) that bypass the
 // existing "best match" semantics.

@@ -1,6 +1,4 @@
-// /api/info says which kind of process serves it and the computer's name. It
-// used to answer "Skotiq Headless" / mode headless / apiOnlyMode from the GUI
-// too, so a client could not tell two imaging computers apart.
+// /api/info says which kind of process serves it and the computer's name.
 
 import 'dart:convert';
 import 'dart:io';

@@ -1,5 +1,4 @@
-/// HTTP handlers for the cellular-push token + preference endpoints
-/// (Phase D).
+/// HTTP handlers for the cellular-push token + preference endpoints.
 ///
 /// A paired phone, once it has obtained its FCM (Android) or APNs (iOS)
 /// token, posts it here so the desktop's remote-push delivery can fan a

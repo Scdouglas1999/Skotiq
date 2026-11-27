@@ -23,7 +23,7 @@ class SessionGrading {
   const SessionGrading({required this.accepted, required this.rejected});
 
   /// A session with no light frames on record — not an assumption that the
-  /// frames were good, which is the direction the old surfaces failed in.
+  /// frames were good.
   const SessionGrading.noFrames() : accepted = 0, rejected = 0;
 
   final int accepted;
@@ -426,12 +426,7 @@ class AnalyticsHandlers implements RouteSource {
   /// the session export report: the stored `imaging_sessions.avg_hfr`, which is
   /// the running mean over ACCEPTED frames only (see
   /// `SessionStateNotifier.recordExposureComplete` for the rule and why
-  /// rejected subs are kept out of it). This endpoint used to answer its own
-  /// question —
-  /// the mean over every `captured_images` row that carried an HFR, rejects and
-  /// calibration frames included — so a night in which every light was rejected
-  /// reported `avgHfr: null` on three surfaces and a real number here, for one
-  /// session read at one moment.
+  /// rejected subs are kept out of it).
   ///
   /// The all-lights mean is still worth having: it is the diagnostic that
   /// answers "was it focus or was it cloud?", which is the question an

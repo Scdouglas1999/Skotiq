@@ -634,11 +634,7 @@ class RunWatchHandlers implements RouteSource {
   /// The empty-buffer 404 is a PER-PROCESS fact, and it says so. The buffer
   /// holds the last exposure taken since this server started and is empty
   /// again after a relaunch, while the frames themselves are on disk and
-  /// listed by [kFrameLibraryRoute]. This endpoint used to answer "No image
-  /// has been captured yet on this camera" — an absolute, returned by a rig
-  /// whose library held 26 frames — and Run-Watch printed it as "No frame
-  /// captured yet". `/api/camera/last-image/jpeg` already answered the same
-  /// emptiness with the process-scoped wording; both now do.
+  /// listed by [kFrameLibraryRoute].
   Future<Response> handleFrameThumbnail(Request request) async {
     final query = request.url.queryParameters;
     final maxWidth =

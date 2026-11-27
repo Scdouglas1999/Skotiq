@@ -11,7 +11,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import 'handler_test_helpers.dart';
 
-/// Phase D — end-to-end `/api/push/*` endpoint tests. Boots a real
+/// End-to-end `/api/push/*` endpoint tests. Boots a real
 /// [HeadlessApiServer] over an in-memory pairing DB, pairs a device, then
 /// drives the token + preference endpoints over HTTP. Covers:
 ///  - register-token upserts (register twice → one row, latest token),

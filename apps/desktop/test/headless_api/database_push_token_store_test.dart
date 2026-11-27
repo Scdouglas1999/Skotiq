@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/push/database_push_token_store.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
-/// Phase D — the DB-backed [PushTokenStore] adapter.
+/// The DB-backed [PushTokenStore] adapter.
 ///
 /// Guards two production gaps an in-memory store cannot show:
 ///  - the store implements [StalePushTokenSink], so the deliveries' automatic

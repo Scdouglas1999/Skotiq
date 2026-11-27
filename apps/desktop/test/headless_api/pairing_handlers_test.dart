@@ -151,9 +151,7 @@ void main() {
     });
 
     // The one that must never regress: a pairing request for read-only has to
-    // yield read-only. `view` used to resolve to the `control` grant alongside
-    // `control`, so a browser that asked to watch was handed imaging control
-    // and the disclosure sat in a `tokenScope` field no caller reads.
+    // yield read-only.
     test('a view request mints a view grant, never control', () async {
       final start = await pairingService.startPairing();
 

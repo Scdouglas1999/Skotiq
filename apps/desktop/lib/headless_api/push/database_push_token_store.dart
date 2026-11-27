@@ -1,4 +1,4 @@
-/// [PushTokenStore] backed by the pairing Drift DB (Phase D).
+/// [PushTokenStore] backed by the pairing Drift DB.
 ///
 /// Adapts the `device_push_tokens` / `device_push_prefs` tables (owned by
 /// [PairingDatabase]) to the dependency-free [PushTokenStore] surface the

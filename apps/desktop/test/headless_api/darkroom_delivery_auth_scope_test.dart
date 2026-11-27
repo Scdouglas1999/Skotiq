@@ -72,8 +72,7 @@ void main() {
         'control-token': HeadlessTokenScope.control,
       },
       fineGrainedAuthTokens: {
-        // A token that holds `system` and nothing else. Before the fix this
-        // reached the delivery surface, because the surface WAS `system`.
+        // A token that holds `system` and nothing else.
         'system-only-token': HeadlessAuthGrant.forResources(const {
           ApiResource.system: HeadlessAccessLevel.control,
         }),

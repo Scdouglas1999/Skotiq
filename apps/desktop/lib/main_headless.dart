@@ -68,7 +68,7 @@ const _headlessLogSource = 'HeadlessMain';
 ///                         of generating a self-signed one.
 ///   --tls-key=`<path>` Use the supplied private-key PEM instead
 ///                         of generating a self-signed one.
-///   --relay-url=`<url>`     v4 couch-grade remote: dial OUT to a self-hosted
+///   --relay-url=`<url>`     Dial OUT to a self-hosted
 ///                         Skotiq relay (ws(s)://host[:port]) so the rig
 ///                         is reachable from anywhere with no port-forwarding.
 ///                         The appliance id minted on first contact is printed

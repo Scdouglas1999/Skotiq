@@ -164,11 +164,7 @@ class PostSessionHandlers implements RouteSource {
   /// `exposuresSec` that is a map, a string, `null`, or a list holding a
   /// string never reaches `exposures_per_light` at all: `serde` refuses it
   /// while decoding the args struct, which happens inside the bridge call and
-  /// therefore after the id has been minted and returned. Those bodies used to
-  /// answer `200 {"status":"queued"}` and turn out refused only on a later
-  /// `/api/jobs/{id}` poll, with `invalid type: map, expected a sequence at
-  /// line 1 column 214` for an explanation — a deserializer's note about a byte
-  /// offset, naming neither the field nor the entry. There is no native
+  /// therefore after the id has been minted and returned. There is no native
   /// sentence to copy for these, so the ones below are this handler's own, in
   /// the guard's vocabulary: the field, the index, what arrived, and what the
   /// entry has to be.
