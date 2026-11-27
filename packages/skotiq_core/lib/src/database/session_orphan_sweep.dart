@@ -45,9 +45,7 @@ import '../models/imaging/session_status.dart';
 /// `end_time` is the session's LAST ACTUAL ACTIVITY — the newest
 /// `captured_images.captured_at` for the session — not the wall clock of the
 /// recovery, which is the same rule and the same reason as
-/// `SessionsDao.abortSession`: a night abandoned on Wednesday and found on
-/// Friday was stamped with Friday's clock, so its History card and every
-/// efficiency figure derived from it reported a 60-hour night. A session with
+/// `SessionsDao.abortSession`. A session with
 /// no frames captured nothing, so it collapses to `start_time` (zero duration)
 /// rather than inventing an end. Clamped to `[start_time, now]` so a bad clock
 /// or a future-dated frame cannot produce a negative or still-growing

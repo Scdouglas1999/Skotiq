@@ -1,7 +1,5 @@
 // A light that auto-calibration cannot calibrate is kept as captured, and
-// the operator is told why once per cause. A loop that hits the same cause on
-// every frame used to raise the same short-lived toast for each one, its
-// reason cut off, and left nothing on screen once the toasts were gone.
+// the operator is told why once per cause.
 
 import 'dart:async';
 import 'dart:io';

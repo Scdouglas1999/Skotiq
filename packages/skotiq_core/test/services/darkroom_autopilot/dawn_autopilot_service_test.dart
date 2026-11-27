@@ -1577,10 +1577,7 @@ void main() {
 
     final outcome = await buildService().runDawnForSession(sessionId);
 
-    // A pass with nothing to draft is not a pass that succeeded. It used to end
-    // `done` with an empty error, which the Session Review banner paints
-    // nothing for — so the night read "a clean night, no problems detected"
-    // with no mention anywhere that the drafting had not happened.
+    // A pass with nothing to draft is not a pass that succeeded.
     expect(outcome.succeeded, isFalse);
     expect(outcome.state, DarkroomJobState.failed);
     expect(outcome.failure, contains('still accumulating'));
@@ -2775,14 +2772,8 @@ void main() {
     );
   });
 
-  // The one-pass-at-a-time rule used to belong to `drainQueue`'s loop, so it
-  // held only for the rows that loop owned: `runDawnForSession` and
-  // a second entry point enqueued and then ran their job straight away, and
-  // the per-session guard stopped only a second pass over the SAME night. A
-  // dawn pass over last night and a pass over a different night therefore
-  // ran side by side — measured on the release bundle, two rows held `running`
-  // for minutes — fighting over the one process-wide render cache the rule
-  // exists to protect.
+  // Passes over different nights share the one process-wide render cache the
+  // one-pass-at-a-time rule exists to protect.
   test('two passes over different nights run one at a time', () async {
     final lastNight = await insertSession();
     final imageA = await insertSub(sessionId: lastNight);
@@ -2873,8 +2864,7 @@ void main() {
   // executors over one row, one cancellation id between them.
   // An orderly host shutdown mid-pass. The row must come back to the queue
   // with its start returned, so restarting the service during a dawn pass
-  // costs nothing: three restarts used to burn all three attempts and fail the
-  // night's job outright.
+  // costs nothing.
   test('an orderly shutdown hands a running pass back to the queue', () async {
     final sessionId = await insertSession();
     final image = await insertSub(sessionId: sessionId);

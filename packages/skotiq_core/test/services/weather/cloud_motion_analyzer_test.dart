@@ -4,10 +4,7 @@ import 'package:skotiq_core/src/services/weather/cloud_motion_analyzer.dart';
 
 /// Tests for the *spatial* behaviour of [CloudMotionAnalyzer].
 ///
-/// The analyzer used to estimate cloud density as a single scalar (the frame
-/// opacity) for every grid cell, so the cloud centroid could never move and the
-/// predictive ETA/direction were computed from a constant field. These tests
-/// pin the real behaviour:
+/// These tests pin:
 ///
 ///  * a genuine moving cloud band (a high-density tile that shifts position
 ///    across two snapshots) produces a non-null ETA and a southward direction;

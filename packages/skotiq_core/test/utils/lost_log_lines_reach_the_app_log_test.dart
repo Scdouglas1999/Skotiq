@@ -1,5 +1,4 @@
-// Log lines from core that used to go to `package:logging` or
-// `dart:developer`, where nothing in a shipping build listens, reach the app
+// Log lines from core reach the app
 // log (the log file, the Log Viewer and the remote tail).
 
 import 'package:flutter_test/flutter_test.dart';

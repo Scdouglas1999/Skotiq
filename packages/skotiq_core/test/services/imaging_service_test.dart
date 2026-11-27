@@ -1257,8 +1257,7 @@ void main() {
       () async {
         // On a dual-camera rig (main + guide) both cameras publish onto the
         // same imaging event stream. A completion tagged with another camera's
-        // id used to satisfy this capture's wait, so the download ran mid
-        // exposure and returned the previous frame.
+        // id must not satisfy this capture's wait.
         const settings = ExposureSettings(
           exposureTime: 5.0,
           gain: 100,

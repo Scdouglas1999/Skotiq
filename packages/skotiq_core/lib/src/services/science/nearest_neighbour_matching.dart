@@ -12,9 +12,8 @@ typedef MatchPoint = ({double x, double y});
 /// claimed by its entry in [candidateKeys], so two candidates that share a key
 /// (coincident catalog rows) cannot both be matched.
 ///
-/// Why bucketed: star-to-catalog matching used to compare every detected star
-/// against every catalog star in the field. On a rich frame that is
-/// sources x candidates work — a 4,300-star frame against a degree-wide
+/// Why bucketed: comparing every detected star against every catalog star in
+/// the field is sources x candidates work — a 4,300-star frame against a degree-wide
 /// catalog cone is hundreds of millions of distance tests, single-threaded and
 /// silent, which presents as the app freezing rather than as slow science. A
 /// match has to lie within [maxDistance], so with cells that size only the

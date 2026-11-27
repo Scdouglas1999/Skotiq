@@ -1,9 +1,4 @@
-// The archive writer used to build the whole database as one indented JSON
-// String on the calling isolate, and `_dumpTable` read every row of every table
-// with one unpaged `SELECT *` — including the per-frame science tables. Both
-// run unattended off the auto-backup timer, mid-session.
-//
-// These tests pin the two behaviours that must not change while that is fixed:
+// These tests pin two behaviours:
 // the compact (auto-save) archive carries exactly the same content as the
 // human-readable one, and a table larger than one `_dumpTable` page still round
 // -trips row-for-row.

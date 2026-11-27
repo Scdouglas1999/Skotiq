@@ -191,15 +191,9 @@ extension _SkotiqDatabaseMigrationV23ToV31 on SkotiqDatabase {
       // written to be resumed rather than merely repeated.
       //
       // Rename-create-copy-drop is four statements and a kill can land between
-      // any two of them. The guard used to be `guide_rms_history` alone, which
-      // is the ONE name that stops existing the moment the first statement
-      // runs — so a process killed after the RENAME left the rows in
-      // `guide_rms_history_v29`, and every later run took the guard's `false`
-      // branch and skipped the whole block. The v34 step then created
-      // `guide_rms_history` empty (`IF NOT EXISTS`), the upgrade reported
-      // success, and the guiding history sat in an aside table nothing would
-      // ever look at again — no error, no warning, just a history that starts
-      // at the upgrade.
+      // any two of them. `guide_rms_history` is the ONE name that stops
+      // existing the moment the first statement runs, so a process killed
+      // after the RENAME leaves the rows in `guide_rms_history_v29`.
       //
       // Either name present means there is work to finish. A database
       // upgrading from before 30 has neither and still skips, which is what

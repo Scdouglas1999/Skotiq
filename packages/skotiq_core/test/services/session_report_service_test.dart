@@ -213,10 +213,7 @@ void main() {
       expect(report.lightFramesAccepted, 3);
       expect(report.totalIntegration.inSeconds, 240);
 
-      // Whole-session frame COUNTS include the dark. They used to exclude it,
-      // which is how a calibration-only session reported "Frames accepted 0/0"
-      // beside three FITS files on disk — see
-      // session_report_counts_calibration_test.dart.
+      // Whole-session frame COUNTS include the dark.
       expect(report.totalFramesAttempted, 5);
       expect(report.totalFramesAccepted, 4);
       expect(report.totalFramesRejected, 1);

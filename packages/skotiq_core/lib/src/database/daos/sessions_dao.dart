@@ -180,11 +180,9 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   /// than at the wall clock of the recovery.
   ///
   /// Wall-clock closure is what [endSession] does, and it is right when a run
-  /// really did just finish. It is badly wrong here: a session abandoned on
-  /// Wednesday and recovered on Friday was stamped with Friday's clock, so its
-  /// History card, its wall-clock duration and every efficiency figure derived
-  /// from it (campaign efficiency, effective imaging %) reported a 60-hour
-  /// night. One crash permanently corrupted the night's duration.
+  /// really did just finish. Here it would stretch a session abandoned on
+  /// Wednesday and recovered on Friday to a 60-hour night, in its History
+  /// card and every efficiency figure derived from it.
   ///
   /// The last frame's timestamp is the only durable record of when imaging
   /// actually stopped. With no frames at all the session produced nothing, so
