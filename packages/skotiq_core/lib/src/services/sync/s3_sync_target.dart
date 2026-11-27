@@ -26,10 +26,8 @@
 //     validates reachability, credentials and bucket existence in one
 //     call and behaves consistently across AWS / MinIO / B2.
 //
-// The list-objects-v2 XML body is parsed with the same small tolerant
-// element scanner WebDavSyncTarget uses for PROPFIND multistatus, so we
-// avoid taking a full XML dependency and stay agnostic to an (unusual
-// but legal) namespace prefix.
+// The list-objects-v2 XML body is read with the prefix-agnostic scanners
+// in sync_xml.dart, the same ones WebDavSyncTarget reads PROPFIND with.
 //
 // Credentials are never logged: this class emits no log output, and
 // thrown [SyncTargetException] messages reference only the request host
@@ -44,6 +42,7 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import 'sync_target.dart';
+import 'sync_xml.dart';
 
 /// Result of an AWS Signature Version 4 computation. Exposed (alongside
 /// [S3SyncTarget.computeSigV4]) as a testable seam so the signing chain
@@ -341,13 +340,7 @@ class S3SyncTarget implements SyncTarget {
 
   Never _throwForStatus(http.Response response, String operation) {
     final status = response.statusCode;
-    final kind = switch (status) {
-      401 || 403 => SyncTargetErrorKind.auth,
-      404 => SyncTargetErrorKind.notFound,
-      405 || 409 || 423 => SyncTargetErrorKind.conflict,
-      >= 500 => SyncTargetErrorKind.server,
-      _ => SyncTargetErrorKind.unknown,
-    };
+    final kind = SyncTargetErrorKind.ofStatus(status);
     final detail = switch (kind) {
       SyncTargetErrorKind.auth =>
         'authentication failed: check access key/secret and permissions',
@@ -432,7 +425,7 @@ class S3SyncTarget implements SyncTarget {
         final block = match.group(0)!;
         final keyMatch = _element('Key').firstMatch(block);
         if (keyMatch == null) continue;
-        final key = _xmlUnescape(keyMatch.group(1)!.trim());
+        final key = xmlUnescape(keyMatch.group(1)!.trim());
         // Skip the zero-byte prefix marker that represents the directory
         // itself (a key exactly equal to the prefix).
         if (key.isEmpty || key == prefix) continue;
@@ -464,7 +457,7 @@ class S3SyncTarget implements SyncTarget {
         final block = match.group(0)!;
         final prefixMatch = _element('Prefix').firstMatch(block);
         if (prefixMatch == null) continue;
-        var sub = _xmlUnescape(prefixMatch.group(1)!.trim());
+        var sub = xmlUnescape(prefixMatch.group(1)!.trim());
         while (sub.endsWith('/')) {
           sub = sub.substring(0, sub.length - 1);
         }
@@ -480,7 +473,7 @@ class S3SyncTarget implements SyncTarget {
       if (truncated) {
         final tokenMatch = _element('NextContinuationToken').firstMatch(body);
         continuationToken = tokenMatch != null
-            ? _xmlUnescape(tokenMatch.group(1)!.trim())
+            ? xmlUnescape(tokenMatch.group(1)!.trim())
             : null;
       } else {
         continuationToken = null;
@@ -492,26 +485,8 @@ class S3SyncTarget implements SyncTarget {
 
   // List-objects-v2 XML parsing (tolerant element scanner, no XML dep)
 
-  static final RegExp _contentsBlock = RegExp(
-    r'<(?:[A-Za-z0-9_-]+:)?Contents[\s>].*?</(?:[A-Za-z0-9_-]+:)?Contents>',
-    dotAll: true,
-  );
-  static final RegExp _commonPrefixesBlock = RegExp(
-    r'<(?:[A-Za-z0-9_-]+:)?CommonPrefixes[\s>].*?'
-    r'</(?:[A-Za-z0-9_-]+:)?CommonPrefixes>',
-    dotAll: true,
-  );
+  static final RegExp _contentsBlock = xmlBlock('Contents');
+  static final RegExp _commonPrefixesBlock = xmlBlock('CommonPrefixes');
 
-  static RegExp _element(String localName) => RegExp(
-    '<(?:[A-Za-z0-9_-]+:)?$localName[^>]*>(.*?)'
-    '</(?:[A-Za-z0-9_-]+:)?$localName>',
-    dotAll: true,
-  );
-
-  static String _xmlUnescape(String value) => value
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&apos;', "'")
-      .replaceAll('&amp;', '&');
+  static RegExp _element(String localName) => xmlElementText(localName);
 }

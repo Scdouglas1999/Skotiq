@@ -6,19 +6,17 @@
 // PUT / GET / DELETE go through the normal verbs, PROPFIND and MKCOL are
 // issued as custom-method [http.Request]s.
 //
-// The PROPFIND 207 multistatus body is parsed with a small tolerant
-// scanner instead of a full XML dependency: servers disagree on the
-// namespace prefix (`d:`, `D:`, `lp1:`, none at all), so we match on
-// local element names with prefix-agnostic patterns. This is the same
-// pragmatic trade-off most lightweight DAV clients make.
+// The PROPFIND 207 multistatus body is read with the prefix-agnostic
+// scanners in sync_xml.dart.
 
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show HttpDate, SocketException;
+import 'dart:io' show HttpDate;
 
 import 'package:http/http.dart' as http;
 
+import '../http_exchange.dart';
 import 'sync_target.dart';
+import 'sync_xml.dart';
 
 class WebDavSyncTarget implements SyncTarget {
   final Uri baseUrl;
@@ -36,7 +34,19 @@ class WebDavSyncTarget implements SyncTarget {
     required this.password,
     http.Client? client,
   }) : _client = client ?? http.Client(),
-       _ownsClient = client == null;
+       _ownsClient = client == null {
+    // Generous enough to cover a large backup-bundle PUT on a moderate
+    // connection.
+    const requestTimeout = Duration(minutes: 5);
+    _exchange = HttpExchange(
+      _client,
+      networkFailure: SyncTargetException.network,
+      headerDeadline: requestTimeout,
+      bodyDeadline: requestTimeout,
+    );
+  }
+
+  late final HttpExchange _exchange;
 
   void close() {
     if (_ownsClient) _client.close();
@@ -64,48 +74,16 @@ class WebDavSyncTarget implements SyncTarget {
     Uri uri, {
     Map<String, String>? headers,
     List<int>? bodyBytes,
-  }) async {
-    final request = http.Request(method, uri);
-    request.headers['Authorization'] = _authHeader;
-    if (headers != null) request.headers.addAll(headers);
-    if (bodyBytes != null) request.bodyBytes = bodyBytes;
-    try {
-      // Bound the request so a server that accepts the socket then stops
-      // responding cannot hang the call (and pushNow) indefinitely. The
-      // `on TimeoutException` arm below maps it to a network error. Generous
-      // enough to cover large backup-bundle PUTs on a moderate connection.
-      const requestTimeout = Duration(minutes: 5);
-      final streamed = await _client.send(request).timeout(requestTimeout);
-      return await http.Response.fromStream(streamed).timeout(requestTimeout);
-    } on SyncTargetException {
-      rethrow;
-    } on SocketException catch (e) {
-      throw SyncTargetException(
-        'Cannot reach ${uri.host}: ${e.message}',
-        kind: SyncTargetErrorKind.network,
-      );
-    } on http.ClientException catch (e) {
-      throw SyncTargetException(
-        'Request to ${uri.host} failed: ${e.message}',
-        kind: SyncTargetErrorKind.network,
-      );
-    } on TimeoutException {
-      throw SyncTargetException(
-        'Request to ${uri.host} timed out',
-        kind: SyncTargetErrorKind.network,
-      );
-    }
-  }
+  }) => _exchange.send(
+    method,
+    uri,
+    headers: {'Authorization': _authHeader, ...?headers},
+    body: bodyBytes,
+  );
 
   Never _throwForStatus(http.Response response, String operation) {
     final status = response.statusCode;
-    final kind = switch (status) {
-      401 || 403 => SyncTargetErrorKind.auth,
-      404 => SyncTargetErrorKind.notFound,
-      405 || 409 || 423 => SyncTargetErrorKind.conflict,
-      >= 500 => SyncTargetErrorKind.server,
-      _ => SyncTargetErrorKind.unknown,
-    };
+    final kind = SyncTargetErrorKind.ofStatus(status);
     final detail = switch (kind) {
       SyncTargetErrorKind.auth =>
         'authentication failed: check username/password',
@@ -244,9 +222,8 @@ class WebDavSyncTarget implements SyncTarget {
 
   // Multistatus parsing (prefix-agnostic, no XML dependency)
 
-  static final RegExp _responseBlock = RegExp(
-    r'<(?:[A-Za-z0-9_-]+:)?response[\s>].*?</(?:[A-Za-z0-9_-]+:)?response>',
-    dotAll: true,
+  static final RegExp _responseBlock = xmlBlock(
+    'response',
     caseSensitive: false,
   );
   static final RegExp _hrefPattern = _elementText('href');
@@ -257,19 +234,8 @@ class WebDavSyncTarget implements SyncTarget {
     caseSensitive: false,
   );
 
-  static RegExp _elementText(String localName) => RegExp(
-    '<(?:[A-Za-z0-9_-]+:)?$localName[^>]*>(.*?)'
-    '</(?:[A-Za-z0-9_-]+:)?$localName>',
-    dotAll: true,
-    caseSensitive: false,
-  );
-
-  static String _xmlUnescape(String value) => value
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&apos;', "'")
-      .replaceAll('&amp;', '&');
+  static RegExp _elementText(String localName) =>
+      xmlElementText(localName, caseSensitive: false);
 
   List<SyncRemoteEntry> _parseMultistatus(
     String body, {
@@ -297,7 +263,7 @@ class WebDavSyncTarget implements SyncTarget {
       final hrefMatch = _hrefPattern.firstMatch(block);
       if (hrefMatch == null) continue;
 
-      var href = _xmlUnescape(hrefMatch.group(1)!.trim());
+      var href = xmlUnescape(hrefMatch.group(1)!.trim());
       // Some servers return absolute URLs in <href>.
       final hrefUri = Uri.tryParse(href);
       final hrefPath = hrefUri != null && hrefUri.hasScheme

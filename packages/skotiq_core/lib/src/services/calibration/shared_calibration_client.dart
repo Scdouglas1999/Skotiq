@@ -1,19 +1,16 @@
 // HTTP client for a hub's shared calibration library
 // (`/v1/calibration/masters`).
 //
-// Mirrors [ConstellationClient]'s transport verbatim: nothing but
-// `package:http`, a single `_send` / `_sendFile` choke point mapping
-// `SocketException`/`ClientException`/timeouts onto a typed
-// [ConstellationException], and a `_throwForStatus` that classifies the HTTP
-// status. The calibration tuple + license ride as query params, the
-// `Provenance` JSON as the base64-encoded `x-provenance-json` header (ASCII-safe
-// so non-Latin-1 attribution survives dart:io's header validation), and the
-// master FITS as the `application/octet-stream` body (streamed from disk on
-// publish), exactly as the hub's handlers expect.
+// Every request goes through one [HttpExchange], which maps a failure before
+// an HTTP status onto a network [ConstellationException]; `_throwForStatus`
+// classifies the HTTP status. The calibration tuple + license ride as query
+// params, the `Provenance` JSON as the base64-encoded `x-provenance-json`
+// header (ASCII-safe so non-Latin-1 attribution survives dart:io's header
+// validation), and the master FITS as the `application/octet-stream` body
+// (streamed from disk on publish), exactly as the hub's handlers expect.
 
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show File, SocketException;
+import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -22,6 +19,7 @@ import '../../models/calibration/calibration_library_models.dart';
 import '../../models/calibration/shared_calibration_models.dart';
 import '../../models/collaboration/collaboration_models.dart';
 import '../constellation/constellation_models.dart';
+import '../http_exchange.dart';
 
 /// One downloaded shared master: its FITS [bytes] plus the hub's AUTHORITATIVE
 /// record of what those bytes are ([master]).
@@ -56,7 +54,6 @@ class SharedCalibrationClient {
 
   final http.Client _client;
   final bool _ownsClient;
-  final Duration _timeout;
 
   /// [client] is injectable for tests (`package:http/testing.dart` MockClient).
   SharedCalibrationClient({
@@ -65,8 +62,15 @@ class SharedCalibrationClient {
     http.Client? client,
     Duration timeout = const Duration(seconds: 60),
   }) : _client = client ?? http.Client(),
-       _ownsClient = client == null,
-       _timeout = timeout;
+       _ownsClient = client == null {
+    _exchange = HttpExchange(
+      _client,
+      networkFailure: ConstellationException.network,
+      headerDeadline: timeout,
+    );
+  }
+
+  late final HttpExchange _exchange;
 
   void close() {
     if (_ownsClient) _client.close();
@@ -93,73 +97,24 @@ class SharedCalibrationClient {
     Uri uri, {
     Map<String, String>? headers,
     List<int>? bodyBytes,
-  }) async {
-    final request = http.Request(method, uri);
-    request.headers.addAll(_authHeaders);
-    if (headers != null) request.headers.addAll(headers);
-    if (bodyBytes != null) request.bodyBytes = bodyBytes;
-    try {
-      final streamed = await _client.send(request).timeout(_timeout);
-      return await http.Response.fromStream(streamed);
-    } on ConstellationException {
-      rethrow;
-    } on SocketException catch (e) {
-      throw ConstellationException(
-        'Cannot reach ${uri.host}: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on http.ClientException catch (e) {
-      throw ConstellationException(
-        'Request to ${uri.host} failed: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on TimeoutException {
-      throw ConstellationException(
-        'Request to ${uri.host} timed out',
-        kind: ConstellationErrorKind.network,
-      );
-    }
-  }
+  }) => _exchange.send(
+    method,
+    uri,
+    headers: {..._authHeaders, ...?headers},
+    body: bodyBytes,
+  );
 
   Future<http.Response> _sendFile(
     String method,
     Uri uri,
     File file, {
     Map<String, String>? headers,
-  }) async {
-    final length = await file.length();
-    final request = http.StreamedRequest(method, uri);
-    request.headers.addAll(_authHeaders);
-    if (headers != null) request.headers.addAll(headers);
-    request.contentLength = length;
-    unawaited(
-      file
-          .openRead()
-          .forEach(request.sink.add)
-          .whenComplete(request.sink.close),
-    );
-    try {
-      final streamed = await _client.send(request).timeout(_timeout);
-      return await http.Response.fromStream(streamed);
-    } on ConstellationException {
-      rethrow;
-    } on SocketException catch (e) {
-      throw ConstellationException(
-        'Cannot reach ${uri.host}: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on http.ClientException catch (e) {
-      throw ConstellationException(
-        'Request to ${uri.host} failed: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on TimeoutException {
-      throw ConstellationException(
-        'Request to ${uri.host} timed out',
-        kind: ConstellationErrorKind.network,
-      );
-    }
-  }
+  }) => _exchange.send(
+    method,
+    uri,
+    headers: {..._authHeaders, ...?headers},
+    file: file,
+  );
 
   Never _throwForStatus(http.Response response, String operation) {
     final status = response.statusCode;

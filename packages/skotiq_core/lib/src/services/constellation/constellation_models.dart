@@ -30,6 +30,11 @@ class ConstellationException implements Exception {
     this.statusCode,
   });
 
+  /// A failure before an HTTP status was received.
+  const ConstellationException.network(this.message)
+    : kind = ConstellationErrorKind.network,
+      statusCode = null;
+
   @override
   String toString() => 'ConstellationException($kind): $message';
 }
