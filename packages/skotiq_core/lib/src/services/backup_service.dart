@@ -268,10 +268,7 @@ class BackupService {
           staged,
           backupName: path.basename(file.path),
           backupCreatedAt: loaded.contents.sections['createdAt'],
-          backupSettingKeys: switch (loaded.contents.sections['settings']) {
-            final Map<String, dynamic> settings => settings.keys.toSet(),
-            _ => const <String>{},
-          },
+          backupSettingKeys: loaded.contents.settingKeys,
           onProgress: (step, fraction) =>
               onProgress?.call(RestoreProgress(step, 0.7 + 0.3 * fraction)),
         );
