@@ -419,28 +419,10 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         includeLoopback: false,
         type: InternetAddressType.any,
       );
-      for (final iface in interfaces) {
-        for (final addr in iface.addresses) {
-          final bytes = addr.rawAddress;
-          final isTs4 =
-              addr.type == InternetAddressType.IPv4 &&
-              bytes.length == 4 &&
-              bytes[0] == 100 &&
-              bytes[1] >= 64 &&
-              bytes[1] <= 127; // 100.64.0.0/10
-          final isTs6 =
-              addr.type == InternetAddressType.IPv6 &&
-              bytes.length == 16 &&
-              bytes[0] == 0xfd &&
-              bytes[1] == 0x7a &&
-              bytes[2] == 0x11 &&
-              bytes[3] == 0x5c; // fd7a:115c::/32
-          if (isTs4 || isTs6) {
-            _tailscaleHost = addr.address;
-            _logInfo('[remote] tailnet address detected: ${addr.address}');
-            return;
-          }
-        }
+      final address = LocalAddresses.tailnet(interfaces, preferIpv4: false);
+      if (address != null) {
+        _tailscaleHost = address.address;
+        _logInfo('[remote] tailnet address detected: ${address.address}');
       }
     } catch (e) {
       _logWarning('[remote] tailnet address scan failed: $e');

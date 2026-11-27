@@ -10,6 +10,7 @@ export 'src/database/paired_devices_table.dart';
 export 'src/database/pairing_database.dart';
 export 'src/discovery.dart';
 export 'src/discovery/mdns_registration.dart';
+export 'src/local_addresses.dart';
 export 'src/push/lan_push_broadcaster.dart';
 export 'src/push/push_config.dart';
 export 'src/push/push_jwt.dart';
