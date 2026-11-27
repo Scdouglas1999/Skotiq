@@ -251,11 +251,10 @@ void main() {
     },
   );
 
-  test('a running sequence blocks the autopilot start', () async {
-    for (final state in [
-      SequenceExecutionState.running,
-      SequenceExecutionState.paused,
-    ]) {
+  test('a sequence that has not settled blocks the autopilot start', () async {
+    // Every state the executor is not settled in, a failed stop or cleanup
+    // among them: the operator's run still owns the rig.
+    for (final state in SequenceExecutionState.values.where((s) => s.isBusy)) {
       final container = _container(report: _report(), run: state);
       addTearDown(container.dispose);
       await container.read(captureDirDiskSpaceProvider.future);
@@ -266,13 +265,16 @@ void main() {
         contains(SchedulerReadinessIssueId.activeRun),
       );
     }
-    final idle = _container(report: _report());
-    addTearDown(idle.dispose);
-    await idle.read(captureDirDiskSpaceProvider.future);
-    expect(
-      idle.read(schedulerStartReadinessProvider).issues.map((i) => i.id),
-      isNot(contains(SchedulerReadinessIssueId.activeRun)),
-    );
+    for (final state in SequenceExecutionState.values.where((s) => !s.isBusy)) {
+      final settled = _container(report: _report(), run: state);
+      addTearDown(settled.dispose);
+      await settled.read(captureDirDiskSpaceProvider.future);
+      expect(
+        settled.read(schedulerStartReadinessProvider).issues.map((i) => i.id),
+        isNot(contains(SchedulerReadinessIssueId.activeRun)),
+        reason: '$state',
+      );
+    }
   });
 
   group('weather safety off', () {

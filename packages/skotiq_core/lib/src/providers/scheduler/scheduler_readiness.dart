@@ -173,16 +173,10 @@ final schedulerStartReadinessProvider = Provider<SchedulerStartReadiness>((
   // The autopilot takes the editor slot and starts its own run; with the
   // operator's sequence still running it would start a second one over it.
   final runState = ref.watch(sequenceExecutionStateProvider);
-  final operatorRun = switch (runState) {
-    SequenceExecutionState.running ||
-    SequenceExecutionState.paused ||
-    SequenceExecutionState.recovering ||
-    SequenceExecutionState.stopping ||
-    SequenceExecutionState.finalizing =>
+  final operatorRun =
+      runState.isBusy &&
       ref.read(currentSequenceProvider.notifier).activeOwner !=
-          ActivePlanOwner.autopilot,
-    _ => false,
-  };
+          ActivePlanOwner.autopilot;
   if (operatorRun) {
     issues.add(
       const SchedulerReadinessIssue(
