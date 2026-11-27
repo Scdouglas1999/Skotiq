@@ -12,7 +12,7 @@
 //!
 //! `filters/filter_names.dart` in the Dart package `skotiq_astro`
 //! holds the same rule for the app. Both are tested against
-//! `packages/skotiq_astro/test/fixtures/filter_matching_cases.json`.
+//! `test_fixtures/filter_matching_cases.json`.
 
 use std::collections::BTreeSet;
 
@@ -177,9 +177,10 @@ mod tests {
     use super::*;
 
     fn fixture() -> serde_json::Value {
-        serde_json::from_str(include_str!(
-            "../../../../packages/skotiq_astro/test/fixtures/filter_matching_cases.json"
-        ))
+        serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/filter_matching_cases.json"
+        )))
         .expect("the shared filter-name fixture is JSON")
     }
 

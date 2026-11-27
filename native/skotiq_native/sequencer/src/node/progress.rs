@@ -830,9 +830,10 @@ mod tests {
     /// `instruction_progress_detail_test.dart` decodes.
     #[test]
     fn progress_detail_kinds_match_the_app() {
-        let expected: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../../packages/skotiq_core/test/fixtures/progress_detail_kinds.json"
-        ))
+        let expected: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/wire_words/progress_detail_kinds.json"
+        )))
         .expect("the fixture is JSON");
         let sent = [
             ProgressDetail::Exposure {

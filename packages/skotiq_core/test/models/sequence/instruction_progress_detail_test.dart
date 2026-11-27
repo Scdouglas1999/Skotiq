@@ -11,7 +11,7 @@ void main() {
     final kinds =
         jsonDecode(
               File(
-                'test/fixtures/progress_detail_kinds.json',
+                '../../test_fixtures/wire_words/progress_detail_kinds.json',
               ).readAsStringSync(),
             )
             as Map<String, dynamic>;

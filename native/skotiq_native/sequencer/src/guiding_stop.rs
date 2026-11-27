@@ -239,9 +239,10 @@ mod tests {
     /// `guiding_stop_reason_test.dart` reads.
     #[test]
     fn stop_reasons_match_the_app() {
-        let expected: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../packages/skotiq_core/test/fixtures/guiding_stop_reasons.json"
-        ))
+        let expected: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/wire_words/guiding_stop_reasons.json"
+        )))
         .expect("the fixture is JSON");
         let sent: serde_json::Map<String, serde_json::Value> = GuidingStopReason::ALL
             .into_iter()

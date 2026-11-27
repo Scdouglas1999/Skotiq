@@ -7,7 +7,9 @@ import 'package:test/test.dart';
 void main() {
   Map<String, dynamic> fixture() =>
       jsonDecode(
-            File('test/fixtures/filter_matching_cases.json').readAsStringSync(),
+            File(
+              '../../test_fixtures/filter_matching_cases.json',
+            ).readAsStringSync(),
           )
           as Map<String, dynamic>;
 
