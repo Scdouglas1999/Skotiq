@@ -21,6 +21,7 @@ import '../settings/guide_settle.dart';
 import '../utils/device_id.dart';
 import '../utils/rolling_rms_calculator.dart';
 import 'backend_provider.dart';
+import 'database_provider.dart' show activeProfileProvider;
 import 'equipment_provider.dart';
 import 'operation_progress_provider.dart';
 import 'settings_provider.dart';

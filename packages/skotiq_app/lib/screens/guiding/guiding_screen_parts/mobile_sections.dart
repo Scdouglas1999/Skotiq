@@ -249,7 +249,7 @@ mixin _GuidingMobileSections
   }
 
   Widget _buildNarrowSettingsTab(SkotiqColors colors) {
-    final kind = ref.watch(connectedGuiderKindProvider);
+    final kind = ref.watch(guiderKindProvider);
 
     // The built-in guider's settings are shown here.
     if (kind == GuiderKind.builtin) {

@@ -113,10 +113,23 @@ GuiderKind guiderKindOf(String? deviceId, HostPlace place) {
   return place == HostPlace.demo ? GuiderKind.demo : GuiderKind.external;
 }
 
-/// The kind of the connected guider.
-final connectedGuiderKindProvider = Provider<GuiderKind>((ref) {
+/// The guider the Guiding screen describes: the connected one, or the active
+/// profile's guider while none is connected. Null when neither names one.
+final selectedGuiderIdProvider = Provider<String?>((ref) {
+  final live = ref.watch(guiderStateProvider.select((s) => s.deviceId));
+  if (live != null) return live;
+  final profileGuider = ref
+      .watch(activeProfileProvider.select((p) => p.valueOrNull?.guiderId))
+      ?.trim();
+  return (profileGuider == null || profileGuider.isEmpty)
+      ? null
+      : profileGuider;
+});
+
+/// The kind of [selectedGuiderIdProvider]'s guider.
+final guiderKindProvider = Provider<GuiderKind>((ref) {
   return guiderKindOf(
-    ref.watch(guiderStateProvider.select((s) => s.deviceId)),
+    ref.watch(selectedGuiderIdProvider),
     ref.watch(backendProvider.select((b) => b.hostPlace)),
   );
 });
