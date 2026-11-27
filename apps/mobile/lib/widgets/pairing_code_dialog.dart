@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
@@ -97,7 +98,7 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
     final trimmed = _codeController.text.trim();
     if (trimmed.isEmpty) {
       setState(() {
-        _codeError = 'Enter the pairing code before tapping Pair.';
+        _codeError = context.l10n.text('mobilePairCodeEmpty');
       });
       return;
     }
@@ -109,18 +110,23 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    final l10n = context.l10n;
     return SkotiqDialog(
-      title: 'Pair with Skotiq',
+      title: l10n.text('mobilePairTitle'),
       icon: LucideIcons.link,
       width: 420,
       actions: [
         SkotiqButton(
           onPressed: () => Navigator.of(context).pop(),
-          label: 'Cancel',
+          label: l10n.text('cancel'),
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
         ),
-        SkotiqButton(onPressed: _submit, label: 'Pair', size: ButtonSize.small),
+        SkotiqButton(
+          onPressed: _submit,
+          label: l10n.text('mobilePair'),
+          size: ButtonSize.small,
+        ),
       ],
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -148,8 +154,7 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
           ),
           const SizedBox(height: 12),
           Text(
-            'On the imaging computer, open Settings → Remote access and '
-            'press Start pairing. Scan the QR code it shows, or type the code.',
+            l10n.text('mobilePairBody'),
             style: TextStyle(
               fontSize: SkotiqTypography.fontSize14,
               color: colors.textPrimary,
@@ -160,7 +165,7 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
             onPressed: () => Navigator.of(
               context,
             ).pop((code: '', admin: _requestAdmin, scan: true)),
-            label: 'Scan QR code',
+            label: l10n.text('mobilePairScan'),
             icon: LucideIcons.scanLine,
             variant: ButtonVariant.secondary,
           ),
@@ -168,7 +173,7 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
           TextField(
             controller: _codeController,
             decoration: InputDecoration(
-              labelText: 'Pairing code',
+              labelText: l10n.text('mobilePairCodeLabel'),
               hintText: 'STAR-LYRA-1234',
               errorText: _codeError,
             ),
@@ -184,10 +189,8 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
           ),
           const SizedBox(height: 12),
           SkotiqSwitchRow(
-            label: 'Full control of the imaging computer',
-            subtitle:
-                'Lets this phone choose capture folders and manage '
-                'backups too. Turn it off for a phone you lend to someone.',
+            label: l10n.text('mobilePairFullControl'),
+            subtitle: l10n.text('mobilePairFullControlDetail'),
             value: _requestAdmin,
             onChanged: (value) => setState(() => _requestAdmin = value),
           ),
@@ -197,8 +200,7 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
               // The page at /pair never shows a code, and on the same Wi-Fi
               // this dialog does not come up at all: the phone pairs in one
               // tap.
-              'No screen on the imaging computer? On its Wi-Fi this phone '
-              'pairs without a code.',
+              l10n.text('mobilePairNoScreenLan'),
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize13,
                 color: colors.textSecondary,
@@ -206,8 +208,7 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
             )
           else ...[
             Text(
-              'No screen on the imaging computer? Ask it for a code, then '
-              'read the code where it says it put it.',
+              l10n.text('mobilePairNoScreenAsk'),
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize13,
                 color: colors.textSecondary,
@@ -217,7 +218,11 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
             SkotiqButton(
               onPressed: _requestingCode ? null : _requestCode,
               isLoading: _requestingCode,
-              label: _codeMade == null ? 'Get a code' : 'Get a new code',
+              label: l10n.text(
+                _codeMade == null
+                    ? 'mobilePairGetCode'
+                    : 'mobilePairGetNewCode',
+              ),
               icon: LucideIcons.keyRound,
               variant: ButtonVariant.secondary,
               size: ButtonSize.small,

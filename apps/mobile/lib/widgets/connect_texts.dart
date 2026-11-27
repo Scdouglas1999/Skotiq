@@ -1,3 +1,4 @@
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
@@ -6,62 +7,85 @@ import '../services/mobile_pairing_service.dart';
 
 /// What the connection screen's progress card says while [activity] runs;
 /// empty when nothing is being tried.
-String connectActivityText(ConnectActivity? activity) => switch (activity) {
+String connectActivityText(
+  ConnectActivity? activity,
+  SkotiqLocalizations l10n,
+) => switch (activity) {
   null => '',
-  ConnectDiscovering(stage: DiscoveryStage.lastServer) =>
-    'Trying the computer this phone used last…',
+  ConnectDiscovering(stage: DiscoveryStage.lastServer) => l10n.text(
+    'mobileTryingLastComputer',
+  ),
   // The methods the search tries are its business; where it is looking is
   // the operator's.
-  ConnectDiscovering() => 'Looking for it on this Wi-Fi…',
-  ConnectLinking(:final label) => 'Connecting to $label...',
-  ConnectPairing(:final host, :final port) => 'Pairing with $host:$port...',
-  ConnectViaRelay() => 'Connecting via relay...',
-  ConnectViaQr() => 'Connecting via QR code...',
+  ConnectDiscovering() => l10n.text('mobileLookingOnWifi'),
+  ConnectLinking(:final label) => l10n.text(
+    'mobileConnectingTo',
+    params: {'name': label},
+  ),
+  ConnectPairing(:final host, :final port) => l10n.text(
+    'mobilePairingWith',
+    params: {'address': '$host:$port'},
+  ),
+  ConnectViaRelay() => l10n.text('mobileConnectingViaRelay'),
+  ConnectViaQr() => l10n.text('mobileConnectingViaQr'),
 };
 
-/// Why the last connect did not link, as the connection screen says it.
-String connectProblemText(ConnectProblem problem) => switch (problem) {
-  ConnectHostProblem(:final problem) => problem.message,
-  ConnectPairingFailed(:final failure, :final host) => pairingFailureText(
-    failure,
-    host,
-  ),
-  ConnectOneTapIdentity(:final failure) => failure.message,
-  ConnectForgotten(:final name) =>
-    'The imaging computer "$name" no longer knows this phone. Pair again.',
-  ConnectNoSession(:final host, :final port, :final tokenMissing) =>
-    'Could not connect to $host:$port\n\nServer may be offline, or this '
-        'device is not authorized.'
-        '${tokenMissing ? '\n\nThis host requires an access token or paired-device QR code.' : ''}',
-  ConnectFailedWith(:final error) =>
-    'Connection error: ${userFacingError(error)}',
-  ConnectNothingFound() =>
-    'No imaging computer answered on this Wi-Fi. Check that '
-        'Skotiq is open on it and that both are on the same network, '
-        'then scan its QR code or enter its address. Away from home, '
-        'use Tailscale or a relay below. If it still is not found, '
-        'its firewall may be blocking UDP 45679 and TCP 8080.',
-  ConnectDiscoveryFailed(:final error) =>
-    'Discovery failed: $error\n\nTry entering the IP address manually or '
-        'scan QR code.',
-  ConnectSessionLost() =>
-    'Connection to server lost. Retrying automatically — '
-        'or reconnect below.',
-  ConnectLostStillSettling() =>
-    'Connection was lost, but local sequence startup '
-        'is still settling. Wait a moment, then disconnect.',
-  ConnectCannotLeave(:final error) => 'Cannot leave this host yet: $error',
-  ConnectUiNotReady() =>
-    'Connection UI is not ready yet. Try again in a moment.',
-  ConnectBadApplianceId() => 'Appliance id must look like xxxx-xxxx-xxxx.',
-  ConnectBadRelayUrl(:final error) => 'Invalid relay URL: $error',
-  ConnectRelayRefused(:final code, :final message) =>
-    'Relay refused the connection ($code): $message',
-  ConnectRelayUnreachable(:final error) => 'Could not reach the relay: $error',
-  ConnectRelayFieldsMissing() => 'Enter both a relay URL and an appliance id.',
-  ConnectScannerFailed(:final error) => 'QR scanner failed: $error',
-  ConnectQrIdentity() =>
-    'Server fingerprint does not match the QR code. Refusing to connect.',
-  ConnectAddressMissing() => 'Please enter a host name or IP address',
-  ConnectAddressInvalid(:final message) => message,
-};
+/// Why the last connect did not link, as the connection screen says it. The
+/// host's own reasons and pairing failures use the words every linking
+/// surface shares.
+String connectProblemText(ConnectProblem problem, SkotiqLocalizations l10n) {
+  String error(Object e) => '$e';
+  return switch (problem) {
+    ConnectHostProblem(:final problem) => problem.message,
+    ConnectPairingFailed(:final failure, :final host) => pairingFailureText(
+      failure,
+      host,
+    ),
+    ConnectOneTapIdentity(:final failure) => failure.message,
+    ConnectForgotten(:final name) => l10n.text(
+      'mobileForgotten',
+      params: {'name': name},
+    ),
+    ConnectNoSession(:final host, :final port, :final tokenMissing) => [
+      l10n.text('mobileNoSession', params: {'address': '$host:$port'}),
+      if (tokenMissing) l10n.text('mobileNoSessionTokenMissing'),
+    ].join('\n\n'),
+    ConnectFailedWith(error: final e) => l10n.text(
+      'mobileConnectionError',
+      params: {'error': userFacingError(e)},
+    ),
+    ConnectNothingFound() => l10n.text('mobileNothingFound'),
+    ConnectDiscoveryFailed(error: final e) => l10n.text(
+      'mobileDiscoveryFailed',
+      params: {'error': error(e)},
+    ),
+    ConnectSessionLost() => l10n.text('mobileSessionLost'),
+    ConnectLostStillSettling() => l10n.text('mobileLostStillSettling'),
+    ConnectCannotLeave(error: final e) => l10n.text(
+      'mobileCannotLeave',
+      params: {'error': error(e)},
+    ),
+    ConnectUiNotReady() => l10n.text('mobileUiNotReady'),
+    ConnectBadApplianceId() => l10n.text('mobileBadApplianceId'),
+    ConnectBadRelayUrl(error: final e) => l10n.text(
+      'mobileBadRelayUrl',
+      params: {'error': error(e)},
+    ),
+    ConnectRelayRefused(:final code, :final message) => l10n.text(
+      'mobileRelayRefused',
+      params: {'code': code, 'message': message},
+    ),
+    ConnectRelayUnreachable(error: final e) => l10n.text(
+      'mobileRelayUnreachable',
+      params: {'error': error(e)},
+    ),
+    ConnectRelayFieldsMissing() => l10n.text('mobileRelayFieldsMissing'),
+    ConnectScannerFailed(error: final e) => l10n.text(
+      'mobileScannerFailed',
+      params: {'error': error(e)},
+    ),
+    ConnectQrIdentity() => l10n.text('mobileQrIdentity'),
+    ConnectAddressMissing() => l10n.text('mobileAddressMissing'),
+    ConnectAddressInvalid(:final message) => message,
+  };
+}

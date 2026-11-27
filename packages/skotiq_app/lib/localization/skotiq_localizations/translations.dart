@@ -48,6 +48,63 @@ final Map<String, Map<String, String>> _localizedValues = {
     'mobileEnterAddress': 'Enter address',
     'mobileAwayFromHome': 'Away from home',
     'mobileLookAround': 'Look around without a rig',
+    'mobileTryingLastComputer':
+        'Trying the computer this phone used last\u2026',
+    'mobileConnectingTo': 'Connecting to {name}...',
+    'mobilePairingWith': 'Pairing with {address}...',
+    'mobileConnectingViaRelay': 'Connecting via relay...',
+    'mobileConnectingViaQr': 'Connecting via QR code...',
+    'mobileForgotten':
+        'The imaging computer "{name}" no longer knows this phone. Pair again.',
+    'mobileNoSession':
+        'Could not connect to {address}\n\nServer may be offline, or this device is not authorized.',
+    'mobileNoSessionTokenMissing':
+        'This host requires an access token or paired-device QR code.',
+    'mobileConnectionError': 'Connection error: {error}',
+    'mobileNothingFound':
+        'No imaging computer answered on this Wi-Fi. Check that Skotiq is open on it and that both are on the same network, then scan its QR code or enter its address. Away from home, use Tailscale or a relay below. If it still is not found, its firewall may be blocking UDP 45679 and TCP 8080.',
+    'mobileDiscoveryFailed':
+        'Discovery failed: {error}\n\nTry entering the IP address manually or scan QR code.',
+    'mobileSessionLost':
+        'Connection to server lost. Retrying automatically \u2014 or reconnect below.',
+    'mobileLostStillSettling':
+        'Connection was lost, but local sequence startup is still settling. Wait a moment, then disconnect.',
+    'mobileCannotLeave': 'Cannot leave this host yet: {error}',
+    'mobileUiNotReady':
+        'Connection UI is not ready yet. Try again in a moment.',
+    'mobileBadApplianceId': 'Appliance id must look like xxxx-xxxx-xxxx.',
+    'mobileBadRelayUrl': 'Invalid relay URL: {error}',
+    'mobileRelayRefused': 'Relay refused the connection ({code}): {message}',
+    'mobileRelayUnreachable': 'Could not reach the relay: {error}',
+    'mobileRelayFieldsMissing': 'Enter both a relay URL and an appliance id.',
+    'mobileScannerFailed': 'QR scanner failed: {error}',
+    'mobileQrIdentity':
+        'Server fingerprint does not match the QR code. Refusing to connect.',
+    'mobileAddressMissing': 'Please enter a host name or IP address',
+    'mobileAccessTokenLabel': 'Access token (optional)',
+    'mobileAccessTokenHint': 'Only for a host that asks for one',
+    'mobileHideAccessToken': 'Hide access token',
+    'mobileShowAccessToken': 'Show access token',
+    'mobileRelayDialogBody':
+        'Reach your rig from anywhere through a self-hosted Skotiq relay \u2014 no VPN or port forwarding. The appliance id is printed by the headless daemon on first connect.',
+    'mobileRelayUrl': 'Relay URL',
+    'mobileApplianceId': 'Appliance id',
+    'mobileRelayTrustSelfSigned': 'Trust self-signed relay TLS',
+    'mobilePairTitle': 'Pair with Skotiq',
+    'mobilePairBody':
+        'On the imaging computer, open Settings \u2192 Remote access and press Start pairing. Scan the QR code it shows, or type the code.',
+    'mobilePairScan': 'Scan QR code',
+    'mobilePairCodeLabel': 'Pairing code',
+    'mobilePairCodeEmpty': 'Enter the pairing code before tapping Pair.',
+    'mobilePairFullControl': 'Full control of the imaging computer',
+    'mobilePairFullControlDetail':
+        'Lets this phone choose capture folders and manage backups too. Turn it off for a phone you lend to someone.',
+    'mobilePairNoScreenLan':
+        'No screen on the imaging computer? On its Wi-Fi this phone pairs without a code.',
+    'mobilePairNoScreenAsk':
+        'No screen on the imaging computer? Ask it for a code, then read the code where it says it put it.',
+    'mobilePairGetCode': 'Get a code',
+    'mobilePairGetNewCode': 'Get a new code',
     'tailscaleConnectDetail': 'Your own private network across the internet',
     'relayConnectDetail': 'Through a relay server, no VPN or port forwarding',
     'mobileErrorLoadingApp': 'Error Loading App',
@@ -1719,6 +1776,67 @@ final Map<String, Map<String, String>> _localizedValues = {
     'mobileEnterAddress': 'Introducir direcci\u00F3n',
     'mobileAwayFromHome': 'Fuera de casa',
     'mobileLookAround': 'Explorar sin un equipo',
+    'mobileTryingLastComputer':
+        'Probando el ordenador que este tel\u00E9fono us\u00F3 la \u00FAltima vez\u2026',
+    'mobileConnectingTo': 'Conectando con {name}...',
+    'mobilePairingWith': 'Vinculando con {address}...',
+    'mobileConnectingViaRelay': 'Conectando mediante rel\u00E9...',
+    'mobileConnectingViaQr': 'Conectando con el c\u00F3digo QR...',
+    'mobileForgotten':
+        'El ordenador de captura "{name}" ya no reconoce este tel\u00E9fono. Vuelve a vincularlo.',
+    'mobileNoSession':
+        'No se pudo conectar con {address}\n\nPuede que el servidor est\u00E9 apagado o que este dispositivo no est\u00E9 autorizado.',
+    'mobileNoSessionTokenMissing':
+        'Este equipo pide un token de acceso o el c\u00F3digo QR de un dispositivo vinculado.',
+    'mobileConnectionError': 'Error de conexi\u00F3n: {error}',
+    'mobileNothingFound':
+        'Ning\u00FAn ordenador de captura respondi\u00F3 en esta red Wi-Fi. Comprueba que Skotiq est\u00E1 abierto en \u00E9l y que ambos est\u00E1n en la misma red; despu\u00E9s escanea su c\u00F3digo QR o escribe su direcci\u00F3n. Fuera de casa, usa Tailscale o un rel\u00E9 (abajo). Si sigue sin aparecer, puede que su cortafuegos bloquee UDP 45679 y TCP 8080.',
+    'mobileDiscoveryFailed':
+        'La b\u00FAsqueda fall\u00F3: {error}\n\nEscribe la direcci\u00F3n IP a mano o escanea el c\u00F3digo QR.',
+    'mobileSessionLost':
+        'Se perdi\u00F3 la conexi\u00F3n con el servidor. Se reintenta sola, o vuelve a conectar abajo.',
+    'mobileLostStillSettling':
+        'Se perdi\u00F3 la conexi\u00F3n, pero el inicio de la secuencia local a\u00FAn no ha terminado. Espera un momento y luego descon\u00E9ctate.',
+    'mobileCannotLeave': 'A\u00FAn no se puede salir de este equipo: {error}',
+    'mobileUiNotReady':
+        'La pantalla de conexi\u00F3n a\u00FAn no est\u00E1 lista. Int\u00E9ntalo de nuevo en un momento.',
+    'mobileBadApplianceId': 'El id del equipo tiene la forma xxxx-xxxx-xxxx.',
+    'mobileBadRelayUrl': 'URL de rel\u00E9 no v\u00E1lida: {error}',
+    'mobileRelayRefused':
+        'El rel\u00E9 rechaz\u00F3 la conexi\u00F3n ({code}): {message}',
+    'mobileRelayUnreachable': 'No se pudo contactar con el rel\u00E9: {error}',
+    'mobileRelayFieldsMissing':
+        'Escribe la URL del rel\u00E9 y el id del equipo.',
+    'mobileScannerFailed': 'El lector de QR fall\u00F3: {error}',
+    'mobileQrIdentity':
+        'La huella del servidor no coincide con el c\u00F3digo QR. No se conecta.',
+    'mobileAddressMissing':
+        'Escribe un nombre de equipo o una direcci\u00F3n IP',
+    'mobileAccessTokenLabel': 'Token de acceso (opcional)',
+    'mobileAccessTokenHint': 'Solo para un equipo que lo pida',
+    'mobileHideAccessToken': 'Ocultar el token de acceso',
+    'mobileShowAccessToken': 'Mostrar el token de acceso',
+    'mobileRelayDialogBody':
+        'Llega a tu equipo desde cualquier sitio a trav\u00E9s de un rel\u00E9 de Skotiq propio, sin VPN ni redirecci\u00F3n de puertos. El servicio sin pantalla muestra el id del equipo en la primera conexi\u00F3n.',
+    'mobileRelayUrl': 'URL del rel\u00E9',
+    'mobileApplianceId': 'Id del equipo',
+    'mobileRelayTrustSelfSigned': 'Confiar en el TLS autofirmado del rel\u00E9',
+    'mobilePairTitle': 'Vincular con Skotiq',
+    'mobilePairBody':
+        'En el ordenador de captura, abre Ajustes \u2192 Acceso remoto y pulsa Empezar a vincular. Escanea el c\u00F3digo QR que muestra o escribe el c\u00F3digo.',
+    'mobilePairScan': 'Escanear el c\u00F3digo QR',
+    'mobilePairCodeLabel': 'C\u00F3digo de vinculaci\u00F3n',
+    'mobilePairCodeEmpty':
+        'Escribe el c\u00F3digo de vinculaci\u00F3n antes de tocar Vincular.',
+    'mobilePairFullControl': 'Control total del ordenador de captura',
+    'mobilePairFullControlDetail':
+        'Permite tambi\u00E9n a este tel\u00E9fono elegir carpetas de captura y gestionar copias de seguridad. Desact\u00EDvalo en un tel\u00E9fono que prestes a otra persona.',
+    'mobilePairNoScreenLan':
+        '\u00BFEl ordenador de captura no tiene pantalla? En su red Wi-Fi este tel\u00E9fono se vincula sin c\u00F3digo.',
+    'mobilePairNoScreenAsk':
+        '\u00BFEl ordenador de captura no tiene pantalla? P\u00EDdele un c\u00F3digo y l\u00E9elo donde diga que lo dej\u00F3.',
+    'mobilePairGetCode': 'Pedir un c\u00F3digo',
+    'mobilePairGetNewCode': 'Pedir un c\u00F3digo nuevo',
     'tailscaleConnectDetail': 'Tu propia red privada a trav\u00E9s de internet',
     'relayConnectDetail':
         'A trav\u00E9s de un servidor de retransmisi\u00F3n, sin VPN ni redirecci\u00F3n de puertos',

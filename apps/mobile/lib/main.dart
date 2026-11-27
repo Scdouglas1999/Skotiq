@@ -410,9 +410,11 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
 
         final busy = connection.busy;
         final manualEntryOpen = connection.manualEntryOpen;
-        final status = connectActivityText(connection.activity);
+        final status = connectActivityText(connection.activity, l10n);
         final problem = connection.problem;
-        final error = problem == null ? null : connectProblemText(problem);
+        final error = problem == null
+            ? null
+            : connectProblemText(problem, l10n);
         final showChoices = !busy && !manualEntryOpen;
 
         Widget awayRow({
@@ -678,8 +680,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       controller: _accessTokenController,
                       obscureText: !_accessTokenVisible,
                       decoration: InputDecoration(
-                        labelText: 'Access token (optional)',
-                        hintText: 'Only for a host that asks for one',
+                        labelText: l10n.text('mobileAccessTokenLabel'),
+                        hintText: l10n.text('mobileAccessTokenHint'),
                         prefixIcon: const Icon(Icons.vpn_key),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -687,9 +689,11 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                                 ? Icons.visibility_off
                                 : Icons.visibility,
                           ),
-                          tooltip: _accessTokenVisible
-                              ? 'Hide access token'
-                              : 'Show access token',
+                          tooltip: l10n.text(
+                            _accessTokenVisible
+                                ? 'mobileHideAccessToken'
+                                : 'mobileShowAccessToken',
+                          ),
                           onPressed: () {
                             setState(() {
                               _accessTokenVisible = !_accessTokenVisible;

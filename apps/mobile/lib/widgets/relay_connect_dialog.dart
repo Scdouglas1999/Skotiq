@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Relay-connect dialog. Owns its text controllers for the lifetime of the
@@ -41,6 +42,7 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final mediaQuery = MediaQuery.of(context);
     final keyboardAvailableHeight =
         mediaQuery.size.height - mediaQuery.viewInsets.vertical;
@@ -60,22 +62,20 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
       titlePadding: keyboardCompact ? EdgeInsets.zero : null,
       title: Offstage(
         offstage: keyboardCompact,
-        child: const Text('Connect via Relay'),
+        child: Text(l10n.text('relayConnect')),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Offstage(
             offstage: keyboardCompact,
-            child: const Column(
+            child: Column(
               children: [
                 Text(
-                  'Reach your rig from anywhere through a self-hosted '
-                  'Skotiq relay — no VPN or port forwarding. The appliance '
-                  'id is printed by the headless daemon on first connect.',
-                  style: TextStyle(fontSize: SkotiqTypography.fontSize13),
+                  l10n.text('mobileRelayDialogBody'),
+                  style: const TextStyle(fontSize: SkotiqTypography.fontSize13),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -85,8 +85,8 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
             autocorrect: false,
             enableSuggestions: false,
             keyboardType: TextInputType.url,
-            decoration: const InputDecoration(
-              labelText: 'Relay URL',
+            decoration: InputDecoration(
+              labelText: l10n.text('mobileRelayUrl'),
               hintText: 'wss://relay.example.com',
             ),
           ),
@@ -96,8 +96,8 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
             controller: _idController,
             autocorrect: false,
             enableSuggestions: false,
-            decoration: const InputDecoration(
-              labelText: 'Appliance id',
+            decoration: InputDecoration(
+              labelText: l10n.text('mobileApplianceId'),
               hintText: 'xxxx-xxxx-xxxx',
             ),
           ),
@@ -110,9 +110,11 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
                   contentPadding: EdgeInsets.zero,
                   value: _allowInsecure,
                   onChanged: (v) => setState(() => _allowInsecure = v ?? false),
-                  title: const Text(
-                    'Trust self-signed relay TLS',
-                    style: TextStyle(fontSize: SkotiqTypography.fontSize13),
+                  title: Text(
+                    l10n.text('mobileRelayTrustSelfSigned'),
+                    style: const TextStyle(
+                      fontSize: SkotiqTypography.fontSize13,
+                    ),
                   ),
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
@@ -124,7 +126,7 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.text('cancel')),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop((
@@ -132,7 +134,7 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
             applianceId: _idController.text,
             allowInsecure: _allowInsecure,
           )),
-          child: const Text('Connect'),
+          child: Text(l10n.text('connect')),
         ),
       ],
     );
