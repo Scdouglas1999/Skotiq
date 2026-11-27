@@ -3618,7 +3618,7 @@ mod fits_naxis2_tests {
         let image = ImageData::new(16, 12, 1, PixelType::U16);
         write_fits(&path, &image, &FitsHeader::new()).unwrap();
         let read = (fits_naxis2(&path), super::fits_image_size(&path));
-        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::remove_dir_all(&dir).expect("scratch folder removed");
         assert_eq!(read, (Some(12.0), Some((16.0, 12.0))));
     }
 
@@ -3640,7 +3640,7 @@ mod fits_naxis2_tests {
         write_fits(&path, &image, &header).unwrap();
 
         let scale = super::fits_scale_arcsec_per_px(&path);
-        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::remove_dir_all(&dir).expect("scratch folder removed");
         let scale = scale.unwrap();
         assert!(
             (scale - 1.292_59).abs() < 1e-4,
@@ -3656,7 +3656,7 @@ mod fits_naxis2_tests {
         let image = ImageData::new(16, 12, 1, PixelType::U16);
         write_fits(&path, &image, &FitsHeader::new()).unwrap();
         let scale = super::fits_scale_arcsec_per_px(&path);
-        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::remove_dir_all(&dir).expect("scratch folder removed");
         assert_eq!(scale, None);
     }
 }
