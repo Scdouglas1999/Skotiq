@@ -52,7 +52,7 @@
     "body": {
       "error": "frame_other_filter",
       "code": "frame_other_filter",
-      "message": "Frame of another filter not stacked: the frame was taken through R and this live stack is of frames taken through L.)",
+      "message": "Frame of another filter not stacked: the frame was taken through R and this live stack is of frames taken through L.",
       "requestId": "test-request",
       "imagePath": "/host/other_filter.fits",
       "sentence": "Frame of another filter not stacked: the frame was taken through R and this live stack is of frames taken through L."

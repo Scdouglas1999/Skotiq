@@ -1,4 +1,5 @@
-// The phone pairs through core's RigPairingService with its own device id.
+// The phone pairs through core's RigPairingService with its own device id,
+// as its connection device hands it to the connect flow.
 // The host record's transport `scheme` (https for a TLS-fronted tailnet rig)
 // and known `fingerprint` (the MITM pre-flight) must reach the client: if
 // either is dropped, pairing-over-Tailscale either 400s (wrong scheme) or
@@ -12,6 +13,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_mobile/services/mobile_pairing_service.dart';
+import 'package:skotiq_mobile/services/phone_rig_connection.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -103,11 +105,18 @@ class _RecordingClient extends RemotePairingClient {
 
 final _rig = DiscoveredServer(host: '192.168.1.50', webPort: 8099, name: 'rig');
 
+/// The phone's side of the connect flow; pairing touches neither of the
+/// services it is built with.
+final _device = PhoneRigConnectionDevice(
+  connection: () => throw StateError('pairing reads no connection'),
+  savedServers: () => throw StateError('pairing reads no saved servers'),
+);
+
 Future<RigPairing> _pair(
   _FakePairingServer server, {
   String scheme = 'http',
   String? fingerprint,
-}) => MobilePairingService.pairWithCode(
+}) => _device.pairing.pairWithCode(
   DiscoveredServer(
     host: '127.0.0.1',
     webPort: server.port,
@@ -116,6 +125,7 @@ Future<RigPairing> _pair(
     fingerprint: fingerprint,
   ),
   code: 'STAR-LYRA-1234',
+  deviceName: _device.pairingDeviceName,
   fullAccess: true,
 );
 
@@ -206,11 +216,13 @@ void main() {
     test('a code typed with spaces is sent as the host shows it', () async {
       final client = _RecordingClient();
 
-      await MobilePairingService.pairWithCode(
+      await MobilePairingService.pairing(
+        clientFactory: (_) => client,
+      ).pairWithCode(
         _rig,
         code: 'star lyra 1234',
+        deviceName: MobilePairingService.deviceName(),
         fullAccess: true,
-        clientFactory: (_) => client,
       );
 
       expect(client.codes, ['STAR-LYRA-1234']);
@@ -219,51 +231,24 @@ void main() {
     test('one tap names the same device type as a code', () async {
       final client = _RecordingClient();
 
-      await MobilePairingService.pairOneTap(_rig, clientFactory: (_) => client);
-      await MobilePairingService.pairWithCode(
+      final pairing = MobilePairingService.pairing(
+        clientFactory: (_) => client,
+      );
+      await pairing.pairOneTap(
+        _rig,
+        deviceName: MobilePairingService.deviceName(),
+        fullAccess: true,
+      );
+      await pairing.pairWithCode(
         _rig,
         code: 'STAR-LYRA-1234',
+        deviceName: MobilePairingService.deviceName(),
         fullAccess: true,
-        clientFactory: (_) => client,
       );
 
       expect(client.types, hasLength(2));
       expect(client.types.first, client.types.last);
       expect(client.types.first, MobilePairingService.platformDeviceType());
-    });
-  });
-
-  group('a refused pairing reads as on the desktop', () {
-    setUp(() async {
-      server = _FakePairingServer();
-      await server.start();
-    });
-
-    test('a wrong code says it does not match', () {
-      const failure = RigPairingFailure(
-        RigPairingFailureKind.invalidCode,
-        'Invalid pairing code',
-        hostMessage: 'Invalid pairing code',
-        statusCode: 401,
-      );
-
-      expect(
-        pairingFailureText(failure, _rig),
-        "That code doesn't match the one rig shows. Check it and try again.",
-      );
-    });
-
-    test('a request that never reached the host names the address', () {
-      final failure = RigPairingFailure(
-        RigPairingFailureKind.unreachable,
-        'SocketException: refused',
-        cause: const SocketException('refused'),
-      );
-
-      expect(
-        pairingFailureText(failure, _rig),
-        "Can't reach rig at 192.168.1.50:8099.",
-      );
     });
   });
 }

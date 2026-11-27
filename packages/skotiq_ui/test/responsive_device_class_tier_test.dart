@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Probes the device-class TIER family ([Responsive.isMobile] / [isTablet] /
-/// [isDesktop] / [isDesktopLarge] / [isUltraWide]).
+/// Probes the device-class TIER family ([Responsive.isMobile] /
+/// [Responsive.isDesktop]).
 ///
 /// Branching the tier family on the raw window WIDTH reports desktop-class for
 /// a landscape phone or a foldable cover screen (long edge >= 768, e.g. the
@@ -11,16 +11,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// a mobile OS the tier keys off the SHORTEST side so the classification is
 /// orientation-stable, matching [Responsive.isPhone]. On desktop the live width
 /// still drives the tier.
-Future<
-  ({
-    bool isMobile,
-    bool isTablet,
-    bool isDesktop,
-    bool isDesktopLarge,
-    bool isUltraWide,
-  })
->
-_probe(
+Future<({bool isMobile, bool isDesktop})> _probe(
   WidgetTester tester,
   Size size, {
   TargetPlatform platform = TargetPlatform.android,
@@ -30,10 +21,7 @@ _probe(
   addTearDown(tester.view.reset);
 
   late bool isMobile;
-  late bool isTablet;
   late bool isDesktop;
-  late bool isDesktopLarge;
-  late bool isUltraWide;
 
   final touch =
       platform == TargetPlatform.android || platform == TargetPlatform.iOS;
@@ -45,10 +33,7 @@ _probe(
         home: Builder(
           builder: (context) {
             isMobile = Responsive.isMobile(context);
-            isTablet = Responsive.isTablet(context);
             isDesktop = Responsive.isDesktop(context);
-            isDesktopLarge = Responsive.isDesktopLarge(context);
-            isUltraWide = Responsive.isUltraWide(context);
             return const SizedBox.shrink();
           },
         ),
@@ -56,13 +41,7 @@ _probe(
     ),
   );
 
-  return (
-    isMobile: isMobile,
-    isTablet: isTablet,
-    isDesktop: isDesktop,
-    isDesktopLarge: isDesktopLarge,
-    isUltraWide: isUltraWide,
-  );
+  return (isMobile: isMobile, isDesktop: isDesktop);
 }
 
 void main() {
@@ -78,10 +57,7 @@ void main() {
         isTrue,
         reason: 'short edge 369 < 768 must keep it in the mobile tier',
       );
-      expect(r.isTablet, isFalse);
       expect(r.isDesktop, isFalse);
-      expect(r.isDesktopLarge, isFalse);
-      expect(r.isUltraWide, isFalse);
     });
 
     testWidgets('844x390 rotated phone classifies as mobile', (tester) async {
@@ -96,13 +72,12 @@ void main() {
       expect(r.isDesktop, isFalse);
     });
 
-    testWidgets('768x1024 tablet portrait is the tablet tier, not mobile', (
+    testWidgets('768x1024 tablet portrait is neither mobile nor desktop', (
       tester,
     ) async {
       // Short edge 768 is exactly the tablet breakpoint, so not mobile.
       final r = await _probe(tester, const Size(768, 1024));
       expect(r.isMobile, isFalse);
-      expect(r.isTablet, isTrue);
       expect(r.isDesktop, isFalse);
     });
 
@@ -113,14 +88,13 @@ void main() {
         // a tablet, orientation-stable with the portrait case above.
         final r = await _probe(tester, const Size(1024, 768));
         expect(r.isMobile, isFalse);
-        expect(r.isTablet, isTrue);
         expect(r.isDesktop, isFalse);
       },
     );
   });
 
   group('desktop tier classification (live width drives reflow, preserved)', () {
-    testWidgets('905x369 desktop window classifies as tablet tier by width', (
+    testWidgets('905x369 desktop window is not mobile by width', (
       tester,
     ) async {
       // Contrast the mobile case: on desktop the actual width (905) decides the
@@ -131,7 +105,6 @@ void main() {
         platform: TargetPlatform.windows,
       );
       expect(r.isMobile, isFalse);
-      expect(r.isTablet, isTrue);
       expect(r.isDesktop, isFalse);
     });
 
@@ -146,27 +119,22 @@ void main() {
       expect(r.isMobile, isTrue);
     });
 
-    testWidgets('1440x900 desktop window is desktop + desktop-large', (
-      tester,
-    ) async {
+    testWidgets('1440x900 desktop window is desktop', (tester) async {
       final r = await _probe(
         tester,
         const Size(1440, 900),
         platform: TargetPlatform.windows,
       );
       expect(r.isDesktop, isTrue);
-      expect(r.isDesktopLarge, isTrue);
-      expect(r.isUltraWide, isFalse);
     });
 
-    testWidgets('1920x1080 desktop window is ultra-wide', (tester) async {
+    testWidgets('1920x1080 desktop window is desktop', (tester) async {
       final r = await _probe(
         tester,
         const Size(1920, 1080),
         platform: TargetPlatform.macOS,
       );
       expect(r.isDesktop, isTrue);
-      expect(r.isUltraWide, isTrue);
     });
   });
 }

@@ -274,7 +274,7 @@ class StackingHandlers implements RouteSource {
       // names both filters.
       LiveStackRefusalKind.otherFilter => HandlerFailure(
         code: 'frame_other_filter',
-        message: legacy.substring(legacy.indexOf(refusal.message)),
+        message: refusal.message,
         statusCode: 422,
         details: {'imagePath': imagePath, 'sentence': refusal.message},
         cause: error,

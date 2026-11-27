@@ -676,9 +676,8 @@ void main() {
       expect(response.statusCode, HttpStatus.unprocessableEntity);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['error'], 'frame_other_filter');
-      // The text the native refusal had before it had a kind, as a host
-      // sends it: the sentence closed by the freezed form's ")".
-      expect(body['message'], '$sentence)');
+      // The engine's sentence, as it names both filters.
+      expect(body['message'], sentence);
       expect(body['sentence'], sentence);
     },
   );

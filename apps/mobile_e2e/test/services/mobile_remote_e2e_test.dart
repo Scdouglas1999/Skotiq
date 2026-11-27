@@ -29,8 +29,9 @@
 // `apps/mobile_e2e/pubspec.yaml`. Production mobile builds do NOT link it.
 
 import 'dart:async';
-import 'dart:io' show Platform, WebSocketException;
+import 'dart:io' show WebSocketException;
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -38,12 +39,13 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/bridge_events.dart' as sk;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_desktop/headless_api/auth/pairing_service.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 import 'package:skotiq_mobile/services/mobile_event_notifier.dart';
 import 'package:skotiq_mobile/services/mobile_preferences.dart';
 import 'package:skotiq_mobile/services/notification_service.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show skotiqRelease;
+    show PairingDatabase, skotiqRelease;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Recording double for `MobileNotificationSink`. Same shape as the one in
@@ -250,19 +252,6 @@ void main() {
   // values: all categories notify-enabled (see MobilePreferences setters).
   SharedPreferences.setMockInitialValues(<String, Object>{});
 
-  // This suite boots a real in-process HeadlessApiServer on an ephemeral port
-  // and drives a real WebSocket round-trip with multi-second propagation
-  // windows. That makes it inherently timing/port-binding-flaky under the
-  // default `melos run test` gate (different cases fail on different runs), so
-  // it is excluded by default and run explicitly with SKOTIQ_E2E=1. The
-  // production transports it exercises are also covered deterministically by
-  // network_backend_tailnet_test (core) and the mobile pairing/service tests.
-  final Object? e2eSkip = Platform.environment['SKOTIQ_E2E'] == '1'
-      ? null
-      : 'Flaky real-socket E2E (live HeadlessApiServer + WebSocket, multi-second '
-            'waits). Run explicitly with SKOTIQ_E2E=1 flutter test '
-            'test/services/mobile_remote_e2e_test.dart';
-
   group('Mobile remote E2E (HeadlessApiServer ↔ NetworkBackend)', () {
     late _ServerSideBackend serverBackend;
     late ProviderContainer serverContainer;
@@ -291,6 +280,11 @@ void main() {
         // test's microtask queue.
         webSocketHeartbeatInterval: const Duration(days: 1),
         webSocketHeartbeatTimeout: const Duration(days: 1),
+        // Paired devices live in memory: the server would otherwise open the
+        // platform documents folder, which a test host has no plugin for.
+        pairingService: PairingService(
+          database: PairingDatabase.forTesting(NativeDatabase.memory()),
+        ),
       );
       await server.start();
     }
@@ -585,5 +579,5 @@ void main() {
       // bubble up as a test-runner-zone unhandled-async-error and fail
       // the test for the wrong reason.
     });
-  }, skip: e2eSkip);
+  });
 }

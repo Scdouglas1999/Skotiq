@@ -18,7 +18,7 @@ import 'package:skotiq_app/router/app_routes.dart' show AppRoutes;
 import 'package:skotiq_app/router/equipment_route.dart' show EquipmentTab;
 import 'package:skotiq_app/skotiq_app.dart'
     show SkotiqSplashGate, appRouterProvider;
-import 'package:skotiq_app/services/host_folders.dart' show hostFoldersProvider;
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
@@ -374,9 +374,11 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
 
   Future<void> _commitImageOutputPath() async {
     if (_busy) return;
-    final hostFiles = ref.read(linkedHostFilesProvider);
     final hostSettings = ref.read(linkedHostRigSettingsProvider);
-    if (hostFiles == null || hostSettings == null) return;
+    // The folder is the linked host's; with no host there is nothing to set.
+    if (ref.read(linkedHostFilesProvider) == null || hostSettings == null) {
+      return;
+    }
     final path = _customPathController.text.trim();
     if (path.isEmpty) {
       showApiError(
@@ -390,20 +392,21 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     }
     setState(() => _busy = true);
     try {
-      final validation = await hostFiles.validateRemoteDirectory(
-        path,
-        mustExist: true,
-        mustBeWritable: true,
-      );
-      if (!validation.valid) {
-        throw ServerError(
+      final verdict = await ref.read(hostFoldersProvider).prepare(path);
+      final validatedPath = switch (verdict) {
+        FolderUsable(path: final hostPath) =>
+          hostPath == null || hostPath.isEmpty ? path : hostPath,
+        FolderRefused(:final reason) => throw ServerError(
+          code: 'invalid_output_path',
+          message: reason,
+        ),
+        FolderUnchecked(:final reason) => throw _HostNotAsked(reason),
+        FolderMissing() => throw const ServerError(
           code: 'invalid_output_path',
           message:
-              validation.reason ??
               'Choose a folder on the rig that exists and can be written to.',
-        );
-      }
-      final validatedPath = validation.pathOr(path);
+        ),
+      };
       final current = await hostSettings.getSettings();
       await hostSettings.updateSettings(
         current.copyWith(imageOutputPath: validatedPath),
@@ -919,4 +922,14 @@ class _CatalogRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The host could not be asked about the folder; [reason] says why.
+class _HostNotAsked implements Exception {
+  const _HostNotAsked(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => reason;
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
@@ -51,5 +53,40 @@ void main() {
       'Connection to server lost. Retrying automatically — or reconnect '
       'below.',
     );
+  });
+
+  group('a refused pairing reads as on the desktop', () {
+    final rig = DiscoveredServer(
+      host: '192.168.1.50',
+      webPort: 8099,
+      name: 'rig',
+    );
+
+    test('a wrong code says it does not match', () {
+      const failure = RigPairingFailure(
+        RigPairingFailureKind.invalidCode,
+        'Invalid pairing code',
+        hostMessage: 'Invalid pairing code',
+        statusCode: 401,
+      );
+
+      expect(
+        connectProblemText(ConnectPairingFailed(failure, rig), en),
+        "That code doesn't match the one rig shows. Check it and try again.",
+      );
+    });
+
+    test('a request that never reached the host names the address', () {
+      final failure = RigPairingFailure(
+        RigPairingFailureKind.unreachable,
+        'SocketException: refused',
+        cause: const SocketException('refused'),
+      );
+
+      expect(
+        connectProblemText(ConnectPairingFailed(failure, rig), en),
+        "Can't reach rig at 192.168.1.50:8099.",
+      );
+    });
   });
 }

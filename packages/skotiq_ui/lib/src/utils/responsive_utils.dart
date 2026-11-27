@@ -12,13 +12,6 @@ import 'adaptive_dialog_constraints.dart';
 /// if (Responsive.isMobile(context)) {
 ///   // Mobile layout
 /// }
-///
-/// final padding = Responsive.value(
-///   context,
-///   mobile: 8.0,
-///   tablet: 16.0,
-///   desktop: 24.0,
-/// );
 /// ```
 abstract final class Responsive {
   Responsive._();
@@ -27,34 +20,22 @@ abstract final class Responsive {
   /// [BreakpointTokens.breakpointPhone]).
   static const double phoneMaxWidth = BreakpointTokens.breakpointPhone;
 
-  /// Width below which the phone is **compact** (`< 480`,
-  /// [SkotiqTokens.breakpointMobile]) and dense rows need extra tightening
-  /// — e.g. a stat strip should 2-column or stack rather than stay in one row.
-  static const double compactPhoneMaxWidth = SkotiqTokens.breakpointMobile;
-
   /// Returns true on a **phone**, in either orientation: [ShellLayout.isPhone].
   ///
   /// Prefer this, or a [LayoutBuilder] reading the region's own width, when
   /// building phone layouts. [isMobile] (`< 768`) lumps small tablets in with
-  /// phones. Pair with [isPhoneLandscape] / [isPhonePortrait] to choose the
-  /// per-orientation reflow.
+  /// phones. Pair with [isPhoneLandscape] to choose the per-orientation
+  /// reflow.
   static bool isPhone(BuildContext context) => ShellLayout.of(context).isPhone;
 
-  /// The width that picks a device-class tier ([isMobile] / [isTablet] /
-  /// [isDesktop] / [isDesktopLarge] / [isUltraWide]): [ShellLayout.tierWidth].
+  /// The width that picks a device-class tier ([isMobile] / [isDesktop]):
+  /// [ShellLayout.tierWidth].
   ///
   /// For tier classification only. Helpers that size to the viewport
-  /// ([panelWidth], [gridColumns], [panelDimensions], [scaleFactor], dialog and
+  /// ([gridColumns], [panelDimensions], [scaleFactor], dialog and
   /// preview constraints) use the real width and height.
   static double _classWidth(BuildContext context) =>
       ShellLayout.of(context).tierWidth;
-
-  /// Returns true on a **compact phone** (`width < 480`).
-  ///
-  /// Use to tighten further (e.g. drop a stat strip to a single column, hide a
-  /// label, reduce a 2-up grid to 1-up) — but never to break the layout.
-  static bool isCompactPhone(BuildContext context) =>
-      MediaQuery.sizeOf(context).width < compactPhoneMaxWidth;
 
   /// Returns true if the device-class width is less than the tablet breakpoint
   /// (768px).
@@ -68,60 +49,10 @@ abstract final class Responsive {
   static bool isMobile(BuildContext context) =>
       _classWidth(context) < SkotiqTokens.breakpointTablet;
 
-  /// Returns true if the device-class width is between tablet (768px) and
-  /// desktop (1024px) breakpoints.
-  static bool isTablet(BuildContext context) {
-    final width = _classWidth(context);
-    return width >= SkotiqTokens.breakpointTablet &&
-        width < SkotiqTokens.breakpointDesktop;
-  }
-
   /// Returns true if the device-class width is at least the desktop breakpoint
   /// (1024px).
   static bool isDesktop(BuildContext context) =>
       _classWidth(context) >= SkotiqTokens.breakpointDesktop;
-
-  /// Returns true if the device-class width is at least the large desktop
-  /// breakpoint (1440px).
-  static bool isDesktopLarge(BuildContext context) =>
-      _classWidth(context) >= SkotiqTokens.breakpointDesktopLg;
-
-  /// Returns true if the device-class width is at least the ultra-wide
-  /// breakpoint (1920px).
-  static bool isUltraWide(BuildContext context) =>
-      _classWidth(context) >= SkotiqTokens.breakpointUltraWide;
-
-  /// Returns a value based on screen size breakpoints.
-  ///
-  /// If [tablet] is not specified, falls back to [desktop].
-  static T value<T>(
-    BuildContext context, {
-    required T mobile,
-    T? tablet,
-    required T desktop,
-  }) {
-    if (isMobile(context)) return mobile;
-    if (isTablet(context)) return tablet ?? desktop;
-    return desktop;
-  }
-
-  /// Returns a value with additional breakpoints for large screens.
-  static T valueExtended<T>(
-    BuildContext context, {
-    required T mobile,
-    T? tablet,
-    required T desktop,
-    T? desktopLarge,
-    T? ultraWide,
-  }) {
-    if (isMobile(context)) return mobile;
-    if (isTablet(context)) return tablet ?? desktop;
-    if (isDesktopLarge(context)) {
-      if (isUltraWide(context)) return ultraWide ?? desktopLarge ?? desktop;
-      return desktopLarge ?? desktop;
-    }
-    return desktop;
-  }
 
   /// Dialog constraints that fit within the viewport: the preferred size capped
   /// at [maxWidthPercent] / [maxHeightPercent] of the screen, floored at
@@ -155,20 +86,6 @@ abstract final class Responsive {
     );
   }
 
-  /// Returns adaptive padding based on screen size.
-  ///
-  /// Mobile: compact padding
-  /// Tablet: medium padding
-  /// Desktop: standard padding
-  static EdgeInsets adaptivePadding(BuildContext context) {
-    return value(
-      context,
-      mobile: SkotiqTokens.screenPaddingCompact,
-      tablet: SkotiqTokens.screenPadding,
-      desktop: SkotiqTokens.screenPadding,
-    );
-  }
-
   /// Calculates responsive panel width based on screen size.
   ///
   /// [initialPercent] - Initial width as percentage of screen width
@@ -190,17 +107,6 @@ abstract final class Responsive {
       min: (screenWidth * minPercent).clamp(absoluteMin * 0.8, absoluteMin),
       max: (screenWidth * maxPercent).clamp(absoluteMax * 0.7, absoluteMax),
     );
-  }
-
-  /// Returns the current breakpoint name for debugging.
-  static String breakpointName(BuildContext context) {
-    if (isMobile(context)) return 'mobile';
-    if (isTablet(context)) return 'tablet';
-    if (isDesktopLarge(context)) {
-      if (isUltraWide(context)) return 'ultraWide';
-      return 'desktopLarge';
-    }
-    return 'desktop';
   }
 
   /// Calculate a universal scale factor based on screen dimensions.
@@ -304,11 +210,6 @@ abstract final class Responsive {
   static bool isPhoneLandscape(BuildContext context) =>
       isPhone(context) && isLandscape(context);
 
-  /// True on a **phone held in portrait** — the canonical
-  /// "single vertically-scrolling column" case.
-  static bool isPhonePortrait(BuildContext context) =>
-      isPhone(context) && isPortrait(context);
-
   /// Returns true if the screen is ultrawide (aspect ratio > 2.0).
   ///
   /// Ultrawide screens (21:9, 32:9) need special layout considerations.
@@ -371,14 +272,5 @@ abstract final class Responsive {
   }) {
     if (viewportWidth <= 0) return maxAbsolute;
     return math.min(maxAbsolute, viewportWidth * widthFraction);
-  }
-
-  /// Returns the optimal panel width for slide-out panels based on screen size.
-  static double panelWidth(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    if (isMobile(context)) return width; // Full width on mobile
-    if (isTablet(context)) return math.min(400, width * 0.6);
-    if (isUltraWideAspect(context)) return math.min(500, width * 0.25);
-    return math.min(450, width * 0.35);
   }
 }

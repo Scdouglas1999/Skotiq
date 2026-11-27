@@ -2,6 +2,7 @@
 library;
 
 export 'app.dart';
+export 'app_frame.dart';
 export 'router/app_router.dart';
 export 'screens/shell/shell_chrome.dart' show ShellChrome;
 export 'screens/shell/phone_bar_status.dart';

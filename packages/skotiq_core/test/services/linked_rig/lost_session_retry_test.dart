@@ -7,9 +7,9 @@
 // returns — a cold start reconnects instantly from the same saved server and
 // token, so the credentials are never what is missing.
 //
-// The retry path re-arms the same `_autoConnect()` entry point a cold start
-// uses, on the backoff pinned below. These cases lock the schedule's shape: it
-// must ramp (so a blip recovers in seconds), it must cap (so it never
+// The retry path re-arms the same `RigConnectionService.autoConnect` a cold
+// start uses, on the backoff pinned below. These cases lock the schedule's
+// shape: it must ramp (so a blip recovers in seconds), it must cap (so it never
 // busy-polls), and it must never terminate (so an overnight outage still
 // re-attaches).
 import 'package:flutter_test/flutter_test.dart';
