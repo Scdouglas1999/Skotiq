@@ -854,8 +854,8 @@ class _DarkroomStartOfferView extends StatelessWidget {
 /// and the render control.
 ///
 /// The Darkroom's own header names the screen and its tabs, so this strip
-/// carries what the header used to qualify the title with: the image (its
-/// target and kind as an overline) and the recipe open over it.
+/// carries the image (its target and kind as an overline) and the recipe open
+/// over it.
 class _DarkroomEditorBar extends StatelessWidget {
   /// The registered image, once the library has answered.
   final DarkroomLibraryImage? image;

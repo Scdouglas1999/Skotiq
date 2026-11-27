@@ -88,9 +88,7 @@ class _SequencerPageHeader extends ConsumerWidget {
       ),
       actions: <Widget>[
         // A phone header has room for a title and one glyph. The words go, not
-        // the action: the tooltip keeps the name and MobilePlaybackBar
-        // already owns the transport, so repeating
-        // Start/Stop here would be the second copy of the same control.
+        // the action: the tooltip keeps the name.
         if (isPhone) ...[
           SkotiqIconButton(
             icon: LucideIcons.history,

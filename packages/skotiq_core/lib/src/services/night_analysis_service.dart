@@ -34,9 +34,7 @@ part 'night_analysis_service/statistics.dart';
 ///
 /// **Fail-soft contract.** Every detector emits *nothing* (rather than throwing
 /// or guessing) when the signal it needs is missing — too few subs, a metric
-/// that is null across the night, or an absent science table. This is the rule
-/// the brief calls out: "detectors that need missing data fail-soft (emit
-/// nothing rather than throw)".
+/// that is null across the night, or an absent science table.
 ///
 /// **Un-gradable nights.** Because the score only ever subtracts, silence from
 /// every detector is indistinguishable from a flawless night. A night with

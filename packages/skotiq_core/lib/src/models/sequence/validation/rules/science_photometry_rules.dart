@@ -5,7 +5,7 @@ import '../validation_issue.dart';
 
 /// Science: SciencePhotometry validation rules.
 ///
-/// These rules cover the three failure modes the brief calls out:
+/// These rules cover three failure modes:
 ///   * non-photometric filter (warning) — frames captured through Ha /
 ///     OIII / Lum are still useful for some workflows but the INSTRMAG
 ///     / DIFFMAG keywords are no longer comparable to AAVSO catalogues.

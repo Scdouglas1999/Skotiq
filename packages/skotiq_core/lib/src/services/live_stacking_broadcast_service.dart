@@ -115,8 +115,8 @@ class BroadcastSessionState {
   ///   - [LiveStackingMethod.average] → sigma_clip_enabled = false
   ///   - [LiveStackingMethod.medianRej] / [LiveStackingMethod.sigma] →
   ///     sigma_clip_enabled = true
-  /// The brief notes the Rust engine is the source of truth for the
-  /// actual reduction; the method selector is a knob on it.
+  /// The Rust engine does the reduction; the method selector is a knob on
+  /// it.
   final LiveStackingMethod stackMethod;
 
   /// Token required on each broadcast request. `null` or empty means

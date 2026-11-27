@@ -9,8 +9,7 @@
 // returns a Dart `SecurityContext` the headless server can hand to
 // `shelf_io.serve(..., securityContext:)`.
 //
-// Why self-signed: the brief explicitly chose this over a public CA — the
-// server is a LAN-only daemon. The cert's SubjectPublicKeyInfo SHA-256 is
+// Why self-signed rather than a public CA: the server is a LAN-only daemon. The cert's SubjectPublicKeyInfo SHA-256 is
 // exposed by `HeadlessApiServer._serverFingerprint` so QR / first-connect
 // flows can pin the public key; phones never trust the cert chain.
 //

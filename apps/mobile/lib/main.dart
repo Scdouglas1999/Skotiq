@@ -288,9 +288,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           // a rebuild can't double-route).
           unawaited(MobileNotificationService().handleLaunchNotification());
 
-          // A run to recover is offered by the shell's checkpoint prompt,
-          // on every link (AppShell).
-
           return SkotiqApp(platformServices: mobilePlatformServices);
         },
       );

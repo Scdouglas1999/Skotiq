@@ -17,12 +17,10 @@
 //      so a public address can never be entered here, then returns a
 //      [TailscaleSetupResult] for the caller to actually connect + persist.
 //
-// It deliberately does NOT perform the connect itself: main.dart owns the
-// canonical `connectToRig` path (readServer → pairing →
-// testServerConnection → BackendNotifier.connect → saveLastServer), and
-// duplicating that here would fork the pairing/compatibility logic. The
-// sheet is a focused data-collection step that hands a validated target
-// back to that one path.
+// It does not connect itself: the caller's connect path owns pairing, the
+// compatibility check and saving the server, and a second one here would
+// fork that logic. The sheet collects and validates a target and hands it
+// back.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

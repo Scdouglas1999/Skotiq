@@ -238,8 +238,7 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
     // The reverse — removing a TargetHeader from the sequence
     // affecting the queue — is deliberately *not* wired here: the
     // queue is a wishlist and the user expects it to persist when
-    // they delete nodes from the sequence tree. The brief is
-    // explicit about this asymmetry.
+    // they delete nodes from the sequence tree.
     ref.listenManual<String?>(
       sequenceProgressProvider.select((p) => p.currentTarget),
       (prev, next) {

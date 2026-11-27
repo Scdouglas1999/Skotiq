@@ -4460,11 +4460,10 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  // `isNaN` coerces before it tests, so the old guard passed `[]` and `true`
-  // straight through: an empty array printed "00h 00m 0.0s" — the pole, from a
-  // payload that named no coordinate at all — and `true` printed 01h. Both
-  // reach here from the wire (a target row, a mount status, a solve result),
-  // so the gate is the type check, not the coercion.
+  // `isNaN` coerces before it tests, so it would pass `[]` (printed as
+  // "00h 00m 0.0s") and `true` (01h). Both can arrive from the wire (a target
+  // row, a mount status, a solve result), so the gate is the type check, not
+  // the coercion.
   function formatRA(raHours) {
     const hours = wireNumber(raHours);
     if (hours == null) return '--h --m --s';
@@ -4904,11 +4903,9 @@
   }
 
   async function handleOpsTargetSelect(target) {
-    // The audit brief allows "send target to current sequence OR slew to
-    // this". The simplest, no-stub behaviour is to commit the slew, which
-    // is what the operator most often wants from a phone in the field. The
-    // mount panel's goto inputs are also populated so a manual abort/retry
-    // is one tap away.
+    // Picking a target slews to it, which is what the operator most often
+    // wants from a phone in the field. The mount panel's goto inputs are also
+    // filled so a manual abort or retry is one tap away.
     // A coordinate the catalogue did not send as a number is not a coordinate.
     const targetRa = wireNumber(target.ra);
     const targetDec = wireNumber(target.dec);
