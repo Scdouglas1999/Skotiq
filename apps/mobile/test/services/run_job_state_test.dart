@@ -25,6 +25,58 @@ void main() {
     });
   });
 
+  group('a running step is read by what it reports, not its name', () {
+    String word(String node, InstructionProgressDetail? reading) => runJobState(
+      SequenceExecutionState.running,
+      progress: SequenceProgress(
+        currentNodeId: 'step',
+        currentNodeName: node,
+        nodeProgressStructuredDetail: {'step': ?reading},
+      ),
+    );
+
+    test('an exposure step named for focusing is exposing', () {
+      expect(
+        word(
+          'Ha focus field',
+          const ExposureInstructionProgressDetail(
+            frame: 3,
+            total: 20,
+            durationSecs: 300,
+          ),
+        ),
+        'exposing',
+      );
+    });
+
+    test('a refocus reading leaves the step to its name', () {
+      expect(
+        word(
+          'Lights',
+          const AutofocusInstructionProgressDetail(step: 9, totalSteps: 9),
+        ),
+        'exposing',
+      );
+      expect(
+        word(
+          'Autofocus',
+          const AutofocusInstructionProgressDetail(step: 4, totalSteps: 9),
+        ),
+        'focusing',
+      );
+    });
+
+    test('a centering step under any name is centering', () {
+      expect(
+        word(
+          'M31',
+          const CenterInstructionProgressDetail(attempt: 1, maxAttempts: 5),
+        ),
+        'centering',
+      );
+    });
+  });
+
   test('a running step names what it does', () {
     String word(String node) => runJobState(
       SequenceExecutionState.running,
