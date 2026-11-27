@@ -221,16 +221,14 @@ async fn an_unknown_device_publishes_nothing() {
     assert!(manager.mount_park("no_such_mount").await.is_err());
     let events = drain(&mut rx);
     assert!(
-        !events.iter().any(|e| matches!(
-            e,
-            EquipmentEvent::FilterChanging { to_position: 1, .. }
-                | EquipmentEvent::FocuserMoveStarted {
-                    target_position: 10,
-                    ..
-                }
-                | EquipmentEvent::RotatorMoveStarted { .. }
-                | EquipmentEvent::MountParkStarted { .. }
-        )),
+        !events.iter().any(|e| e.device_id().starts_with("no_such_")
+            && matches!(
+                e,
+                EquipmentEvent::FilterChanging { .. }
+                    | EquipmentEvent::FocuserMoveStarted { .. }
+                    | EquipmentEvent::RotatorMoveStarted { .. }
+                    | EquipmentEvent::MountParkStarted { .. }
+            )),
         "{events:?}"
     );
 }
