@@ -45,12 +45,13 @@ class ConnectionSettings extends ConsumerWidget {
     final platformCapabilities =
         PlatformCapabilityMatrix.forPlatform(Platform.operatingSystem);
 
+    final linkedLaunch = ref.watch(remoteLaunchTargetProvider);
     final status = linkStatusFor(
       linkState:
           isNetwork ? connState ?? BackendConnectionState.connecting : null,
       unansweredSeconds: unansweredSeconds,
       hostPlace: backend.hostPlace,
-      linkedLaunch: false,
+      linkedLaunch: linkedLaunch != null,
     );
     final look = LinkStatusLook.of(status);
     final String serverAddress;
@@ -58,6 +59,8 @@ class ConnectionSettings extends ConsumerWidget {
     var statusColor = look.color(context);
     if (hostLink != null) {
       serverAddress = hostLink.address;
+    } else if (status == RemoteConnectionStatus.serverOffline) {
+      serverAddress = '${linkedLaunch!.host}:${linkedLaunch.port}';
     } else if (status == RemoteConnectionStatus.demoRig) {
       serverAddress = 'Not linked: simulated equipment on this phone';
     } else if (isDisconnected) {

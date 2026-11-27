@@ -161,6 +161,34 @@ void main() {
     });
   }
 
+  testWidgets(
+      'a launch linked to a host that has not answered reads unreachable, '
+      'as the chip does', (tester) async {
+    await pumpAppScreen(
+      tester,
+      const ConnectionSettings(),
+      extraOverrides: [
+        appSettingsProvider.overrideWith(
+          () => _StubAppSettingsNotifier(const AppSettingsState()),
+        ),
+        backendProvider.overrideWith(
+          (ref) => TestBackendNotifier(ref, DisconnectedBackend()),
+        ),
+        remoteLaunchTargetProvider.overrideWithValue(
+          const RemoteLaunchTarget(
+            host: '192.168.1.50',
+            port: 8099,
+            name: 'DESKTOP-OBS01',
+            remembered: true,
+          ),
+        ),
+      ],
+    );
+
+    expect(find.text('Server unreachable'), findsOneWidget);
+    expect(find.text('Disconnected'), findsNothing);
+  });
+
   // The page said "Saved on this device only" over discovery switches that
   // a linked client reads from and writes to the imaging host.
   testWidgets('a linked client labels each group by where it is stored',
