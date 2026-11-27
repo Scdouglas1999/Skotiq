@@ -66,7 +66,6 @@ void main() {
       'runWatch recovering: +pause',
       'runWatch recovering: +skip',
       'runWatch recovering held: +pause',
-      'runWatch recovering held: +skip',
     ]);
   });
 

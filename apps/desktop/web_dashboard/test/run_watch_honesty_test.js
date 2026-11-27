@@ -2559,8 +2559,8 @@ const RUN_WATCH_RUN_STATE = {
   'completed over a running executor': ['completed', 'badge-completed'],
   'recovering executor over a running status': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
   'paused, held by an action': ['paused', 'badge-paused', 'stop'],
-  'running, held by an action': ['running', 'badge-running', 'pause', 'skip', 'stop'],
-  'recovering, held by an action': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
+  'running, held by an action': ['running', 'badge-running', 'pause', 'stop'],
+  'recovering, held by an action': ['recovering', 'badge-recovering', 'pause', 'stop'],
 };
 
 test('run-watch shows each run state with its badge and controls', () => {

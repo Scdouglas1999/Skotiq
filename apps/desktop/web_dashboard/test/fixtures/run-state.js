@@ -24,7 +24,7 @@ const RUN_STATE = (() => {
   const pages = Object.freeze({
     dashboard: Object.freeze({
       idle: Object.freeze({ free: ["start"], held: ["start"] }),
-      running: Object.freeze({ free: ["pause","skip","stop"], held: ["pause","skip","stop"] }),
+      running: Object.freeze({ free: ["pause","skip","stop"], held: ["pause","stop"] }),
       paused: Object.freeze({ free: ["resume","skip","stop"], held: ["stop"] }),
       recovering: Object.freeze({ free: ["stop"], held: ["stop"] }),
       stopping: Object.freeze({ free: [], held: [] }),
@@ -33,9 +33,9 @@ const RUN_STATE = (() => {
     }),
     runWatch: Object.freeze({
       idle: Object.freeze({ free: ["start"], held: ["start"] }),
-      running: Object.freeze({ free: ["pause","skip","stop"], held: ["pause","skip","stop"] }),
+      running: Object.freeze({ free: ["pause","skip","stop"], held: ["pause","stop"] }),
       paused: Object.freeze({ free: ["resume","skip","stop"], held: ["stop"] }),
-      recovering: Object.freeze({ free: ["pause","skip","stop"], held: ["pause","skip","stop"] }),
+      recovering: Object.freeze({ free: ["pause","skip","stop"], held: ["pause","stop"] }),
       stopping: Object.freeze({ free: [], held: [] }),
       stopRetry: Object.freeze({ free: ["stop"], held: ["stop"] }),
       ended: Object.freeze({ free: ["start"], held: ["start"] }),

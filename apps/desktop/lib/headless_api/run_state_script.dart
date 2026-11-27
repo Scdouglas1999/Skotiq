@@ -87,6 +87,7 @@ abstract final class RunStateScript {
           liveRunPhaseOf(state, heldByAction: held) ?? NightRunPhase.finished,
       execution: state,
       gates: const {RunGate.actionHold},
+      heldByAction: held,
     );
     bool on(RunControl? control) => control != null && control.enabled;
     final toggles = on(transport.pauseResume);
@@ -108,12 +109,15 @@ abstract final class RunStateScript {
     },
   };
 
-  /// The controls [page] offers in [phase].
+  /// The controls [page] offers in [phase]. Only a manual action's own
+  /// release skips a run the action holds, on every page.
   static Set<PageControl> pageControls(
     RunPage page,
     RunPhase phase, {
     required bool held,
-  }) => {...appControls(phase, held: held), ...?pageAlso[page]?[phase]};
+  }) =>
+      {...appControls(phase, held: held), ...?pageAlso[page]?[phase]}
+        ..removeAll({if (held) PageControl.skip});
 
   static String _key(String word) =>
       word.toLowerCase().replaceAll(RegExp(r'[_\s]'), '');

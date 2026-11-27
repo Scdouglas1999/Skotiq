@@ -227,11 +227,13 @@ class RunTransport {
 /// The run's controls in [phase] under [gates].
 ///
 /// [notReadyReason] is why a plan cannot start (asked only under
-/// [RunGate.readiness]).
+/// [RunGate.readiness]). [heldByAction] is whether a manual action holds the
+/// run: under [RunGate.actionHold] only the action's own release skips.
 RunTransport runTransportFor({
   required NightRunPhase phase,
   required SequenceExecutionState execution,
   required Set<RunGate> gates,
+  bool heldByAction = false,
   bool canCommand = true,
   bool flipInProgress = false,
   String? notReadyReason,
@@ -250,19 +252,25 @@ RunTransport runTransportFor({
   final liveReason = execution == SequenceExecutionState.recovering
       ? 'ncPlanRecovering'
       : 'ncPlanStopping';
+  final skipHeld = heldByAction && gates.contains(RunGate.actionHold);
+  RunControl liveSkip() {
+    final skip = gated(execution.canSkip, liveReason);
+    return skip.enabled && skipHeld ? _off('ncPlanActionInProgress') : skip;
+  }
+
   switch (livePhase) {
     case NightRunPhase.running:
       return RunTransport(
         phase: livePhase,
         pauseResume: gated(execution.canPause, liveReason),
-        skip: gated(execution.canSkip, liveReason),
+        skip: liveSkip(),
         stop: gated(execution.canStop, liveReason),
       );
     case NightRunPhase.pausedByUser:
       return RunTransport(
         phase: livePhase,
         pauseResume: gated(execution.canResume, liveReason),
-        skip: gated(execution.canSkip, liveReason),
+        skip: liveSkip(),
         stop: gated(execution.canStop, liveReason),
       );
     case NightRunPhase.pausedForAction:
@@ -328,6 +336,7 @@ RunTransport _transport(Ref ref, Set<RunGate> gates) {
     phase: phase,
     execution: ref.watch(sequenceExecutionStateProvider),
     gates: gates,
+    heldByAction: ref.watch(runHeldByActionProvider),
     canCommand: gates.contains(RunGate.commandAuthority)
         ? ref.watch(backendCanCommandProvider)
         : true,

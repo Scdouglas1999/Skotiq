@@ -25,7 +25,7 @@ void main() {
       'idle': ['start'],
       'idle, held': ['start'],
       'running': ['pause', 'skip', 'stop'],
-      'running, held': ['pause', 'skip', 'stop'],
+      'running, held': ['pause', 'stop'],
       'paused': ['resume', 'skip', 'stop'],
       'paused, held': ['stop'],
       'stopping': ['stop'],
