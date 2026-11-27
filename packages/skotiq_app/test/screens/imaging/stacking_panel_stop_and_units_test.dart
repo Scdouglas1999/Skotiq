@@ -33,10 +33,15 @@ class _RecordingLiveStackingNotifier extends LiveStackingNotifier {
 }
 
 class _FakeLiveStackingService extends LiveStackingService {
-  _FakeLiveStackingService(super.logger);
+  _FakeLiveStackingService(super.logger, {this.onHost = false});
 
+  /// The stack accumulates on a linked imaging host.
+  final bool onHost;
   final saved = <String>[];
   bool failSave = false;
+
+  @override
+  bool get readsHost => onHost;
 
   @override
   Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
@@ -106,6 +111,7 @@ Future<_Harness> _pumpPanel(
   WidgetTester tester, {
   String? destination,
   bool failSave = false,
+  bool onHost = false,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(420, 1600);
@@ -128,8 +134,10 @@ Future<_Harness> _pumpPanel(
         },
       ),
       liveStackingServiceProvider.overrideWith(
-        (ref) => _FakeLiveStackingService(ref.read(loggingServiceProvider))
-          ..failSave = failSave,
+        (ref) => _FakeLiveStackingService(
+          ref.read(loggingServiceProvider),
+          onHost: onHost,
+        )..failSave = failSave,
       ),
       // The library's own file reads and thumbnail writes are covered in the
       // core package; here the header and thumbnail are stand-ins.
@@ -287,6 +295,20 @@ void main() {
     final picked = _log.firstWhere((e) => e.startsWith('pick:'));
     expect(picked, endsWith('.fits'));
     expect(picked, contains('32frames'));
+  });
+
+  testWidgets(
+      'on a linked client the suggested destination is the render it can '
+      'write', (tester) async {
+    final harness = await _pumpPanel(tester, onHost: true);
+
+    await tester
+        .tap(find.byKey(const ValueKey('stacking_panel_save_master_btn')));
+    await tester.pumpAndSettle();
+
+    final picked = _log.firstWhere((e) => e.startsWith('pick:'));
+    expect(picked, endsWith('.png'));
+    expect(harness.service.saved, isEmpty);
   });
 
   testWidgets('a canceled destination leaves the stack running',

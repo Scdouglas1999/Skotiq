@@ -287,6 +287,30 @@ class LiveStackingService {
     );
   }
 
+  /// The file name a saved master is offered under: `.fits` where the stack
+  /// accumulates in this process, `.png` on a linked client, which can write
+  /// only the render ([saveMaster] refuses a FITS name there).
+  String masterFileName({
+    required int frames,
+    String? filterKey,
+    required DateTime at,
+  }) {
+    final stamp = at
+        .toUtc()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .split('.')
+        .first;
+    final filterPart =
+        filterKey != null &&
+            filterKey.isNotEmpty &&
+            filterKey != kDefaultLiveStackFilterKey
+        ? '${filterKey.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')}_'
+        : '';
+    final extension = readsHost ? 'png' : 'fits';
+    return 'live_stack_$filterPart${stamp}Z_${frames}frames.$extension';
+  }
+
   /// Write the accumulated stacked master to [filePath].
   ///
   /// Reads the result out of the stacker FIRST, so this is safe to call

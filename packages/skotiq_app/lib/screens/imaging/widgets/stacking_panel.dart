@@ -325,20 +325,13 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   /// Writes the accumulated master out. Returns true only when a file was
   /// actually written (so the caller knows it is safe to release the stack).
   Future<bool> _saveStackedMaster(int frames, {String? filterKey}) async {
-    final stamp = DateTime.now()
-        .toUtc()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .split('.')
-        .first;
-    final filterPart = filterKey != null &&
-            filterKey.isNotEmpty &&
-            filterKey != kDefaultLiveStackFilterKey
-        ? '${filterKey.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')}_'
-        : '';
-    final destination = await ref.read(
-      stackingMasterDestinationPickerProvider,
-    )('live_stack_$filterPart${stamp}Z_${frames}frames.fits');
+    final name = ref.read(liveStackingServiceProvider).masterFileName(
+          frames: frames,
+          filterKey: filterKey,
+          at: DateTime.now(),
+        );
+    final destination =
+        await ref.read(stackingMasterDestinationPickerProvider)(name);
     if (!mounted || destination == null || destination.trim().isEmpty) {
       return false;
     }
