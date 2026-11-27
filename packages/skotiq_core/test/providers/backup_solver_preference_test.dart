@@ -1,7 +1,8 @@
 // A backup's plate-solver settings come from this computer's native solver
 // preference, the store the solver reads, even when the app settings were
-// never loaded. A linked client's preference is its host's, so its backup
-// carries the rows it stores.
+// never loaded, and are a fresh install's when it cannot be read. A linked
+// client's preference is its host's, so its backup carries the rows it
+// stores.
 
 import 'dart:convert';
 import 'dart:io';
@@ -75,13 +76,15 @@ void main() {
     expect(settings['astrometry_path'], '/usr/bin/solve-field');
   });
 
-  test('carries the stored rows when the preference cannot be read', () async {
+  test("carries a fresh install's solver settings when the preference cannot "
+      'be read', () async {
     when(() => solver.getConfig()).thenThrow(StateError('no bridge'));
 
     final settings = await backupSettings();
 
-    expect(settings['plate_solver'], 'ASTAP');
-    expect(settings['astap_path'], '/stale/astap');
+    expect(settings['plate_solver'], 'Auto');
+    expect(settings['astap_path'], '');
+    expect(settings['astrometry_path'], '');
   });
 
   test('on a linked client carries the stored rows', () async {

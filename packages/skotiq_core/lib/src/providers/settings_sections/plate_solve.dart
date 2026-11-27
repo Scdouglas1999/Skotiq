@@ -20,6 +20,25 @@
 //     restored backup brings back.
 part of '../settings_provider.dart';
 
+/// The plate-solver preference [service] holds, as the settings document,
+/// the host's settings store and backups report it: a fresh install's when
+/// it cannot be read, never a stored copy, which can be behind it.
+Future<PlateSolverPreference> reportedPlateSolverPreference(
+  PlateSolveService service, {
+  required String source,
+}) async {
+  try {
+    return await service.getConfig();
+  } on Object catch (error) {
+    Log.warning(
+      'The plate-solver preference could not be read; reporting a fresh '
+      "install's solver settings: $error",
+      source: source,
+    );
+    return const PlateSolverPreference();
+  }
+}
+
 /// The app-setting rows that copy [preference].
 Map<String, String> plateSolverPreferenceRows(
   PlateSolverPreference preference,

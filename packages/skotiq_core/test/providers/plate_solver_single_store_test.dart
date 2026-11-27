@@ -250,6 +250,35 @@ void main() {
     },
   );
 
+  test(
+    'an unreadable preference is served as a fresh install, not a stored copy',
+    () async {
+      var readable = true;
+      when(() => backend.getPlateSolverConfig()).thenAnswer((_) async {
+        if (!readable) throw StateError('platesolver.json cannot be read');
+        return const PlateSolverPreference(
+          choice: PlateSolverChoice.astap,
+          astapPath: '/opt/astap/astap',
+          astrometryPath: '/usr/bin/solve-field',
+        );
+      });
+      container = build();
+      await container.read(appSettingsProvider.future);
+      readable = false;
+
+      final notifier = container.read(appSettingsProvider.notifier);
+      final served = await notifier.exportHostSettings();
+      expect(served.plateSolver, 'Auto');
+      expect(served.astapPath, '');
+      expect(served.astrometryPath, '');
+      expect(await notifier.solverPreferenceRows(), {
+        'plate_solver': 'Auto',
+        'astap_path': '',
+        'astrometry_path': '',
+      });
+    },
+  );
+
   test('loading settings refreshes a stale projection', () async {
     // A profile seeded by an older build: the row says ASTAP...
     await database.settingsDao.setSetting('plate_solver', 'ASTAP');

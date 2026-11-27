@@ -5,7 +5,8 @@ import 'backend_provider.dart' show isRemoteModeProvider;
 import '../services/backup_service.dart';
 import 'logging_service_provider.dart';
 import 'plate_solve_service_provider.dart';
-import 'settings_provider.dart' show plateSolverPreferenceRows;
+import 'settings_provider.dart'
+    show plateSolverPreferenceRows, reportedPlateSolverPreference;
 
 final backupServiceProvider = Provider<BackupService>((ref) {
   final database = ref.watch(databaseProvider);
@@ -17,22 +18,16 @@ final backupServiceProvider = Provider<BackupService>((ref) {
     logger: logger,
     appVersion: appVersion,
     // The plate-solver settings are copies of this computer's native
-    // preference. A backup without it carries the stored rows; so does a
-    // linked client's, whose preference is the host's.
+    // preference. A linked client's backup carries the stored rows, since
+    // its preference is the host's.
     settingsOverlay: () async {
       if (ref.read(isRemoteModeProvider)) return const {};
-      try {
-        return plateSolverPreferenceRows(
-          await ref.read(plateSolveServiceProvider).getConfig(),
-        );
-      } on Object catch (error) {
-        logger.debug(
-          'Plate-solver preference unavailable; the backup carries the '
-          'stored solver settings: $error',
+      return plateSolverPreferenceRows(
+        await reportedPlateSolverPreference(
+          ref.read(plateSolveServiceProvider),
           source: 'BackupService',
-        );
-        return const {};
-      }
+        ),
+      );
     },
   );
 });

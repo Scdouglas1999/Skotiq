@@ -543,14 +543,15 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   );
 
   /// The rows of the plate-solver settings as the native preference holds
-  /// them, for a copy of the settings taken from the database (a backup);
-  /// empty when the preference cannot be read.
-  Future<Map<String, String>> solverPreferenceRows() async {
-    final preference = await _solverPreference();
-    return preference == null
-        ? const {}
-        : plateSolverPreferenceRows(preference);
-  }
+  /// them ([reportedPlateSolverPreference]).
+  Future<Map<String, String>> solverPreferenceRows() async =>
+      plateSolverPreferenceRows(await _reportedSolverPreference());
+
+  Future<PlateSolverPreference> _reportedSolverPreference() =>
+      reportedPlateSolverPreference(
+        ref.read(plateSolveServiceProvider),
+        source: 'AppSettingsNotifier',
+      );
 
   Future<void> _saveSetting(String key, String value) {
     final backend = ref.read(backendProvider);
@@ -867,12 +868,11 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // request: it goes to the preference the solver reads, or the write
         // is acknowledged and the solver keeps the old program. Changed is
         // judged against the preference, which also changes through its own
-        // route and so can be ahead of the stored copy.
-        final solver = await _solverPreference();
-        final astapNow = solver?.astapPath ?? before.astapPath;
-        final astrometryNow = solver?.astrometryPath ?? before.astrometryPath;
-        if (next.astapPath != astapNow ||
-            next.astrometryPath != astrometryNow) {
+        // route and so can be ahead of the stored copy, as the settings
+        // document reports it.
+        final solver = await _reportedSolverPreference();
+        if (next.astapPath != solver.astapPath ||
+            next.astrometryPath != solver.astrometryPath) {
           await _writeSolverPaths(
             astapPath: next.astapPath,
             astrometryPath: next.astrometryPath,
@@ -895,14 +895,12 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   /// The settings document this host serves its linked clients: the
   /// settings, with the plate-solver choice and program paths read from the
-  /// native preference, which changes through its own route as well.
+  /// native preference, which changes through its own route as well
+  /// ([reportedPlateSolverPreference]).
   Future<models.AppSettings> exportHostSettings() async {
     final settings = _requireLoadedSettings('exporting the host settings');
-    final preference = await _solverPreference();
     return _toWire(
-      preference == null
-          ? settings
-          : _withSolverPreference(settings, preference),
+      _withSolverPreference(settings, await _reportedSolverPreference()),
     );
   }
 
