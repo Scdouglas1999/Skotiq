@@ -56,9 +56,22 @@ final List<ProviderListenable<Object?>> _noticeProducers = [
 ];
 
 class _Happening {
-  const _Happening(this.category, this.events, {this.waitForStopPush = false});
-  final NotificationCategory category;
+  const _Happening(
+    this.category,
+    this.events, {
+    this.waitForStopPush = false,
+    this.label,
+  });
+
+  /// The routing row the row-off setting switches off; null for a happening
+  /// no row tells, where row-off is the defaults.
+  final NotificationCategory? category;
   final List<SkotiqEvent> Function(int cell) events;
+
+  /// The table's name for a happening that is not one category's own.
+  final String? label;
+
+  String get name => label ?? category!.name;
 
   /// A stop's phone push waits out the authorship grace.
   final bool waitForStopPush;
@@ -369,16 +382,117 @@ final List<_Happening> _happenings = [
       ),
     ],
   ),
+  _Happening(
+    NotificationCategory.equipmentDisconnected,
+    (cell) => [
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.disconnected(
+            deviceType: 'Camera',
+            deviceId: 'sim_camera_$cell',
+          ),
+        ),
+        sk.EventSeverity.error,
+      ),
+    ],
+    label: 'equipmentLostNoMessage',
+  ),
+  _Happening(
+    NotificationCategory.equipmentDisconnected,
+    (cell) => [
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.connecting(
+            deviceType: 'Camera',
+            deviceId: 'sim_camera_$cell',
+            deviceName: 'Sim camera',
+          ),
+        ),
+        sk.EventSeverity.info,
+      ),
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.error(
+            deviceType: 'Camera',
+            deviceId: 'sim_camera_$cell',
+            message: 'No camera on the bus ($cell)',
+          ),
+        ),
+        sk.EventSeverity.error,
+      ),
+    ],
+    label: 'equipmentConnectFailed',
+  ),
+  _Happening(
+    null,
+    (cell) => [
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.error(
+            deviceType: 'Camera',
+            deviceId: 'sim_camera_$cell',
+            message: 'Gain was not restored ($cell)',
+          ),
+        ),
+        sk.EventSeverity.warning,
+      ),
+    ],
+    label: 'equipmentWarning',
+  ),
+  _Happening(
+    null,
+    (_) => [
+      _mount(const sk.EquipmentEvent.mountSlewCompleted(
+        deviceId: '',
+        ra: 10,
+        dec: 41,
+      ))
+    ],
+    label: 'mountSlewIdle',
+  ),
+  _Happening(
+    null,
+    (_) => [
+      _seq(const sk.SequencerEvent.started(sequenceName: 'Night')),
+      _mount(const sk.EquipmentEvent.mountSlewCompleted(
+        deviceId: '',
+        ra: 10,
+        dec: 41,
+      )),
+    ],
+    label: 'mountSlewInRun',
+  ),
+  _Happening(
+    null,
+    (_) => [_mount(const sk.EquipmentEvent.mountParkCompleted(deviceId: ''))],
+    label: 'mountParked',
+  ),
+  _Happening(
+    null,
+    (_) => [_mount(const sk.EquipmentEvent.mountUnparked(deviceId: ''))],
+    label: 'mountUnparked',
+  ),
 ];
+
+SkotiqEvent _mount(sk.EquipmentEvent event) => _wire(
+      sk.EventCategory.equipment,
+      sk.EventPayload.equipment(event),
+      sk.EventSeverity.info,
+    );
 
 NotificationRoutingMatrix? _storedMatrix(
   _Setting setting,
-  NotificationCategory category,
+  NotificationCategory? category,
 ) =>
     switch (setting) {
       _Setting.defaults => null,
+      _Setting.rowOff when category == null => null,
       _Setting.rowOff => NotificationRoutingMatrix.defaults().withRule(
-          category,
+          category!,
           NotificationRoutingMatrix.defaults()
               .ruleFor(category)
               .copyWith(enabled: false),
@@ -410,10 +524,14 @@ Future<List<String>> _noticesFor(
   if (role.linked) {
     final network = _MockNetworkBackend();
     when(() => network.eventStream).thenAnswer((_) => events.stream);
+    when(() => network.nativeReconnectedDeviceTypes)
+        .thenReturn(DeviceType.values.toSet());
     backend = network;
   } else {
     final local = _MockFfiBackend();
     when(() => local.eventStream).thenAnswer((_) => events.stream);
+    when(() => local.nativeReconnectedDeviceTypes)
+        .thenReturn(DeviceType.values.toSet());
     backend = local;
   }
   final container = ProviderContainer(
@@ -448,6 +566,9 @@ Future<List<String>> _noticesFor(
           .read(notificationRoutingMatrixProvider.future)
           .catchError((Object _) => const NotificationRoutingMatrix());
     }
+    // A screen that shows none of the happenings, so a notice that keeps
+    // quiet where its result is on screen still shows.
+    container.read(currentScreenProvider.notifier).state = AppScreen.settings;
     await pumpEventQueue();
     pushSub = container
         .read(pushNotificationServiceProvider)
@@ -485,8 +606,8 @@ Future<List<String>> _noticesFor(
   }
 }
 
-String _key(_Role role, NotificationCategory category, _Setting setting) =>
-    '${role.name} ${category.name} ${setting.name}';
+String _key(_Role role, _Happening happening, _Setting setting) =>
+    '${role.name} ${happening.name} ${setting.name}';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -509,7 +630,7 @@ void main() {
   for (final role in _Role.values) {
     for (final happening in _happenings) {
       for (final setting in _Setting.values) {
-        final key = _key(role, happening.category, setting);
+        final key = _key(role, happening, setting);
         final thisCell = cell++;
         test(key, () async {
           final got = await _noticesFor(role, happening, setting, thisCell);
@@ -661,6 +782,63 @@ const _expected = <String, List<String>>{
   'hostGui triggerFired defaults': [
     'toast info Trigger fired',
   ],
+  'hostGui equipmentLostNoMessage defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'hostGui equipmentConnectFailed defaults': [
+    'toast error Camera Error',
+  ],
+  'hostGui equipmentConnectFailed rowOff': [
+    'toast error Camera Error',
+  ],
+  'hostGui equipmentConnectFailed routingOff': [
+    'toast error Camera Error',
+  ],
+  'hostGui equipmentWarning defaults': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'hostGui equipmentWarning rowOff': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'hostGui equipmentWarning routingOff': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'hostGui mountSlewIdle defaults': [
+    'toast success Mount',
+  ],
+  'hostGui mountSlewIdle rowOff': [
+    'toast success Mount',
+  ],
+  'hostGui mountSlewIdle routingOff': [
+    'toast success Mount',
+  ],
+  'hostGui mountSlewInRun defaults': [
+    'toast info Sequence started',
+  ],
+  'hostGui mountSlewInRun rowOff': [
+    'toast info Sequence started',
+  ],
+  'hostGui mountParked defaults': [
+    'toast success Mount',
+  ],
+  'hostGui mountParked rowOff': [
+    'toast success Mount',
+  ],
+  'hostGui mountParked routingOff': [
+    'toast success Mount',
+  ],
+  'hostGui mountUnparked defaults': [
+    'toast success Mount',
+  ],
+  'hostGui mountUnparked rowOff': [
+    'toast success Mount',
+  ],
+  'hostGui mountUnparked routingOff': [
+    'toast success Mount',
+  ],
   'hostDaemon sequenceStarted defaults': [
     'toast info Sequence started',
   ],
@@ -770,6 +948,60 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon triggerFired defaults': [
     'toast info Trigger fired',
+  ],
+  'hostDaemon equipmentLostNoMessage defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'hostDaemon equipmentConnectFailed defaults': [
+    'toast error Camera Error',
+  ],
+  'hostDaemon equipmentConnectFailed rowOff': [
+    'toast error Camera Error',
+  ],
+  'hostDaemon equipmentConnectFailed routingOff': [
+    'toast error Camera Error',
+  ],
+  'hostDaemon equipmentWarning defaults': [
+    'toast warning Camera Warning',
+  ],
+  'hostDaemon equipmentWarning rowOff': [
+    'toast warning Camera Warning',
+  ],
+  'hostDaemon equipmentWarning routingOff': [
+    'toast warning Camera Warning',
+  ],
+  'hostDaemon mountSlewIdle defaults': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountSlewIdle rowOff': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountSlewIdle routingOff': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountSlewInRun defaults': [
+    'toast info Sequence started',
+  ],
+  'hostDaemon mountSlewInRun rowOff': [
+    'toast info Sequence started',
+  ],
+  'hostDaemon mountParked defaults': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountParked rowOff': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountParked routingOff': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountUnparked defaults': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountUnparked rowOff': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountUnparked routingOff': [
+    'toast success Mount',
   ],
   'linkedDesktop sequenceStarted defaults': [
     'toast info Sequence started',
@@ -990,6 +1222,75 @@ const _expected = <String, List<String>>{
   'linkedDesktop triggerFired routingOff': [
     'toast info Trigger fired',
   ],
+  'linkedDesktop equipmentLostNoMessage defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentLostNoMessage rowOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentLostNoMessage routingOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentConnectFailed defaults': [
+    'toast error Camera Error',
+  ],
+  'linkedDesktop equipmentConnectFailed rowOff': [
+    'toast error Camera Error',
+  ],
+  'linkedDesktop equipmentConnectFailed routingOff': [
+    'toast error Camera Error',
+  ],
+  'linkedDesktop equipmentWarning defaults': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'linkedDesktop equipmentWarning rowOff': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'linkedDesktop equipmentWarning routingOff': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'linkedDesktop mountSlewIdle defaults': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewIdle rowOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewIdle routingOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewInRun defaults': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewInRun rowOff': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewInRun routingOff': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedDesktop mountParked defaults': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountParked rowOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountParked routingOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountUnparked defaults': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountUnparked rowOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountUnparked routingOff': [
+    'toast success Mount',
+  ],
   'linkedPhone sequenceStarted defaults': [
     'toast info Sequence started',
   ],
@@ -1208,5 +1509,74 @@ const _expected = <String, List<String>>{
   ],
   'linkedPhone triggerFired routingOff': [
     'toast info Trigger fired',
+  ],
+  'linkedPhone equipmentLostNoMessage defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentLostNoMessage rowOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentLostNoMessage routingOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentConnectFailed defaults': [
+    'toast error Camera Error',
+  ],
+  'linkedPhone equipmentConnectFailed rowOff': [
+    'toast error Camera Error',
+  ],
+  'linkedPhone equipmentConnectFailed routingOff': [
+    'toast error Camera Error',
+  ],
+  'linkedPhone equipmentWarning defaults': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'linkedPhone equipmentWarning rowOff': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'linkedPhone equipmentWarning routingOff': [
+    'toast warning Camera Error',
+    'toast warning Camera Warning',
+  ],
+  'linkedPhone mountSlewIdle defaults': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewIdle rowOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewIdle routingOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewInRun defaults': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewInRun rowOff': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewInRun routingOff': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedPhone mountParked defaults': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountParked rowOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountParked routingOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountUnparked defaults': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountUnparked rowOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountUnparked routingOff': [
+    'toast success Mount',
   ],
 };
