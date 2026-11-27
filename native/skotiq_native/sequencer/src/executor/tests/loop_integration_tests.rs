@@ -1,5 +1,5 @@
 //! A Loop that runs "until N of integration" counts the integration its own
-//! steps collect.
+//! steps collect, in this run and in the run a resume continues.
 
 use super::*;
 use crate::device_ops::NullDeviceOps;
@@ -120,4 +120,104 @@ async fn a_loop_counts_only_the_integration_of_its_own_steps() {
         4 + 2,
         "the loop's two passes after the first four frames"
     );
+}
+
+/// A loop "until 1.2 s" of two-frame passes, stopped in its second pass and
+/// restored, finishes that pass and starts no third: the restored loop's own
+/// integration starts at what its finished first pass collected.
+#[tokio::test]
+async fn a_restored_loop_continues_from_the_integration_it_had() {
+    let dir = scratch("restore");
+    let sequence = plan(vec![
+        group(
+            "until",
+            LoopCondition::IntegrationTime,
+            Some(1.2),
+            &["inner"],
+        ),
+        darks("inner", 2),
+    ]);
+    let mut first = executor_for(&dir);
+    first.load_sequence(sequence).expect("sequence loads");
+    let before = run_counting_frames(&mut first, Some(3)).await;
+    drop(first);
+
+    let mut second = executor_for(&dir);
+    second
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+    let after = run_counting_frames(&mut second, None).await;
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(before, 3);
+    assert_eq!(after, 1, "the restored run finishes the second pass only");
+}
+
+/// The same stop restored from a checkpoint written before loops' integration
+/// was kept: the loop's integration is worked out from the frames its bursts
+/// finished, so the resume again takes only the frame it owes.
+#[tokio::test]
+async fn a_loop_restored_from_an_older_checkpoint_does_not_start_over() {
+    let dir = scratch("older");
+    let sequence = plan(vec![
+        group(
+            "until",
+            LoopCondition::IntegrationTime,
+            Some(1.2),
+            &["inner"],
+        ),
+        darks("inner", 2),
+    ]);
+    let mut first = executor_for(&dir);
+    first.load_sequence(sequence).expect("sequence loads");
+    assert_eq!(run_counting_frames(&mut first, Some(3)).await, 3);
+    drop(first);
+
+    let primary = dir.join("checkpoint").join("skotiq_session.checkpoint");
+    let _ = std::fs::remove_file(dir.join("checkpoint").join("skotiq_session.checkpoint.bak"));
+    let mut checkpoint: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&primary).unwrap()).unwrap();
+    assert!(
+        checkpoint
+            .as_object_mut()
+            .and_then(|fields| fields.remove("loop_integration_secs"))
+            .is_some_and(|recorded| !recorded.is_null()),
+        "the checkpoint recorded the loop's integration"
+    );
+    std::fs::write(&primary, serde_json::to_string(&checkpoint).unwrap()).unwrap();
+
+    let mut second = executor_for(&dir);
+    second
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+    let after = run_counting_frames(&mut second, None).await;
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(after, 1);
+}
+
+/// A loop inside another loop counts from zero again in each outer pass.
+#[tokio::test]
+async fn an_inner_loop_counts_each_outer_pass_from_zero() {
+    let dir = scratch("nested");
+    let mut executor = executor_for(&dir);
+    let mut outer = group("outer", LoopCondition::Count, None, &["until"]);
+    if let NodeType::Loop(config) = &mut outer.node_type {
+        config.iterations = Some(2);
+    }
+    executor
+        .load_sequence(plan(vec![
+            outer,
+            group(
+                "until",
+                LoopCondition::IntegrationTime,
+                Some(0.6),
+                &["inner"],
+            ),
+            darks("inner", 1),
+        ]))
+        .expect("sequence loads");
+    let frames = run_counting_frames(&mut executor, None).await;
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(frames, 2 * 2);
 }

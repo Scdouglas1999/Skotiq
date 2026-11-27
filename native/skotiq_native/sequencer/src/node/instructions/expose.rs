@@ -261,9 +261,12 @@ impl InstructionNode for ExposeInstruction {
         if result.status == NodeStatus::Success {
             let total_exposure_time = duration_secs * f64::from(frames_to_take);
             context.record_scheduler_completed_exposures(u64::from(frames_to_take));
-            context
-                .resume
-                .credit_integration(&context.integration_loops, total_exposure_time);
+            // The loops are credited the whole pass: the frames a stop cut
+            // short were not credited before it.
+            context.resume.credit_integration(
+                &context.integration_loops,
+                duration_secs * f64::from(frames_taken + frames_to_take),
+            );
 
             // coordinate the budget credit with the
             // image grader. A rejected frame is data that won't end up in

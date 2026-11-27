@@ -41,11 +41,9 @@ pub struct ResumeSnapshot {
     pub loop_passes_finished: HashMap<NodeId, u32>,
     pub frames: BurstFrames,
     pub from_earlier_pass: HashSet<NodeId>,
-    pub loop_integration: HashMap<NodeId, f64>,
 }
 
-/// Frames the plan's Take Exposures steps have taken, as a checkpoint keeps
-/// them.
+/// What the plan's frame-taking steps had done, as a checkpoint keeps it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct BurstFrames {
     /// Frames each burst had taken in its current pass, while it runs or
@@ -53,6 +51,10 @@ pub struct BurstFrames {
     pub in_pass: HashMap<NodeId, u32>,
     /// Frames each step has taken over the whole plan.
     pub in_plan: HashMap<NodeId, u32>,
+    /// Seconds of integration each integration-time Loop's steps had
+    /// collected in its current run; `None` from a checkpoint written before
+    /// it was kept.
+    pub loop_integration: Option<HashMap<NodeId, f64>>,
 }
 
 impl BurstFrames {
@@ -60,6 +62,7 @@ impl BurstFrames {
         Self {
             in_pass: checkpoint.exposure_frames_taken.clone(),
             in_plan: checkpoint.exposure_frames_done.clone(),
+            loop_integration: checkpoint.loop_integration_secs.clone(),
         }
     }
 }
@@ -74,13 +77,16 @@ impl ResumeRecord {
     ) -> Self {
         let mut bursts = HashSet::new();
         collect_bursts(root, &mut bursts);
+        let loop_integration = frames.loop_integration.unwrap_or_else(|| {
+            loop_integration_from_frames(root, &frames.in_plan, &frames.in_pass)
+        });
         Self(Arc::new(parking_lot::RwLock::new(Record {
             loop_passes_finished,
             bursts,
             frames_taken: frames.in_pass,
             frames_done: frames.in_plan,
             from_earlier_pass: HashSet::new(),
-            loop_integration: HashMap::new(),
+            loop_integration,
         })))
     }
 
@@ -178,11 +184,69 @@ impl ResumeRecord {
             frames: BurstFrames {
                 in_pass: record.frames_taken.clone(),
                 in_plan: record.frames_done.clone(),
+                loop_integration: Some(record.loop_integration.clone()),
             },
             from_earlier_pass: record.from_earlier_pass.clone(),
-            loop_integration: record.loop_integration.clone(),
         }
     }
+}
+
+/// The integration-time loops' integration a checkpoint without it implies:
+/// the frames each loop's bursts finished, at their planned length. A burst a
+/// stop cut short is credited when the resumed run finishes it. The frames
+/// are counted over the whole plan, so a loop inside another loop's later
+/// pass is credited its earlier passes too: it ends early rather than
+/// imaging again what was taken.
+fn loop_integration_from_frames(
+    root: &dyn Node,
+    in_plan: &HashMap<NodeId, u32>,
+    in_pass: &HashMap<NodeId, u32>,
+) -> HashMap<NodeId, f64> {
+    fn finished_secs(
+        node: &dyn Node,
+        in_plan: &HashMap<NodeId, u32>,
+        in_pass: &HashMap<NodeId, u32>,
+    ) -> f64 {
+        let own = match node.node_type() {
+            NodeType::TakeExposure(config) => {
+                let finished = in_plan
+                    .get(node.id())
+                    .copied()
+                    .unwrap_or(0)
+                    .saturating_sub(in_pass.get(node.id()).copied().unwrap_or(0));
+                config.duration_secs * f64::from(finished)
+            }
+            _ => 0.0,
+        };
+        own + node
+            .children()
+            .iter()
+            .map(|child| finished_secs(child.as_ref(), in_plan, in_pass))
+            .sum::<f64>()
+    }
+    fn walk(
+        node: &dyn Node,
+        in_plan: &HashMap<NodeId, u32>,
+        in_pass: &HashMap<NodeId, u32>,
+        out: &mut HashMap<NodeId, f64>,
+    ) {
+        if let NodeType::Loop(config) = node.node_type() {
+            if config.condition == crate::LoopCondition::IntegrationTime {
+                let secs = finished_secs(node, in_plan, in_pass);
+                if secs > 0.0 {
+                    out.insert(node.id().clone(), secs);
+                }
+            }
+        }
+        for child in node.children() {
+            walk(child.as_ref(), in_plan, in_pass, out);
+        }
+    }
+    let mut out = HashMap::new();
+    if !in_plan.is_empty() {
+        walk(root, in_plan, in_pass, &mut out);
+    }
+    out
 }
 
 fn collect_bursts(node: &dyn Node, out: &mut HashSet<NodeId>) {
