@@ -296,8 +296,8 @@ mixin _GuidingDesktopSections
     bool isConnected,
     Phd2State phd2State,
   ) {
-    final isPhd2Guider =
-        ref.watch(connectedGuiderKindProvider) == GuiderKind.phd2;
+    final kind = ref.watch(connectedGuiderKindProvider);
+    final isPhd2Guider = kind == GuiderKind.phd2;
 
     final brainButton = SkotiqButton(
       key: TourTarget.guidingBrainButton.key,
@@ -325,8 +325,11 @@ mixin _GuidingDesktopSections
           _buildControls(isConnected, phd2State),
           const SizedBox(height: SidePanel.sectionGap),
           _buildGuiderCalibration(colors, isConnected, phd2State),
-          const SizedBox(height: SidePanel.sectionGap),
-          brainButton,
+          // The demo guider has no settings to open.
+          if (kind != GuiderKind.demo) ...[
+            const SizedBox(height: SidePanel.sectionGap),
+            brainButton,
+          ],
         ],
       ),
     );
@@ -379,6 +382,12 @@ mixin _GuidingDesktopSections
     final isPhd2Guider = kind == GuiderKind.phd2;
     switch (kind) {
       case GuiderKind.demo:
+        return const EmptyState.compact(
+          icon: SkotiqIcons.guider,
+          title: 'Demo guider',
+          body: 'This guider is simulated on the phone. It needs no '
+              'calibration and has no settings.',
+        );
       case GuiderKind.external:
         return _buildNonPhd2GuiderInfo(colors);
       case GuiderKind.phd2:
