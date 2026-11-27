@@ -2144,7 +2144,6 @@ packages/skotiq_core/lib/src/backend/network_backend/sequencer_operations.dart	g
 packages/skotiq_core/lib/src/backend/network_backend/sequencer_operations.dart	getLocationFromInternet	literal_null_coalesce	1	V0121	latitude: (response['latitude'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/backend/network_backend/sequencer_operations.dart	getLocationFromInternet	literal_null_coalesce	1	V0121	longitude: (response['longitude'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/backend/network_backend/sequencer_operations.dart	hasCheckpoint	literal_null_coalesce	1	V0121	return response['hasCheckpoint'] as bool? ?? false;
-packages/skotiq_core/lib/src/backend/network_backend/sequencer_operations.dart	sequencerGetStatus	literal_null_coalesce	1	V0121	progress: (response['progress'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/backend/network_backend/sequencer_operations.dart	sequencerSetSimulationMode	simulated_runtime_path	1	V0121	Future<void> sequencerSetSimulationMode(bool enabled) async {
 packages/skotiq_core/lib/src/backend/network_backend/webrtc_subscription.dart	dispose	comment_best_effort	1	V0121	// Best-effort DELETE so the server reaps the session immediately
 packages/skotiq_core/lib/src/backend/network_backend/webrtc_subscription.dart	_handleSseEvent	empty_catch	2	V0121	} catch (_) {
