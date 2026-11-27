@@ -91,12 +91,14 @@ class SequencerStatus {
     this.heldByAction = false,
   });
 
+  /// A host's `GET /api/sequencer/status` body. A host that names no state
+  /// has no run: it reads as idle.
   factory SequencerStatus.fromJson(Map<String, dynamic> json) {
     return SequencerStatus(
-      state: json['state'] as String,
+      state: json['state'] as String? ?? 'Idle',
       currentNodeId: json['currentNodeId'] as String?,
       currentNodeName: json['currentNodeName'] as String?,
-      progress: (json['progress'] as num).toDouble(),
+      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
       message: json['message'] as String?,
       runVitals: json['runVitals'] is Map<String, dynamic>
           ? SequencerRunVitals.fromJson(
