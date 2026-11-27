@@ -471,14 +471,14 @@ class _RemoteConnectionSheetState
     final hostLink = ref.watch(linkedHostLinkProvider);
     final unansweredSeconds =
         hostLink == null ? null : unansweredSecondsFor(hostLink);
+    final linkedLaunch = ref.watch(remoteLaunchTargetProvider);
     final status = linkStatusFor(
       linkState: hostLink?.connectionState,
       unansweredSeconds: unansweredSeconds,
       hostPlace: activeBackend.hostPlace,
-      linkedLaunch: false,
+      linkedLaunch: linkedLaunch != null,
     );
     final latency = hostLink?.lastLatency;
-    final linkedLaunch = ref.watch(remoteLaunchTargetProvider);
     final canSwitch = canSwitchRole(ref);
 
     return Padding(
@@ -506,7 +506,8 @@ class _RemoteConnectionSheetState
                       ),
                     ),
                     Text(
-                      _description(status, hostLink, unansweredSeconds),
+                      _description(
+                          status, hostLink, unansweredSeconds, linkedLaunch),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colors.textSecondary,
                       ),
@@ -709,6 +710,7 @@ class _RemoteConnectionSheetState
     RemoteConnectionStatus status,
     HostLink? hostLink,
     int? unansweredSeconds,
+    RemoteLaunchTarget? linkedLaunch,
   ) {
     switch (status) {
       case RemoteConnectionStatus.connected:
@@ -722,6 +724,12 @@ class _RemoteConnectionSheetState
       case RemoteConnectionStatus.reconnecting:
         return 'Attempting to reconnect...';
       case RemoteConnectionStatus.serverOffline:
+        if (hostLink == null && linkedLaunch != null) {
+          final name = linkedLaunch.name;
+          return name == null || name == linkedLaunch.host
+              ? '${linkedLaunch.host} has not answered.'
+              : '$name (${linkedLaunch.host}) has not answered.';
+        }
         return 'The server stopped responding. Tap Reconnect to retry.';
       case RemoteConnectionStatus.error:
         return 'The server rejected the connection (e.g. version mismatch). '

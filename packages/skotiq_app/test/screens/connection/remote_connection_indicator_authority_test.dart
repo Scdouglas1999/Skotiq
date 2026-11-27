@@ -317,6 +317,40 @@ void main() {
     expect(find.textContaining('Not linked'), findsNothing);
     semantics.dispose();
   });
+
+  testWidgets(
+      'the details sheet of a linked launch whose host has not answered '
+      'agrees with the chip', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _LocalRestoringNotifier(ref, _MockLocalBackend()),
+          ),
+          remoteLaunchTargetProvider.overrideWithValue(
+            const RemoteLaunchTarget(
+              host: '192.168.1.50',
+              port: 8099,
+              name: 'DESKTOP-OBS01',
+              remembered: true,
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: RemoteConnectionIndicator()),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(RemoteConnectionIndicator));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Not connected to a server'), findsNothing);
+    expect(
+      find.text('DESKTOP-OBS01 (192.168.1.50) has not answered.'),
+      findsOneWidget,
+    );
+  });
 }
 
 /// A notifier sitting on a DisconnectedBackend whose only recovery is
