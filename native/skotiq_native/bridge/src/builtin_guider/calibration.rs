@@ -309,21 +309,44 @@ async fn pulse_until_moved(
     config: &crate::builtin_guider::config::GuiderConfig,
     min_pulses: u32,
 ) -> Result<(Vec2, u32, GuideFrame), LegFailure> {
+    drive_leg(
+        direction,
+        min_pulses,
+        || pulse_repeatedly(mount_id, direction, 1, config),
+        |travel| async move {
+            let frame = capture_guide_frame_with_retries().await?;
+            // Look for each star where the leg has carried it so far: matched
+            // against where it started, a star several pixels along is often
+            // nearer a neighbour's old place than its own.
+            Ok((measure_offset(refs, &frame.stars, travel), frame))
+        },
+    )
+    .await
+}
+
+/// The pulse loop of a calibration leg: `pulse` sends one pulse, and
+/// `measure(travel)` takes a frame and returns how far the stars moved past
+/// `travel` (none when they cannot be matched) with that frame.
+async fn drive_leg<F, Pulse, PulseDone, Measure, Measured>(
+    direction: &str,
+    min_pulses: u32,
+    mut pulse: Pulse,
+    mut measure: Measure,
+) -> Result<(Vec2, u32, F), LegFailure>
+where
+    Pulse: FnMut() -> PulseDone,
+    PulseDone: std::future::Future<Output = Result<(), SkotiqError>>,
+    Measure: FnMut(Vec2) -> Measured,
+    Measured: std::future::Future<Output = Result<(Option<Vec2>, F), SkotiqError>>,
+{
     let mut pulses = 0;
     let mut travel = Vec2::default();
     let failed = |pulses_sent: u32| move |error: SkotiqError| LegFailure { pulses_sent, error };
     loop {
-        pulse_repeatedly(mount_id, direction, 1, config)
-            .await
-            .map_err(failed(pulses))?;
+        pulse().await.map_err(failed(pulses))?;
         pulses += 1;
-        let frame = capture_guide_frame_with_retries()
-            .await
-            .map_err(failed(pulses))?;
-        // Look for each star where the leg has carried it so far: matched
-        // against where it started, a star several pixels along is often
-        // nearer a neighbour's old place than its own.
-        let step = measure_offset(refs, &frame.stars, travel).ok_or_else(|| LegFailure {
+        let (step, frame) = measure(travel).await.map_err(failed(pulses))?;
+        let step = step.ok_or_else(|| LegFailure {
             pulses_sent: pulses,
             error: SkotiqError::OperationFailed(format!(
                 "Calibration star match failed after {pulses} {direction} pulses"
@@ -408,16 +431,62 @@ mod calibration_leg_tests {
         assert!(calibration_leg_done(5, CALIBRATION_TARGET_PX, 1));
     }
 
+    /// A leg that fails at pulse `fail_at`, by losing its star or its frame,
+    /// or whose next pulse is refused.
+    async fn leg_failing_at(fail_at: u32, how: &str) -> LegFailure {
+        let sent = std::cell::Cell::new(0u32);
+        let pulses = &sent;
+        let step = Vec2 { x: 0.5, y: 0.0 };
+        let leg = drive_leg(
+            "north",
+            1,
+            || {
+                let refused = how == "pulse" && pulses.get() == fail_at;
+                async move {
+                    if refused {
+                        Err(SkotiqError::OperationFailed("pulse refused".into()))
+                    } else {
+                        pulses.set(pulses.get() + 1);
+                        Ok(())
+                    }
+                }
+            },
+            |_| {
+                let here = pulses.get() == fail_at;
+                async move {
+                    match (here, how) {
+                        (true, "star") => Ok((None, ())),
+                        (true, "frame") => {
+                            Err(SkotiqError::OperationFailed("download failed".into()))
+                        }
+                        _ => Ok((Some(step), ())),
+                    }
+                }
+            },
+        )
+        .await;
+        let failure = leg.err().expect("the leg fails");
+        assert_eq!(failure.pulses_sent, sent.get(), "{how} at {fail_at}");
+        failure
+    }
+
     /// A leg that fails part way walks back the pulses it sent, not a full leg:
     /// a full leg would leave the mount up to 15 pulses past where it started.
-    #[test]
-    fn a_failed_leg_walks_back_only_the_pulses_it_sent() {
-        for sent in [0, 1, 4, CALIBRATION_MAX_PULSES] {
-            let failure = LegFailure {
-                pulses_sent: sent,
-                error: SkotiqError::OperationFailed("star lost".into()),
-            };
-            assert_eq!(failure.walk_back_pulses(), sent);
+    #[tokio::test]
+    async fn a_failed_leg_walks_back_only_the_pulses_it_sent() {
+        for fail_at in [1, 4, CALIBRATION_MAX_PULSES - 1] {
+            assert_eq!(
+                leg_failing_at(fail_at, "star").await.walk_back_pulses(),
+                fail_at
+            );
+            assert_eq!(
+                leg_failing_at(fail_at, "frame").await.walk_back_pulses(),
+                fail_at
+            );
+            assert_eq!(
+                leg_failing_at(fail_at, "pulse").await.walk_back_pulses(),
+                fail_at
+            );
         }
     }
 
