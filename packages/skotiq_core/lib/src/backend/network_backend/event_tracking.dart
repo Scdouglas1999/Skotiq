@@ -54,7 +54,7 @@ extension _NetworkBackendEventTracking on NetworkBackendTransport {
             SkotiqEvent(
               timestamp: DateTime.now().millisecondsSinceEpoch,
               category: EventCategory.system,
-              eventType: 'BackendReconnected',
+              eventType: kBackendReconnectedEventType,
               severity: EventSeverity.info,
               data: {
                 'message': 'Server instance changed mid-stream',
