@@ -218,8 +218,7 @@ String _equipmentDetail(EquipmentEvent v) {
     EquipmentEvent_MountUnparked() => '',
     EquipmentEvent_FocuserMoveStarted(targetPosition: final p) => 'Target $p',
     EquipmentEvent_FocuserMoveCompleted(position: final p) => 'At $p',
-    // Positions are the wheel's 0-based slots. The Log read "0 → 1" and
-    // "Position 1" while Equipment read "R (2 of 8)", so a slot is shown by its
+    // Positions are the wheel's 0-based slots. A slot is shown by its
     // name and, without one, counted from 1 as Equipment counts it.
     EquipmentEvent_FilterChanging(
       fromPosition: final from,
@@ -457,21 +456,12 @@ String _sequencerTitle(SequencerEvent v) {
     SequencerEvent_InstructionProgress() => 'Instruction progress',
     SequencerEvent_DitherPerformed() => 'Dither',
     SequencerEvent_FrameWatchReport() => 'Frame watch',
-    // Typed grading payloads. Surfaced as their own titles so the
-    // trigger feed / event log shows "Frame accepted" / "Frame rejected"
-    // instead of swallowing them under the generic "Instruction progress"
-    // catch-all.
     SequencerEvent_FrameAccepted() => 'Frame accepted',
     SequencerEvent_FrameRejected() => 'Frame rejected',
     SequencerEvent_SchedulerDecision(pickedTargetName: final n) =>
       n == null ? 'Scheduler: no pick' : 'Scheduler: pick',
     SequencerEvent_IntegrationBudget(budgetMet: final met) =>
       met ? 'Budget complete' : 'Budget progress',
-    // Recovery Mode — title rendering for the trigger feed /
-    // event log. The Run Dashboard banner consumes the same payload via
-    // `recoveryEventBridgeProvider` and renders a richer UI; these
-    // strings exist so the unified event log doesn't fall back to the
-    // generic Object.toString().
     SequencerEvent_RecoveryStarted() => 'Recovery started',
     SequencerEvent_RecoveryProgress() => 'Recovery in progress',
     SequencerEvent_RecoveryCompleted(phase: kRecoveryHandedOffPhase) =>
@@ -487,9 +477,6 @@ String _sequencerTitle(SequencerEvent v) {
     SequencerEvent_PluginNodeProgress() => 'Plugin node progress',
     // Replay Debug — structured executor decision stream.
     SequencerEvent_DecisionLogged() => 'Decision logged',
-    // Typed Science / photometry payloads. Surfaced as their own
-    // titles so the trigger feed / event log shows the photometry outcome
-    // instead of swallowing them under "Instruction progress".
     SequencerEvent_PhotometryFrame(accepted: final ok) =>
       ok ? 'Photometry frame' : 'Photometry frame rejected',
     SequencerEvent_PhotometryCadenceBroken() => 'Cadence broken',
