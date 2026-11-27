@@ -112,7 +112,7 @@ extension _SkyAtlasInternals on SkyAtlasService {
         ),
         totalFrames: totals.frames,
         integrationSeconds: totals.seconds,
-        sidecarPath: p.join(tilesDir, '${tile.tileId}.skt'),
+        sidecarPath: atlasSidecarPath(tilesDir, '${tile.tileId}'),
         lastFoldSessionId: sessionByTile[tile.tileId],
         lastFoldAt: foldedAt,
         regionId: regionByTile[tile.tileId],
