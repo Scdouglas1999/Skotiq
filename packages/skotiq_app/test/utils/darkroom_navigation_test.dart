@@ -156,6 +156,39 @@ void main() {
     },
   );
 
+  for (final (place, resting) in <(String, SkotiqBackend Function())>[
+    ('not linked', DisconnectedBackend.new),
+    ('on the demo rig', () => DemoBackend(latitudeDeg: 40, longitudeDeg: -75)),
+  ]) {
+    testWidgets(
+      'the phone app $place is told where the Darkroom lives',
+      (tester) async {
+        final target = await withRef(
+          tester,
+          [
+            launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+            backendProvider.overrideWith(
+              (ref) => _PinnedBackend(ref, resting()),
+            ),
+            dawnMasterResolverProvider.overrideWithValue(
+              _ScriptedResolver(
+                DawnMasterSet(
+                  sessionId: 3,
+                  masters: [_master(11)],
+                  withoutFile: const [],
+                ),
+              ),
+            ),
+          ],
+          (ref) => resolveDarkroomTargetForSession(ref, 3),
+        );
+
+        expect(target.masterId, isNull);
+        expect(target.unavailableReason, contains('imaging host'));
+      },
+    );
+  }
+
   testWidgets('a night that was never integrated says so', (tester) async {
     final target = await withRef(
       tester,

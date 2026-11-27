@@ -513,9 +513,9 @@ final isRemoteModeProvider = Provider<bool>(
   (ref) => ref.watch(backendProvider).hostPlace.isLinked,
 );
 
-/// True when this process was LAUNCHED as a thin client of a remote imaging
-/// host — the desktop's `--remote-host` flag — rather than as the machine that
-/// owns the hardware.
+/// True when this process was LAUNCHED as a client of an imaging host on
+/// another machine — the phone app, or a desktop started with `--remote-host`
+/// — rather than as the machine that owns the hardware.
 ///
 /// This is the ROLE, which is fixed at launch. [isRemoteModeProvider] answers a
 /// narrower question: whether a remote connection is open right now. The two
@@ -523,13 +523,10 @@ final isRemoteModeProvider = Provider<bool>(
 /// handshake, and again whenever the connection drops — and a surface that
 /// decides WHOSE database it is editing has to read the role, because a
 /// never-connected client owns none of the host's rows and a row it writes
-/// locally is a row no dawn job will ever read.
-///
-/// Defaults to false: a process that never overrides it owns its own hardware.
-/// The desktop entry point overrides it from the launch flags it already
-/// parses.
+/// locally is a row no dawn job will ever read. The phone's demo rig is a
+/// client resting on simulated equipment: it owns no host features either.
 final remoteClientLaunchProvider = Provider<bool>(
-  (ref) => ref.watch(launchRoleProvider) == LaunchRole.linkedClient,
+  (ref) => !ref.watch(launchRoleProvider).ownsRig,
 );
 
 /// True when this process must treat the imaging host's data as another

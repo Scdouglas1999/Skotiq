@@ -23,6 +23,16 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _Host extends Mock implements NetworkBackend {}
 
+class _Offline extends DisconnectedBackend {
+  int checkpointCalls = 0;
+
+  @override
+  Future<bool> hasCheckpoint() {
+    checkpointCalls++;
+    return Future<bool>.value(false);
+  }
+}
+
 class _Swappable extends BackendNotifier {
   _Swappable(super.ref, SkotiqBackend backend) : super() {
     state = backend;
@@ -100,47 +110,51 @@ Future<bool> _laterPromptGetsItsTurn(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets(
-      'the shell does not hold later prompts while it waits for the host, '
-      'and offers the host run on link', (tester) async {
-    await _setUpView(tester);
-    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(db.close);
-    late _Swappable notifier;
-    final host = _hostWithCheckpoint();
+  for (final role in [LaunchRole.linkedClient, LaunchRole.mobile]) {
+    testWidgets(
+        '${role.name}: the shell does not hold later prompts while it waits '
+        'for the host, and offers the host run on link', (tester) async {
+      await _setUpView(tester);
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      late _Swappable notifier;
+      final host = _hostWithCheckpoint();
+      final offline = _Offline();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
-          backendProvider.overrideWith((ref) {
-            notifier = _Swappable(ref, DisconnectedBackend());
-            return notifier;
-          }),
-        ],
-        child: MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: const AppShell(child: SizedBox.shrink()),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            launchRoleProvider.overrideWithValue(role),
+            backendProvider.overrideWith((ref) {
+              notifier = _Swappable(ref, offline);
+              return notifier;
+            }),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const AppShell(child: SizedBox.shrink()),
+          ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    final container =
-        ProviderScope.containerOf(tester.element(find.byType(AppShell)));
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      final container =
+          ProviderScope.containerOf(tester.element(find.byType(AppShell)));
 
-    expect(await _laterPromptGetsItsTurn(tester, container), isTrue);
+      expect(await _laterPromptGetsItsTurn(tester, container), isTrue);
+      expect(offline.checkpointCalls, 0);
 
-    notifier.use(host);
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Host NGC 891'), findsOneWidget);
+      notifier.use(host);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Host NGC 891'), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 20));
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 20));
+    });
+  }
 
   testWidgets(
       'the session check does not hold later prompts while it waits for '
