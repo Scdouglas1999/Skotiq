@@ -44,6 +44,18 @@ class _RecordingTransport extends NotificationTransport {
   }
 }
 
+const _heartbeatMessage =
+    'Device unresponsive after 3 heartbeat failures: timed out';
+
+/// What the host publishes when a device's connection ends: no sentence.
+SkotiqEvent _disconnected(String deviceId, String deviceType) => SkotiqEvent(
+  timestamp: DateTime.now().millisecondsSinceEpoch,
+  severity: EventSeverity.error,
+  category: EventCategory.equipment,
+  eventType: 'Disconnected',
+  data: {'device_id': deviceId, 'device_type': deviceType},
+);
+
 /// What the host's heartbeat publishes when a device stops answering.
 SkotiqEvent _disconnect(String deviceId, String deviceType) => SkotiqEvent(
   timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -53,7 +65,7 @@ SkotiqEvent _disconnect(String deviceId, String deviceType) => SkotiqEvent(
   data: {
     'device_id': deviceId,
     'device_type': deviceType,
-    'message': 'Device unresponsive after 3 heartbeat failures: timed out',
+    'message': _heartbeatMessage,
   },
 );
 
@@ -109,8 +121,7 @@ void main() {
     final body = await _renderedBody(
       _disconnect('native:builtin_guider:multi_star', 'Guider'),
     );
-    expect(body, contains('Built-in Multi-Star Guider'));
-    expect(body, contains('disconnected'));
+    expect(body, 'Built-in Multi-Star Guider: $_heartbeatMessage');
     expect(
       body,
       isNot(matches(_rawIdShape)),
@@ -151,14 +162,28 @@ void main() {
     // friendlyNameFromDeviceId already handles ASCOM ProgIDs; the point of the
     // case is that the raw `ascom:` prefix never survives to the operator.
     expect(body, isNot(matches(_rawIdShape)));
-    expect(body, contains('disconnected'));
+    expect(body, contains(_heartbeatMessage));
   });
 
   test('an event with no device id at all still reads as a sentence', () async {
     final body = await _renderedBody(_disconnect('', 'Mount'));
-    expect(body, contains('disconnected'));
-    expect(body.trim(), isNot(startsWith('disconnected')));
-    expect(body, isNot(contains('  ')));
+    expect(body, 'Mount: $_heartbeatMessage');
+  });
+
+  test('a disconnect that carries no message says the device disconnected',
+      () async {
+    expect(
+      await _renderedBody(_disconnected('sim_camera_1', 'Camera')),
+      'Simulated Camera disconnected.',
+    );
+    expect(await _renderedBody(_disconnected('', 'Mount')), 'Mount disconnected.');
+  });
+
+  test('an error with an empty message says the device disconnected',
+      () async {
+    final event = _disconnect('sim_focuser_1', 'Focuser');
+    event.data['message'] = '  ';
+    expect(await _renderedBody(event), 'Simulated Focuser disconnected.');
   });
 
   test('the default disconnect template does not reference the raw id', () {
@@ -170,6 +195,6 @@ void main() {
       isNot(contains('equipment.device_id')),
       reason: 'the operator-facing template must use the name',
     );
-    expect(body, contains('equipment.device_name'));
+    expect(body, contains('equipment.summary'));
   });
 }

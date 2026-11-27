@@ -535,25 +535,35 @@ class NotificationEventClassifier {
       return _autofocusOutcome(value);
     }
     if (severity.index < EventSeverity.error.index) return null;
-    final (deviceType, deviceId) = switch (event) {
-      typed.EquipmentEvent_Disconnected(:final deviceType, :final deviceId) ||
+    final (deviceType, deviceId, said) = switch (event) {
+      typed.EquipmentEvent_Disconnected(:final deviceType, :final deviceId) => (
+        deviceType,
+        deviceId,
+        null,
+      ),
       typed.EquipmentEvent_Error(
         :final deviceType,
         :final deviceId,
-      ) => (deviceType, deviceId),
-      _ => (null, null),
+        :final message,
+      ) =>
+        (deviceType, deviceId, message.trim()),
+      _ => (null, null, null),
     };
     if (deviceType == null || deviceId == null) return null;
+    // The operator-facing template renders this, never the raw id.
+    // `friendlyNameFromDeviceId` is the same resolver the run dashboard's
+    // feed uses, so a disconnect toast and the event feed cannot name one
+    // device two ways.
+    final name = _disconnectedDeviceName(deviceId, deviceType);
     return (
       NotificationCategory.equipmentDisconnected,
       <String, String>{
         'equipment.device_type': deviceType,
         'equipment.device_id': deviceId,
-        // The operator-facing template renders this, never the raw id.
-        // `friendlyNameFromDeviceId` is the same resolver the run dashboard's
-        // feed uses, so a disconnect toast and the event feed cannot name one
-        // device two ways.
-        'equipment.device_name': _disconnectedDeviceName(deviceId, deviceType),
+        'equipment.device_name': name,
+        'equipment.summary': said == null || said.isEmpty
+            ? '$name disconnected.'
+            : '$name: $said',
       },
     );
   }

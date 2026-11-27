@@ -1,12 +1,8 @@
 part of '../device_service.dart';
 
-/// Rate-limit window for repeated identical device-error TOASTS (see
-/// [_DeviceServiceEventHandling._handleDeviceError]). Within this window an
-/// identical `(deviceId, message)` error is still logged and still reflected in
-/// the equipment-card error state, but is NOT re-toasted — so a flapping device
-/// (e.g. a flaky network safety monitor reconnecting every few seconds) can
-/// never flood the notification stream, independent of any per-device heartbeat
-/// policy.
+/// How long an identical `(deviceId, message)` failed connect is told only
+/// once (see [_DeviceServiceEventHandling._handleDeviceError]). It is still
+/// logged and still shown on the equipment card.
 const Duration _deviceErrorToastWindow = Duration(seconds: 60);
 final Map<String, DateTime> _recentDeviceErrorToasts = <String, DateTime>{};
 
@@ -139,6 +135,7 @@ extension _DeviceServiceEventHandling on DeviceService {
   void _handleEquipmentEvent(SkotiqEvent event) {
     final equipment = equipmentEventOf(event);
     if (equipment == null) return;
+    final failedConnect = _connecting.isFailedConnect(event);
     final data = event.data;
     switch (equipment) {
       // Connection events
@@ -158,10 +155,9 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       // Driver errors published from Rust via report_error /
-      // connect_device_internal / heartbeat. The payload is routed through the
-      // structured errorService (which also pushes a UI notification) AND sets
-      // the matching device state to error, so the equipment card subtitle
-      // renders the actual driver message.
+      // connect_device_internal / heartbeat. They set the matching device
+      // state to error, so the equipment card subtitle renders the driver's
+      // message.
       case bridge.EquipmentEvent_Error(
         :final deviceType,
         :final deviceId,
@@ -174,6 +170,7 @@ extension _DeviceServiceEventHandling on DeviceService {
           errorCode:
               data['error_code']?.toString() ?? data['errorCode']?.toString(),
           severity: event.severity,
+          failedConnect: failedConnect,
         );
         break;
 
@@ -598,25 +595,21 @@ extension _DeviceServiceEventHandling on DeviceService {
 
   /// Handle a driver/heartbeat error event published from Rust.
   ///
-  /// Three responsibilities:
-  ///   1. Always log (driver, device id, message, error code if any).
-  ///   2. Update the matching device-type StateNotifier with the error
-  ///      so equipment-card subtitles render it.
-  ///   3. Surface to the user via the structured errorService (which
-  ///      also pushes to the UI notification stream).
-  ///
-  /// Fail-loud: this method MUST NOT swallow the payload. Individual
-  /// downstream emissions are wrapped so one channel failing (e.g.
-  /// notification provider mid-disposal) cannot mask the others.
+  /// Logs it, puts the device's slot in error for an error-level event so
+  /// the equipment card shows the driver's message, and records it in the
+  /// error history. The operator is told once: a lost device by the
+  /// notification router's equipment row, a warning by the error bridge, and
+  /// a connect somebody else started that did not succeed ([failedConnect])
+  /// here, on the router's equipment row, because only this service can say
+  /// whether it was this app's own connect, which its caller tells.
   void _handleDeviceError({
     required String? deviceType,
     required String? deviceId,
     required String? message,
     required String? errorCode,
     required EventSeverity severity,
+    required bool failedConnect,
   }) {
-    // Compose a human-readable error string. Even if device_type or
-    // device_id are missing we still want the message visible.
     final composedMessage = StringBuffer();
     if (message != null && message.isNotEmpty) {
       composedMessage.write(message);
@@ -628,7 +621,6 @@ extension _DeviceServiceEventHandling on DeviceService {
     }
     final fullMessage = composedMessage.toString();
 
-    // 1. Log loudly with full context.
     logSafely(
       _ref,
       (logger) => logger.error(
@@ -644,8 +636,6 @@ extension _DeviceServiceEventHandling on DeviceService {
     // is told there, once.
     if (deviceId != null && _attempts.isOwn(deviceId)) return;
 
-    // 2. An error-level event puts the matching device slot in error, so
-    //    the equipment card shows the driver's message.
     final type = deviceTypeFromWireName(deviceType ?? '');
     final isGuideCamera = _isGuideCameraEvent(deviceType, deviceId);
     // An error while the slot is connecting this device is a connect that
@@ -663,8 +653,8 @@ extension _DeviceServiceEventHandling on DeviceService {
       );
     } else if (!isGuideCamera && severity.index >= EventSeverity.error.index) {
       // A warning-level Error is a notice about a device that still works
-      // (a setting not restored, a connect-check note): it is told below and
-      // leaves the slot as it is.
+      // (a setting not restored, a connect-check note): it leaves the slot as
+      // it is.
       final before = readDeviceSlot(_ref.container, type);
       if (before.connectionState == DeviceConnectionState.connecting &&
           before.deviceId == deviceId) {
@@ -677,11 +667,38 @@ extension _DeviceServiceEventHandling on DeviceService {
       ).setError(Exception(fullMessage));
     }
 
-    // Rate-limit the user-facing surface so a flapping device cannot flood it.
-    // Steps 1 (full logger record) and 2 (equipment-card error state) above run
-    // on EVERY error; here we suppress an identical (deviceId, message) toast +
-    // structured-history entry within the dedup window. The logger record from
-    // step 1 still captures every occurrence for diagnostics, so nothing is lost.
+    try {
+      _ref
+          .read(errorServiceProvider)
+          .logDeviceError(
+            operation: 'driver_error',
+            message: toldMessage,
+            deviceType: deviceType ?? 'Device',
+            deviceId: deviceId,
+            severity: switch (severity) {
+              EventSeverity.info => ErrorSeverity.info,
+              EventSeverity.warning => ErrorSeverity.warning,
+              EventSeverity.error => ErrorSeverity.error,
+              EventSeverity.critical => ErrorSeverity.critical,
+            },
+            context: errorCode == null ? null : {'error_code': errorCode},
+            showNotice: false,
+          );
+    } on Object catch (errSvcErr) {
+      logSafely(
+        _ref,
+        (logger) => logger.warning(
+          'errorService record for driver error failed: $errSvcErr '
+          '(original: $fullMessage)',
+          source: 'DeviceService',
+        ),
+      );
+    }
+
+    if (!failedConnect || severity.index < EventSeverity.error.index) return;
+
+    // A flapping device retries its connect over and over: an identical
+    // (device, message) failure is told once per window.
     final now = DateTime.now();
     final dedupKey = '${deviceId ?? deviceType ?? '?'}::$toldMessage';
     final lastShown = _recentDeviceErrorToasts[dedupKey];
@@ -690,65 +707,18 @@ extension _DeviceServiceEventHandling on DeviceService {
       return;
     }
     _recentDeviceErrorToasts[dedupKey] = now;
-    // Opportunistic cleanup so the map can't grow unbounded on long sessions.
     if (_recentDeviceErrorToasts.length > 128) {
       _recentDeviceErrorToasts.removeWhere(
         (_, t) => now.difference(t) > _deviceErrorToastWindow,
       );
     }
-
-    // 3. Surface via the structured errorService. This routes through
-    //    the error history (visible in diagnostics) AND pushes a UI
-    //    notification toast (errorService internally calls
-    //    uiNotificationProvider for error/critical severities).
-    try {
-      final errSvc = _ref.read(errorServiceProvider);
-      final mappedSeverity = switch (severity) {
-        EventSeverity.info => ErrorSeverity.info,
-        EventSeverity.warning => ErrorSeverity.warning,
-        EventSeverity.error => ErrorSeverity.error,
-        EventSeverity.critical => ErrorSeverity.critical,
-      };
-      // Use deviceType for the structured entry's title. If absent we
-      // still want the entry recorded, so default to "Device".
-      errSvc.logDeviceError(
-        operation: 'driver_error',
-        message: toldMessage,
-        deviceType: deviceType ?? 'Device',
-        deviceId: deviceId,
-        severity: mappedSeverity,
-        context: errorCode == null ? null : {'error_code': errorCode},
-      );
-    } on Object catch (errSvcErr) {
-      logSafely(
-        _ref,
-        (logger) => logger.warning(
-          'errorService emission for driver error failed: $errSvcErr '
-          '(original: $fullMessage)',
-          source: 'DeviceService',
-        ),
-      );
-      // Fallback: try uiNotificationProvider directly so the user
-      // still sees the message even if errorService is unavailable.
-      try {
-        _ref
-            .read(uiNotificationProvider.notifier)
-            .showError(
-              toldMessage,
-              title: '${deviceType ?? "Device"} Error',
-              duration: const Duration(seconds: 12),
-            );
-      } on Object catch (uiErr) {
-        logSafely(
-          _ref,
-          (logger) => logger.warning(
-            'UI notification fallback also failed: $uiErr '
-            '(original: $fullMessage)',
-            source: 'DeviceService',
-          ),
-        );
-      }
-    }
+    final critical = severity == EventSeverity.critical;
+    _notices?.call().routeRendered(
+      category: NotificationCategory.equipmentDisconnected,
+      title: critical ? 'Critical: Device' : '${deviceType ?? "Device"} Error',
+      body: describeError(toldMessage, domain: ErrorDomain.device).full,
+      severity: severity,
+    );
   }
 
   Future<void> _handleCriticalDeviceDisconnect(

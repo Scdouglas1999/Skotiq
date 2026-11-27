@@ -770,14 +770,7 @@ const _expected = <String, List<String>>{
     'push Critical · System',
   ],
   'hostGui equipmentDisconnected defaults': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
-  ],
-  'hostGui equipmentDisconnected rowOff': [
-    'toast error Camera Error',
-  ],
-  'hostGui equipmentDisconnected routingOff': [
-    'toast error Camera Error',
   ],
   'hostGui triggerFired defaults': [
     'toast info Trigger fired',
@@ -788,22 +781,13 @@ const _expected = <String, List<String>>{
   'hostGui equipmentConnectFailed defaults': [
     'toast error Camera Error',
   ],
-  'hostGui equipmentConnectFailed rowOff': [
-    'toast error Camera Error',
-  ],
-  'hostGui equipmentConnectFailed routingOff': [
-    'toast error Camera Error',
-  ],
   'hostGui equipmentWarning defaults': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'hostGui equipmentWarning rowOff': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'hostGui equipmentWarning routingOff': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'hostGui mountSlewIdle defaults': [
@@ -937,14 +921,7 @@ const _expected = <String, List<String>>{
     'push Critical · System',
   ],
   'hostDaemon equipmentDisconnected defaults': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
-  ],
-  'hostDaemon equipmentDisconnected rowOff': [
-    'toast error Camera Error',
-  ],
-  'hostDaemon equipmentDisconnected routingOff': [
-    'toast error Camera Error',
   ],
   'hostDaemon triggerFired defaults': [
     'toast info Trigger fired',
@@ -954,21 +931,6 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon equipmentConnectFailed defaults': [
     'toast error Camera Error',
-  ],
-  'hostDaemon equipmentConnectFailed rowOff': [
-    'toast error Camera Error',
-  ],
-  'hostDaemon equipmentConnectFailed routingOff': [
-    'toast error Camera Error',
-  ],
-  'hostDaemon equipmentWarning defaults': [
-    'toast warning Camera Warning',
-  ],
-  'hostDaemon equipmentWarning rowOff': [
-    'toast warning Camera Warning',
-  ],
-  'hostDaemon equipmentWarning routingOff': [
-    'toast warning Camera Warning',
   ],
   'hostDaemon mountSlewIdle defaults': [
     'toast success Mount',
@@ -1202,15 +1164,12 @@ const _expected = <String, List<String>>{
     'toast error Disk space low',
   ],
   'linkedDesktop equipmentDisconnected defaults': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedDesktop equipmentDisconnected rowOff': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedDesktop equipmentDisconnected routingOff': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedDesktop triggerFired defaults': [
@@ -1241,15 +1200,12 @@ const _expected = <String, List<String>>{
     'toast error Camera Error',
   ],
   'linkedDesktop equipmentWarning defaults': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'linkedDesktop equipmentWarning rowOff': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'linkedDesktop equipmentWarning routingOff': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'linkedDesktop mountSlewIdle defaults': [
@@ -1490,15 +1446,12 @@ const _expected = <String, List<String>>{
     'toast error Disk space low',
   ],
   'linkedPhone equipmentDisconnected defaults': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedPhone equipmentDisconnected rowOff': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedPhone equipmentDisconnected routingOff': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedPhone triggerFired defaults': [
@@ -1529,15 +1482,12 @@ const _expected = <String, List<String>>{
     'toast error Camera Error',
   ],
   'linkedPhone equipmentWarning defaults': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'linkedPhone equipmentWarning rowOff': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'linkedPhone equipmentWarning routingOff': [
-    'toast warning Camera Error',
     'toast warning Camera Warning',
   ],
   'linkedPhone mountSlewIdle defaults': [

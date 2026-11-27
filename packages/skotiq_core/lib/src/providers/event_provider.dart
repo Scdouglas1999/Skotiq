@@ -5,7 +5,6 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         SkotiqEvent,
         EventCategory,
         EventSeverity,
-        EquipmentEvent_Error,
         EventPayload_Guiding,
         GuidingEvent,
         GuidingEvent_Calibrating,
@@ -24,7 +23,6 @@ import '../backend/bridge_event_codec.dart';
 import '../backend/sequencer_error_kind.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
-import '../services/device_service_lifecycle.dart';
 import '../utils/logging_service.dart';
 import '../services/notification/notification_router.dart'
     show NotificationRouter;
@@ -252,21 +250,6 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
         return;
       }
 
-      // Error/critical equipment Error events are already surfaced by
-      // DeviceService._handleDeviceError via errorService (60 s per-message
-      // dedupe + a device-aware title) whenever a DeviceService is listening
-      // to this backend. One is not guaranteed: it is created by the first
-      // thing that reads it, so a client that only watches a remote host may
-      // have none, and after a backend swap it can still be listening to the
-      // old backend. Then this bridge is the only surface left.
-      // Warning-severity ones always go through here.
-      if (equipmentEventOf(event) is EquipmentEvent_Error &&
-          (event.severity == core.EventSeverity.error ||
-              event.severity == core.EventSeverity.critical) &&
-          DeviceServiceLifecycle.surfacesDeviceErrorsFrom(backend)) {
-        return;
-      }
-
       final title = _eventTitle(event);
 
       final now = DateTime.now();
@@ -345,7 +328,7 @@ String _eventTitle(core.SkotiqEvent event) {
   };
 
   if (deviceType != null && deviceType.isNotEmpty) {
-    return '$deviceType Error';
+    return '$deviceType ${event.severity == core.EventSeverity.warning ? "Warning" : "Error"}';
   }
   // The sequencer's error payload says what it means for the run.
   final sequencerError = sequencerErrorOf(event);

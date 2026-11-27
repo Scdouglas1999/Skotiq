@@ -288,11 +288,12 @@ class NotificationPresentation {
     ),
     // Names the device, never its wire id: the classifier resolves
     // `equipment.device_name` to a friendly name and falls back to the device
-    // type, so the sentence always has a subject.
+    // type, so the sentence always has a subject. `equipment.summary` is that
+    // name and what the driver said, or that it disconnected.
     NotificationCategory.equipmentDisconnected =>
       const NotificationPresentation(
         title: 'Equipment disconnected',
-        body: '\${equipment.device_name} disconnected.',
+        body: '\${equipment.summary}',
         eventCategory: EventCategory.equipment,
         tone: NotificationTone.alert,
         push: PhonePush(_critical, PushToggle.equipmentDisconnected),
