@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../widgets/frame_viewer_route.dart';
 import '../../../widgets/image_preview/image_display.dart';
 
 /// Fullscreen, pinch-to-zoom inspect view of a captured frame.
@@ -17,44 +17,18 @@ class FullscreenImageViewer extends StatelessWidget {
 
   const FullscreenImageViewer({super.key, required this.image});
 
-  static Future<void> show(BuildContext context, CapturedImageData image) {
-    // Coming back restores the focus the page had. A field still focused from
-    // an earlier edit would then reopen the phone's keyboard over the screen
-    // the operator returned to.
-    FocusManager.instance.primaryFocus?.unfocus();
-    return Navigator.of(context, rootNavigator: true).push<void>(
-      PageRouteBuilder<void>(
-        opaque: true,
+  static Future<void> show(BuildContext context, CapturedImageData image) =>
+      pushFrameViewer(
+        context,
         // absolute: fullscreen image is viewed on pure black, not theme surface
         barrierColor: ImageOverlayColors.shadow,
         transitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (_, __, ___) => FullscreenImageViewer(image: image),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-      ),
-    );
-  }
+        builder: (_) => FullscreenImageViewer(image: image),
+      );
 
   @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    // Escape has to close this route. It is an opaque full-screen page whose
-    // ONLY exit on a desktop-sized window is a 40 px circle in the corner:
-    // there is no system back button, no barrier to click away, and the route
-    // covers the whole app. Every other modal in the app (pre-flight dialog,
-    // popup menus) dismisses on Escape, so this one silently breaks the habit.
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () {
-          Navigator.of(context).maybePop();
-        },
-      },
-      child: Focus(
-        autofocus: true,
-        child: _buildViewer(context, colors),
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      FrameViewerKeys(child: _buildViewer(context, SkotiqColors.of(context)));
 
   Widget _buildViewer(BuildContext context, SkotiqColors colors) {
     return Scaffold(
