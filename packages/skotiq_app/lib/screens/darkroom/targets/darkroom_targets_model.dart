@@ -22,10 +22,6 @@ const Duration darkroomPauseMinimum = Duration(minutes: 10);
 /// Consecutive rejected subs that lost their stars before the run is marked.
 const int darkroomStarLossRun = 3;
 
-/// The filter a light was taken through, as the build service names it.
-String darkroomFilterOf(DbCapturedImage f) =>
-    f.filter?.trim().isNotEmpty == true ? f.filter!.trim() : 'NoFilter';
-
 /// One sub on the nights strip.
 class DarkroomSub {
   const DarkroomSub({

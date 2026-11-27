@@ -167,7 +167,7 @@ List<CalibrationFrameGroup> groupCalibrationFrames(
     members.sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
     final setPoint = setting.setPointC;
     if (setPoint == null) {
-      for (final cluster in _temperatureClusters(members)) {
+      for (final cluster in temperatureClusters(members)) {
         groups.add(
           CalibrationFrameGroup(
             setting: setting,
@@ -191,9 +191,14 @@ List<CalibrationFrameGroup> groupCalibrationFrames(
   return groups;
 }
 
-/// [frames] split where the sorted sensor readings jump; frames without a
-/// reading join the largest part. Each part oldest first.
-List<List<DbCapturedImage>> _temperatureClusters(List<DbCapturedImage> frames) {
+/// The filter a light was taken through, as Darkroom groups name it.
+String darkroomFilterOf(DbCapturedImage f) =>
+    f.filter?.trim().isNotEmpty == true ? f.filter!.trim() : 'NoFilter';
+
+/// [frames] split where the sorted sensor readings jump by more than
+/// [darkroomTemperatureGapC]; frames without a reading join the largest part.
+/// Largest part first, each part oldest first.
+List<List<DbCapturedImage>> temperatureClusters(List<DbCapturedImage> frames) {
   final known = frames.where((f) => f.sensorTemp != null).toList()
     ..sort((a, b) => a.sensorTemp!.compareTo(b.sensorTemp!));
   if (known.isEmpty) return [frames];
