@@ -687,6 +687,25 @@ pub(crate) fn nearest_star(
         .map(|(_, star)| star)
 }
 
+/// Side of the square star crop the guider publishes as its snapshot.
+pub(crate) const SNAPSHOT_CROP_PX: u32 = 50;
+
+/// Lock the guider on `star` in `frame`: the tracked references come from this
+/// frame, the lock moves to the star, and the snapshot is cropped around it.
+pub(crate) fn lock_on(
+    state: &mut BuiltinGuiderState,
+    frame: &GuideFrame,
+    star: Option<&DetectedStar>,
+) {
+    state.reference_stars =
+        select_reference_stars(&frame.stars, frame.image.width, frame.image.height);
+    state.manual_lock = star.map(|star| Vec2 {
+        x: star.x,
+        y: star.y,
+    });
+    update_snapshot_from_frame(state, frame, SNAPSHOT_CROP_PX);
+}
+
 pub(crate) fn update_snapshot_from_frame(
     state: &mut BuiltinGuiderState,
     frame: &GuideFrame,

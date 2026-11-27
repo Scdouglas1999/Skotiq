@@ -1,8 +1,8 @@
 use crate::builtin_guider::config::{Vec2, GUIDE_MAX_MATCH_DISTANCE_PX};
 use crate::builtin_guider::loop_runner::{capture_guide_frame_with_retries, resolve_devices};
 use crate::builtin_guider::metrics::{
-    choose_lock_star, guide_reference_weight, measure_offset, nearest_star, select_reference_stars,
-    update_snapshot_from_frame,
+    choose_lock_star, guide_reference_weight, lock_on, measure_offset, nearest_star,
+    select_reference_stars,
 };
 use crate::builtin_guider::state::{
     state, BuiltinGuiderState, GuideCalibration, GuideFrame, GuideReferenceStar,
@@ -20,13 +20,11 @@ pub(crate) async fn calibrate_mount_response(
     let baseline = capture_guide_frame_with_retries().await?;
     {
         let mut guard = controller.write().await;
-        guard.reference_stars =
-            select_reference_stars(&baseline.stars, baseline.image.width, baseline.image.height);
-        guard.manual_lock = choose_lock_star(&baseline.stars, None, None).map(|star| Vec2 {
-            x: star.x,
-            y: star.y,
-        });
-        update_snapshot_from_frame(&mut guard, &baseline, 50);
+        lock_on(
+            &mut guard,
+            &baseline,
+            choose_lock_star(&baseline.stars, None, None),
+        );
         guard.last_frame = Some(baseline.clone());
     }
 
@@ -61,13 +59,11 @@ pub(crate) async fn calibrate_mount_response(
     let settled = capture_guide_frame_with_retries().await?;
     {
         let mut guard = controller.write().await;
-        guard.reference_stars =
-            select_reference_stars(&settled.stars, settled.image.width, settled.image.height);
-        guard.manual_lock = choose_lock_star(&settled.stars, None, None).map(|star| Vec2 {
-            x: star.x,
-            y: star.y,
-        });
-        update_snapshot_from_frame(&mut guard, &settled, 50);
+        lock_on(
+            &mut guard,
+            &settled,
+            choose_lock_star(&settled.stars, None, None),
+        );
         guard.last_frame = Some(settled);
     }
 
@@ -127,37 +123,29 @@ pub(crate) async fn calibrate_dec_response(
 ) -> Result<(Vec2, f64), SkotiqError> {
     let (_, mount_id) = resolve_devices().await?;
     let config = state().read().await.config.clone();
-    let device_manager = get_device_manager();
     let refs = select_reference_stars(&baseline.stars, baseline.image.width, baseline.image.height);
 
     // --- Forward leg: at least two pulses to get past initial slack, then on
     // until the star has clearly moved; the rate is the per-pulse average.
-    let (fwd_offset, fwd_pulses, fwd_frame) = match pulse_until_moved(
-        &mount_id,
-        positive_direction,
-        &refs,
-        &config,
-        2,
-    )
-    .await
-    {
+    let leg = pulse_until_moved(&mount_id, positive_direction, &refs, &config, 2).await;
+    let (fwd_offset, fwd_pulses, fwd_frame) = match leg {
         Ok(leg) => leg,
-        Err(e) => {
+        Err(failure) => {
             // Back toward the start where the mount allows; the leg's own error is
             // the one reported.
             if let Err(back) = pulse_repeatedly(
                 &mount_id,
                 negative_direction,
-                CALIBRATION_MAX_PULSES,
+                failure.walk_back_pulses(),
                 &config,
             )
             .await
             {
                 tracing::warn!(
-                        "Calibration could not pulse back {negative_direction} after a failed leg: {back}"
-                    );
+                    "Calibration could not pulse back {negative_direction} after a failed leg: {back}"
+                );
             }
-            return Err(e);
+            return Err(failure.error);
         }
     };
     let north = fwd_offset.scaled(1.0 / f64::from(fwd_pulses));
@@ -175,15 +163,7 @@ pub(crate) async fn calibrate_dec_response(
         fwd_frame.image.width,
         fwd_frame.image.height,
     );
-    device_manager
-        .mount_pulse_guide(
-            &mount_id,
-            negative_direction.to_string(),
-            config.calibration_ms,
-        )
-        .await
-        .map_err(SkotiqError::from)?;
-    tokio::time::sleep(Duration::from_millis(config.settle_sleep_ms)).await;
+    pulse_repeatedly(&mount_id, negative_direction, 1, &config).await?;
     let rev_frame = capture_guide_frame_with_retries().await?;
     // A failed reverse star match must not be fed to the estimator as "the mount
     // did not move". Work the arithmetic: reverse_first = (0,0) makes
@@ -270,10 +250,10 @@ pub(crate) async fn calibrate_axis_response(
     // Walk back the way the leg came, whatever happened to its measurement.
     let pulses = match &leg {
         Ok((_, pulses, _)) => *pulses,
-        Err(_) => CALIBRATION_MAX_PULSES,
+        Err(failure) => failure.walk_back_pulses(),
     };
     pulse_repeatedly(&mount_id, negative_direction, pulses, &config).await?;
-    let (travel, pulses, _) = leg?;
+    let (travel, pulses, _) = leg.map_err(|failure| failure.error)?;
     let offset = travel.scaled(1.0 / f64::from(pulses));
 
     if offset.magnitude() < 0.2 / f64::from(pulses) {
@@ -306,6 +286,20 @@ pub(crate) fn calibration_leg_done(pulses: u32, travel_px: f64, min_pulses: u32)
         || (pulses >= min_pulses.max(CALIBRATION_MIN_PULSES) && travel_px >= CALIBRATION_TARGET_PX)
 }
 
+/// A calibration leg that ended before it was done: the pulses it had sent
+/// and why it stopped.
+pub(crate) struct LegFailure {
+    pub(crate) pulses_sent: u32,
+    pub(crate) error: SkotiqError,
+}
+
+impl LegFailure {
+    /// How many pulses the walk back toward the start sends.
+    pub(crate) fn walk_back_pulses(&self) -> u32 {
+        CALIBRATION_MAX_PULSES
+    }
+}
+
 /// Pulse `direction` until [`calibration_leg_done`], measuring after each
 /// pulse. Returns the total displacement, the pulses sent and the last frame.
 async fn pulse_until_moved(
@@ -314,20 +308,26 @@ async fn pulse_until_moved(
     refs: &[GuideReferenceStar],
     config: &crate::builtin_guider::config::GuiderConfig,
     min_pulses: u32,
-) -> Result<(Vec2, u32, GuideFrame), SkotiqError> {
+) -> Result<(Vec2, u32, GuideFrame), LegFailure> {
     let mut pulses = 0;
     let mut travel = Vec2::default();
+    let failed = |pulses_sent: u32| move |error: SkotiqError| LegFailure { pulses_sent, error };
     loop {
-        pulse_repeatedly(mount_id, direction, 1, config).await?;
+        pulse_repeatedly(mount_id, direction, 1, config)
+            .await
+            .map_err(failed(pulses))?;
         pulses += 1;
-        let frame = capture_guide_frame_with_retries().await?;
+        let frame = capture_guide_frame_with_retries()
+            .await
+            .map_err(failed(pulses))?;
         // Look for each star where the leg has carried it so far: matched
         // against where it started, a star several pixels along is often
         // nearer a neighbour's old place than its own.
-        let step = measure_offset(refs, &frame.stars, travel).ok_or_else(|| {
-            SkotiqError::OperationFailed(format!(
+        let step = measure_offset(refs, &frame.stars, travel).ok_or_else(|| LegFailure {
+            pulses_sent: pulses,
+            error: SkotiqError::OperationFailed(format!(
                 "Calibration star match failed after {pulses} {direction} pulses"
-            ))
+            )),
         })?;
         travel = Vec2 {
             x: travel.x + step.x,

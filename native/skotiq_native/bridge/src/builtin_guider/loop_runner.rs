@@ -4,7 +4,7 @@ use crate::builtin_guider::dither::{abandon_dither, DITHER_MATCH_GRACE_FRAMES};
 use crate::builtin_guider::metrics::{
     apply_guide_correction, apply_settle_state, axis_rms, choose_lock_star, measure_offset,
     push_arcsec_sample, push_rms_sample, record_per_star_residuals, select_reference_stars,
-    update_snapshot_from_frame,
+    update_snapshot_from_frame, SNAPSHOT_CROP_PX,
 };
 use crate::builtin_guider::state::{
     binned_guide_pixel_scale, guide_offset_arcsec, guide_pixel_scale_arcsec, op_lock, state,
@@ -320,7 +320,7 @@ pub(crate) async fn capture_and_store_loop_frame(
             y: star.y,
         });
     }
-    update_snapshot_from_frame(&mut guard, &frame, 50);
+    update_snapshot_from_frame(&mut guard, &frame, SNAPSHOT_CROP_PX);
     guard.last_status.connected = true;
     guard.last_status.state = if guard.looping {
         GuiderActivity::Looping
@@ -544,7 +544,7 @@ pub(crate) async fn run_guiding_loop(
             // Record per-star residuals so the per-star UI can show how far each
             // tracked star drifted this frame, not just the aggregate centroid.
             record_per_star_residuals(&mut guard.reference_stars, &frame.stars, desired);
-            update_snapshot_from_frame(&mut guard, &frame, 50);
+            update_snapshot_from_frame(&mut guard, &frame, SNAPSHOT_CROP_PX);
             if guard.paused {
                 guard.last_status.state = GuiderActivity::Paused;
                 guard.last_frame = Some(frame.clone());
