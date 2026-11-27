@@ -513,7 +513,7 @@ class SessionExportService {
           <td>${image.fileName}</td>
           <td>${image.frameType}</td>
           <td>${image.filter ?? '-'}</td>
-          <td>${image.exposureDuration.toStringAsFixed(1)} s</td>
+          <td>${QuantityFormat.exposure(image.exposureDuration)}</td>
           <td>${image.hfr?.toStringAsFixed(2) ?? '-'}</td>
           <td>${image.guidingRmsTotal?.toStringAsFixed(2) ?? '-'}</td>
         </tr>

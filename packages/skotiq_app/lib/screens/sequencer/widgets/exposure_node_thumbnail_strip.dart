@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart' show ProducingNodeThumbnail;
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/providers.dart' show exposureNodeThumbnailsProvider;
@@ -204,7 +205,7 @@ SavedFrameEntry _viewerEntry(ProducingNodeThumbnail t) {
     title: t.fileName,
     time: t.capturedAt.toLocal().toString().split('.').first,
     status: [
-      '${frameCaption(filter: t.filter, frameType: t.frameType)} · ${t.exposureDuration.toStringAsFixed(1)}s',
+      '${frameCaption(filter: t.filter, frameType: t.frameType)} · ${QuantityFormat.exposure(t.exposureDuration, space: false)}',
       if (t.hfr != null) 'HFR ${t.hfr!.toStringAsFixed(2)}',
       if (t.eccentricity != null) 'ecc ${t.eccentricity!.toStringAsFixed(2)}',
       if (t.starCount != null) '${t.starCount} stars',
@@ -323,7 +324,7 @@ class _ThumbnailTileState extends ConsumerState<_ThumbnailTile> {
     final t = widget.thumbnail;
     final parts = <String>[];
     parts.add(
-        '${frameCaption(filter: t.filter, frameType: t.frameType)} · ${t.exposureDuration.toStringAsFixed(0)}s');
+        '${frameCaption(filter: t.filter, frameType: t.frameType)} · ${QuantityFormat.exposure(t.exposureDuration, space: false)}');
     if (t.hfr != null) parts.add('HFR ${t.hfr!.toStringAsFixed(2)}');
     if (t.eccentricity != null) {
       parts.add('ecc ${t.eccentricity!.toStringAsFixed(2)}');

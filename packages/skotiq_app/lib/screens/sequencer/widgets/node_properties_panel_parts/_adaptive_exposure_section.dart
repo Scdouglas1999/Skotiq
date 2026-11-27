@@ -267,11 +267,11 @@ class _AdaptiveExposureSectionState
       color = colors.textMuted;
     } else if (!enabled) {
       preview = 'Adaptive disabled for filter "${filter ?? "(none)"}". '
-          'Exposure stays at ${widget.node.durationSecs.toStringAsFixed(1)}s.';
+          'Exposure stays at ${QuantityFormat.exposure(widget.node.durationSecs, space: false)}.';
       color = colors.textMuted;
     } else if (liveMag == null) {
       preview = 'Sky brightness not yet available. Exposure stays at '
-          '${widget.node.durationSecs.toStringAsFixed(1)}s until the tracker converges.';
+          '${QuantityFormat.exposure(widget.node.durationSecs, space: false)} until the tracker converges.';
       color = colors.textMuted;
     } else {
       final ratio = math
@@ -284,8 +284,8 @@ class _AdaptiveExposureSectionState
               ? max
               : raw;
       preview = 'At current sky ${liveMag.toStringAsFixed(2)} mag/arcsec², '
-          'this exposure would be ${clamped.toStringAsFixed(0)}s '
-          '(nominal ${widget.node.durationSecs.toStringAsFixed(0)}s).';
+          'this exposure would be ${QuantityFormat.exposure(clamped, space: false)} '
+          '(nominal ${QuantityFormat.exposure(widget.node.durationSecs, space: false)}).';
       if (clamped == min || clamped == max) {
         color = colors.warning;
       } else {
@@ -325,8 +325,8 @@ class _AdaptiveExposureSectionState
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Nominal duration (${widget.node.durationSecs.toStringAsFixed(0)}s) '
-                    'is outside the adaptive [${min.toStringAsFixed(0)}, ${max.toStringAsFixed(0)}]s '
+                    'Nominal duration (${QuantityFormat.exposure(widget.node.durationSecs, space: false)}) '
+                    'is outside the adaptive [${QuantityFormat.exposure(min, space: false)}, ${QuantityFormat.exposure(max, space: false)}] '
                     'bounds: every frame will be clamped.',
                     style: TextStyle(
                         fontSize: SkotiqTypography.fontSize11,

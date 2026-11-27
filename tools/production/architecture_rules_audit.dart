@@ -48,7 +48,10 @@ import 'src/audit_scope.dart';
 ///                       logged before the logging service exists are kept.
 ///   one-helper          A helper kept once ([_oneHelpers]) is declared or
 ///                       called only where it lives: a second copy of it, or
-///                       a hand-rolled use, goes through the one copy.
+///                       a hand-rolled use, goes through the one copy. An
+///                       exposure length is shown through
+///                       QuantityFormat.exposure, never interpolated by hand
+///                       before a unit ([_handExposureLabel]).
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -458,6 +461,53 @@ const _oneHelpers = <_OneHelper>[
   ),
 ];
 
+/// An exposure value interpolated straight before a unit: `${x.exposureSecs}s`,
+/// `${exposure.toStringAsFixed(1)} s`, `${node.durationSecs.round()}s`,
+/// `$exposure ms`. A `\${` (a template for another formatter) is not one.
+final _handExposureLabel = RegExp(
+  r'(?<!\\)\$\{[^{}]*(?:[Ee]xpos|[Ee]xptime|\.durationSecs\b)[^{}]*\}'
+  r'\s?(?:s|ms|sec|secs|seconds)\b'
+  r'|(?<!\\)\$\w*(?:[Ee]xpos|[Ee]xptime)\w*(?!\w)\s(?:s|ms|seconds)\b',
+);
+
+/// Files whose exposure number is not a label.
+const _handExposureExempt = {
+  // A master's file name: `MasterDark_2p5s_...` is read back by name.
+  'packages/skotiq_core/lib/src/services/calibration_master_builder.dart',
+  // A Darkroom group label goes into the processing plan the native side reads.
+  'packages/skotiq_core/lib/src/services/darkroom_build_service.dart',
+  'packages/skotiq_astro/lib/src/format/quantity_format.dart',
+};
+
+const _handExposureInstead =
+    'Show the exposure with QuantityFormat.exposure (package:skotiq_astro/'
+    'format.dart; `space: false` for "300s"). It switches to milliseconds below '
+    'a tenth of a second, so a 5 ms flat never reads "0s".';
+
+List<_Violation> _checkHandExposureLabels(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!_libraryCode.hasMatch(path)) continue;
+    if (path.endsWith('.g.dart') || path.endsWith('.freezed.dart')) continue;
+    if (_handExposureExempt.contains(path)) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final code = lines[i].trimLeft();
+      if (code.startsWith('//')) continue;
+      if (!_handExposureLabel.hasMatch(code)) continue;
+      out.add(
+        _Violation(
+          _Rule.oneHelper,
+          '$path:${i + 1}',
+          'formats an exposure by hand',
+          _handExposureInstead,
+        ),
+      );
+    }
+  }
+  return out;
+}
+
 /// A statement keyword that can stand before a call where a declaration's
 /// return type would.
 const _notAType =
@@ -527,6 +577,7 @@ void main(List<String> args) {
   violations.addAll(_checkAppFeedback(dartFiles));
   violations.addAll(_checkLeafLogger(dartFiles));
   violations.addAll(_checkOneHelper(dartFiles));
+  violations.addAll(_checkHandExposureLabels(dartFiles));
   violations.addAll(_checkMainListens(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);

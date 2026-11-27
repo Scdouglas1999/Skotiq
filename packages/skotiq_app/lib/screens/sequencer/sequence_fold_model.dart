@@ -499,7 +499,7 @@ FoldGroup _filterRunGroup(
     firstIndex: start,
     label: memberLabels.join(' · '),
     chipText:
-        '${QuantityFormat.trimmed(first.durationSecs)} s ×${first.count} each',
+        '${QuantityFormat.exposure(first.durationSecs)} ×${first.count} each',
     durationSecs: first.durationSecs,
     count: first.count,
     gain: first.gain,

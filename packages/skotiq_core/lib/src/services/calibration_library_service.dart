@@ -232,7 +232,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
         'No matching master dark (${context.gain == null ? 'no gain' : 'gain ${context.gain}'}, '
         '${context.offset == null ? 'no offset' : 'offset ${context.offset}'}, '
         'bin ${context.binX}x${context.binY}'
-        ', ${_fmtSecs(context.exposureSeconds)}): dark subtraction will be '
+        ', ${QuantityFormat.exposure(context.exposureSeconds, space: false)}): dark subtraction will be '
         'skipped.',
       );
     }

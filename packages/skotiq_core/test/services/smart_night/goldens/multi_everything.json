@@ -521,7 +521,7 @@
       "nodeType": "TakeExposure",
       "props": [
         "n19",
-        "Flats: L (0.50s @ 50% hist)",
+        "Flats: L (0.5s @ 50% hist)",
         true,
         [],
         "n15",

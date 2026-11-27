@@ -116,7 +116,7 @@ String? _filterRunSummary(List<SequenceNode> children) {
   // 300 s ×12 each` reads as one phrase; a ` · ` there would detach the
   // exposure length from the bands it belongs to.
   return <String>[
-    '${filters.join(' · ')} ${QuantityFormat.trimmed(first.durationSecs)} s '
+    '${filters.join(' · ')} ${QuantityFormat.exposure(first.durationSecs)} '
         '×${first.count} each',
     if (dither != null && dither > 0) 'dither every $dither',
   ].join(' · ');

@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/format.dart';
+
 import '../../sequence_models.dart';
 import '../validation_issue.dart';
 
@@ -158,7 +160,7 @@ class SciencePhotometryCadenceRule implements SequenceValidator {
             description:
                 'Science Photometry "${node.name}" has '
                 'max_cadence_gap_secs (${node.maxCadenceGapSecs.toStringAsFixed(1)}s) < '
-                'exposure_secs (${node.exposureSecs.toStringAsFixed(1)}s). '
+                'exposure_secs (${QuantityFormat.exposure(node.exposureSecs, space: false)}). '
                 'The inter-frame start-to-start gap cannot be shorter '
                 'than the exposure itself. The runtime will refuse to '
                 'start this burst.',

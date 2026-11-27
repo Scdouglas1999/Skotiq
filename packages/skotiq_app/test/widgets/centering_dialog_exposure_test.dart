@@ -181,7 +181,7 @@ void main() {
       await tapStart(tester);
 
       expectDidNoWork(tester, recorder);
-      expect(find.textContaining('between 0.01 and 600 s'), findsOneWidget);
+      expect(find.textContaining('between 10 ms and 600 s'), findsOneWidget);
       expect(fieldText(tester), '0');
     });
 
@@ -191,7 +191,7 @@ void main() {
       await tapStart(tester);
 
       expectDidNoWork(tester, recorder);
-      expect(find.textContaining('between 0.01 and 600 s'), findsOneWidget);
+      expect(find.textContaining('between 10 ms and 600 s'), findsOneWidget);
       expect(fieldText(tester), '-5');
     });
 
@@ -226,7 +226,7 @@ void main() {
       await tapStart(tester);
 
       expectDidNoWork(tester, recorder);
-      expect(find.textContaining('between 0.01 and 600 s'), findsOneWidget);
+      expect(find.textContaining('between 10 ms and 600 s'), findsOneWidget);
       expect(fieldText(tester), '601');
     });
 

@@ -119,7 +119,7 @@ void main() {
     container.read(currentImageProvider.notifier).state = _frame();
     await tester.pump();
 
-    expect(find.text('Light · 1.0 s'), findsOneWidget);
+    expect(find.text('Light · 1 s'), findsOneWidget);
     expect(find.text('21:24:16'), findsOneWidget);
     expect(find.text('HFR 2.00'), findsOneWidget);
     expect(find.text('12 stars'), findsOneWidget);
@@ -157,7 +157,7 @@ void main() {
         const ExposureSettings(
             exposureTime: 180, gain: 0, offset: 0, filter: 'Ha'),
       ),
-      'Ha · 180.0 s',
+      'Ha · 180 s',
     );
     expect(
       FrameInfoPill.frameIdentity(
@@ -169,13 +169,13 @@ void main() {
           frameType: FrameType.dark,
         ),
       ),
-      'Dark · 300.0 s',
+      'Dark · 300 s',
     );
     expect(
       FrameInfoPill.frameIdentity(
         const ExposureSettings(exposureTime: 0.5, gain: 0, offset: 0),
       ),
-      'Light · 0.50 s',
+      'Light · 0.5 s',
     );
     expect(
       FrameInfoPill.frameIdentity(
@@ -187,7 +187,7 @@ void main() {
           frameType: FrameType.flat,
         ),
       ),
-      'Flat · 2.2 ms',
+      'Flat · 2.24 ms',
     );
   });
 
@@ -253,7 +253,7 @@ void main() {
       }
     });
 
-    expect(find.text('Dark · 3.0 s'), findsOneWidget);
+    expect(find.text('Dark · 3 s'), findsOneWidget);
     expect(find.text('REJECT'), findsNothing);
     expect(find.text('ACCEPT'), findsNothing);
   });

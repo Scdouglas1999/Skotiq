@@ -349,6 +349,23 @@ void main() {
     },
   );
 
+  test('a master of a fractional exposure is named in seconds', () async {
+    rig.lights = [frame(1, type: 'light', exposure: 2.5, sensorTemp: 1)];
+    rig.runFrames = [
+      frame(100, type: 'dark', exposure: 2.5, dir: '/n/Dark', sensorTemp: 1),
+    ];
+    rig.headers[rig.runFrames!.single.filePath] = FrameHeader(const {
+      'SET-TEMP': 1.0,
+    });
+
+    final report = await service.run(reason: 'manual');
+
+    expect(
+      report.masters.single.label,
+      '2.5 s darks, gain 76, offset 15, bin 1x1, 1 °C',
+    );
+  });
+
   test(
     'a group with too few frames at its set-point is said, not built',
     () async {

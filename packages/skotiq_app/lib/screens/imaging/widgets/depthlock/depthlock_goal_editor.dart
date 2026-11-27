@@ -752,7 +752,7 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
                 ('Camera', acquisition.instrument),
                 (
                   'Exposure',
-                  '${acquisition.exposureSecs.toStringAsFixed(1)} s',
+                  QuantityFormat.exposure(acquisition.exposureSecs),
                 ),
                 (
                   'Gain / offset',

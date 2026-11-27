@@ -138,17 +138,12 @@ class FrameInfoPill extends ConsumerWidget {
   }
 
   /// What the frame is: its filter for a light frame shot through one,
-  /// otherwise its frame type, then the exposure — "L · 2.0 s",
-  /// "Dark · 300.0 s".
+  /// otherwise its frame type, then the exposure — "L · 2 s",
+  /// "Dark · 300 s".
   @visibleForTesting
   static String frameIdentity(ExposureSettings settings) {
     final exposure = settings.exposureTime;
-    // Flats run in milliseconds; 0.0022 s must not read as "0.00 s".
-    final exposureLabel = exposure >= 1
-        ? '${exposure.toStringAsFixed(1)} s'
-        : exposure >= 0.1
-            ? '${exposure.toStringAsFixed(2)} s'
-            : '${(exposure * 1000).toStringAsFixed(1)} ms';
+    final exposureLabel = QuantityFormat.exposure(exposure);
     final filter = settings.filter?.trim();
     final lead = settings.frameType == FrameType.light &&
             filter != null &&

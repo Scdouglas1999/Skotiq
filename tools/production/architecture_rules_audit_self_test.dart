@@ -1089,6 +1089,62 @@ Future<void> main() async {
     );
   }, exitCode: 0);
 
+  await check(
+    'an exposure formatted by hand fails',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_app/lib/screens/review/tile.dart',
+        r'''
+final a = '${sub.exposureDuration.toInt()}s';
+final b = '${t.exposureDuration.toStringAsFixed(1)} s';
+final c = 'Exposure ${node.durationSecs}s';
+final d = 'at $exposure ms';
+''',
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/services/flat_text.dart',
+        r'''
+final e = '${QuantityFormat.trimmed(p.goal.exposureSeconds)} s x';
+''',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[one-helper]',
+      'tile.dart:2: formats an exposure by hand',
+      'tile.dart:3: formats an exposure by hand',
+      'tile.dart:4: formats an exposure by hand',
+      'tile.dart:1: formats an exposure by hand',
+      'flat_text.dart:1: formats an exposure by hand',
+      'Where it goes instead: Show the exposure with QuantityFormat.exposure',
+    ],
+  );
+
+  await check('an exposure shown through QuantityFormat.exposure passes', (
+    root,
+  ) async {
+    await _write(root, 'packages/skotiq_app/lib/screens/review/tile.dart', r'''
+final a = '${QuantityFormat.exposure(sub.exposureDuration)} · x';
+final b = QuantityFormat.exposure(t.exposureDuration, space: false);
+final c = 'Frame \${frame} captured (\${exposure.duration}s).';
+final d = 'no data for ${limit.inSeconds}s';
+final e = '$completedExposures/$totalExposures exposures';
+// '${sub.exposureDuration.toInt()}s' in a comment.
+''');
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/services/calibration_master_builder.dart',
+      r'''
+final n = 'MasterDark_${calibrationMasterNameNumber(exposureSeconds)}s';
+''',
+    );
+    await _write(root, 'packages/skotiq_app/test/tile_test.dart', r'''
+final a = '${sub.exposureDuration.toInt()}s';
+''');
+  }, exitCode: 0);
+
   if (failures > 0) {
     stderr.writeln('$failures architecture rules self-test case(s) failed.');
     exit(1);

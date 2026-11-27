@@ -85,7 +85,8 @@ String _laneNote(PassSnapshot s, PassLane lane) {
   return <String>[
     '$measured of ${lane.subCount} measured',
     if (rejected > 0) '$rejected rejected',
-    if (lane.exposureSec != null) '${lane.exposureSec!.round()} s subs',
+    if (lane.exposureSec case final exposure?)
+      '${QuantityFormat.exposure(exposure)} subs',
   ].join(' · ');
 }
 

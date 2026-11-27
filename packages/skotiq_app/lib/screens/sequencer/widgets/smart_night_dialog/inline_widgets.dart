@@ -876,7 +876,7 @@ class _FilterRow extends StatelessWidget {
           SizedBox(
             width: 56,
             child: Text(
-              '${plan.count} × ${plan.durationSecs.toStringAsFixed(0)}s',
+              '${plan.count} × ${QuantityFormat.exposure(plan.durationSecs, space: false)}',
               textAlign: TextAlign.center,
               style:
                   SkotiqTypography.labelSm.copyWith(color: colors.textPrimary),

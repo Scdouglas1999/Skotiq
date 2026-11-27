@@ -527,7 +527,7 @@ class _GoalRowState extends State<_GoalRow> {
               SkotiqTypography.bodyStrong.copyWith(color: colors.textPrimary),
         ),
       ),
-      Text('${QuantityFormat.trimmed(p.goal.exposureSeconds)} s ×',
+      Text('${QuantityFormat.exposure(p.goal.exposureSeconds)} ×',
           style: muted),
       const SizedBox(width: SkotiqTokens.spaceSm),
       frames,

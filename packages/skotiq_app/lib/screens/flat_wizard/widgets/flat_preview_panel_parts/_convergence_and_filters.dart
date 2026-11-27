@@ -278,7 +278,7 @@ class _FilterResultRow extends StatelessWidget {
     final exposure = filter.calibratedExposure;
     final adu = filter.currentAdu;
     final facts = [
-      if (exposure != null) '${_exposureSeconds(exposure)} s',
+      if (exposure != null) QuantityFormat.exposure(exposure),
       if (adu != null) '${adu.toStringAsFixed(0)} ADU',
     ].join(' · ');
     final tone = _tone(filter.status);

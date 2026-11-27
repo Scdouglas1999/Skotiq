@@ -40,14 +40,10 @@ class DarkFrameRequirement {
 
   /// `300 s darks at gain 100, offset 50, -10.0°C, binning 1x1`.
   String describe() {
-    final whole = durationSecs == durationSecs.roundToDouble();
-    final seconds = whole
-        ? durationSecs.toStringAsFixed(0)
-        : durationSecs.toString();
     final temperature = targetTemp == null
         ? 'any temperature'
         : formatCelsius(targetTemp);
-    return '$seconds s darks at gain $gain, offset $offset, $temperature, '
+    return '${QuantityFormat.exposure(durationSecs)} darks at gain $gain, offset $offset, $temperature, '
         'binning ${binX}x$binY';
   }
 }

@@ -123,7 +123,7 @@ class AstroBinExportMetadata {
     if (acquired != null) buf.writeln('**Date:** $acquired');
     buf.writeln('**Subject type:** $subjectType');
     buf.writeln(
-      '**Frames:** $frames x ${QuantityFormat.trimmed(perFrameExposureSecs)}s',
+      '**Frames:** $frames x ${QuantityFormat.exposure(perFrameExposureSecs, space: false)}',
     );
     buf.writeln('**Integration:** $integrationHms');
 

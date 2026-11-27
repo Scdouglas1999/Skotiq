@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/format.dart';
+
 import '../../database/rows/frame_type_record.dart';
 import '../../database/database.dart' show DbCapturedImage;
 import '../../models/imaging/imaging_models.dart' show FrameType;
@@ -35,7 +37,7 @@ class EonDarkGroup {
     final temp = setPointC == null
         ? 'uncooled'
         : '${_formatNumber(setPointC!)} C';
-    return '${_formatNumber(exposureSecs)} s, ${gainOffsetLabel(gain, offset)}, '
+    return '${QuantityFormat.exposure(exposureSecs)}, ${gainOffsetLabel(gain, offset)}, '
         'bin ${binX}x$binY, $temp';
   }
 

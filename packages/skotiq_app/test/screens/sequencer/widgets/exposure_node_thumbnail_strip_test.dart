@@ -35,17 +35,19 @@ ProducingNodeThumbnail _thumb({
   bool isAccepted = true,
   double? hfr,
   String? path,
+  String frameType = 'light',
+  double exposureDuration = 60,
 }) {
   return ProducingNodeThumbnail(
     id: id,
     filePath: path ?? '/tmp/$id.fits',
     fileName: '$id.fits',
     filter: filter,
-    frameType: 'light',
+    frameType: frameType,
     hfr: hfr,
     eccentricity: 0.31,
     starCount: 120,
-    exposureDuration: 60,
+    exposureDuration: exposureDuration,
     capturedAt: DateTime.utc(2026, 1, 1, 22, 0, id),
     isAccepted: isAccepted,
     rejectionReason: isAccepted ? null : 'HFR too high',
@@ -159,6 +161,25 @@ void main() {
       expect(tileBorderColors, contains(colors.success));
       expect(tileBorderColors, contains(colors.warning));
       expect(tileBorderColors, contains(colors.error));
+    });
+
+    testWidgets('a 5 ms bias reads 5 ms in the tile tooltip, not 0s',
+        (tester) async {
+      await _pumpStrip(
+        tester,
+        thumbnails: [
+          _thumb(
+            id: 1,
+            filter: '',
+            grade: 'pass',
+            frameType: 'bias',
+            exposureDuration: 0.005,
+          ),
+        ],
+      );
+
+      final tooltip = tester.widget<Tooltip>(find.byType(Tooltip).first);
+      expect(tooltip.message, startsWith('Bias · 5 ms'));
     });
 
     testWidgets('renders nothing when prefs.enabled is false', (tester) async {

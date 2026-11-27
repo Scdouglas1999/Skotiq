@@ -250,7 +250,8 @@ class _AutofocusProperties extends ConsumerWidget {
           _buildInfoRow(context, 'Step Size', '${afSettings.stepSize}'),
           _buildInfoRow(
               context, 'Steps Out', '${afSettings.initialOffsetSteps}'),
-          _buildInfoRow(context, 'Exposure', '${afSettings.exposureTime}s'),
+          _buildInfoRow(context, 'Exposure',
+              QuantityFormat.exposure(afSettings.exposureTime, space: false)),
           _buildInfoRow(
               context, 'Exposures/Point', '${afSettings.exposuresPerPoint}'),
           _buildInfoRow(context, 'Binning',

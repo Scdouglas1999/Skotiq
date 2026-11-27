@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../database/database.dart';
 import '../database/daos/dark_library_dao.dart';
@@ -169,9 +170,9 @@ class DarkLibraryService {
         throw ArgumentError(
           'All frames must have matching exposure, gain, offset, binning, '
           'and frame type. Mismatch found: '
-          '${frame.exposureTime}s/gain${frame.gain}/offset${frame.offset}/'
+          '${QuantityFormat.exposure(frame.exposureTime, space: false)}/gain${frame.gain}/offset${frame.offset}/'
           '${frame.binX}x${frame.binY}/${frame.frameType} vs '
-          '${first.exposureTime}s/gain${first.gain}/offset${first.offset}/'
+          '${QuantityFormat.exposure(first.exposureTime, space: false)}/gain${first.gain}/offset${first.offset}/'
           '${first.binX}x${first.binY}/${first.frameType}',
         );
       }

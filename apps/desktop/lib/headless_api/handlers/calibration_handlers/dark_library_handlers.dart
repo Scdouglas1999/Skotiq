@@ -728,7 +728,8 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     }
     _logInfo(
       'Matched dark for remote calibration: ${match.calibrationPath} '
-      '(exposure=${match.exposureTime}s, temp=${match.temperature}C)',
+      '(exposure=${QuantityFormat.exposure(match.exposureTime, space: false)}, '
+      'temp=${match.temperature}C)',
     );
     return jsonOk({'matched': match.calibrationPath});
   }

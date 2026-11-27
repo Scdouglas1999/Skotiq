@@ -30,7 +30,8 @@ class _SeededWizard extends FlatWizardNotifier {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('a 1.5 ms flat is not shown as 0.00 s', (tester) async {
+  testWidgets('a 1.5 ms flat reads in milliseconds, not 0.00 s',
+      (tester) async {
     await pumpAppScreen(
       tester,
       const FlatPreviewPanel(),
@@ -41,7 +42,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.textContaining('0.001500'), findsWidgets);
+    expect(find.textContaining('1.5'), findsWidgets);
+    expect(find.textContaining('ms'), findsWidgets);
+    expect(find.textContaining('0.00'), findsNothing);
     expect(find.textContaining('12.34 s', skipOffstage: false), findsOneWidget);
     expect(find.textContaining('12.3400', skipOffstage: false), findsNothing);
   });

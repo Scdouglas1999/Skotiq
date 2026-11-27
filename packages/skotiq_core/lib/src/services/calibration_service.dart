@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as path;
 
@@ -334,7 +335,7 @@ class CalibrationService {
           darkPath = matchingDark.calibrationPath;
           _logger.info(
             'Auto-matched dark: ${matchingDark.calibrationPath} '
-            '(exposure=${matchingDark.exposureTime}s, '
+            '(exposure=${QuantityFormat.exposure(matchingDark.exposureTime, space: false)}, '
             'temp=${matchingDark.temperature}C)',
             source: 'CalibrationService',
           );

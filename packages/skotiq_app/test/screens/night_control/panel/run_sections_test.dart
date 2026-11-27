@@ -116,7 +116,7 @@ void main() {
       expect(find.text('Adaptive exposure'), findsOneWidget);
       expect(find.text('Adapted to the sky'), findsOneWidget);
       expect(find.text('Exposure · Ha'), findsOneWidget);
-      expect(find.text('2m (plan 3m)'), findsOneWidget);
+      expect(find.text('120 s (plan 180 s)'), findsOneWidget);
       expect(find.text('20.31 mag/arcsec²'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });

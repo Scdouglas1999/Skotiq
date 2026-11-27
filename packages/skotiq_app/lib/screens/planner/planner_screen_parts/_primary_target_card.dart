@@ -239,7 +239,10 @@ class _TargetDetailColumn extends ConsumerWidget {
       ),
       if (filters != null) (l10n.text('plannerKvSuggestedFilters'), filters),
       if (exposureSeconds != null && exposureSeconds > 0)
-        (l10n.text('plannerKvExposure'), '${exposureSeconds.round()} s'),
+        (
+          l10n.text('plannerKvExposure'),
+          QuantityFormat.exposure(exposureSeconds)
+        ),
       if (estimated != null && estimated.estimatedIntegrationHours > 0)
         (
           l10n.text('plannerKvEstimatedIntegration'),

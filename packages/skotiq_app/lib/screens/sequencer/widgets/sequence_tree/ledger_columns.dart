@@ -148,9 +148,9 @@ LedgerColumns ledgerColumnsFor(
 
 /// `Ha 300s`, or `300s` for an unfiltered exposure.
 String _filterExp(String? filter, double durationSecs) {
-  final secs = QuantityFormat.trimmed(durationSecs);
-  if (filter == null || filter.isEmpty) return '${secs}s';
-  return '$filter ${secs}s';
+  final exposure = QuantityFormat.exposure(durationSecs, space: false);
+  if (filter == null || filter.isEmpty) return exposure;
+  return '$filter $exposure';
 }
 
 /// The filters a SmartExposure rotates through: the set's usual name when it

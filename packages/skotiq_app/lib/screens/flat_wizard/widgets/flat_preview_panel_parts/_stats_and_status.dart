@@ -15,6 +15,10 @@ class _StatsBar extends StatelessWidget {
         ? state.filterSettings[state.currentFilterIndex]
         : null;
 
+    final calibratedExposure = currentFilter?.calibratedExposure;
+    final calibrated = calibratedExposure == null
+        ? null
+        : QuantityFormat.exposureParts(calibratedExposure);
     // The frame count reads "0 / 30" before a run, so the aim is on screen.
     final frameTarget =
         currentFilter?.frameCountOverride ?? state.globalSettings.frameCount;
@@ -26,10 +30,8 @@ class _StatsBar extends StatelessWidget {
       ),
       Readout(
         label: 'Exposure',
-        value: currentFilter?.calibratedExposure == null
-            ? null
-            : _exposureSeconds(currentFilter!.calibratedExposure!),
-        unit: 's',
+        value: calibrated?.value,
+        unit: calibrated?.unit ?? 's',
         size: ReadoutSize.sm,
       ),
       Readout(

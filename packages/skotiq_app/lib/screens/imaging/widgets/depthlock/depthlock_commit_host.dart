@@ -222,7 +222,7 @@ class _DepthLockRegionCommitHostState
   static String _describeUnmatched(AcquisitionSettings acquisition) {
     final parts = <String>[
       acquisition.instrument,
-      '${acquisition.exposureSecs.toStringAsFixed(acquisition.exposureSecs % 1 == 0 ? 0 : 1)} s',
+      QuantityFormat.exposure(acquisition.exposureSecs),
       if (acquisition.gain != null) 'gain ${acquisition.gain}',
       if (acquisition.ccdTempC != null)
         formatCelsius(acquisition.ccdTempC!, decimals: 0),

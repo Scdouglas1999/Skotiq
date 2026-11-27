@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../../backend/bridge_events.dart';
 import '../../backend/sequencer_error_kind.dart';
@@ -251,7 +252,7 @@ void foldRunEvent(
       run.updateProgress(
         currentFilter: filter,
         message:
-            'Exposure $frame/$total - ${durationSecs}s'
+            'Exposure $frame/$total - ${QuantityFormat.exposure(durationSecs, space: false)}'
             '${filter != null ? " ($filter)" : ""}',
       );
 

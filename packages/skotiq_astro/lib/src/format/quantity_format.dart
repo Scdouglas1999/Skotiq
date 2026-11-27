@@ -3,16 +3,27 @@
 library;
 
 abstract final class QuantityFormat {
-  /// [value] with up to [maxDecimals] places and no trailing zeros: `30`,
-  /// `2.5`, `0.25`. `-0` reads `0`.
-  /// An exposure length: seconds to one decimal ("2.5 s"), and milliseconds
-  /// below a tenth of a second ("5 ms"), where seconds would read "0 s".
+  /// An exposure length to the millisecond, trailing zeros dropped: "300 s",
+  /// "2.5 s", "1.234 s", "0.25 s", and milliseconds below a tenth of a second
+  /// ("5 ms", "0.032 ms"), so a short frame never reads "0 s". Two exposures a
+  /// dark match tells apart (1 ms) never read the same.
   /// [space] puts a space before "s" ("2.5 s") or not ("2.5s").
   static String exposure(double seconds, {bool space = true}) {
-    if (seconds > 0 && seconds < 0.1) return '${trimmed(seconds * 1000)} ms';
-    return '${trimmed(seconds)}${space ? ' ' : ''}s';
+    final (:value, :unit) = exposureParts(seconds);
+    return '$value${space || unit != 's' ? ' ' : ''}$unit';
   }
 
+  /// [exposure] as a number and its unit ("s" or "ms"), for a readout that
+  /// sets the unit apart.
+  static ({String value, String unit}) exposureParts(double seconds) {
+    if (seconds > 0 && seconds < 0.1) {
+      return (value: trimmed(seconds * 1000, maxDecimals: 3), unit: 'ms');
+    }
+    return (value: trimmed(seconds, maxDecimals: 3), unit: 's');
+  }
+
+  /// [value] with up to [maxDecimals] places and no trailing zeros: `30`,
+  /// `2.5`, `0.25`. `-0` reads `0`.
   static String trimmed(double value, {int maxDecimals = 1}) {
     var text = value.toStringAsFixed(maxDecimals);
     if (text.contains('.')) {

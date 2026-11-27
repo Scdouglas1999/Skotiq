@@ -38,15 +38,15 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
           : null;
       score -= 25;
       warnings.add(
-        'No dark at ${_fmtSecs(ctx.exposureSeconds)}: nearest is '
-        '${_fmtSecs(darkExp ?? 0)}; the dark will be scaled'
+        'No dark at ${QuantityFormat.exposure(ctx.exposureSeconds, space: false)}: nearest is '
+        '${QuantityFormat.exposure(darkExp ?? 0, space: false)}; the dark will be scaled'
         '${scaleFactor != null ? ' by ${scaleFactor.toStringAsFixed(2)}x' : ''}.'
         ' Capture a matching-exposure dark for best results.',
       );
     } else {
       reasons.add(
-        'Exposure ${_fmtSecs(best.exposureSeconds ?? 0)} '
-        '(within ±${exposureTol}s of ${_fmtSecs(ctx.exposureSeconds)})',
+        'Exposure ${QuantityFormat.exposure(best.exposureSeconds ?? 0, space: false)} '
+        '(within ±${QuantityFormat.exposure(exposureTol, space: false)} of ${QuantityFormat.exposure(ctx.exposureSeconds, space: false)})',
       );
     }
 

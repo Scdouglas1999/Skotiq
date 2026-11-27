@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
@@ -361,7 +362,8 @@ class _BuiltinGuiderConfigFormState
           ),
         Text(
           key: const ValueKey('builtin-guider-last-applied'),
-          'Last applied: exp ${running.exposureSecs}s, gain ${running.gain}, '
+          'Last applied: exp ${QuantityFormat.exposure(running.exposureSecs, space: false)}, '
+          'gain ${running.gain}, '
           'bin ${running.binning}, cal ${running.calibrationMs}ms',
           style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           maxLines: 2,

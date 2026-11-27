@@ -12,11 +12,6 @@ bool _sameExposure(double? a, double? b) {
   return (a - b).abs() < 0.001;
 }
 
-String _fmtSecs(double secs) {
-  final isWhole = secs == secs.roundToDouble();
-  return isWhole ? '${secs.round()}s' : '${secs.toStringAsFixed(2)}s';
-}
-
 String _typeLabel(CalibrationMasterType type) {
   return switch (type) {
     CalibrationMasterType.dark => 'Master dark',
