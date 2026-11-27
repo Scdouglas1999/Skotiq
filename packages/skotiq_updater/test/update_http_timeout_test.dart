@@ -9,8 +9,7 @@ import 'package:skotiq_updater/src/services/update_service.dart';
 
 /// A server that accepts the connection and then never answers. This is the
 /// blackhole an update host becomes behind a dropped NAT mapping or a
-/// misconfigured proxy, and it is the case that used to wedge the whole
-/// update subsystem until the process restarted.
+/// misconfigured proxy.
 class _BlackholeClient extends http.BaseClient {
   final requestStarted = Completer<void>();
 

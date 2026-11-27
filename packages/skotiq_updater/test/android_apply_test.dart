@@ -177,9 +177,7 @@ void main() {
     () async {
       // Android replaces the app and relaunches it without ever returning to
       // the code that staged the APK, and there is no helper binary to clear
-      // staging the way the desktop updater does. The relaunched app used to
-      // find its own version still staged, announce it as ready to install,
-      // and keep the whole APK on the phone indefinitely.
+      // staging the way the desktop updater does.
       final apkBytes = utf8.encode('a plausible apk');
       final manifest = await signedManifest(apkBytes);
       final apkPath = await stageApk(manifest, apkBytes);

@@ -426,9 +426,7 @@ void main() {
 
     await controller.checkForUpdates(channelOverride: 'beta');
 
-    // The override changes the channel only. It used to go through
-    // configure(), which re-derives the update source as a side effect — and
-    // would now silently drop a GitHub source on every `?channel=` request.
+    // The override changes the channel only.
     verifyInOrder([
       () => updateService.setChannel('beta'),
       () => updateService.checkForUpdates(),
@@ -527,9 +525,6 @@ void main() {
       'screen and stays installable', () async {
     // Android 8+ keeps "install unknown apps" off for every app until the
     // user turns it on, so the first OTA install on every phone meets this.
-    // It used to end as a bare error: the permission screen was never
-    // opened, and leaving the staged state meant the verified APK could
-    // only be reached again by downloading it a second time.
     TestWidgetsFlutterBinding.ensureInitialized();
     final calls = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
