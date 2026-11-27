@@ -57,8 +57,8 @@ class SequencerStatus {
   /// Human-readable name of the current node
   final String? currentNodeName;
 
-  /// Overall progress (0.0 to 1.0)
-  final double progress;
+  /// Overall progress (0.0 to 1.0); null for a rig that has not run.
+  final double? progress;
 
   final String? message;
 
@@ -84,7 +84,7 @@ class SequencerStatus {
     required this.state,
     this.currentNodeId,
     this.currentNodeName,
-    required this.progress,
+    this.progress,
     this.message,
     this.runVitals,
     this.guidingStopReason,
@@ -98,7 +98,7 @@ class SequencerStatus {
       state: json['state'] as String? ?? 'Idle',
       currentNodeId: json['currentNodeId'] as String?,
       currentNodeName: json['currentNodeName'] as String?,
-      progress: (json['progress'] as num?)?.toDouble() ?? 0.0,
+      progress: (json['progress'] as num?)?.toDouble(),
       message: json['message'] as String?,
       runVitals: json['runVitals'] is Map<String, dynamic>
           ? SequencerRunVitals.fromJson(
