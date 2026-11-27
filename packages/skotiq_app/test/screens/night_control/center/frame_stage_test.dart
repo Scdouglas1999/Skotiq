@@ -87,6 +87,7 @@ void main() {
 
   testWidgets('a run exposure counts up from its start', (tester) async {
     final board = NightFixtures.running();
+    final now = DateTime.utc(2026, 11, 20, 3);
     await pumpCenter(
       tester,
       centerOverrides(
@@ -94,11 +95,12 @@ void main() {
         frames: stripWithPaths(board.frames),
         image: testFrame(),
         exposure: NightExposureVm(
-          startedAt: DateTime.now().toUtc().subtract(
-                const Duration(seconds: 60, milliseconds: 300),
-              ),
+          startedAt: now.subtract(
+            const Duration(seconds: 60, milliseconds: 300),
+          ),
           total: 180,
         ),
+        clock: _StoppedClock(now),
       ),
       child: const FrameStage(),
     );
@@ -507,4 +509,18 @@ void overlayTests() {
     expect(solve.raDegrees, 24.17);
     expect(solve.frameCapturedAt, image.capturedAt);
   });
+}
+
+class _StoppedClock implements Clock {
+  const _StoppedClock(this.at);
+  final DateTime at;
+
+  @override
+  DateTime now() => at.toLocal();
+  @override
+  DateTime nowUtc() => at.toUtc();
+  @override
+  Duration get utcOffset => at.toLocal().timeZoneOffset;
+  @override
+  DateTime fromUtc(DateTime utc) => utc.toLocal();
 }
