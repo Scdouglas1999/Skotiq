@@ -30,6 +30,24 @@ enum FrameType {
     _ => null,
   };
 
+  /// A frame's compact caption: the filter for a light, and what the frame is
+  /// for a calibration frame ("Dark", "Bias", "Flat Ha"). Null for a light or
+  /// snapshot with no filter, which each surface marks its own way.
+  String? caption(String? filter) {
+    final trimmed = filter?.trim();
+    final named = trimmed == null || trimmed.isEmpty ? null : trimmed;
+    return switch (this) {
+      FrameType.flat => named == null ? 'Flat' : 'Flat $named',
+      FrameType.light || FrameType.snapshot => named,
+      _ => coverOnLabel,
+    };
+  }
+
+  /// [caption] of a frame whose type is stored as [record]; a type no record
+  /// names reads as a light.
+  static String? captionOfRecord(String record, String? filter) =>
+      (fromRecord(record.toLowerCase()) ?? FrameType.light).caption(filter);
+
   /// The frame type as a captured-image record names it: the `frame_type`
   /// column, the host's image rows and the executor's capture events.
   String get record => switch (this) {

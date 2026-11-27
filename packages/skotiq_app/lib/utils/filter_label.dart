@@ -1,18 +1,12 @@
-/// Filter labels that do not invent a filter.
+/// Filter labels and frame captions that do not invent a filter.
 ///
-/// Frame chips and thumbnail captions across the app were written as
-/// `'${image.filter ?? 'L'}'`, which labels every unfiltered frame "L" —
-/// Luminance. A one-shot-colour camera, a DSLR, or any mono rig imaging without
-/// a wheel produces frames with no filter at all, so the whole night reads as
-/// Luminance data that was never shot through a Luminance filter. Spotted on the
-/// Dashboard's Recent Frames strip while driving a sequence with no filter
-/// wheel: three unfiltered subs, all captioned "L".
-///
-/// The same codebase already had honest spellings in other places (`'—'` on the
-/// sequencer's frame-detail chips, `'Unfiltered'` in project tracking,
-/// `'No filter'` in the photometric wizard), so the fabricated 'L' was also an
-/// inconsistency. Use [filterLabel] for compact captions and chips.
+/// A one-shot-color camera, a DSLR, or a mono rig without a wheel takes frames
+/// with no filter. They are marked [kNoFilterLabel], never captioned "L"
+/// (Luminance). Use [filterLabel] for a filter alone and [frameCaption] for a
+/// frame.
 library;
+
+import 'package:skotiq_core/models.dart' show FrameType;
 
 /// Marker shown when a frame carries no filter.
 ///
@@ -33,20 +27,8 @@ String filterLabel(String? filter) {
   return trimmed;
 }
 
-/// A frame's compact caption: the filter for a light, and what the frame is
-/// for a calibration frame ("Dark", "Bias", "Flat Ha"). A dark is shot with
-/// whatever filter is in the wheel, so its filter says nothing about it.
-///
-/// [frameType] is the stored spelling (`light`, `dark`, `flat`, `bias`,
-/// `darkflat`, `snapshot`).
-String frameCaption({required String? filter, required String frameType}) {
-  return switch (frameType.toLowerCase()) {
-    'dark' => 'Dark',
-    'bias' => 'Bias',
-    'darkflat' => 'Dark flat',
-    'flat' => filterLabel(filter) == kNoFilterLabel
-        ? 'Flat'
-        : 'Flat ${filterLabel(filter)}',
-    _ => filterLabel(filter),
-  };
-}
+/// A frame's compact caption ([FrameType.caption]), with [kNoFilterLabel]
+/// for a light with no filter. [frameType] is the stored spelling (`light`,
+/// `dark`, `flat`, `bias`, `darkflat`, `snapshot`).
+String frameCaption({required String? filter, required String frameType}) =>
+    FrameType.captionOfRecord(frameType, filter) ?? kNoFilterLabel;
