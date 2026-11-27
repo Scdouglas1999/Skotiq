@@ -68,14 +68,15 @@ class LedgerColumns {
 
 /// Build the column text for [node].
 ///
-/// [rollup] is the node's rolled-up estimate from `nodeRollupDurationProvider`
-/// and [eta] its predicted start from [ledgerEtaProvider]; both are passed in
-/// rather than looked up so this stays a pure function of the sequence.
+/// [rollup] is the node's rolled-up estimate from `nodeRollupDurationProvider`,
+/// passed in rather than looked up so this stays a pure function of the
+/// sequence. The ETA column is the row's: it moves with the clock, so the row
+/// fills it from [ledgerEtaProvider].
 ///
 /// The dispatch is a deliberate `is`-chain rather than the exhaustive
 /// `switch (node)` `nodeSummary` uses: a node type this function has never
 /// heard of still has a name, a duration and a start time, so the honest
-/// default (duration + ETA, no capture columns) is right for it. A new
+/// default (a duration, no capture columns) is right for it. A new
 /// instruction that captures frames adds a branch here; one that does not
 /// needs no edit.
 LedgerColumns ledgerColumnsFor(
@@ -83,9 +84,7 @@ LedgerColumns ledgerColumnsFor(
   Sequence sequence, {
   required Duration rollup,
   NodeOpenEnd? openEnd,
-  DateTime? eta,
 }) {
-  final etaText = eta == null ? '' : ClockFormat.hm(eta.toLocal());
   // `<1s` is what `formatRollupDuration` returns for zero, which in a column
   // of estimates reads as a measurement rather than as "this step has no
   // length". A node with no duration leaves the column empty instead. One
@@ -106,7 +105,6 @@ LedgerColumns ledgerColumnsFor(
       ),
       count: '${node.count}',
       duration: durationText,
-      eta: etaText,
     );
   }
 
@@ -117,7 +115,6 @@ LedgerColumns ledgerColumnsFor(
       filterExp: _filterExp(node.filter, node.exposureSecs),
       count: '${node.count}',
       duration: durationText,
-      eta: etaText,
     );
   }
 
@@ -126,7 +123,6 @@ LedgerColumns ledgerColumnsFor(
       filterExp: _smartFilters(node),
       count: _frameCount(plannedCaptureUnder(sequence, node.id)),
       duration: durationText,
-      eta: etaText,
     );
   }
 
@@ -137,13 +133,12 @@ LedgerColumns ledgerColumnsFor(
     return LedgerColumns(
       count: _frameCount(plannedCaptureUnder(sequence, node.id)),
       duration: durationText,
-      eta: etaText,
     );
   }
 
   // Delay, Wait, Slew, Autofocus, Cool Camera, an empty container … anything
   // with a length but nothing to capture.
-  return LedgerColumns(duration: durationText, eta: etaText);
+  return LedgerColumns(duration: durationText);
 }
 
 /// `Ha 300s`, or `300s` for an unfiltered exposure.

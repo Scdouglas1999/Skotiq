@@ -712,128 +712,50 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
   }) {
     final colors = widget.colors;
     final node = widget.node;
-    final guides = widget.depth - 1;
-
-    final nameColor = isFailed
-        ? colors.error
-        : isMuted
-            ? colors.textMuted
-            : colors.textPrimary;
-    final columnColor = isMuted ? colors.textMuted : colors.textSecondary;
-
-    return Row(
-      children: [
-        SizedBox(
-          width: _ledgerRunningMarkerWidth,
-          height: _ledgerRowHeight,
-          // A pinned row and a drag's feedback layer are readouts of a row
-          // that is drawn elsewhere; a second breath for the same step would
-          // be two heartbeats for one run.
-          child: isRunning
-              ? (widget.pinned || widget.isDragging
-                  ? ColoredBox(color: colors.brandWarm)
-                  : _RunningMarkerBreath(
-                      child: ColoredBox(color: colors.brandWarm),
-                    ))
-              : null,
-        ),
-        ..._ledgerDepthGuides(guides, colors),
-        _buildChevron(context),
-        ExcludeSemantics(
-          child: Icon(
-            nodeIcon(node.iconName),
-            size: _ledgerIconSize,
-            color: isMuted
-                ? colors.textMuted
-                : nodeCategoryTint(node.category, colors),
-          ),
-        ),
-        const SizedBox(width: SkotiqTokens.spaceSm),
-        Expanded(
-          child: ExcludeSemantics(
-            child: LayoutBuilder(builder: (context, slot) {
-              // On a narrow canvas (a tablet, an unfolded phone) the name is
-              // what the row is read by, so it keeps the slot: the Running chip
-              // repeats the row's marker, and a target's RA / Dec and a step's
-              // summary are in its inspector.
-              final roomy = slot.maxWidth >= _ledgerRoomyNameSlot;
-              return Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      node.name,
-                      style: SkotiqTypography.bodySm.copyWith(
-                        fontWeight: widget.isContainer
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: nameColor,
-                        decoration:
-                            isStruckThrough ? TextDecoration.lineThrough : null,
-                        decorationColor: isStruckThrough ? nameColor : null,
-                      ),
-                      softWrap: false,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (isRunning && roomy) ...[
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    Flexible(
-                      child: _LedgerChip(
-                        colors: colors,
-                        label: 'Running',
-                        tone: colors.primary,
-                      ),
-                    ),
-                  ],
-                  // A target's pointing is what distinguishes it from every
-                  // other target, and Ledger has no card to put it on.
-                  //
-                  // Flexible, because the chips are fixed-width and the name is
-                  // not: at the canvas's narrow floor the name shrinks to nothing
-                  // and the two coordinates then run past the row's edge. They
-                  // give ground the same way the name does instead.
-                  if (node is TargetHeaderNode && roomy)
-                    for (final chip
-                        in _targetCoordinateChips(node, colors)) ...[
-                      const SizedBox(width: SkotiqTokens.spaceSm),
-                      Flexible(child: chip),
-                    ],
-                  // Flexible for the same reason the coordinate chips are: on a
-                  // narrow canvas the badge is the widest fixed thing on a
-                  // trigger row, and given an unbounded slot it ran straight
-                  // past the row's edge.
-                  if (node.category == NodeCategory.trigger) ...[
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    Flexible(child: _WatchdogBadge(colors: colors)),
-                  ],
-                  if (summary.isNotEmpty && roomy) ...[
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    Flexible(
-                      child: Text(
-                        summary,
-                        style: SkotiqTypography.labelQuiet.copyWith(
-                          color: colors.textMuted,
-                        ),
-                        softWrap: false,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            }),
-          ),
-        ),
-        _buildActions(context),
-        _LedgerColumnCells(
-          values: columns.values,
-          color: columnColor,
-          etaColor: etaMuted ? colors.textMuted : null,
-        ),
-        const SizedBox(width: _ledgerBadgeGutter),
+    return _LedgerLine(
+      colors: colors,
+      depth: widget.depth,
+      // A pinned row and a drag's feedback layer are readouts of a row that
+      // is drawn elsewhere; a second breath for the same step would be two
+      // heartbeats for one run.
+      steadyMarker: widget.pinned || widget.isDragging,
+      runningTone: colors.brandWarm,
+      chevron: _buildChevron(context),
+      icon: nodeIcon(node.iconName),
+      category: node.category,
+      name: node.name,
+      nameWeight: widget.isContainer ? FontWeight.w600 : FontWeight.w400,
+      isRunning: isRunning,
+      isFailed: isFailed,
+      isMuted: isMuted,
+      isStruckThrough: isStruckThrough,
+      flexibleRunningChip: true,
+      chips: (roomy) => [
+        // A target's pointing is what distinguishes it from every other
+        // target, and Ledger has no card to put it on.
+        //
+        // Flexible, because the chips are fixed-width and the name is not:
+        // at the canvas's narrow floor the name shrinks to nothing and the
+        // two coordinates then run past the row's edge. They give ground the
+        // same way the name does instead.
+        if (node is TargetHeaderNode && roomy)
+          for (final chip in _targetCoordinateChips(node, colors)) ...[
+            const SizedBox(width: SkotiqTokens.spaceSm),
+            Flexible(child: chip),
+          ],
+        // Flexible for the same reason the coordinate chips are: on a
+        // narrow canvas the badge is the widest fixed thing on a trigger
+        // row, and given an unbounded slot it ran straight past the row's
+        // edge.
+        if (node.category == NodeCategory.trigger) ...[
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          Flexible(child: _WatchdogBadge(colors: colors)),
+        ],
       ],
+      summary: summary,
+      actions: _buildActions(context),
+      columns: columns,
+      etaMuted: etaMuted,
     );
   }
 
@@ -925,6 +847,166 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
       ...columns.values.where((value) => value.isNotEmpty),
       if (stateWord.isNotEmpty) stateWord,
     ].join(' · ');
+  }
+}
+
+/// The content of one ledger line, whether it stands for one step
+/// ([_LedgerRow]) or for a folded run ([_LedgerFoldRow]): the running marker,
+/// the depth guides, the chevron, the glyph, the name with its chips and
+/// summary, the actions slot and the four columns.
+///
+/// Status reaches it as four facts: running, failed, muted (done, skipped,
+/// stopped or disabled) and struck through (did not run). A failure keeps the
+/// error color; it is the one outcome the operator has to find.
+class _LedgerLine extends StatelessWidget {
+  final SkotiqColors colors;
+  final int depth;
+
+  /// Draw the running marker without its breath.
+  final bool steadyMarker;
+  final Color runningTone;
+  final Widget chevron;
+  final IconData icon;
+  final NodeCategory category;
+  final String name;
+  final FontWeight nameWeight;
+  final bool isRunning;
+  final bool isFailed;
+  final bool isMuted;
+  final bool isStruckThrough;
+  final bool flexibleRunningChip;
+
+  /// The chips after the Running chip; `roomy` is false on a narrow canvas,
+  /// where the name keeps the slot.
+  final List<Widget> Function(bool roomy) chips;
+  final String summary;
+  final Widget actions;
+  final LedgerColumns columns;
+
+  /// The ETA cell still quotes a prediction the run has overtaken.
+  final bool etaMuted;
+
+  const _LedgerLine({
+    required this.colors,
+    required this.depth,
+    required this.steadyMarker,
+    required this.runningTone,
+    required this.chevron,
+    required this.icon,
+    required this.category,
+    required this.name,
+    required this.nameWeight,
+    required this.isRunning,
+    required this.isFailed,
+    required this.isMuted,
+    required this.isStruckThrough,
+    required this.flexibleRunningChip,
+    required this.chips,
+    required this.summary,
+    required this.actions,
+    required this.columns,
+    required this.etaMuted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final nameColor = isFailed
+        ? colors.error
+        : isMuted
+            ? colors.textMuted
+            : colors.textPrimary;
+    final columnColor = isMuted ? colors.textMuted : colors.textSecondary;
+
+    return Row(
+      children: [
+        SizedBox(
+          width: _ledgerRunningMarkerWidth,
+          height: _ledgerRowHeight,
+          child: isRunning
+              ? (steadyMarker
+                  ? ColoredBox(color: runningTone)
+                  : _RunningMarkerBreath(
+                      child: ColoredBox(color: runningTone),
+                    ))
+              : null,
+        ),
+        ..._ledgerDepthGuides(depth - 1, colors),
+        chevron,
+        ExcludeSemantics(
+          child: Icon(
+            icon,
+            size: _ledgerIconSize,
+            color:
+                isMuted ? colors.textMuted : nodeCategoryTint(category, colors),
+          ),
+        ),
+        const SizedBox(width: SkotiqTokens.spaceSm),
+        Expanded(
+          child: ExcludeSemantics(
+            child: LayoutBuilder(builder: (context, slot) {
+              // On a narrow canvas (a tablet, an unfolded phone) the name is
+              // what the row is read by, so it keeps the slot: the Running
+              // chip repeats the row's marker, and a target's RA / Dec and a
+              // step's summary are in its inspector.
+              final roomy = slot.maxWidth >= _ledgerRoomyNameSlot;
+              final runningChip = _LedgerChip(
+                colors: colors,
+                label: 'Running',
+                tone: colors.primary,
+              );
+              return Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      name,
+                      style: SkotiqTypography.bodySm.copyWith(
+                        fontWeight: nameWeight,
+                        color: nameColor,
+                        decoration:
+                            isStruckThrough ? TextDecoration.lineThrough : null,
+                        decorationColor: isStruckThrough ? nameColor : null,
+                      ),
+                      softWrap: false,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isRunning && roomy) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    if (flexibleRunningChip)
+                      Flexible(child: runningChip)
+                    else
+                      runningChip,
+                  ],
+                  ...chips(roomy),
+                  if (summary.isNotEmpty && roomy) ...[
+                    const SizedBox(width: SkotiqTokens.spaceSm),
+                    Flexible(
+                      child: Text(
+                        summary,
+                        style: SkotiqTypography.labelQuiet.copyWith(
+                          color: colors.textMuted,
+                        ),
+                        softWrap: false,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            }),
+          ),
+        ),
+        actions,
+        _LedgerColumnCells(
+          values: columns.values,
+          color: columnColor,
+          etaColor: etaMuted ? colors.textMuted : null,
+        ),
+        const SizedBox(width: _ledgerBadgeGutter),
+      ],
+    );
   }
 }
 
