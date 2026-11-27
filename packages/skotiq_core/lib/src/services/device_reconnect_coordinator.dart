@@ -272,18 +272,7 @@ class DeviceReconnectCoordinator {
   /// only fires once ALL critical devices are back (see
   /// [_considerSequenceResume]).
   Future<void> onAuthoritativeDeviceConnected(
-    String deviceType,
+    DeviceType type,
     String deviceId,
-  ) async {
-    final lower = deviceType.toLowerCase();
-    final DeviceType type;
-    if (lower == 'camera') {
-      type = DeviceType.camera;
-    } else if (lower == 'mount') {
-      type = DeviceType.mount;
-    } else {
-      return;
-    }
-    await _considerSequenceResume(type);
-  }
+  ) => _considerSequenceResume(type);
 }

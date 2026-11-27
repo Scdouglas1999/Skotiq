@@ -437,10 +437,11 @@ extension _DeviceServiceEventHandling on DeviceService {
     // sequence-resume for camera/mount from this authoritative event. This
     // also lets a manual or out-of-band connection recover a device whose
     // bounded automatic retry budget was exhausted.
-    final lower = deviceType.toLowerCase();
-    unawaited(
-      _reconnectCoordinator.onAuthoritativeDeviceConnected(lower, deviceId),
-    );
+    if (type != null) {
+      unawaited(
+        _reconnectCoordinator.onAuthoritativeDeviceConnected(type, deviceId),
+      );
+    }
   }
 
   void _applyDeviceConnecting(String deviceType, String deviceId) {

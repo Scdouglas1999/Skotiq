@@ -141,7 +141,7 @@ extension _DeviceServiceEnvironmentConnections on DeviceService {
             _ref.read(safetyMonitorStateProvider.notifier).setConnected();
             unawaited(
               _reconnectCoordinator.onAuthoritativeDeviceConnected(
-                DeviceType.safetyMonitor.name,
+                DeviceType.safetyMonitor,
                 safetyId,
               ),
             );
