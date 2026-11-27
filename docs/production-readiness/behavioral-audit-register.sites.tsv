@@ -1970,7 +1970,6 @@ packages/skotiq_app/lib/screens/settings/widgets/update_settings.dart	_confirmDi
 packages/skotiq_app/lib/screens/settings/widgets/update_settings.dart	_hasUpdateSource	literal_null_coalesce	1	V0143	return (version.updateSource ?? version.updateServerUrl ?? '')
 packages/skotiq_app/lib/screens/settings/widgets/weather_safety_settings.dart	build	literal_null_coalesce	1	V0429	value: policy?.forecastHoldsRun ?? false,
 packages/skotiq_app/lib/screens/shell/app_shell.dart	_getCurrentLocation	empty_catch	1	V0008	} catch (_) {
-packages/skotiq_app/lib/screens/shell/app_shell.dart	_onCloseRequested	literal_null_coalesce	1	V0008	(cameraState.coolerPower ?? 0) > 2,
 packages/skotiq_app/lib/screens/shell/app_shell.dart	_performCheckpointCheck	literal_null_coalesce	1	V0008	return current?.canResume ?? false;
 packages/skotiq_app/lib/screens/shell/app_shell_parts/_startup_checkpoint.dart	runAppCheckpointRecovery	empty_catch	1	V0527	} catch (_) {
 packages/skotiq_app/lib/screens/shell/checkpoint_recovery_rule.dart	checkpointAgeSeconds	guessed_now_timestamp	1	V0528	final age = (now ?? DateTime.now())
@@ -1993,7 +1992,6 @@ packages/skotiq_app/lib/screens/weather/weather_screen.dart	build	literal_null_c
 packages/skotiq_app/lib/screens/weather/weather_screen.dart	build	literal_null_coalesce	1	V0002	final longitude = appSettings?.longitude ?? 0.0;
 packages/skotiq_app/lib/screens/weather/weather_screen/safety_and_settings.dart	weatherSafetyStatusText	guessed_now_timestamp	1	V0265	final remaining = snoozeUntil.difference(now ?? DateTime.now());
 packages/skotiq_app/lib/screens/weather/widgets/weather_radar_map.dart	_buildRadarTileLayer	comment_best_effort	1	V0747	// placeholder tiles at the closer default map zooms.
-packages/skotiq_app/lib/services/app_update.dart	defaultUpdateApplySafetyCheckWithReader	literal_null_coalesce	1	V0121	final coolerPower = cameraState.coolerPower ?? 0;
 packages/skotiq_app/lib/services/command_action_result.dart	hasMessage	literal_null_coalesce	1	V0001	bool get hasMessage => (message ?? '').trim().isNotEmpty;
 packages/skotiq_app/lib/services/equipment_fov_binding.dart	telescopeSpecsFromOpticalConfig	literal_null_coalesce	1	V0267	apertureMm: config.aperture ?? 0,
 packages/skotiq_app/lib/services/host_folders.dart	notWritableReason	literal_null_coalesce	1	V0504	final reason = error.osError?.message.trim() ?? '';
