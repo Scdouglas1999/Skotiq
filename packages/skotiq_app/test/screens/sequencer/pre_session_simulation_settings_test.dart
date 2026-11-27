@@ -53,6 +53,12 @@ class _StoppedClock implements Clock {
   DateTime fromUtc(DateTime utc) => utc.toLocal();
 }
 
+/// The middle of a spring night at the test site (lat 40, lon -75): the
+/// long-sequence target (RA 12 h, Dec +40) is near the zenith and the real
+/// dawn, and so the "Park before dawn" cut-off, are hours away. The dark-window
+/// tests set their own dawn five minutes after this instant.
+final DateTime _midNight = DateTime.utc(2026, 3, 21, 5);
+
 class _SeedingNotifier extends CurrentSequenceNotifier {
   _SeedingNotifier(Ref ref) : super(ref: ref) {
     loadSequence(_sequence(), discardUnsaved: true);
@@ -252,7 +258,7 @@ void main() {
   });
 
   test('timeline simulation warns when plan overruns dark window', () async {
-    final dawn = DateTime.now().add(const Duration(minutes: 5));
+    final dawn = _midNight.add(const Duration(minutes: 5));
     final container = ProviderContainer(
       overrides: [
         inMemoryDatabaseOverride(),
@@ -269,6 +275,7 @@ void main() {
         preSessionTwilightTimesProvider.overrideWithValue(
           planetarium.TwilightTimes(astronomicalDawn: dawn),
         ),
+        clockProvider.overrideWithValue(_StoppedClock(_midNight)),
       ],
     );
     addTearDown(container.dispose);
@@ -285,7 +292,7 @@ void main() {
 
   testWidgets('preflight simulation warns when plan overruns dark window',
       (tester) async {
-    final dawn = DateTime.now().add(const Duration(minutes: 5));
+    final dawn = _midNight.add(const Duration(minutes: 5));
 
     await tester.pumpWidget(
       ProviderScope(
@@ -305,6 +312,7 @@ void main() {
           preSessionTwilightTimesProvider.overrideWithValue(
             planetarium.TwilightTimes(astronomicalDawn: dawn),
           ),
+          clockProvider.overrideWithValue(_StoppedClock(_midNight)),
         ],
         child: MaterialApp(
           theme: SkotiqTheme.dark,
