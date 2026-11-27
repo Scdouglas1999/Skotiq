@@ -18,8 +18,21 @@ abstract final class AppSettingsCodec {
       if (setting.sync == SettingSync.host) setting.wire: setting,
   };
 
-  /// Every `app_settings` row the settings are stored under.
+  /// The settings [AppSettingsState] holds: all but those
+  /// [Setting.heldNatively].
+  static final List<Setting<Object?>> _held = [
+    for (final setting in kAppSettingsTable)
+      if (!setting.heldNatively) setting,
+  ];
+
+  /// Every `app_settings` row a setting is declared under.
   static final Set<String> storedKeys = Set.unmodifiable(_byKey.keys);
+
+  /// Rows of the settings [Setting.heldNatively]: never read or written.
+  static final Set<String> heldNativelyKeys = Set.unmodifiable({
+    for (final setting in kAppSettingsTable)
+      if (setting.heldNatively) ...setting.keys,
+  });
 
   /// Rows a linked client can change on the host through the typed settings.
   static final Set<String> hostKeys = Set.unmodifiable({
@@ -69,8 +82,7 @@ abstract final class AppSettingsCodec {
 
   /// Every stored row for [state].
   static Map<String, String> toRows(AppSettingsState state) => {
-    for (final setting in kAppSettingsTable)
-      ...setting.toRows(state.valueOf(setting)),
+    for (final setting in _held) ...setting.toRows(state.valueOf(setting)),
   };
 
   /// [current] with the settings named in [rows] replaced. An unreadable row
@@ -83,7 +95,9 @@ abstract final class AppSettingsCodec {
     final seen = <Setting<Object?>>{};
     for (final key in rows.keys) {
       final setting = _byKey[key];
-      if (setting == null || !seen.add(setting)) continue;
+      if (setting == null || setting.heldNatively || !seen.add(setting)) {
+        continue;
+      }
       next = next.withValue(
         setting,
         setting.fromRows(rows, current.valueOf(setting)),
@@ -92,11 +106,14 @@ abstract final class AppSettingsCodec {
     return next;
   }
 
-  /// The wire snapshot of [state]. Wire fields no setting stands behind keep
-  /// the values of [previous], the last snapshot received from the host.
+  /// The wire snapshot of [state]. The settings [Setting.heldNatively] take
+  /// their wire values from [heldNatively] (by wire name), and those and the
+  /// wire fields no setting stands behind otherwise keep the values of
+  /// [previous], the last snapshot received from the host.
   static models.AppSettings toWire(
     AppSettingsState state, {
     models.AppSettings? previous,
+    Map<String, Object?> heldNatively = const {},
   }) {
     const blank = models.AppSettings();
     final json = blank
@@ -115,8 +132,15 @@ abstract final class AppSettingsCodec {
               previous?.skippedUpdateVersion ?? blank.skippedUpdateVersion,
         )
         .toJson();
+    final previousJson = previous?.toJson();
     for (final setting in _byWire.values) {
-      json[setting.wire] = setting.toJson(state.valueOf(setting));
+      if (!setting.heldNatively) {
+        json[setting.wire] = setting.toJson(state.valueOf(setting));
+      } else if (heldNatively.containsKey(setting.wire)) {
+        json[setting.wire] = heldNatively[setting.wire];
+      } else if (previousJson != null) {
+        json[setting.wire] = previousJson[setting.wire];
+      }
     }
     json['location'] = <String, dynamic>{
       'latitude': state.latitude,
@@ -132,6 +156,7 @@ abstract final class AppSettingsCodec {
     final json = remote.toJson();
     var state = const AppSettingsState();
     for (final setting in _byWire.values) {
+      if (setting.heldNatively) continue;
       final value = setting.fromJson(json[setting.wire]);
       if (!identical(value, invalidWireValue)) {
         state = state.withValue(setting, value);
@@ -149,14 +174,15 @@ abstract final class AppSettingsCodec {
   }
 
   /// [current] with the one wire field [wireKey] set to [value], or null
-  /// when the field is not a setting or the value has the wrong shape.
+  /// when the field is not a setting [AppSettingsState] holds or the value
+  /// has the wrong shape.
   static AppSettingsState? applyWireChange(
     AppSettingsState current,
     String wireKey,
     Object? value,
   ) {
     final setting = _byWire[wireKey];
-    if (setting == null) return null;
+    if (setting == null || setting.heldNatively) return null;
     final decoded = setting.fromJson(value);
     if (identical(decoded, invalidWireValue)) return null;
     return current.withValue(setting, decoded);

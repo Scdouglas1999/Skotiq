@@ -1,7 +1,8 @@
 // A backup's plate-solver settings come from this computer's native solver
 // preference, the store the solver reads, even when the app settings were
-// never loaded. A linked client's preference is its host's, so its backup
-// carries the rows it stores.
+// never loaded. A backup carries none when the preference cannot be read, or
+// on a client launch, whose preference is its host's, linked or not:
+// restoring it leaves this computer's preference as it is.
 
 import 'dart:convert';
 import 'dart:io';
@@ -46,7 +47,10 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  Future<Map<String, dynamic>> backupSettings({bool linked = false}) async {
+  Future<Map<String, dynamic>> backupSettings({
+    bool linked = false,
+    LaunchRole? role,
+  }) async {
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
@@ -55,6 +59,7 @@ void main() {
           const AppVersionInfo(version: '9.4.0', buildNumber: 1),
         ),
         if (linked) isRemoteModeProvider.overrideWithValue(true),
+        if (role != null) launchRoleProvider.overrideWithValue(role),
       ],
     );
     addTearDown(container.dispose);
@@ -75,20 +80,41 @@ void main() {
     expect(settings['astrometry_path'], '/usr/bin/solve-field');
   });
 
-  test('carries the stored rows when the preference cannot be read', () async {
-    when(() => solver.getConfig()).thenThrow(StateError('no bridge'));
+  test(
+    'carries no solver settings when the preference cannot be read',
+    () async {
+      // A fresh install's rows would reset a working solver on a restore.
+      when(() => solver.getConfig()).thenThrow(StateError('no bridge'));
 
-    final settings = await backupSettings();
+      final settings = await backupSettings();
 
-    expect(settings['plate_solver'], 'ASTAP');
-    expect(settings['astap_path'], '/stale/astap');
-  });
+      expect(settings.keys, isNot(contains('plate_solver')));
+      expect(settings.keys, isNot(contains('astap_path')));
+      expect(settings.keys, isNot(contains('astrometry_path')));
+    },
+  );
 
-  test('on a linked client carries the stored rows', () async {
+  test('on a linked client carries no solver settings', () async {
     final settings = await backupSettings(linked: true);
 
-    expect(settings['plate_solver'], 'ASTAP');
-    expect(settings['astap_path'], '/stale/astap');
+    expect(settings.keys, isNot(contains('plate_solver')));
+    expect(settings.keys, isNot(contains('astap_path')));
+    expect(settings.keys, isNot(contains('astrometry_path')));
     verifyNever(() => solver.getConfig());
   });
+
+  test(
+    'a client launch that is not linked carries no solver settings',
+    () async {
+      // Its preference cannot be read without its host; a fresh install's
+      // rows would reset this computer's solver on a restore.
+      when(() => solver.getConfig()).thenThrow(StateError('not connected'));
+
+      final settings = await backupSettings(role: LaunchRole.linkedClient);
+
+      expect(settings.keys, isNot(contains('plate_solver')));
+      expect(settings.keys, isNot(contains('astap_path')));
+      expect(settings.keys, isNot(contains('astrometry_path')));
+    },
+  );
 }

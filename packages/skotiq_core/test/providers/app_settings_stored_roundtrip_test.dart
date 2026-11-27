@@ -95,9 +95,6 @@ void main() {
       filterWheelRetries: 0,
       safetyFailMode: models.SafetyFailMode.failOpen,
       // Plate Solving
-      plateSolver: 'Astrometry',
-      astapPath: r'C:\astap',
-      astrometryPath: '/usr/bin/solve',
       plateSolveTimeout: 123,
       plateSolveSearchRadius: 12.5,
       blindSolve: true,

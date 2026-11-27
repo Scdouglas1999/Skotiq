@@ -26,6 +26,7 @@ class _PreferenceBackend extends DisconnectedBackend {
     choice: PlateSolverChoice.astap,
   );
   int writes = 0;
+  bool unreadable = false;
 
   @override
   Future<void> setPlateSolverConfig(PlateSolverPreference pref) async {
@@ -34,7 +35,10 @@ class _PreferenceBackend extends DisconnectedBackend {
   }
 
   @override
-  Future<PlateSolverPreference> getPlateSolverConfig() async => saved;
+  Future<PlateSolverPreference> getPlateSolverConfig() async {
+    if (unreadable) throw StateError('platesolver.json cannot be read');
+    return saved;
+  }
 
   @override
   Future<PlateSolverDetection> detectPlateSolvers() async =>
@@ -170,12 +174,40 @@ void main() {
     },
   );
 
-  test("the host's own settings name the solver a link chose", () async {
-    await changePreference();
+  test(
+    'an unreadable preference is reported as a fresh install, not as a copy',
+    () async {
+      solver.unreadable = true;
 
-    final host = await container.read(appSettingsProvider.future);
-    expect(host.plateSolver, 'Astrometry.net');
-  });
+      final (_, read) = await call('admin-token', 'GET', '/api/settings');
+      final settings = read['settings'] as Map;
+      expect(settings['plateSolver'], 'Auto');
+      expect(settings['astapPath'], '');
+      expect(settings['astrometryPath'], '');
+
+      final (_, store) = await call(
+        'admin-token',
+        'GET',
+        '/api/settings/store',
+      );
+      final rows = store['settings'] as Map;
+      expect(rows['plate_solver'], 'Auto');
+      expect(rows['astap_path'], '');
+      expect(rows['astrometry_path'], '');
+
+      // Saving another setting still works and asks nothing of the solver.
+      final (saved, answer) = await call(
+        'admin-token',
+        'POST',
+        '/api/settings',
+        {
+          'settings': {'phd2Port': 4412},
+        },
+      );
+      expect(saved, HttpStatus.ok, reason: '$answer');
+      expect(solver.writes, 0);
+    },
+  );
 
   test('a backup carries the preference the solver reads', () async {
     await changePreference();

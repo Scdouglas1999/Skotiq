@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/backend.dart' show HostDataDispatch, HostPlace;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
@@ -107,6 +108,19 @@ class FilePathSettings extends ConsumerWidget {
     super.key,
   });
 
+  /// Whether [setting] cannot be changed from here. The paths are the
+  /// imaging host's: a client launch changes only those the linked host's
+  /// settings carry (the others, and any while not linked, would be saved
+  /// where nothing reads them). The phone's demo rig captures in this
+  /// process, so its paths are this database's.
+  bool _refusedHere(WidgetRef ref, HostPathSetting setting) {
+    if (!ref.read(isRemoteClientProvider) ||
+        ref.read(backendProvider).hostPlace == HostPlace.demo) {
+      return false;
+    }
+    return !(ref.read(isRemoteModeProvider) && setting.editableWhenLinked);
+  }
+
   Future<void> _selectPath(
     BuildContext context,
     WidgetRef ref,
@@ -115,12 +129,7 @@ class FilePathSettings extends ConsumerWidget {
   ) async {
     final host = ref.backendScope();
     final isRemoteMode = ref.read(isRemoteModeProvider);
-    // Only `image_output_path` is carried by the remote wire model; the three
-    // infra paths (sequences/database/logs) are excluded from partial
-    // persistence and setting them throws UnsupportedError. Block the picker
-    // up-front in remote mode so the user gets a clear message instead of an
-    // unhandled exception.
-    if (isRemoteMode && !setting.editableWhenLinked) {
+    if (_refusedHere(ref, setting)) {
       context.showWarningSnackBar(
           'This path can only be changed on the host machine.');
       return;
@@ -185,7 +194,7 @@ class FilePathSettings extends ConsumerWidget {
       );
       return;
     }
-    if (isRemoteMode && !setting.editableWhenLinked) {
+    if (_refusedHere(ref, setting)) {
       context.showWarningSnackBar(
         'This path can only be changed on the host machine.',
       );

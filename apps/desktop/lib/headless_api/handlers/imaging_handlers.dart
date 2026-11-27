@@ -274,22 +274,6 @@ class ImagingHandlers implements RouteSource {
         'astrometryPath': AdminOnly.hostProgram,
     });
     await backend.setPlateSolverConfig(pref);
-    // The host's own settings name the solver chosen, as a save from its
-    // Plate Solving page does. The preference is already in force, so a
-    // failed projection is logged, not reported as a failed save. Settings
-    // not loaded yet read the preference when they load.
-    if (container.exists(appSettingsProvider)) {
-      try {
-        await container
-            .read(appSettingsProvider.notifier)
-            .syncPlateSolverFromPreference(pref.choice);
-      } catch (error) {
-        _logWarning(
-          '[API] Solver preference saved, but the plate_solver setting was not '
-          'updated: $error',
-        );
-      }
-    }
     // The host's providers read the saved preference and detect with its
     // paths again; the plate-solver channel tells every linked client.
     container

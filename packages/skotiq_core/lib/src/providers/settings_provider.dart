@@ -32,6 +32,7 @@ import '../database/daos/settings_dao.dart';
 import '../services/backup_service.dart' show BackupService;
 import '../models/backend/backend_types.dart';
 import 'plate_solve_service_provider.dart';
+import '../services/plate_solve_service.dart' show PlateSolveService;
 import 'plate_solver_provider.dart'
     show plateSolverDetectionProvider, plateSolverPreferenceProvider;
 import '../utils/logging_service.dart';

@@ -395,8 +395,7 @@ class AppSettings {
   final int filterWheelRetries;
   /// What a run does when safety data is unavailable.
   final SafetyFailMode safetyFailMode;
-  /// The label of the native plate-solver preference, kept as a stored copy
-  /// for export. The preference itself is the authority.
+  /// The label of the native plate-solver preference's choice.
   final String plateSolver;
   final String astapPath;
   final String astrometryPath;

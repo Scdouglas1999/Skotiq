@@ -50,8 +50,12 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// stays current.
   static final Set<String> hostStoreKeys = AppSettingsCodec.hostStoreKeys;
 
-  /// Every `app_settings` key this notifier reads and writes.
+  /// Every `app_settings` key a setting is declared under.
   static final Set<String> storedKeys = AppSettingsCodec.storedKeys;
+
+  /// The keys of [storedKeys] whose rows are never read or written: the
+  /// settings a native store holds ([Setting.heldNatively]).
+  static final Set<String> heldNativelyKeys = AppSettingsCodec.heldNativelyKeys;
 
   /// Fields of the host's typed settings that only a link with admin access
   /// to the host may change, and why.
@@ -78,7 +82,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// there to patch it.
   Future<void> saveRows(Map<String, String> rows) async {
     if (rows.isEmpty) return;
-    final unknown = rows.keys.where((k) => !storedKeys.contains(k)).toList();
+    final unknown = rows.keys
+        .where((k) => !storedKeys.contains(k) || heldNativelyKeys.contains(k))
+        .toList();
     if (unknown.isNotEmpty) {
       throw ArgumentError.value(
         unknown,
@@ -454,103 +460,66 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     final dao = ref.read(settingsDaoProvider);
     final allSettings = await dao.getAllSettings();
 
-    return _refreshPlateSolverProjection(
-      AppSettingsCodec.fromRows(allSettings),
-    );
+    await _applyRestoredSolverRows(allSettings);
+    return AppSettingsCodec.fromRows(allSettings);
   }
 
-  /// The plate-solver choice and program paths are copies of the native
-  /// `PlateSolverPreference`, the only store the solver reads. Loading lays
-  /// the preference over the stored rows and writes back any row that
-  /// differs, so backups and `/api/settings` do not serve a stale copy even
-  /// if nothing writes a setting this session.
-  ///
-  /// An unreachable preference (disconnected backend, bridge not loaded under
-  /// test) leaves the stored values in place rather than failing the load.
-  Future<AppSettingsState> _refreshPlateSolverProjection(
-    AppSettingsState stored,
-  ) async {
-    final preference = await _solverPreference();
-    if (preference == null) return stored;
-    final dao = ref.read(settingsDaoProvider);
+  /// After a replace-restore, the plate-solver rows the backup carried
+  /// ([BackupService.restoredSolverRowsSettingKey]) are written to the
+  /// native preference once; a solver row the backup lacked leaves that part
+  /// of the preference. Kept for the next open if the preference cannot be
+  /// read or refuses them.
+  Future<void> _applyRestoredSolverRows(Map<String, String> rows) async {
     const restoredKey = BackupService.restoredSolverRowsSettingKey;
-    if (await dao.getSetting(restoredKey) case final restoredRows?) {
-      // A replace-restore: the rows are the backup's, and the preference
-      // takes them once. Kept for the next open if the preference refuses.
-      // A backup without a solver row leaves that part of the preference.
-      final rows = restoredRows.split(',').toSet();
-      bool restoredRow(TextSetting setting) => rows.contains(setting.key);
-      final restored = preference.copyWith(
-        choice: restoredRow(AppSettingDefs.plateSolver)
-            ? PlateSolverChoice.fromSettingLabel(stored.plateSolver)
-            : null,
-        astapPath: restoredRow(AppSettingDefs.astapPath)
-            ? stored.astapPath
-            : null,
-        astrometryPath: restoredRow(AppSettingDefs.astrometryPath)
-            ? stored.astrometryPath
-            : null,
-      );
-      try {
-        await ref.read(plateSolveServiceProvider).setConfig(restored);
-      } on Object catch (error) {
-        Log.warning(
-          'The restored plate-solver settings could not be written to the '
-          'solver preference; trying again on the next start: $error',
-          source: 'AppSettingsNotifier',
-        );
-        return stored;
-      }
-      await dao.deleteSetting(restoredKey);
-      return _withSolverPreference(stored, restored);
-    }
-    final storedRows = storedRowsOf(stored);
-    final changed = {
-      for (final MapEntry(:key, :value) in plateSolverPreferenceRows(
-        preference,
-      ).entries)
-        if (storedRows[key] != value) key: value,
-    };
-    if (changed.isEmpty) return stored;
-    // Straight to the DAO, not `_saveSetting`: this runs while `build()` is
-    // still resolving, so the loaded-state guard and the remote write path do
-    // not apply; this is by construction the local store.
-    await dao.setSettings(changed);
-    return _withSolverPreference(stored, preference);
-  }
-
-  /// The native plate-solver preference, or null when it cannot be read.
-  Future<PlateSolverPreference?> _solverPreference() async {
+    final restoredRows = rows[restoredKey];
+    if (restoredRows == null) return;
+    final restoredKeys = restoredRows.split(',').toSet();
+    String? restored(TextSetting setting) =>
+        restoredKeys.contains(setting.key) ? setting.valueIn(rows) : null;
+    final service = ref.read(plateSolveServiceProvider);
+    final PlateSolverPreference preference;
     try {
-      return await ref.read(plateSolveServiceProvider).getConfig();
+      preference = await service.getConfig();
     } on Object catch (error) {
       Log.debug(
-        'Plate-solver preference unavailable; keeping the stored solver '
-        'settings: $error',
+        'Plate-solver preference unavailable; the restored solver settings '
+        'wait for the next start: $error',
         source: 'AppSettingsNotifier',
       );
-      return null;
+      return;
     }
+    try {
+      final choice = restored(AppSettingDefs.plateSolver);
+      await service.setConfig(
+        preference.copyWith(
+          choice: choice == null
+              ? null
+              : PlateSolverChoice.fromSettingLabel(choice),
+          astapPath: restored(AppSettingDefs.astapPath),
+          astrometryPath: restored(AppSettingDefs.astrometryPath),
+        ),
+      );
+    } on Object catch (error) {
+      Log.warning(
+        'The restored plate-solver settings could not be written to the '
+        'solver preference; trying again on the next start: $error',
+        source: 'AppSettingsNotifier',
+      );
+      return;
+    }
+    await ref.read(settingsDaoProvider).deleteSetting(restoredKey);
   }
-
-  static AppSettingsState _withSolverPreference(
-    AppSettingsState settings,
-    PlateSolverPreference preference,
-  ) => settings.copyWith(
-    plateSolver: preference.choice.settingLabel,
-    astapPath: preference.astapPath,
-    astrometryPath: preference.astrometryPath,
-  );
 
   /// The rows of the plate-solver settings as the native preference holds
-  /// them, for a copy of the settings taken from the database (a backup);
-  /// empty when the preference cannot be read.
-  Future<Map<String, String>> solverPreferenceRows() async {
-    final preference = await _solverPreference();
-    return preference == null
-        ? const {}
-        : plateSolverPreferenceRows(preference);
-  }
+  /// them ([reportedPlateSolverPreference]).
+  Future<Map<String, String>> solverPreferenceRows() async =>
+      plateSolverPreferenceRows(await _reportedSolverPreference());
+
+  Future<PlateSolverPreference> _reportedSolverPreference() =>
+      reportedPlateSolverPreference(
+        ref.read(plateSolveServiceProvider),
+        source: 'AppSettingsNotifier',
+      );
 
   Future<void> _saveSetting(String key, String value) {
     final backend = ref.read(backendProvider);
@@ -850,32 +819,19 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           if (updated != null) next = updated;
         });
 
-        // `plateSolver` is a read-only projection of the native
-        // PlateSolverPreference — the only store the solve dispatcher reads —
-        // so a settings snapshot must not be able to move it. Two reasons this
-        // is pinned rather than applied: writing the row would change nothing
-        // about which engine runs (an acknowledged write the solver never
-        // sees), and the wire model defaults this field to 'ASTAP', so a
-        // partial POST built without a previous snapshot would otherwise
-        // announce a switch away from the operator's actual selection.
-        // Clients change the engine through setPlateSolverConfig, which
-        // reaches the store that matters; the value echoed back here stays
-        // truthful either way.
-        next = next.copyWith(plateSolver: before.plateSolver);
-
-        // The solver paths here are copies too, but a changed one is a real
-        // request: it goes to the preference the solver reads, or the write
-        // is acknowledged and the solver keeps the old program. Changed is
-        // judged against the preference, which also changes through its own
-        // route and so can be ahead of the stored copy.
-        final solver = await _solverPreference();
-        final astapNow = solver?.astapPath ?? before.astapPath;
-        final astrometryNow = solver?.astrometryPath ?? before.astrometryPath;
-        if (next.astapPath != astapNow ||
-            next.astrometryPath != astrometryNow) {
+        // The document's plate-solver fields are the native preference's
+        // ([Setting.heldNatively]). The choice is not taken from it: the wire
+        // model defaults it to 'ASTAP', so a partial POST built without a
+        // previous snapshot would announce a switch the operator never made;
+        // clients change the engine through setPlateSolverConfig. A changed
+        // program path is a real request and goes to the preference, judged
+        // against the preference as the settings document reports it.
+        final solver = await _reportedSolverPreference();
+        if (remote.astapPath != solver.astapPath ||
+            remote.astrometryPath != solver.astrometryPath) {
           await _writeSolverPaths(
-            astapPath: next.astapPath,
-            astrometryPath: next.astrometryPath,
+            astapPath: remote.astapPath,
+            astrometryPath: remote.astrometryPath,
           );
         }
 
@@ -895,14 +851,13 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   /// The settings document this host serves its linked clients: the
   /// settings, with the plate-solver choice and program paths read from the
-  /// native preference, which changes through its own route as well.
+  /// native preference ([reportedPlateSolverPreference]).
   Future<models.AppSettings> exportHostSettings() async {
     final settings = _requireLoadedSettings('exporting the host settings');
-    final preference = await _solverPreference();
-    return _toWire(
-      preference == null
-          ? settings
-          : _withSolverPreference(settings, preference),
+    return AppSettingsCodec.toWire(
+      settings,
+      previous: _remoteSettingsSnapshot,
+      heldNatively: plateSolverWireValues(await _reportedSolverPreference()),
     );
   }
 

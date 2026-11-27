@@ -67,7 +67,11 @@ class NightSolveSettingsSection extends ConsumerWidget {
     final exposure = frame.exposureTime;
     return NightPanelSection(
       title: l10n.text('nightScopeSolveSettings'),
-      trailing: settings?.plateSolver,
+      trailing: ref
+          .watch(plateSolverPreferenceProvider)
+          .valueOrNull
+          ?.choice
+          .settingLabel,
       children: [
         NightPanelValues(
           items: [

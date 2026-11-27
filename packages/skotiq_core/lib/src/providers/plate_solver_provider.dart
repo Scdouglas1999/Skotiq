@@ -7,8 +7,6 @@ import '../errors/error_text.dart';
 import '../models/plate_solver.dart';
 import '../services/plate_solve_service.dart';
 import 'backend_provider.dart';
-import 'settings_provider.dart';
-import 'logging_service_provider.dart';
 import 'plate_solve_service_provider.dart';
 
 /// The imaging host's plate solvers: what it found on its disk and what its
@@ -246,28 +244,6 @@ class PlateSolverSettingsNotifier
     state = state.copyWith(savingPreference: true);
     try {
       await _service.setConfig(next);
-      if (!_isCurrent(generation)) return false;
-      // Keep the `plate_solver` app-setting — the value backup export and the
-      // remote wire model serve — pointing at the selection just applied.
-      // Without this the two disagreed until the next settings load.
-      //
-      // Failing to update the projection must NOT fail the save: the engine
-      // preference is already written and in force, and reporting the save as
-      // failed would be the same class of lie this projection exists to end.
-      try {
-        await ref
-            .read(appSettingsProvider.notifier)
-            .syncPlateSolverFromPreference(next.choice);
-      } catch (error) {
-        ref
-            .read(loggingServiceProvider)
-            .warning(
-              'Solver preference saved, but the plate_solver projection could '
-              'not be updated; it will re-sync on the next settings load: '
-              '$error',
-              source: 'PlateSolverSettings',
-            );
-      }
       if (!_isCurrent(generation)) return false;
       // A linked host tells its clients the saved preference and what it
       // finds with it; until then this client shows what it saved.

@@ -90,12 +90,16 @@ String generateAppSettingsState(String tableSource) {
       '  static final $type ${s.field} = kAppSettingsTable[$i] as $type;',
     );
   }
+  final state = [
+    for (final s in kAppSettingsTable)
+      if (!s.heldNatively) s,
+  ];
   out
     ..writeln('}')
     ..writeln()
     ..writeln('/// The application settings as one immutable value.')
     ..writeln('class AppSettingsState {');
-  for (final s in kAppSettingsTable) {
+  for (final s in state) {
     for (final line in docs[s.field] ?? const <String>[]) {
       out.writeln('  $line');
     }
@@ -104,7 +108,7 @@ String generateAppSettingsState(String tableSource) {
   out
     ..writeln()
     ..writeln('  const AppSettingsState({');
-  for (final s in kAppSettingsTable) {
+  for (final s in state) {
     out.writeln(
       s.fallbackSource == 'null'
           ? '    this.${s.field},'
@@ -119,7 +123,7 @@ String generateAppSettingsState(String tableSource) {
     )
     ..writeln('  /// cleared by passing null and kept by leaving it out.')
     ..writeln('  AppSettingsState copyWith({');
-  for (final s in kAppSettingsTable) {
+  for (final s in state) {
     out.writeln(
       s.isNullable
           ? '    Object? ${s.field} = _unset,'
@@ -129,7 +133,7 @@ String generateAppSettingsState(String tableSource) {
   out
     ..writeln('  }) {')
     ..writeln('    return AppSettingsState(');
-  for (final s in kAppSettingsTable) {
+  for (final s in state) {
     final f = s.field;
     out.writeln(
       s.isNullable
@@ -147,7 +151,7 @@ String generateAppSettingsState(String tableSource) {
     )
     ..writeln()
     ..writeln('  Object? _read(String field) => switch (field) {');
-  for (final s in kAppSettingsTable) {
+  for (final s in state) {
     out.writeln("    '${s.field}' => ${s.field},");
   }
   out
@@ -159,7 +163,7 @@ String generateAppSettingsState(String tableSource) {
     ..writeln('  /// A copy with [setting] set to [value].')
     ..writeln('  AppSettingsState withValue<T>(Setting<T> setting, T value) =>')
     ..writeln('      switch (setting.field) {');
-  for (final s in kAppSettingsTable) {
+  for (final s in state) {
     out.writeln(
       "        '${s.field}' => copyWith(${s.field}: value as ${s.dartType}),",
     );
@@ -178,6 +182,7 @@ String generateAppSettingsState(String tableSource) {
     ..writeln('    return AppSettingsState(');
   for (var i = 0; i < kAppSettingsTable.length; i++) {
     final s = kAppSettingsTable[i];
+    if (s.heldNatively) continue;
     out.writeln('      ${s.field}: valueOf(t[$i]) as ${s.dartType},');
   }
   out

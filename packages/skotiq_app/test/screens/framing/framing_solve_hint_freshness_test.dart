@@ -116,10 +116,9 @@ Future<(_RecordingPlateSolveService, _StagedMountNotifier)> _pumpRail(
   WidgetTester tester, {
   required MountState mount,
 }) async {
-  late _RecordingPlateSolveService service;
   late _StagedMountNotifier mountNotifier;
 
-  await pumpAppScreen(
+  final handle = await pumpAppScreen(
     tester,
     const SingleChildScrollView(
       child: SizedBox(width: 500, child: FramingTelescopeSection()),
@@ -147,12 +146,12 @@ Future<(_RecordingPlateSolveService, _StagedMountNotifier)> _pumpRail(
           choice: PlateSolverChoice.astrometry,
         ),
       ),
-      plateSolveServiceProvider.overrideWith(
-        (ref) => service = _RecordingPlateSolveService(ref),
-      ),
+      plateSolveServiceProvider.overrideWith(_RecordingPlateSolveService.new),
     ],
   );
 
+  final service = handle.container.read(plateSolveServiceProvider)
+      as _RecordingPlateSolveService;
   return (service, mountNotifier);
 }
 

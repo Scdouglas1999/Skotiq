@@ -10,7 +10,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
-import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_core/backend.dart' show HostDataDispatch;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../utils/confirm_dialog.dart';
@@ -37,6 +37,17 @@ final String kNightGuideSettingsRoute =
 /// Edge of the star view and the scatter plot.
 const double _plotSize = 124;
 
+/// Whether the connected guider is PHD2, as [guiderKindOf] answers it for the
+/// connected guider's id.
+final connectedGuiderIsPhd2Provider = Provider.autoDispose<bool>(
+  (ref) =>
+      guiderKindOf(
+        ref.watch(guiderStateProvider.select((g) => g.deviceId)),
+        ref.watch(backendProvider.select((b) => b.hostPlace)),
+      ) ==
+      GuiderKind.phd2,
+);
+
 /// The guide star as the guider sees it, the recent steps as a scatter, and how
 /// often the star was lost this session.
 class NightGuideStarSection extends ConsumerWidget {
@@ -58,8 +69,7 @@ class NightGuideStarSection extends ConsumerWidget {
     final clock = ref.watch(clockProvider);
     final stopReason = ref.watch(guidingStopReasonProvider);
     final settleTimeout = ref.watch(guiderSettleTimeoutProvider);
-    final guiderId = ref.watch(guiderStateProvider.select((g) => g.deviceId));
-    final isPhd2 = guiderId == null || isPhd2DeviceId(guiderId);
+    final isPhd2 = ref.watch(connectedGuiderIsPhd2Provider);
 
     final acquiring = state == Phd2State.looping ||
         state == Phd2State.guiding ||
@@ -201,8 +211,7 @@ class _NightGuideCalibrationSectionState
     final calibration = ref.watch(calibrationStateProvider);
     final clock = ref.watch(clockProvider);
     final inputs = ref.watch(nightActionInputsProvider);
-    final guiderId = ref.watch(guiderStateProvider.select((g) => g.deviceId));
-    final isPhd2 = guiderId == null || isPhd2DeviceId(guiderId);
+    final isPhd2 = ref.watch(connectedGuiderIsPhd2Provider);
     final at = calibration.calibratedAt;
     final status = !calibration.isCalibrated
         ? l10n.text('nightScopeGuideNotCalibrated')

@@ -101,8 +101,8 @@ FutureOr<T> Function() _onIsolate<T>(
 ) =>
     () => body(port.send);
 
-/// Writes the settings (but for [omitSettings], and with [settingsOverlay]
-/// in place of the stored rows of its keys) and the rows of [tables] in the
+/// Writes the settings (the stored rows but for [omitSettings], then
+/// [settingsOverlay]) and the rows of [tables] in the
 /// database file at [databasePath] to [outputPath] as a 3.1 archive, and
 /// returns the rows written per table. [head] holds the head line's fields.
 Map<String, int> writeBackupArchive({
@@ -127,8 +127,7 @@ Map<String, int> writeBackupArchive({
       for (final row in db.select('SELECT key, value FROM app_settings'))
         if (!omitSettings.contains(row['key']))
           row['key'] as String: row['value'],
-      for (final MapEntry(:key, :value) in settingsOverlay.entries)
-        if (!omitSettings.contains(key)) key: value,
+      ...settingsOverlay,
     };
     final pending = BytesBuilder(copy: false);
     void write(String text) {
@@ -205,6 +204,7 @@ class BackupArchiveContents {
     required this.rowsLoaded,
     required this.tablesSkipped,
     required this.columnsCarried,
+    required this.settingKeys,
   });
 
   final String version;
@@ -222,6 +222,9 @@ class BackupArchiveContents {
   /// the schema gained after the backup was written is not among them: the
   /// backup says nothing about it.
   final Map<String, Set<String>> columnsCarried;
+
+  /// The settings rows written from the archive's `settings` section.
+  final Set<String> settingKeys;
 }
 
 /// Reads the archive at [archivePath] and writes the rows of its `tables`
@@ -280,6 +283,7 @@ Future<BackupArchiveContents> readBackupArchive({
       if (tables != null) loader.loadDecoded(tables);
     }
     checkBackupVersion(sections['version']);
+    final settingKeys = <String>{};
     if (sections.remove('settings') case final settings?) {
       if (settings is! Map<String, dynamic>) {
         throw const BackupArchiveException(
@@ -294,6 +298,7 @@ Future<BackupArchiveContents> readBackupArchive({
         for (final MapEntry(:key, :value) in settings.entries) {
           if (omitSettings.contains(key) || value == null) continue;
           write.execute([key, '$value']);
+          settingKeys.add(key);
         }
       } finally {
         write.close();
@@ -307,6 +312,7 @@ Future<BackupArchiveContents> readBackupArchive({
       rowsLoaded: loader.loaded,
       tablesSkipped: loader.skipped,
       columnsCarried: loader.carried,
+      settingKeys: settingKeys,
     );
   } finally {
     if (!db.autocommit) db.execute('ROLLBACK');

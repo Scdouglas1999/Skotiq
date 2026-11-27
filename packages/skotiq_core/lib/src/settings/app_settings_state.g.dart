@@ -255,11 +255,6 @@ class AppSettingsState {
   final double? sequencerLeftPanelWidth;
   /// Persisted width (px) of the sequencer's right panel after a drag.
   final double? sequencerRightPanelWidth;
-  /// The label of the native plate-solver preference, kept as a stored copy
-  /// for export. The preference itself is the authority.
-  final String plateSolver;
-  final String astapPath;
-  final String astrometryPath;
   final int plateSolveTimeout;
   final double plateSolveSearchRadius;
   final bool blindSolve;
@@ -602,9 +597,6 @@ class AppSettingsState {
     this.sequencerActiveTab,
     this.sequencerLeftPanelWidth,
     this.sequencerRightPanelWidth,
-    this.plateSolver = 'ASTAP',
-    this.astapPath = '',
-    this.astrometryPath = '',
     this.plateSolveTimeout = 60,
     this.plateSolveSearchRadius = 30.0,
     this.blindSolve = false,
@@ -774,9 +766,6 @@ class AppSettingsState {
     Object? sequencerActiveTab = _unset,
     Object? sequencerLeftPanelWidth = _unset,
     Object? sequencerRightPanelWidth = _unset,
-    String? plateSolver,
-    String? astapPath,
-    String? astrometryPath,
     int? plateSolveTimeout,
     double? plateSolveSearchRadius,
     bool? blindSolve,
@@ -943,9 +932,6 @@ class AppSettingsState {
       sequencerActiveTab: identical(sequencerActiveTab, _unset) ? this.sequencerActiveTab : sequencerActiveTab as int?,
       sequencerLeftPanelWidth: identical(sequencerLeftPanelWidth, _unset) ? this.sequencerLeftPanelWidth : sequencerLeftPanelWidth as double?,
       sequencerRightPanelWidth: identical(sequencerRightPanelWidth, _unset) ? this.sequencerRightPanelWidth : sequencerRightPanelWidth as double?,
-      plateSolver: plateSolver ?? this.plateSolver,
-      astapPath: astapPath ?? this.astapPath,
-      astrometryPath: astrometryPath ?? this.astrometryPath,
       plateSolveTimeout: plateSolveTimeout ?? this.plateSolveTimeout,
       plateSolveSearchRadius: plateSolveSearchRadius ?? this.plateSolveSearchRadius,
       blindSolve: blindSolve ?? this.blindSolve,
@@ -1117,9 +1103,6 @@ class AppSettingsState {
     'sequencerActiveTab' => sequencerActiveTab,
     'sequencerLeftPanelWidth' => sequencerLeftPanelWidth,
     'sequencerRightPanelWidth' => sequencerRightPanelWidth,
-    'plateSolver' => plateSolver,
-    'astapPath' => astapPath,
-    'astrometryPath' => astrometryPath,
     'plateSolveTimeout' => plateSolveTimeout,
     'plateSolveSearchRadius' => plateSolveSearchRadius,
     'blindSolve' => blindSolve,
@@ -1290,9 +1273,6 @@ class AppSettingsState {
         'sequencerActiveTab' => copyWith(sequencerActiveTab: value as int?),
         'sequencerLeftPanelWidth' => copyWith(sequencerLeftPanelWidth: value as double?),
         'sequencerRightPanelWidth' => copyWith(sequencerRightPanelWidth: value as double?),
-        'plateSolver' => copyWith(plateSolver: value as String),
-        'astapPath' => copyWith(astapPath: value as String),
-        'astrometryPath' => copyWith(astrometryPath: value as String),
         'plateSolveTimeout' => copyWith(plateSolveTimeout: value as int),
         'plateSolveSearchRadius' => copyWith(plateSolveSearchRadius: value as double),
         'blindSolve' => copyWith(blindSolve: value as bool),
@@ -1466,9 +1446,6 @@ class AppSettingsState {
       sequencerActiveTab: valueOf(t[39]) as int?,
       sequencerLeftPanelWidth: valueOf(t[40]) as double?,
       sequencerRightPanelWidth: valueOf(t[41]) as double?,
-      plateSolver: valueOf(t[42]) as String,
-      astapPath: valueOf(t[43]) as String,
-      astrometryPath: valueOf(t[44]) as String,
       plateSolveTimeout: valueOf(t[45]) as int,
       plateSolveSearchRadius: valueOf(t[46]) as double,
       blindSolve: valueOf(t[47]) as bool,
