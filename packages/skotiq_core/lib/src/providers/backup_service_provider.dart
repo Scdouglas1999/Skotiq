@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'database_provider.dart';
 import 'app_version_provider.dart';
-import 'backend_provider.dart' show isRemoteModeProvider;
+import 'backend_provider.dart' show isRemoteClientProvider;
 import '../services/backup_service.dart';
 import 'logging_service_provider.dart';
 import 'plate_solve_service_provider.dart';
@@ -18,10 +18,10 @@ final backupServiceProvider = Provider<BackupService>((ref) {
     logger: logger,
     appVersion: appVersion,
     // The plate-solver settings are copies of this computer's native
-    // preference. A linked client's preference is its host's, so its backup
-    // carries none.
+    // preference. A client launch's preference is its host's, linked or not,
+    // so its backup carries none.
     solverSettingRows: () async {
-      if (ref.read(isRemoteModeProvider)) return const {};
+      if (ref.read(isRemoteClientProvider)) return const {};
       return plateSolverPreferenceRows(
         await reportedPlateSolverPreference(
           ref.read(plateSolveServiceProvider),

@@ -1,8 +1,8 @@
 // A backup's plate-solver settings come from this computer's native solver
 // preference, the store the solver reads, even when the app settings were
-// never loaded, and are a fresh install's when it cannot be read. A linked
-// client's preference is its host's, so its backup carries none: restoring it
-// leaves this computer's preference as it is.
+// never loaded, and are a fresh install's when it cannot be read. A client
+// launch's preference is its host's, linked or not, so its backup
+// carries none: restoring it leaves this computer's preference as it is.
 
 import 'dart:convert';
 import 'dart:io';
@@ -47,7 +47,10 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  Future<Map<String, dynamic>> backupSettings({bool linked = false}) async {
+  Future<Map<String, dynamic>> backupSettings({
+    bool linked = false,
+    LaunchRole? role,
+  }) async {
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
@@ -56,6 +59,7 @@ void main() {
           const AppVersionInfo(version: '9.4.0', buildNumber: 1),
         ),
         if (linked) isRemoteModeProvider.overrideWithValue(true),
+        if (role != null) launchRoleProvider.overrideWithValue(role),
       ],
     );
     addTearDown(container.dispose);
@@ -95,4 +99,19 @@ void main() {
     expect(settings.keys, isNot(contains('astrometry_path')));
     verifyNever(() => solver.getConfig());
   });
+
+  test(
+    'a client launch that is not linked carries no solver settings',
+    () async {
+      // Its preference cannot be read without its host; a fresh install's
+      // rows would reset this computer's solver on a restore.
+      when(() => solver.getConfig()).thenThrow(StateError('not connected'));
+
+      final settings = await backupSettings(role: LaunchRole.linkedClient);
+
+      expect(settings.keys, isNot(contains('plate_solver')));
+      expect(settings.keys, isNot(contains('astap_path')));
+      expect(settings.keys, isNot(contains('astrometry_path')));
+    },
+  );
 }
