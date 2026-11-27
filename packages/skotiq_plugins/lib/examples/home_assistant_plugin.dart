@@ -25,6 +25,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../src/plugin_api.dart';
+import '../src/plugin_http.dart';
 
 /// Returns a user-facing validation error for a Home Assistant base URL.
 String? homeAssistantBaseUrlProblem(String value) {
@@ -209,14 +210,16 @@ class _HomeAssistantToggleNode implements PluginSequenceNode {
         'Calling Home Assistant: $domain/$service for $entityId',
       );
 
-      final response = await client.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'entity_id': entityId}),
-      );
+      final response = await client
+          .post(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'entity_id': entityId}),
+          )
+          .timeout(pluginHttpTimeout);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         context.logger.error(
@@ -239,10 +242,9 @@ class _HomeAssistantToggleNode implements PluginSequenceNode {
       // the entity state and confirm.
       await Future<void>.delayed(Duration(seconds: confirmStateAfterSecs));
       final stateUrl = Uri.parse('$baseUrl/api/states/$entityId');
-      final stateResponse = await client.get(
-        stateUrl,
-        headers: {'Authorization': 'Bearer $token'},
-      );
+      final stateResponse = await client
+          .get(stateUrl, headers: {'Authorization': 'Bearer $token'})
+          .timeout(pluginHttpTimeout);
       if (stateResponse.statusCode != 200) {
         context.logger.warning(
           'Home Assistant state confirm failed: '

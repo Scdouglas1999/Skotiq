@@ -25,6 +25,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../src/plugin_api.dart';
+import '../src/plugin_http.dart';
 
 /// Storage key for the Pushover application token (per-plugin).
 const String _kApiTokenStorageKey = 'pushover.apiToken';
@@ -188,10 +189,12 @@ class _PushoverNotificationNode implements PluginSequenceNode {
         'device=${device ?? "(any)"}',
       );
 
-      final response = await client.post(
-        Uri.parse('https://api.pushover.net/1/messages.json'),
-        body: body,
-      );
+      final response = await client
+          .post(
+            Uri.parse('https://api.pushover.net/1/messages.json'),
+            body: body,
+          )
+          .timeout(pluginHttpTimeout);
 
       if (response.statusCode != 200) {
         context.logger.error(
