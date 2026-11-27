@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../localization/skotiq_localizations.dart';
 import '../../../widgets/red_night_filter.dart';
 import '../../../tours/tour_target.dart';
 import 'settings_widgets.dart';
@@ -117,6 +118,27 @@ class AppearanceSettings extends ConsumerWidget {
             SettingsSection(
               title: 'Display',
               children: [
+                SettingRow(
+                  title: context.l10n.text('generalLanguage'),
+                  // The app chrome: menus, the navigation rail, the status
+                  // bar and Settings. Both locales state that scope.
+                  subtitle: context.l10n.text('generalLanguageDesc'),
+                  trailing: SettingsDropdown(
+                    key: const ValueKey('appearance.language'),
+                    value: settings.language == 'es' ? 'es' : 'en',
+                    items: const ['en', 'es'],
+                    itemLabels: [
+                      context.l10n.text('languageEnglish'),
+                      // An unqualified "Español" reads as a finished
+                      // translation.
+                      '${context.l10n.text('languageSpanish')} (beta)',
+                    ],
+                    onChanged: (value) => ref
+                        .read(appSettingsProvider.notifier)
+                        .setLanguage(value == 'es' ? 'es' : 'en'),
+                    width: 150,
+                  ),
+                ),
                 SettingRow(
                   title: 'Text size',
                   subtitle: 'Scales every label and readout.',

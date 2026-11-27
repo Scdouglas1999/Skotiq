@@ -343,6 +343,18 @@ void main() {
       expect(container.read(appSettingsWriteFailureProvider), isNull);
     });
 
+    test('setLanguage keeps the language on this device', () async {
+      await container.read(appSettingsProvider.notifier).setLanguage('es');
+
+      expect(container.read(appSettingsProvider).valueOrNull?.language, 'es');
+      expect(await database.settingsDao.getSetting('language'), 'es');
+      verifyNever(() => backend.updateSettings(any()));
+
+      container.invalidate(appSettingsProvider);
+      final reloaded = await container.read(appSettingsProvider.future);
+      expect(reloaded.language, 'es');
+    });
+
     test('local theme overlays the host value after a reload', () async {
       await container.read(appSettingsProvider.notifier).setTheme('redNight');
       // Force a rebuild (the reconnect path re-fetches host settings = dark).

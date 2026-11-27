@@ -56,39 +56,13 @@ class GeneralSettings extends ConsumerWidget {
               ),
             ],
           ),
-          SettingsSection(
-            title: l10n.text('generalBehavior'),
-            children: [
-              SettingRow(
-                title: l10n.text('generalLanguage'),
-                // What this control actually changes: the app chrome — menus,
-                // the navigation rail, the persistent status bar and the whole
-                // Settings tree. The product screens (Dashboard body, Imaging,
-                // the Sequencer) hold literals with no catalogue keys behind
-                // them and stay English. Both locales state that scope.
-                subtitle: l10n.text('generalLanguageDesc'),
-                trailing: SettingsDropdown(
-                  // Values are the stored language codes, so the mapping does
-                  // not depend on comparing translated display strings.
-                  value: settings.language == 'es' ? 'es' : 'en',
-                  items: const ['en', 'es'],
-                  itemLabels: [
-                    l10n.text('languageEnglish'),
-                    // Marked partial in the picker itself: an unqualified
-                    // "Español" reads as a finished translation.
-                    '${l10n.text('languageSpanish')} (beta)',
-                  ],
-                  onChanged: (value) {
-                    return ref
-                        .read(appSettingsProvider.notifier)
-                        .setLanguage(value == 'es' ? 'es' : 'en');
-                  },
-                  width: 150,
-                ),
-              ),
-              // `confirm_before_closing` is intentionally non-remotable
-              // (host-only); hide the row over a remote session.
-              if (!isRemoteMode)
+          // `confirm_before_closing` is intentionally non-remotable
+          // (host-only); hide it over a remote session. Language is on the
+          // Appearance page: each device keeps its own.
+          if (!isRemoteMode)
+            SettingsSection(
+              title: l10n.text('generalBehavior'),
+              children: [
                 SettingRow(
                   title: l10n.text('generalConfirmBeforeClosing'),
                   subtitle: l10n.text('generalConfirmBeforeClosingDesc'),
@@ -101,8 +75,8 @@ class GeneralSettings extends ConsumerWidget {
                     },
                   ),
                 ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );

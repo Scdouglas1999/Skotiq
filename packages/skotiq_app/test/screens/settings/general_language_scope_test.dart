@@ -1,6 +1,6 @@
 // The Language picker must not promise more than it delivers.
 //
-// Live: Settings > General > Language > Spanish translates the navigation rail,
+// Live: Settings > Appearance > Language > Spanish translates the navigation rail,
 // the top strip and the whole Settings tree, and leaves the Dashboard, the
 // Sequencer, Imaging and the persistent status bar 100% English (0 of ~12
 // visible Dashboard strings translated). Only 46 of the app's 837 source files
@@ -10,7 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/settings/widgets/general_settings.dart';
+import 'package:skotiq_app/screens/settings/widgets/appearance_settings.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -32,7 +32,7 @@ Future<HarnessHandle> _pump(
 }) async {
   final handle = await pumpAppScreen(
     tester,
-    const GeneralSettings(),
+    const AppearanceSettings(),
     size: const Size(1280, 900),
     // Production drives MaterialApp.locale from this same setting, so the row
     // has to be read in the locale it stores — the subtitle now comes from the
@@ -48,14 +48,17 @@ Future<HarnessHandle> _pump(
   return handle;
 }
 
+final Finder _languagePicker = find.descendant(
+  of: find.byKey(const ValueKey('appearance.language')),
+  matching: find.byType(SkotiqDropdown),
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('the Spanish option is marked partial', (tester) async {
     await _pump(tester, language: 'en');
-    final picker = tester.widget<SkotiqDropdown>(
-      find.byType(SkotiqDropdown).first,
-    );
+    final picker = tester.widget<SkotiqDropdown>(_languagePicker);
     final labels = <String>[
       for (var i = 0; i < picker.items.length; i++) picker.labelFor(i),
     ];
@@ -102,7 +105,8 @@ void main() {
   testWidgets('choosing a language still stores its code', (tester) async {
     final handle = await _pump(tester, language: 'en');
 
-    await tester.tap(find.byType(SkotiqDropdown).first);
+    await tester.ensureVisible(_languagePicker);
+    await tester.tap(_languagePicker);
     await tester.pumpAndSettle();
     await tester.tap(find.textContaining('(beta)').last);
     await tester.pumpAndSettle();
