@@ -280,12 +280,13 @@ impl GuidingState {
         self.star_lost = star_lost;
     }
 
-    /// A run is starting. Guiding stays armed only for a run resumed from a
-    /// checkpoint, which carries on the guiding it recorded.
+    /// A run is starting. Nothing is armed: a run resumed from a checkpoint
+    /// that recorded guiding starts it again before its next light frame,
+    /// and its Guide Star Lost is armed once guiding runs.
     pub fn reset_for_new_run(&mut self, resumed: bool) {
-        let enabled = resumed && self.enabled;
+        let resume_pending = resumed && self.enabled;
         *self = Self {
-            enabled,
+            resume_pending,
             ..Self::default()
         };
     }
@@ -409,8 +410,11 @@ mod tests {
         assert!(guiding.judges_rms());
     }
 
+    /// A checkpoint-restored run on a restarted host found the guider idle
+    /// and read the guiding it had recorded as a lost star before its first
+    /// step. It owes the guiding instead, and arms nothing until it runs.
     #[test]
-    fn only_a_resumed_run_keeps_its_guiding_armed() {
+    fn a_resumed_run_owes_its_guiding_and_arms_nothing() {
         let mut guiding = armed();
         guiding.set_star_lost(true);
         guiding.set_unguided(true);
@@ -419,10 +423,12 @@ mod tests {
         assert_eq!(
             guiding,
             GuidingState {
-                enabled: true,
+                resume_pending: true,
                 ..Default::default()
             }
         );
+        guiding.observe_guider(Ok(false));
+        assert!(!guiding.star_lost(), "an idle guider is not a lost star");
         guiding.reset_for_new_run(false);
         assert_eq!(guiding, GuidingState::default());
     }

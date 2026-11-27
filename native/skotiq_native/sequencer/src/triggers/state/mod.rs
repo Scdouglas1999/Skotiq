@@ -389,11 +389,13 @@ impl TriggerState {
     /// makes the altitude-limit trigger skip a whole tree on coordinates this
     /// run never had.
     ///
-    /// Reset by part: the run latches, the flip bookkeeping, the run hold and
-    /// the guiding state on every run; the target and the tracking baseline
-    /// only on a fresh one, because a resumed run carries on the guiding and
-    /// target its checkpoint recorded. Settings and telemetry belong to the
-    /// rig and are left alone.
+    /// Reset by part: the run latches, the flip bookkeeping, the run hold,
+    /// the guiding state and the tracking baseline on every run; the target
+    /// only on a fresh one, because a resumed run carries on the target its
+    /// checkpoint recorded. Settings and telemetry belong to the rig and are
+    /// left alone. A resumed run judges tracking and guiding from its own
+    /// readings, as a fresh one does: the rig may have been parked and the
+    /// guider stopped since the checkpoint.
     pub fn reset_for_new_run(&mut self) {
         self.latches = RunLatches {
             // Not reset: the HFR sample counter only ever grows, and the grid
@@ -406,15 +408,17 @@ impl TriggerState {
         self.run.reset_for_new_run();
         let resumed = std::mem::take(&mut self.restored_from_checkpoint);
         self.guiding.reset_for_new_run(resumed);
+        // The tracking-loss baseline is armed by this run's own readings.
+        // Carried over, a mount parked at the end of the last run (or since
+        // the checkpoint) and unparked for this one read as a lost track on
+        // the run's first poll.
+        self.tracking.set_expected(false);
+        self.tracking.clear_lost();
+        self.tracking.clear_limit_detection();
+        self.telemetry.mount_is_tracking = None;
         if resumed {
             return;
         }
-        // The tracking-loss baseline is armed by this run's own readings.
-        // Carried over, a mount parked at the end of the last run and unparked
-        // for this one read as a lost track on the run's first poll.
-        self.tracking.set_expected(false);
-        self.tracking.clear_lost();
-        self.telemetry.mount_is_tracking = None;
         // Only this run's Open Dome makes the run expect an open shutter; a
         // shutter left open by the last run may have been closed since.
         self.telemetry.dome_shutter_open_expected = false;
@@ -895,8 +899,12 @@ mod tests {
         assert_rig_parts_untouched(&state);
     }
 
+    /// A checkpoint-restored run on a freshly restarted host (mount parked,
+    /// guider idle) fired Mount Tracking Lost and Guide Star Lost before its
+    /// Unpark step, and the recovery turned tracking on for the parked mount.
+    /// It judges both from its own readings, as a fresh run does.
     #[test]
-    fn a_resumed_run_resets_the_latches_and_keeps_its_target_and_tracking() {
+    fn a_resumed_run_resets_the_latches_tracking_and_guiding_and_keeps_its_target() {
         let mut state = used_state();
         state.restored_from_checkpoint = true;
         state.reset_for_new_run();
@@ -906,14 +914,19 @@ mod tests {
         assert_eq!(state.target.target_ra, Some(35.5));
         assert_eq!(state.target.current_altitude, Some(58.0));
         assert_eq!(state.target.last_plate_solve_ra, Some(35.6));
-        assert_eq!(state.telemetry.mount_is_tracking, Some(false));
+        assert_eq!(state.telemetry.mount_is_tracking, None);
         assert!(
             state.telemetry.dome_shutter_open_expected,
             "a resumed run goes on behind the shutter it opened"
         );
-        assert!(state.tracking.expected_and_lost());
-        assert_eq!(state.tracking.limit_detected_at(), Some(1_700_000_100));
-        assert!(state.guiding.is_enabled());
+        assert!(!state.tracking.is_expected());
+        assert!(!state.tracking.is_lost());
+        assert_eq!(state.tracking.limit_detected_at(), None);
+        assert!(!state.guiding.is_enabled());
+        assert!(
+            state.guiding.resume_pending(),
+            "the guiding the checkpoint recorded is started again"
+        );
         assert!(!state.restored_from_checkpoint, "the flag is consumed");
         assert_rig_parts_untouched(&state);
     }
