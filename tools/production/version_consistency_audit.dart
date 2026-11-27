@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'src/version_file.dart';
+
 /// Version-consistency gate.
 ///
 /// A published release is identified by its version string in four places that
@@ -62,7 +64,10 @@ Future<void> main(List<String> args) async {
   final linkRelease = _VersionSource.fromLine(
     root: root,
     path: _linkReleasePath,
-    pattern: RegExp(r"^const String skotiqRelease = '([^']+)';", multiLine: true),
+    pattern: RegExp(
+      r"^const String skotiqRelease = '([^']+)';",
+      multiLine: true,
+    ),
     field: 'skotiqRelease',
     issues: issues,
   );
@@ -207,26 +212,18 @@ class _VersionSource {
         buildNumber: null,
       );
     }
-    final text = file.readAsStringSync();
-    final version = _firstGroup(
-      RegExp(r'''^version:\s*"?([^"#\s]+)"?''', multiLine: true),
-      text,
-    );
-    final buildRaw = _firstGroup(
-      RegExp(r'^build_number:\s*(\d+)', multiLine: true),
-      text,
-    );
-    if (version == null) {
+    final parsed = VersionFile.parse(file.readAsStringSync());
+    if (parsed.version == null) {
       issues.add('$path does not declare a parseable `version:` field.');
     }
-    if (buildRaw == null) {
+    if (parsed.buildNumber == null) {
       issues.add('$path does not declare a parseable `build_number:` field.');
     }
     return _VersionSource(
       path: path,
       exists: true,
-      version: version,
-      buildNumber: buildRaw == null ? null : int.tryParse(buildRaw),
+      version: parsed.version,
+      buildNumber: parsed.buildNumber,
     );
   }
 

@@ -2,18 +2,19 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'version_file.dart';
+
 /// The release this tree builds, from `version.yaml` in the working directory
 /// (the repository root, where the smoke tools run). A host refuses an API
 /// request or an event socket that does not name it.
 final String skotiqRelease = () {
-  final match = RegExp(
-    r'^version:\s*"([^"\n]+)"',
-    multiLine: true,
-  ).firstMatch(File('version.yaml').readAsStringSync());
-  if (match == null) {
+  final version = VersionFile.parse(
+    File('version.yaml').readAsStringSync(),
+  ).version;
+  if (version == null) {
     throw const FormatException('Missing release in version.yaml');
   }
-  return match.group(1)!;
+  return version;
 }();
 
 /// Names this release on [request], marks the body as JSON and, with a

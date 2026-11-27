@@ -68,7 +68,7 @@ jobs:
           # the Android APK, and the desktop binary could ship mismatched
           # versions under one tag. Fail loudly if they disagree.
           mobile_version="$(grep '^version:' apps/mobile/pubspec.yaml | head -1 | sed -E 's/^version:[[:space:]]*//; s/\+.*$//')"
-          version_yaml="$(grep '^version:' version.yaml | head -1 | sed -E 's/^version:[[:space:]]*//; s/[" ]//g; s/#.*$//')"
+          version_yaml="$(python3 scripts/version_file.py version)"
           if [ "$mobile_version" != "$pubspec_version" ]; then
             echo "::error::apps/mobile/pubspec.yaml (${mobile_version}) does not match apps/desktop/pubspec.yaml (${pubspec_version}). Reconcile all version sources to one release."
             exit 1
@@ -258,7 +258,7 @@ jobs:
           SKOTIQ_UPDATE_PRIVATE_KEY: ${{ needs.version.outputs.require_signing == 'true' && (secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY) || '' }}
         run: |
           set -euo pipefail
-          BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
+          BUILD_NUMBER="$(python3 scripts/version_file.py build_number)"
           # arm64 is the architecture name currentUpdateArchitecture() reports
           # on an arm64-v8a device, which the app matches the manifest against.
           asset="skotiq-${APP_VERSION}-android-arm64-v8a.apk"
@@ -362,7 +362,7 @@ jobs:
           python3 scripts/verify_linux_package.py \
             "dist/skotiq-${APP_VERSION}-linux-x64.tar.gz" \
             --source "$GITHUB_SHA" --version "$APP_VERSION" \
-            --build-number "$(sed -n 's/^build_number:[[:space:]]*//p' version.yaml)" \
+            --build-number "$(python3 scripts/version_file.py build_number)" \
             --output-dir "$RUNNER_TEMP/linux-package-smoke"
 
       - name: Retain Bookworm package verification evidence
@@ -390,7 +390,7 @@ jobs:
           SKOTIQ_UPDATE_PRIVATE_KEY: ${{ needs.version.outputs.require_signing == 'true' && (secrets.SKOTIQ_UPDATE_PRIVATE_KEY || secrets.NIGHTSHADE_UPDATE_PRIVATE_KEY) || '' }}
         run: |
           set -euo pipefail
-          BUILD_NUMBER="$(grep -oP 'build_number:\s*\K\d+' version.yaml)"
+          BUILD_NUMBER="$(python3 scripts/version_file.py build_number)"
           ASSET="skotiq-${APP_VERSION}-linux-x64-update.zip"
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${APP_VERSION}/${ASSET}"
           (cd packages/skotiq_updater && dart run tool/build_update_manifest.dart \
