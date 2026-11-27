@@ -213,6 +213,10 @@ class SmartNightSettings {
   /// prepending an alignment node.
   final int polarAlignmentStaleAfterDays;
 
+  /// Whether a polar alignment [daysSince] days ago is stale; unknown is not.
+  bool polarAlignmentIsStale(int? daysSince) =>
+      daysSince != null && daysSince > polarAlignmentStaleAfterDays;
+
   /// Whether the rig has a flat panel / cover calibrator. The wizard
   /// pre-fills this from the EquipmentProfile but the user can override.
   final bool hasCoverCalibrator;

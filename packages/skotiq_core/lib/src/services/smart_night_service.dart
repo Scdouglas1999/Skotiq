@@ -507,9 +507,7 @@ class SmartNightService {
         'because auto-schedule is enabled.',
       );
     }
-    if (context.daysSinceLastPolarAlignment != null &&
-        context.daysSinceLastPolarAlignment! >
-            settings.polarAlignmentStaleAfterDays) {
+    if (settings.polarAlignmentIsStale(context.daysSinceLastPolarAlignment)) {
       warnings.add(
         'Last polar alignment was '
         '${context.daysSinceLastPolarAlignment} days ago '
