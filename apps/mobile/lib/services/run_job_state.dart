@@ -51,7 +51,8 @@ RunningStepKind runningStepKind(SequenceProgress progress) {
     case CenterInstructionProgressDetail():
       return RunningStepKind.centering;
     case ExposureInstructionProgressDetail() ||
-        SmartExposureInstructionProgressDetail():
+        SmartExposureInstructionProgressDetail() ||
+        ExposureAdjustedProgressDetail():
       return RunningStepKind.exposing;
     default:
       break;

@@ -10,6 +10,7 @@ void main() {
     InstructionProgressDetail? reading,
     String? filter,
     int done = 0,
+    int total = 75,
     String? message,
   }) => SequenceProgress(
     currentNodeId: 'step',
@@ -17,7 +18,7 @@ void main() {
     nodeProgressStructuredDetail: {'step': ?reading},
     currentFilter: filter,
     completedExposures: done,
-    totalExposures: 75,
+    totalExposures: total,
     message: message,
   );
 
@@ -86,6 +87,27 @@ void main() {
     expect(
       ongoingRunText(SequenceExecutionState.recovering, at('Smart Exposure')),
       'Recovering · 0/75 exposures',
+    );
+  });
+
+  test('a Smart Exposure step names its filter and counts its frames', () {
+    expect(
+      ongoingRunText(
+        running,
+        at(
+          'Smart Exposure: Ha+OIII+SII',
+          filter: 'SII',
+          done: 8,
+          total: 0,
+          reading: const ExposureAdjustedProgressDetail(
+            adaptedSecs: 20,
+            nominalSecs: 20,
+            reasonWire: 'disabled',
+            unchanged: true,
+          ),
+        ),
+      ),
+      'Exposing SII · 8 exposures',
     );
   });
 }

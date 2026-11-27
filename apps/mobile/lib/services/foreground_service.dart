@@ -171,7 +171,7 @@ class ImagingForegroundService {
 }
 
 /// The ongoing notification's line: what the run is doing now, then its
-/// frame count.
+/// frame count, out of the plan's total when the plan has one.
 String ongoingRunText(SequenceExecutionState exec, SequenceProgress progress) {
   final step = switch (exec) {
     SequenceExecutionState.running => _runningStepText(progress),
@@ -186,8 +186,8 @@ String ongoingRunText(SequenceExecutionState exec, SequenceProgress progress) {
     SequenceExecutionState.idle => 'Starting',
   };
   final total = progress.totalExposures;
-  if (total <= 0) return step;
   final done = progress.completedExposures;
+  if (total <= 0) return done > 0 ? '$step · $done exposures' : step;
   final percent = done > 0 ? ' (${(done / total * 100).round()}%)' : '';
   return '$step · $done/$total exposures$percent';
 }
