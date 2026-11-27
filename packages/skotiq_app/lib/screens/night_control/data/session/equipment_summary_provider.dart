@@ -152,10 +152,7 @@ _SlotFacts _cameraFacts(
   ExposureSensitivity sensitivity,
 ) {
   final temp = camera.temperature;
-  final distance = camera.setpointDistance;
-  final cooling = camera.isCooling &&
-      distance != null &&
-      distance >= kCoolerAtSetpointTolerance;
+  final cooling = camera.isCooling && temp != null && !camera.sensorAtSetpoint;
   final gain = camera.gain;
   final offset = camera.offset;
   final binning = camera.binning;

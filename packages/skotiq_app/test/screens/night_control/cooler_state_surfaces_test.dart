@@ -115,10 +115,12 @@ final Map<String, _Answers> _expected = {
     updateRefused: true,
     disconnectAsks: true,
   ),
+  // Tonight showed "At setpoint" in its Camera tab beside "cooling to" in
+  // its equipment row and Before you start for this one reading.
   '0.5 off the setpoint': (
     panel: CoolerState.atSetpoint,
-    equipment: 'nightScrCoolingTo',
-    check: 'nightSessionCheckCameraCooling',
+    equipment: 'literal',
+    check: 'nightSessionCheckCameraAt',
     updateRefused: true,
     disconnectAsks: true,
   ),

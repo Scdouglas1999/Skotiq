@@ -82,6 +82,13 @@ class CameraStateSnapshot extends Equatable
     return temp == null ? null : (temp - targetTemp).abs();
   }
 
+  /// The sensor reads within [kCoolerAtSetpointTolerance] of the setpoint.
+  /// False without a reading.
+  bool get sensorAtSetpoint {
+    final distance = setpointDistance;
+    return distance != null && distance <= kCoolerAtSetpointTolerance;
+  }
+
   /// What the cooler is doing.
   CoolerState get coolerState {
     if (connectionState != DeviceConnectionState.connected) {
@@ -90,11 +97,7 @@ class CameraStateSnapshot extends Equatable
     if (isWarming) return CoolerState.warming;
     if (coolerOn == null) return CoolerState.notReported;
     if (!isCooling) return CoolerState.off;
-    final distance = setpointDistance;
-    if (distance != null && distance <= kCoolerAtSetpointTolerance) {
-      return CoolerState.atSetpoint;
-    }
-    return CoolerState.cooling;
+    return sensorAtSetpoint ? CoolerState.atSetpoint : CoolerState.cooling;
   }
 
   /// The cooler is cooling or warming up.
