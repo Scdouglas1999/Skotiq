@@ -390,6 +390,139 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
+  group('a site seven hours off the device zone', () {
+    const site = LocationSettings(latitude: 47, longitude: -71);
+    Duration offsetAt(DateTime at) =>
+        at.timeZoneOffset + const Duration(hours: 7);
+
+    // Half an hour before the night's dawn the night is still on. Read as an
+    // instant, the site clock's rendering lands after that dawn.
+    testWidgets('tonight is the night in progress', (tester) async {
+      final night = AstronomyCalculations.nightAt(
+        now: DateTime(2026, 11, 3, 22),
+        latitudeDeg: 47,
+        longitudeDeg: -71,
+      );
+      final at = night.astronomicalDawn!.subtract(const Duration(minutes: 30));
+      await _pump(
+        tester,
+        site: site,
+        extra: [
+          altitudeFloorProvider.overrideWithValue(
+            const AltitudeFloor(horizon: null, minimumDeg: 0),
+          ),
+          clockProvider.overrideWithValue(_StoppedSiteClock(at, offsetAt(at))),
+        ],
+      );
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-target-row-1')),
+          matching: find.text('Up now'),
+        ),
+        findsOneWidget,
+      );
+      await settleProviderTeardown(tester);
+    });
+
+    testWidgets('rise times and the tonight line read on the site clock',
+        (tester) async {
+      final at = DateTime(2026, 11, 3, 15);
+      const floor = AltitudeFloor(horizon: null, minimumDeg: 30);
+      final clock = _StoppedSiteClock(at, offsetAt(at));
+      String hm(DateTime t) => clock.hm(t);
+      await _pump(
+        tester,
+        site: site,
+        extra: [
+          altitudeFloorProvider.overrideWithValue(floor),
+          clockProvider.overrideWithValue(clock),
+        ],
+      );
+      final night = AstronomyCalculations.nightAt(
+        now: at,
+        latitudeDeg: 47,
+        longitudeDeg: -71,
+      );
+      final window = floor.windowAbove(
+        raDeg: _ngc.ra * 15,
+        decDeg: _ngc.dec,
+        from: night.astronomicalDusk!,
+        until: night.astronomicalDawn!,
+        latitudeDeg: 47,
+        longitudeDeg: -71,
+      )!;
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-target-row-1')),
+          matching: find.text('Up ${hm(window.start)}'),
+        ),
+        findsOneWidget,
+      );
+      final next = tester.widget<Text>(
+        find.textContaining('Nothing can be imaged until'),
+      );
+      expect(next.data, contains(hm(window.start)));
+
+      await tester.tap(find.text('NGC0891'));
+      await tester.pumpAndSettle();
+      final line = tester.widget<Text>(
+        find.byKey(const Key('target-detail-tonight-window')),
+      );
+      expect(
+        line.data,
+        contains('from ${hm(window.start)} to ${hm(window.end)},'),
+      );
+      expect(find.text('now ${hm(at)}'), findsOneWidget);
+      await settleProviderTeardown(tester);
+    });
+  });
+
+  // New York leaves daylight time at 02:00 on 2026-11-01. A band drawn from
+  // site-clock renderings, which carry this device's zone, put "now" an hour
+  // off its time on that night; this test only bites on a device in such a
+  // zone.
+  testWidgets('the night band puts now at its instant on a DST-change night',
+      (tester) async {
+    const site = LocationSettings(latitude: 47, longitude: -71);
+    final at = DateTime.utc(2026, 11, 1, 9);
+    final clock = _StoppedSiteClock(at, const Duration(hours: 2));
+    await _pump(
+      tester,
+      site: site,
+      extra: [
+        altitudeFloorProvider.overrideWithValue(
+          const AltitudeFloor(horizon: null, minimumDeg: 0),
+        ),
+        clockProvider.overrideWithValue(clock),
+      ],
+    );
+    await tester.tap(find.text('NGC0891'));
+    await tester.pumpAndSettle();
+
+    final night = AstronomyCalculations.nightAt(
+      now: at,
+      latitudeDeg: 47,
+      longitudeDeg: -71,
+    );
+    final sunset = night.sunset!;
+    final sunrise = night.sunrise!;
+    final expected = at.difference(sunset).inMilliseconds /
+        sunrise.difference(sunset).inMilliseconds;
+    final band = tester.widget<NightBand>(find.byType(NightBand));
+    expect(band.fractionOf(band.now), closeTo(expected, 1e-6));
+    expect(
+        band.fractionOf(band.astroDark),
+        closeTo(
+            night.astronomicalDusk!.difference(sunset).inMilliseconds /
+                sunrise.difference(sunset).inMilliseconds,
+            1e-6));
+    expect(find.text('now ${ClockFormat.hm(clock.wallClockOf(at))}'),
+        findsOneWidget);
+    await settleProviderTeardown(tester);
+  });
+
   testWidgets('at phone width every row keeps its name and nothing overflows',
       (tester) async {
     await _pump(tester, size: const Size(390, 844));
@@ -424,4 +557,25 @@ class _StoppedClock implements Clock {
 
   @override
   DateTime fromUtc(DateTime utc) => utc.toLocal();
+}
+
+/// A site clock stopped at [at], [utcOffset] ahead of UTC.
+class _StoppedSiteClock implements Clock {
+  _StoppedSiteClock(this.at, this.utcOffset)
+      : _site = FixedOffsetClock(utcOffset: utcOffset, label: 'Site');
+
+  final DateTime at;
+  final FixedOffsetClock _site;
+
+  @override
+  final Duration utcOffset;
+
+  @override
+  DateTime now() => _site.wallClockOf(at);
+
+  @override
+  DateTime nowUtc() => at.toUtc();
+
+  @override
+  DateTime fromUtc(DateTime utc) => _site.fromUtc(utc);
 }

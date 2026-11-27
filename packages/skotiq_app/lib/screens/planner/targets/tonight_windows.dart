@@ -55,7 +55,7 @@ final _tonightWindowsProvider =
   final targets = ref.watch(allDbTargetsProvider).valueOrNull;
   if (location == null || targets == null) return const {};
   final night = AstronomyCalculations.nightAt(
-    now: ref.watch(clockProvider).now(),
+    now: ref.watch(clockProvider).instant,
     latitudeDeg: location.latitude,
     longitudeDeg: location.longitude,
   );

@@ -9,7 +9,6 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../data/plan/night_plan_inputs.dart';
 import '../../../services/night_session/night_now.dart';
 
 /// Marks a time or a length the estimator produced rather than one recorded.
@@ -41,4 +40,4 @@ String nightFilterTime(Duration d) {
 
 /// Now on the operator's clock, on Tonight's shared 30 s tick.
 DateTime nightNowOnClock(WidgetRef ref) =>
-    ref.watch(clockProvider).toNightClock(ref.watch(nightNowProvider));
+    ref.watch(clockProvider).wallClockOf(ref.watch(nightNowProvider));

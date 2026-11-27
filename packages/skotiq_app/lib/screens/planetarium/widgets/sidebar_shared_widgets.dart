@@ -2,8 +2,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/providers.dart' show Clock, ClockTimeOfDay;
 
 class InfoRow extends StatelessWidget {
   final String label;
@@ -145,10 +145,14 @@ class DarknessCard extends StatelessWidget {
   final TwilightTimes twilight;
   final SkotiqColors colors;
 
+  /// The clock dusk and dawn are read on.
+  final Clock clock;
+
   const DarknessCard({
     super.key,
     required this.twilight,
     required this.colors,
+    required this.clock,
   });
 
   @override
@@ -233,13 +237,13 @@ class DarknessCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Astro Dusk: ${ClockFormat.hm(twilight.astronomicalDusk!.toLocal())}',
+                'Astro Dusk: ${clock.hm(twilight.astronomicalDusk!)}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize10,
                     color: colors.textMuted),
               ),
               Text(
-                'Astro Dawn: ${ClockFormat.hm(twilight.astronomicalDawn!.toLocal())}',
+                'Astro Dawn: ${clock.hm(twilight.astronomicalDawn!)}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize10,
                     color: colors.textMuted),

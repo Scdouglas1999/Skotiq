@@ -16,21 +16,20 @@ class PhoneStandaloneApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(appSettingsProvider).valueOrNull;
-    final theme = resolveSkotiqThemeData(
-      themeSetting: settings?.theme ?? 'dark',
-      accentColorHex: settings?.accentColor,
-    );
+    final look = SkotiqAppLook(ref.watch(appSettingsProvider).valueOrNull);
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: systemUiOverlayStyleFor(theme),
+      value: systemUiOverlayStyleFor(look.theme),
       child: MaterialApp(
         navigatorKey: navigatorKey,
         title: 'Skotiq',
         debugShowCheckedModeBanner: false,
-        theme: theme,
+        theme: look.theme,
+        locale: look.locale,
         localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
         supportedLocales: SkotiqLocalizations.supportedLocales,
-        builder: (context, child) => skotiqAppFrame(child),
+        builder: (context, child) => skotiqAppFrame(
+          look.scaled(context, child ?? const SizedBox.shrink()),
+        ),
         navigatorObservers: skotiqNavigatorObservers(),
         home: home,
       ),

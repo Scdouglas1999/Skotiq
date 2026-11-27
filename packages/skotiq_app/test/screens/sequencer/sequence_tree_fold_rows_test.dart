@@ -937,7 +937,7 @@ void main() {
 
     final foldRow = _rowShellOf(find.text('Ha · OIII · SII')).first;
     expect(
-      find.descendant(of: foldRow, matching: find.text(site.timeOfDay(t0))),
+      find.descendant(of: foldRow, matching: find.text(site.hm(t0))),
       findsOneWidget,
       reason: 'the folded run starts when its first step does, and that '
           'step prints its ETA on the site clock',

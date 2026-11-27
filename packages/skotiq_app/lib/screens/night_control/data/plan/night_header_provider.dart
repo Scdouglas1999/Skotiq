@@ -56,7 +56,7 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
             : ref.watch(autofocusOverlayProvider.select((a) => a.isRunning))
                 ? ManualActionId.autofocus
                 : null,
-    runStartedAt: started == null ? null : clock.toNightClock(started),
+    runStartedAt: started == null ? null : clock.wallClockOf(started),
     armedStartAt: phase == NightRunPhase.armed
         ? ref.watch(nightPlanArmedStartSeamProvider)
         : null,
@@ -140,8 +140,7 @@ RunControl _startAtDarkControl(Ref ref, RunControl otherwise) {
           : 'ncPlanNoDarkTonight',
     ));
   }
-  final now =
-      ref.watch(clockProvider).toNightClock(ref.watch(nightNowProvider));
+  final now = ref.watch(clockProvider).wallClockOf(ref.watch(nightNowProvider));
   if (!now.isBefore(night.astroDark)) {
     return const RunControl.disabled(NightText('ncPlanAlreadyDark'));
   }

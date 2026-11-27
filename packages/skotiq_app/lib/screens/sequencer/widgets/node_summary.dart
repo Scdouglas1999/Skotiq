@@ -687,7 +687,7 @@ String _conditionalDescriptor(ConditionalType cond, double? threshold) {
 /// unconfigured wait/loop reads explicitly rather than blank.
 String _fmtTime(Clock clock, DateTime? time) {
   if (time == null) return '(unset)';
-  return clock.timeOfDay(time);
+  return clock.hm(time);
 }
 
 /// Strip directory components from a path, handling both `/` and `\`

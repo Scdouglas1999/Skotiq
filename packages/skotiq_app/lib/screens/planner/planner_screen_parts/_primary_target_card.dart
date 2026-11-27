@@ -330,7 +330,8 @@ class _TargetAltitudeWell extends ConsumerWidget {
       floorPoints.add((t, floor.atAzimuth(az).clamp(0.0, 90.0)));
     }
 
-    final now = ref.watch(clockProvider).instant;
+    final clock = ref.watch(clockProvider);
+    final now = clock.instant;
     return DecoratedBox(
       decoration: SkotiqDecorations.well(colors),
       child: Padding(
@@ -338,6 +339,7 @@ class _TargetAltitudeWell extends ConsumerWidget {
         child: NightChartAxes(
           from: from,
           to: to,
+          clock: clock,
           leftTicks: const <double>[0, 30, 60, 90],
           leftUnit: '°',
           lines: <SeriesChartLine>[

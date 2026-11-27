@@ -4,7 +4,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -421,21 +420,15 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
         items: [
           MetricGridItem(
             label: 'Rise',
-            value: v.riseTime == null
-                ? null
-                : ClockFormat.hm(_clock.fromUtc(v.riseTime!.toUtc())),
+            value: v.riseTime == null ? null : _clock.hm(v.riseTime!),
           ),
           MetricGridItem(
             label: 'Transit',
-            value: v.transitTime == null
-                ? null
-                : ClockFormat.hm(_clock.fromUtc(v.transitTime!.toUtc())),
+            value: v.transitTime == null ? null : _clock.hm(v.transitTime!),
           ),
           MetricGridItem(
             label: 'Set',
-            value: v.setTime == null
-                ? null
-                : ClockFormat.hm(_clock.fromUtc(v.setTime!.toUtc())),
+            value: v.setTime == null ? null : _clock.hm(v.setTime!),
           ),
           MetricGridItem(
             label: 'Transit alt',
@@ -655,7 +648,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
                 }
                 final time = _startTime.add(Duration(minutes: value.toInt()));
                 return Text(
-                  ClockFormat.hm(_clock.fromUtc(time.toUtc())),
+                  _clock.hm(time),
                   style: SkotiqTypography.caption
                       .copyWith(color: colors.textMuted),
                 );
@@ -767,7 +760,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
             getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 final time = _startTime.add(Duration(minutes: spot.x.toInt()));
-                final timeStr = ClockFormat.hm(_clock.fromUtc(time.toUtc()));
+                final timeStr = _clock.hm(time);
                 if (_showAirmass) {
                   return LineTooltipItem(
                     '$timeStr\nAirmass: ${spot.y.toStringAsFixed(2)}',
@@ -812,7 +805,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       items.add(_buildTimeChip(
         colors,
         'Rise',
-        ClockFormat.hm(_clock.fromUtc(_visibility!.riseTime!.toUtc())),
+        _clock.hm(_visibility!.riseTime!),
         SkotiqIcons.sunrise,
       ));
     }
@@ -821,7 +814,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       items.add(_buildTimeChip(
         colors,
         'Transit',
-        ClockFormat.hm(_clock.fromUtc(_visibility!.transitTime!.toUtc())),
+        _clock.hm(_visibility!.transitTime!),
         SkotiqIcons.arrowUp,
       ));
     }
@@ -830,7 +823,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
       items.add(_buildTimeChip(
         colors,
         'Set',
-        ClockFormat.hm(_clock.fromUtc(_visibility!.setTime!.toUtc())),
+        _clock.hm(_visibility!.setTime!),
         SkotiqIcons.sunset,
       ));
     }

@@ -13,7 +13,6 @@ import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import '../../../../services/night_session/night_session_events.dart';
 import '../../../../services/night_session/night_flip.dart';
-import 'night_plan_inputs.dart';
 import '../../../../services/run_control/run_control.dart';
 import '../../../../services/night_session/night_now.dart';
 
@@ -61,7 +60,7 @@ final _nightSkyCurvesProvider = Provider<_SkyCurves?>((ref) {
       latitudeDeg: site.latitude,
       longitudeDeg: site.longitude,
     );
-    final t = clock.toNightClock(at);
+    final t = clock.wallClockOf(at);
     targetCurve.add(SeriesPoint(t, altitude));
     moonCurve.add(SeriesPoint(t, moonAltitude));
   }
@@ -207,10 +206,10 @@ final nightTargetProvider = Provider<NightTargetVm?>((ref) {
     moonIlluminationPct: night?.moonIlluminationPercent,
     moonSet: moonSetTonight,
     transitAt:
-        transitTonight == null ? null : clock.toNightClock(transitTonight),
+        transitTonight == null ? null : clock.wallClockOf(transitTonight),
     transitAltitudeDeg: transitAltitude,
     belowLimitAt: belowLimit != null && tonight(belowLimit)
-        ? clock.toNightClock(belowLimit)
+        ? clock.wallClockOf(belowLimit)
         : null,
     flipAt: flipAt,
     holdAt: holdMinutes == null
@@ -263,7 +262,7 @@ DateTime? _flipAt(
       // has run; one that succeeded during this run has done this transit's
       // flip, and the next is a night away.
       if (toFlip == Duration.zero && _flippedThisRun(ref)) return null;
-      return clock.toNightClock(now.add(toFlip));
+      return clock.wallClockOf(now.add(toFlip));
     }
   }
 
@@ -273,7 +272,7 @@ DateTime? _flipAt(
     Duration(seconds: (flipHourAngle * 3600 * _siderealToSolar).round()),
   );
   if (flip.isBefore(now) || !tonight(flip)) return null;
-  return clock.toNightClock(flip);
+  return clock.wallClockOf(flip);
 }
 
 /// How far from the target the mount may point and still be imaging it: a

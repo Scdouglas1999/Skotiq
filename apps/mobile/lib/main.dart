@@ -302,12 +302,17 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         error: e,
         stackTrace: stackTrace,
       );
+      final look = SkotiqAppLook(ref.read(appSettingsProvider).valueOrNull);
       return MaterialApp(
         title: 'Skotiq',
         debugShowCheckedModeBanner: false,
+        theme: look.theme,
+        locale: look.locale,
         localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
         supportedLocales: SkotiqLocalizations.supportedLocales,
-        builder: (context, child) => skotiqAppFrame(child),
+        builder: (context, child) => skotiqAppFrame(
+          look.scaled(context, child ?? const SizedBox.shrink()),
+        ),
         navigatorObservers: skotiqNavigatorObservers(),
         home: Scaffold(
           body: Center(

@@ -65,15 +65,13 @@ final tonightNightProvider = Provider<TonightNight?>((ref) {
   final moonRise = moon?.moonrise;
   final moonSet = moon?.moonset;
 
-  DateTime local(DateTime t) => clock.fromUtc(t.toUtc());
-
   return TonightNight(
-    sunset: local(sunset),
-    astroDark: local(astroDark),
-    astroDawn: local(astroDawn),
-    sunrise: local(sunrise),
-    moonRise: moonRise == null ? null : local(moonRise),
-    moonSet: moonSet == null ? null : local(moonSet),
+    sunset: clock.wallClockOf(sunset),
+    astroDark: clock.wallClockOf(astroDark),
+    astroDawn: clock.wallClockOf(astroDawn),
+    sunrise: clock.wallClockOf(sunrise),
+    moonRise: moonRise == null ? null : clock.wallClockOf(moonRise),
+    moonSet: moonSet == null ? null : clock.wallClockOf(moonSet),
     moonIlluminationPercent: ref.watch(tonightMoonIlluminationProvider),
   );
 });

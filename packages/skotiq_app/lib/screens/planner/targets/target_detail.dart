@@ -335,6 +335,7 @@ class _TonightSection extends ConsumerWidget {
       );
     }
     final peak = w.altitudes.fold<double>(0, (m, a) => a > m ? a : m);
+    final clock = ref.watch(clockProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -343,8 +344,8 @@ class _TonightSection extends ConsumerWidget {
         Text(
           w.isUp
               ? 'Clears $floor from '
-                  '${ClockFormat.hm(w.start!.toLocal())} to '
-                  '${ClockFormat.hm(w.end!.toLocal())}, peaking at '
+                  '${clock.hm(w.start!)} to '
+                  '${clock.hm(w.end!)}, peaking at '
                   '${peak.round()}°'
               : 'Does not clear $floor in darkness tonight',
           key: const Key('target-detail-tonight-window'),
@@ -356,7 +357,8 @@ class _TonightSection extends ConsumerWidget {
           astroDark: w.dusk,
           astroDawn: w.dawn,
           sunrise: w.sunrise,
-          now: ref.watch(clockProvider).instant,
+          now: clock.instant,
+          clockText: clock.hm,
           targetAltitudeCurve: [
             for (final a in w.altitudes) (a / 90).clamp(0.0, 1.0),
           ],

@@ -5,7 +5,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -18,7 +17,6 @@ import '../../../../utils/guide_distance.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../../../localization/skotiq_localizations.dart';
 import '../../../../services/night_actions/night_action_controller.dart';
-import '../../data/plan/night_plan_inputs.dart';
 import '../../data/session/equipment_summary_provider.dart'
     show nightGuideStopReason;
 import '../../data/session/guide_series_provider.dart';
@@ -116,7 +114,7 @@ class NightGuideStarSection extends ConsumerWidget {
             'nightScopeGuideLost',
             params: {
               'count': '${lost.length}',
-              'time': ClockFormat.hm(clock.toNightClock(lastLost)),
+              'time': clock.hm(lastLost),
             },
           );
     final settle = settings == null ? null : GuideSettle.of(settings).pixels;
@@ -167,8 +165,7 @@ class NightGuideStarSection extends ConsumerWidget {
                 l10n.text(
                   'nightScopeGuideSettleTimedOut',
                   params: {
-                    'time':
-                        ClockFormat.hm(clock.toNightClock(settleTimeout.at)),
+                    'time': clock.hm(settleTimeout.at),
                   },
                 ),
               ),
@@ -219,7 +216,7 @@ class _NightGuideCalibrationSectionState
             ? l10n.text('nightScopeGuideCalibrated')
             : l10n.text(
                 'nightScopeGuideCalibratedAt',
-                params: {'time': ClockFormat.hm(clock.toNightClock(at))},
+                params: {'time': clock.hm(at)},
               );
     String? rate(double? value) =>
         value == null || !value.isFinite ? null : value.toStringAsFixed(2);

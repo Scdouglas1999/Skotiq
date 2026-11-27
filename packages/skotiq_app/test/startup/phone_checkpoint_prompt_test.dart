@@ -2,6 +2,7 @@
 // Restore loads the run and waits for Start, and a run already restored is
 // not offered again when the phone comes back after a drop.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -10,7 +11,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/connection/connection_stale_banner.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
@@ -170,6 +170,9 @@ void main() {
       'a phone back after a drop does not offer a run that is restored and '
       'waits for Start', (tester) async {
     final host = _hostWithCheckpoint();
+    final link = StreamController<BackendConnectionState>.broadcast();
+    addTearDown(link.close);
+    when(() => host.connectionStateStream).thenAnswer((_) => link.stream);
     final executor = _RecordingExecutor();
     final container = await _mountPhone(tester, host, executor);
     await tester.tap(find.text('Restore'));
@@ -179,14 +182,22 @@ void main() {
         .read(runRecordProvider.notifier)
         .setRestoredCheckpoint(_checkpoint);
     await tester.pump();
+    clearInteractions(host);
 
-    container.read(connectionStaleProvider.notifier).state = true;
+    when(() => host.connectionState)
+        .thenReturn(BackendConnectionState.reconnecting);
+    link.add(BackendConnectionState.reconnecting);
     await tester.pump();
-    container.read(connectionStaleProvider.notifier).state = false;
+    when(() => host.connectionState)
+        .thenReturn(BackendConnectionState.connected);
+    link.add(BackendConnectionState.connected);
     await tester.pump();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
+    // Back on the link the phone asks the host again, and the run it has
+    // restored is not offered.
+    verify(() => host.hasCheckpoint()).called(greaterThan(0));
     expect(find.text('Recover sequence?'), findsNothing);
     expect(executor.calls, ['restore']);
     verifyNever(() => host.discardCheckpoint());

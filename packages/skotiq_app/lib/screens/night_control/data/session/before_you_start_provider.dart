@@ -484,7 +484,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
                   'nightSessionCheckDawnPark',
                   params: <String, String>{
                     'time': ClockFormat.hm(
-                        ref.watch(clockProvider).fromUtc(park.toUtc())),
+                        ref.watch(clockProvider).wallClockOf(park)),
                   },
                 ),
               ),

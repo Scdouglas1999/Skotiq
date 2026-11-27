@@ -698,6 +698,47 @@ void main() {
       expect(left, isNull);
     });
 
+    testWidgets('reads its saved time and target windows on the site clock',
+        (tester) async {
+      // Seven hours off the device's own zone, so the two clocks cannot agree.
+      final at = DateTime.now();
+      final site = FixedOffsetClock(
+        utcOffset: at.timeZoneOffset + const Duration(hours: 7),
+        label: 'Site',
+      );
+      String hm(DateTime t) => site.hm(t);
+      late SmartNightDraft draft;
+      await _pumpDialog(
+        tester,
+        overrides: [
+          ...draftOverrides(),
+          clockProvider.overrideWithValue(site),
+        ],
+        before: (c) async {
+          final night = c
+              .read(smartNightServiceProvider)
+              .calculateWindow(latitudeDeg: lat, longitudeDeg: lon)
+              .start;
+          draft = await c.read(smartNightDraftServiceProvider).savePending(
+                profileId: '${profile.id}',
+                astronomicalDay: night,
+                plan: _draftPlan(at),
+              );
+        },
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('You have a plan saved from ${hm(draft.updatedAt)}'),
+        findsOneWidget,
+      );
+      await tester.tap(find.textContaining('Continue the draft from'));
+      await tester.pumpAndSettle();
+
+      final end = at.add(const Duration(hours: 3));
+      expect(find.text('${hm(at)} → ${hm(end)} (3.0h)'), findsOneWidget);
+    });
+
     testWidgets('is not offered when there is none', (tester) async {
       await _pumpDialog(tester, overrides: draftOverrides());
       await tester.pumpAndSettle();
@@ -740,11 +781,11 @@ void main() {
     testWidgets('labels', (tester) async {
       await pumpWindow(tester);
       expect(
-        find.text('Start: ${ClockFormat.dateHm(site.wallClockOf(start))}'),
+        find.text('Start: ${site.dateHm(start)}'),
         findsOneWidget,
       );
       expect(
-        find.text('End: ${ClockFormat.dateHm(site.wallClockOf(end))}'),
+        find.text('End: ${site.dateHm(end)}'),
         findsOneWidget,
       );
     });
@@ -780,9 +821,9 @@ void main() {
   });
 }
 
-SmartNightPlan _draftPlan() {
+SmartNightPlan _draftPlan([DateTime? at]) {
   final root = InstructionSetNode(id: 'root', name: 'Root', childIds: const []);
-  final now = DateTime.now();
+  final now = at ?? DateTime.now();
   return SmartNightPlan(
     sequence: Sequence(
       id: 'seq-draft',

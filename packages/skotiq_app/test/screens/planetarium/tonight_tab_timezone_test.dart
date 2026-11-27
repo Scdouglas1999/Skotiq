@@ -103,6 +103,10 @@ void main() {
     expect(find.text('13:05'), findsOneWidget, reason: 'sunrise');
     expect(find.text('07:40'), findsOneWidget, reason: 'moonrise');
     expect(find.text('15:15'), findsOneWidget, reason: 'moonset');
+    expect(find.text('Astro Dusk: 06:30'), findsOneWidget,
+        reason: 'the darkness card');
+    expect(find.text('Astro Dawn: 11:45'), findsOneWidget,
+        reason: 'the darkness card');
     // The raw UTC faces must be gone, not merely joined by the site ones.
     expect(find.text('20:14'), findsNothing);
     expect(find.text('22:40'), findsNothing);

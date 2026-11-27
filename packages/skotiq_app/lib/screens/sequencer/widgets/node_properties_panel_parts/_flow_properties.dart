@@ -97,7 +97,7 @@ class _LoopProperties extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Text(
                           node.repeatUntil != null
-                              ? stepClock.timeOfDay(node.repeatUntil!)
+                              ? stepClock.hm(node.repeatUntil!)
                               : 'Select time...',
                           style: TextStyle(
                             fontSize: SkotiqTypography.fontSize13,
@@ -358,7 +358,7 @@ class _WaitTimeProperties extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Text(
                       node.waitUntil != null
-                          ? stepClock.timeOfDay(node.waitUntil!)
+                          ? stepClock.hm(node.waitUntil!)
                           : 'Select time...',
                       style: TextStyle(
                         fontSize: SkotiqTypography.fontSize13,

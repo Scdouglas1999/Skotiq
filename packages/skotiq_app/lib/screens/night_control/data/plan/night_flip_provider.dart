@@ -10,12 +10,10 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
 import '../../../../services/night_session/night_flip.dart';
-import 'night_plan_inputs.dart';
 import '../../../../services/run_control/run_control.dart';
 import '../../../../services/night_session/night_now.dart';
 
@@ -55,7 +53,7 @@ final nightFlipStepProvider = Provider<NightFlipStepVm?>((ref) {
         flip.pierChanged ? 'nightCtlFlipFailedMoved' : 'nightCtlFlipFailed',
         params: <String, String>{
           'attempts': '${failure.attempts}',
-          'time': ClockFormat.hm(clock.toNightClock(failure.at)),
+          'time': clock.hm(failure.at),
         },
       ),
     );
@@ -74,7 +72,7 @@ final nightFlipStepProvider = Provider<NightFlipStepVm?>((ref) {
           params: <String, String>{
             'attempt': '$failed',
             'max': '$max',
-            'time': ClockFormat.hm(clock.toNightClock(nextTry)),
+            'time': clock.hm(nextTry),
           },
         ),
       );

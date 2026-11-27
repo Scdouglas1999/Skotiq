@@ -34,7 +34,7 @@ class _Service extends EndOfNightCalibrationService {
 }
 
 Future<_Service> _pump(WidgetTester tester, EonStatus status,
-    {double width = 1200}) async {
+    {double width = 1200, Clock? clock}) async {
   final service = _Service(status);
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = Size(width, 400);
@@ -44,6 +44,7 @@ Future<_Service> _pump(WidgetTester tester, EonStatus status,
     ProviderScope(
       overrides: [
         endOfNightCalibrationProvider.overrideWith((ref) => service),
+        if (clock != null) clockProvider.overrideWithValue(clock),
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
@@ -73,6 +74,21 @@ void main() {
     await tester.tap(find.text('Skip the darks'));
     expect(service.cancelled, 1);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('gives the deadline on the site clock', (tester) async {
+    // Seven hours off the device's own zone, so the two clocks cannot agree.
+    final deadline = DateTime(2026, 11, 1, 6, 12);
+    final site = FixedOffsetClock(
+      utcOffset: deadline.timeZoneOffset + const Duration(hours: 7),
+      label: 'Site',
+    );
+    await _pump(
+      tester,
+      EonStatus(phase: EonPhase.waitingForCap, capDeadline: deadline),
+      clock: site,
+    );
+    expect(find.textContaining('skipped at 13:12'), findsOneWidget);
   });
 
   testWidgets('fits a narrow window', (tester) async {

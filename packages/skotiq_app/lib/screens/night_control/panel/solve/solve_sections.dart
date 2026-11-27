@@ -236,7 +236,7 @@ class NightRecentSolvesSection extends ConsumerWidget {
       if (!record.success) value = l10n.text('nightScopeSolveRecentFailed');
       children.add(
         _RecentRow(
-          time: ClockFormat.hm(clock.toNightClock(record.at)),
+          time: clock.hm(record.at),
           what: what,
           value: value,
           valueColor: record.success ? null : colors.error,

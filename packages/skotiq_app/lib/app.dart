@@ -32,81 +32,12 @@ class SkotiqApp extends ConsumerWidget {
     super.key,
   });
 
-  /// Calculate UI scale factor for high-DPI displays
-  ///
-  /// On Linux and some other platforms, Flutter may not properly scale UI
-  /// elements for high-DPI displays. This detects the device pixel ratio
-  /// and applies additional scaling to make the UI readable.
-  double _calculateUiScaleFactor(BuildContext context, String? uiScaleSetting) {
-    // If user has explicitly set a scale, use it
-    if (uiScaleSetting != null && uiScaleSetting != 'Auto') {
-      switch (uiScaleSetting) {
-        case 'Small (0.8x)':
-          return 0.8;
-        case 'Normal (1.0x)':
-          return 1.0;
-        case 'Large (1.2x)':
-          return 1.2;
-        case 'Extra Large (1.4x)':
-          return 1.4;
-      }
-    }
-
-    // Auto-detect scale for high-DPI displays
-    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-
-    // On Linux with high-DPI displays, apply additional scaling
-    // Linux Wayland/X11 doesn't always properly scale Flutter apps
-    // High-DPI is typically > 1.5 device pixel ratio
-    if (!kIsWeb && Platform.isLinux && devicePixelRatio > 1.5) {
-      // For high DPI displays, apply more aggressive scaling
-      // DPR 2.0 -> 1.25x scale, DPR 2.5 -> 1.5x scale, DPR 3.0 -> 1.75x scale
-      final extraScale = 1.0 + (devicePixelRatio - 1.5) * 0.5;
-      return extraScale.clamp(1.0, 1.75);
-    }
-
-    // For desktops with small windows, don't scale down
-    // For mobile, let Flutter handle it naturally
-    return 1.0;
-  }
-
-  /// Get text scale factor from font size setting
-  double _getTextScaleFactor(String fontSize) {
-    switch (fontSize) {
-      case 'Small':
-        return 0.85;
-      case 'Large':
-        return 1.15;
-      case 'Medium':
-      default:
-        return 1.0;
-    }
-  }
-
-  Locale? _resolveLocale(String? languageCode) {
-    switch (languageCode) {
-      case 'en':
-        return const Locale('en');
-      case 'es':
-        return const Locale('es');
-      default:
-        return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
-    final settingsAsync = ref.watch(appSettingsProvider);
-    final settings = settingsAsync.valueOrNull;
-    final themeSetting = settings?.theme ?? 'dark';
-    final textScaleFactor = _getTextScaleFactor(settings?.fontSize ?? 'Medium');
-    final uiScaleSetting = settings?.uiScale;
-    final theme = resolveSkotiqThemeData(
-      themeSetting: themeSetting,
-      accentColorHex: settings?.accentColor,
-    );
+    final look = SkotiqAppLook(ref.watch(appSettingsProvider).valueOrNull);
+    final theme = look.theme;
 
     return AlwaysOnServicesScope(
       role: ref.watch(launchRoleProvider),
@@ -120,47 +51,18 @@ class SkotiqApp extends ConsumerWidget {
           routerConfig: router,
           localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
           supportedLocales: SkotiqLocalizations.supportedLocales,
-          locale: _resolveLocale(settings?.language),
+          locale: look.locale,
           builder: (context, child) {
-            // Calculate UI scale factor INSIDE builder where we have proper MediaQuery
-            // The outer context doesn't have accurate devicePixelRatio from the window
-            final uiScaleFactor = _calculateUiScaleFactor(
-              context,
-              uiScaleSetting,
-            );
-            final combinedTextScale = textScaleFactor * uiScaleFactor;
-
-            // Scale text only. Flutter handles DPI scaling for the widget
-            // tree natively, and a Transform.scale over the whole tree
-            // causes rendering artifacts.
-            final appChild = child ?? const SizedBox.shrink();
-            Widget scaledChild = appChild;
-
-            if (uiScaleFactor != 1.0 || textScaleFactor != 1.0) {
-              // Apply combined text scaling from both UI scale and font size settings
-              // Why: copyWith requires the full MediaQueryData; granular
-              // accessors only return individual fields. This intentionally
-              // rebuilds on any MQ change so that nested widgets receive a
-              // correctly-merged inherited MediaQuery.
-              scaledChild = MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  textScaler: TextScaler.linear(combinedTextScale),
-                ),
-                child: appChild,
-              );
-            }
+            final scaledChild =
+                look.scaled(context, child ?? const SizedBox.shrink());
             // Everything below inherits the app's text scale and theme;
             // a prompt raised from outside this builder would render
             // unscaled on high-DPI displays.
             Widget result = StartupPrompts(child: scaledChild);
 
-            // Desktop and Android both install Skotiq from its
-            // GitHub releases, so both can update in place. (The old
-            // reasoning here — that mobile updates through an app store
-            // — was never true of this APK: it is sideloaded, so with
-            // the manager left off, an Android install had no way to
-            // learn a new version existed.) iOS is excluded because
-            // sideloading an update is not possible there.
+            // Desktop and Android both install Skotiq from its GitHub
+            // releases (the APK is sideloaded, not from a store), so both
+            // update in place. iOS cannot sideload an update.
             if (isDesktop || (!kIsWeb && Platform.isAndroid)) {
               result = UpdateManagerWidget(
                 // This builder sits above the router's Navigator; the

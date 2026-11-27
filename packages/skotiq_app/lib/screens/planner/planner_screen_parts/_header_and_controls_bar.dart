@@ -20,7 +20,8 @@ class _PlanNightChips extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final now = ref.watch(clockProvider).instant;
+    final clock = ref.watch(clockProvider);
+    final now = clock.instant;
     final twilight = AstronomyCalculations.nightAt(
       now: now,
       latitudeDeg: location!.latitude,
@@ -48,10 +49,7 @@ class _PlanNightChips extends ConsumerWidget {
               ? l10n.text('plannerChipDarkNone')
               : l10n.text(
                   'plannerChipDark',
-                  params: {
-                    'start': ClockFormat.hm(dusk),
-                    'end': ClockFormat.hm(dawn)
-                  },
+                  params: {'start': clock.hm(dusk), 'end': clock.hm(dawn)},
                 ),
         ),
       ],

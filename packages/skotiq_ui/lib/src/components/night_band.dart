@@ -43,6 +43,7 @@ class NightBand extends StatelessWidget {
     this.targetAltitudeCurve,
     this.imageableWindow,
     this.events = const <NightBandEvent>[],
+    this.clockText,
   });
 
   /// The night's start — the left edge of the canvas.
@@ -72,6 +73,12 @@ class NightBand extends StatelessWidget {
 
   /// Labels for the legend, positioned at their times.
   final List<NightBandEvent> events;
+
+  /// Prints [now] for its label; null prints the fields of [now] as given.
+  /// Every time above is an instant, placed by its distance from [sunset], so
+  /// a caller showing another zone passes that zone's printer here rather than
+  /// shifted times.
+  final String Function(DateTime time)? clockText;
 
   /// The gradient canvas's height.
   static const double canvasHeight = 52;
@@ -175,7 +182,7 @@ class NightBand extends StatelessWidget {
   /// The caret is drawn as a Lucide icon beside it rather than as a "▲" in the
   /// string: neither bundled font carries U+25B2, and the golden showed it as a
   /// tofu box.
-  String _formatNow() => 'now ${ClockFormat.hm(now)}';
+  String _formatNow() => 'now ${(clockText ?? ClockFormat.hm)(now)}';
 }
 
 class _NightBandPainter extends CustomPainter {

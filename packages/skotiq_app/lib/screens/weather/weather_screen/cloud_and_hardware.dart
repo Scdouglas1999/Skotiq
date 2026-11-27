@@ -178,7 +178,7 @@ class _SkyNowSources extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final clock = ref.watch(clockProvider);
-    String at(DateTime time) => ClockFormat.hm(clock.fromUtc(time.toUtc()));
+    String at(DateTime time) => clock.hm(time);
     final colors = SkotiqColors.of(context);
     final muted = SkotiqTypography.caption.copyWith(color: colors.textMuted);
     final secondary =

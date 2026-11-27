@@ -26,7 +26,7 @@ void main() {
   });
 
   test('the site clock shows an instant in its own zone', () {
-    expect(site.timeOfDay(DateTime.utc(2026, 11, 26, 4, 15)), '23:15');
+    expect(site.hm(DateTime.utc(2026, 11, 26, 4, 15)), '23:15');
   });
 
   test('the system clock keeps this machine\'s zone', () {
@@ -35,7 +35,7 @@ void main() {
       nextLocalTimeOfDay(now, 23, 15),
     );
     final local = DateTime(2026, 11, 26, 22, 5);
-    expect(const SystemClock().timeOfDay(local), '22:05');
+    expect(const SystemClock().hm(local), '22:05');
   });
 
   test('a time read on a clock goes back to the instant it showed', () {

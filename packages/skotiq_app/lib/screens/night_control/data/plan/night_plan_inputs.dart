@@ -14,12 +14,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import '../../../../services/night_session/night_now.dart';
 
-/// Moves times between true instants and the operator's clock.
-extension NightClockTimes on Clock {
-  /// [instant] as the operator reads it.
-  DateTime toNightClock(DateTime instant) => fromUtc(instant.toUtc());
-}
-
 /// When an armed "Start at dark" fires, on the operator's clock; null when
 /// nothing is armed.
 ///
@@ -28,7 +22,7 @@ extension NightClockTimes on Clock {
 final nightPlanArmedStartSeamProvider = Provider<DateTime?>((ref) {
   final armedAt = ref.watch(nightArmedStartProvider);
   if (armedAt == null) return null;
-  return ref.watch(clockProvider).toNightClock(armedAt);
+  return ref.watch(clockProvider).wallClockOf(armedAt);
 });
 
 /// One enabled node of the plan, in execution order.

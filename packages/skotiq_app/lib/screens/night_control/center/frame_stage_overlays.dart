@@ -8,7 +8,7 @@ FramePillText _framePill(
 ) {
   final l10n = context.l10n;
   final clock = ref.watch(clockProvider);
-  final time = ClockFormat.hms(clock.fromUtc(image.capturedAt.toUtc()));
+  final time = clock.hms(image.capturedAt);
   final frame = _stripFrameFor(ref.watch(nightSessionFramesProvider), image);
   if (frame != null) {
     return _stripPill(context, frame, time: time);

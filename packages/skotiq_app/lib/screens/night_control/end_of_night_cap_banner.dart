@@ -5,7 +5,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -31,7 +30,7 @@ class EndOfNightCapBanner extends ConsumerWidget {
         ? 'The filter wheel has no dark slot. Put the cap on, then confirm.'
         : 'The filter wheel has no dark slot. Put the cap on, then confirm. '
             'Without a confirmation the darks and bias are skipped at '
-            '${ClockFormat.hm(deadline.toLocal())} '
+            '${ref.watch(clockProvider).hm(deadline)} '
             'and the night-end steps go on without them.';
 
     Future<void> answerHost(Future<EonStatus?> Function() call) async {
