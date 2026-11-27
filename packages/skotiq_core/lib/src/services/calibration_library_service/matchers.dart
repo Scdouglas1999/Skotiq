@@ -39,13 +39,13 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
       score -= 25;
       warnings.add(
         'No dark at ${QuantityFormat.exposure(ctx.exposureSeconds, space: false)}: nearest is '
-        '${QuantityFormat.exposure(darkExp ?? 0, space: false)}; the dark will be scaled'
+        '${_exposureOf(darkExp)}; the dark will be scaled'
         '${scaleFactor != null ? ' by ${scaleFactor.toStringAsFixed(2)}x' : ''}.'
         ' Capture a matching-exposure dark for best results.',
       );
     } else {
       reasons.add(
-        'Exposure ${QuantityFormat.exposure(best.exposureSeconds ?? 0, space: false)} '
+        'Exposure ${_exposureOf(best.exposureSeconds)} '
         '(within ±${QuantityFormat.exposure(exposureTol, space: false)} of ${QuantityFormat.exposure(ctx.exposureSeconds, space: false)})',
       );
     }
@@ -361,3 +361,9 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     }
   }
 }
+
+/// A record's exposure as the match text names it; a record that stores none
+/// says so instead of reading as 0 s.
+String _exposureOf(double? seconds) => seconds == null
+    ? 'an unrecorded exposure'
+    : QuantityFormat.exposure(seconds, space: false);
