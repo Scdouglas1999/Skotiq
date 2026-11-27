@@ -1,4 +1,4 @@
-// Behaviour tests for the v43 CampaignsDao (Phase B — durable multi-night
+// Behaviour tests for the v43 CampaignsDao (durable multi-night
 // campaigns). Covers the four provider methods from the brief —
 // upsertDesired / recordAccepted / getForTarget / remaining — plus the
 // acceptance-increments-the-count invariant that the SequenceExecutor hook

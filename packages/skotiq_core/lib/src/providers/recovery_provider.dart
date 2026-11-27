@@ -385,8 +385,7 @@ void _applyRecoveryEvent(Ref ref, RecoveryEventEnvelope envelope) {
       if (envelope.context.isWaiting) break;
       // The loop ended by handing the run to the operator as a pause (the
       // engine sends Paused, then this to close the banner). Not a recovery:
-      // the run waits, and saying "recovered, imaging resumed" (and showing
-      // it running) left the phone with a Pause button for a held run.
+      // the run waits.
       if (envelope.context.isGaveUp) {
         historyNotifier.append(
           RecoveryHistoryEntry(

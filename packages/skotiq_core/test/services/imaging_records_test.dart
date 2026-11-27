@@ -141,8 +141,6 @@ void main() {
     });
   });
 
-  // Night test 2026-11-25: a frame graded into Reject/ and then restored
-  // stayed in Reject/, so a folder-based stack left it out.
   group('restoring a rejected frame', () {
     test('restoredFramePath walks out of the reject folder', () {
       expect(restoredFramePath('/c/M42/L/Reject/f.fits'), '/c/M42/L/f.fits');

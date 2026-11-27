@@ -1,6 +1,4 @@
-// Plate-solver defaults surfaced in Settings → Plate Solving. Owns the
-// solver-selection knob plus the per-solver path / search radius / timeout
-// fields the PlateSolveService consults.
+// Plate-solver defaults surfaced in Settings → Plate Solving.
 //
 // Owns:
 //   * plateSolveTimeout, plateSolveSearchRadius, blindSolve

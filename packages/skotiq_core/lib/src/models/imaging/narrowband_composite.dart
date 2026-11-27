@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-/// One persisted narrowband palette composite (Phase C, v44).
+/// One persisted narrowband palette composite (v44).
 ///
 /// A [NarrowbandComposite] is the `narrowband_composites` row written when a
 /// SHO/HOO/etc. palette is applied in the narrowband mixer — the combine of two

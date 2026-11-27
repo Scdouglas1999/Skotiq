@@ -1,9 +1,6 @@
 // "Build sequence" on a second target, in a plan shaped like a night (cool,
-// unpark, target, warm, park, darks), moved every one of the night's own
-// steps inside the new target, ahead of its slew: the run would have imaged
-// the first target, cooled, unparked, warmed, parked and taken darks, and only
-// then slewed to the second. The new target goes after the last target and
-// adopts nothing.
+// unpark, target, warm, park, darks): the new target goes after the last
+// target and adopts nothing.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';

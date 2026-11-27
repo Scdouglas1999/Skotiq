@@ -1,7 +1,7 @@
 part of '../database.dart';
 
 extension _SkotiqDatabaseMigrationV54 on SkotiqDatabase {
-  /// Version 54 (Living Sky — Wave 0, "stop data corruption"): the durable
+  /// Version 54: the durable
   /// substrate the Constellation idempotency + atlas fold-integrity fixes ride
   /// on. Purely additive — no destructive drops.
   ///

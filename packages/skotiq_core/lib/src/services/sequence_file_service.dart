@@ -210,12 +210,6 @@ class SequenceFileService {
 
     // Apply migrations in order. Each case falls through to the next.
     // Add new migration cases here when incrementing currentSchemaVersion.
-    //
-    // Example for future migration:
-    // if (version < 2) {
-    //   // Migrate from v1 to v2: e.g., rename a field
-    //   json['newFieldName'] = json.remove('oldFieldName');
-    // }
 
     // Version 0 -> 1: No structural changes needed. Version 0 files
     // (pre-versioning) are compatible with version 1.

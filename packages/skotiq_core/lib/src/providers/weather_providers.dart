@@ -369,17 +369,6 @@ class WeatherSettingsActions {
     await _ref.read(weatherRulesProvider).updateSettings(change);
   }
 
-  /// Write "park the mount when conditions go unsafe" as the ONE logical
-  /// setting it is.
-  ///
-  /// The runtime gate is `parkOnUnsafeWeather && autoParkEnabled` (see
-  /// [SafetyConfig.autoParkOnUnsafe] and the weather-safety evaluator), but the
-  /// two halves live in different stores. Before this method the Weather Safety
-  /// page wrote only the weather half and the Sequencer page only the
-  /// app-settings half, so turning either off silently disarmed auto-park while
-  /// the other page kept showing a confident "Enabled". Every UI writer goes
-  /// through here — the headless `/api/safety/config` handler already wrote both
-  /// for one logical request, so this makes the GUI match the API.
   /// Write the [WeatherDecisionPolicy] switches. Each is a host setting; a
   /// linked client writes the host's.
   Future<void> setDecisionPolicy({
@@ -395,6 +384,12 @@ class WeatherSettingsActions {
     _ref.invalidate(weatherDecisionPolicyProvider);
   }
 
+  /// Write "park the mount when conditions go unsafe" as the ONE logical
+  /// setting it is.
+  ///
+  /// The runtime gate is `parkOnUnsafeWeather && autoParkEnabled` (see
+  /// [SafetyConfig.autoParkOnUnsafe] and the weather-safety evaluator), but the
+  /// two halves live in different stores. Every UI writer goes through here.
   Future<void> setAutoParkOnUnsafe(bool value) async {
     await updateSettings(autoParkEnabled: value);
     await _ref.read(appSettingsProvider.notifier).setParkOnUnsafeWeather(value);

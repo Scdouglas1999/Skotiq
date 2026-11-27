@@ -136,8 +136,7 @@ void main() {
   });
 
   // An undo restores the very plan object the host sent before this
-  // client's edit. Skipping it as "the host's own plan" left the host on the
-  // edit, and its next mirror frame put the undone step back.
+  // client's edit.
   test('an undo back to the host\'s plan is written to the host', () async {
     final files = container.read(sequenceFileServiceProvider);
     final editor = container.read(currentSequenceProvider.notifier);

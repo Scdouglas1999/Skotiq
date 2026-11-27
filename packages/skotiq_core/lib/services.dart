@@ -274,10 +274,10 @@ export 'src/services/transients/first_light_service.dart';
 export 'src/services/transients/transient_report_service.dart';
 export 'src/services/transients/transient_submission_service.dart';
 export 'src/services/transients/transient_alert_mapper.dart';
-// Darkroom delivery (Phase B): the three transports, the journal-driven retry
+// Darkroom delivery: the three transports, the journal-driven retry
 // engine, and the peer manifest the paired desktop pulls.
 export 'src/services/darkroom_delivery/darkroom_delivery.dart';
-// Dawn autopilot (Phase B): the durable job that drafts, renders, reports and
+// Dawn autopilot: the durable job that drafts, renders, reports and
 // delivers the night after the integration half has produced its masters.
 export 'src/services/darkroom_autopilot/darkroom_autopilot.dart';
 export 'src/services/darkroom_pass/darkroom_pass.dart';

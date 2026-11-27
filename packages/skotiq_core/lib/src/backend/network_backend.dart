@@ -390,8 +390,7 @@ abstract class NetworkBackendTransport {
            webSocketHeartbeatInterval ?? const Duration(seconds: 15),
        // Remote/LAN-aware timeout defaults. When the caller passes an explicit
        // value it always wins (tests, advanced config); otherwise we pick the
-       // ceiling appropriate to the host's reachability tier. LAN behaviour is
-       // byte-for-byte unchanged from before this feature.
+       // ceiling appropriate to the host's reachability tier.
        webSocketHeartbeatTimeout =
            webSocketHeartbeatTimeout ??
            (TailnetDetector.isTailscaleEndpoint(serverHost)

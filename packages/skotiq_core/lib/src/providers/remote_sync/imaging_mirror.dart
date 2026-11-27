@@ -266,8 +266,7 @@ Future<void> _publishRemoteCurrentFrame(
         hint.height == result.height;
     if (hinted && hint.capturedAt != null) capturedAt = hint.capturedAt!;
     // With no capture event to go by (the app just opened), the host's own
-    // record of the frame says what it was: a dark read "L 55 s" from the
-    // wheel and the operator's controls (night test 2026-11-26).
+    // record of the frame says what it was.
     final recorded = hinted && hint.settings != null
         ? null
         : await _recordedFrameSettings(container, capturedAt, settings);

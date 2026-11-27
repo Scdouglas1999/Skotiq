@@ -1,8 +1,6 @@
 part of '../predictive_af_service.dart';
 
-/// A single (temperature, focus_position) training sample. Mirrors the Rust
-/// `FocusTrainingSample` JSON layout exactly so the same blob can be read
-/// from either side.
+/// A single (temperature, focus_position) training sample.
 class FocusTrainingSample {
   /// Unix seconds the sample was captured.
   final int timestampSecs;
@@ -258,8 +256,7 @@ class FilterFocusModel {
 }
 
 /// Confidence-gated decision returned by
-/// [PredictiveAfService.evaluateForFilter]. Mirrors the Rust
-/// [`PredictiveAfDecision`] enum.
+/// [PredictiveAfService.evaluateForFilter].
 sealed class PredictiveAfDecision {
   const PredictiveAfDecision();
 

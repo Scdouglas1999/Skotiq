@@ -244,9 +244,7 @@ class SequenceRunStats {
   /// a RESTATEMENT of one of them — byte-for-byte a string the bridge already
   /// delivered as a mid-run `Error` event and which [recordError] already
   /// stored. So it is not appended when [errorMessages] already holds it
-  /// anywhere: one failing Dither node used to end the night with the same
-  /// sentence twice, printed twice in the Session Report and stacked as two
-  /// identical critical banners.
+  /// anywhere.
   ///
   /// Comparing against the whole list, not just the last entry, is what the
   /// cause-selection rule requires. The chosen cause is the FIRST fault, so by

@@ -110,10 +110,7 @@ enum SequenceExecutionState {
 ///
 /// Every playback surface — desktop toolbar, mobile playback bar, dashboard
 /// cockpit, the app-shell mini bar, the mobile sequencer tab — must agree on
-/// which buttons are live in each state. Before this extension each surface
-/// re-derived that from ad-hoc `state == running || state == paused` checks and
-/// they drifted: completed/failed surfaced a dead Pause button (or a silent
-/// no-op Start), and a failed native stop hid the Stop-retry affordance.
+/// which buttons are live in each state.
 /// Route every surface through these getters instead of open-coding the set.
 extension SequenceExecutionStateCapabilities on SequenceExecutionState {
   /// A settled state a fresh run may start from. `stopFailed` / `cleanupFailed`

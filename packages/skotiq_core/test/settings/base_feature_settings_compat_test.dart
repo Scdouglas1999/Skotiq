@@ -1305,11 +1305,6 @@ class _SameAs {
   final String label;
 }
 
-/// [base] with the entries of [changes] laid over it, map by map. A change
-/// that is not a map replaces the base value whole.
-/// The default routing row for "Target started" is off since 9.3.4: it
-/// toasted at every target of a run. Every default matrix the base build read
-/// or wrote, as a map or as the stored JSON text, has that one row turned off.
 /// The rows that start switched off since the base build: Target started
 /// (9.3.4) and Frame captured.
 const _offSinceBase = {'targetStarted', 'frameCaptured'};
@@ -1366,6 +1361,8 @@ Object? _withAddedCategories(Object? value) {
   return value;
 }
 
+/// [base] with the entries of [changes] laid over it, map by map. A change
+/// that is not a map replaces the base value whole.
 Object? _withChanges(Object? base, Object? changes) {
   if (changes is! Map || base is! Map) return changes ?? base;
   return {

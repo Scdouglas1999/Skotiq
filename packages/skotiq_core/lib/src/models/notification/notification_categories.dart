@@ -566,8 +566,7 @@ class NotificationRoutingMatrix extends Equatable {
 
 /// Categories whose row starts switched off; the operator can turn it on in
 /// Settings. A new target and a captured frame are steps the run takes, which
-/// the run's own screens show; as a toast a new target covered the phone's
-/// frame strip at every target, and a frame would at every exposure.
+/// the run's own screens show.
 bool _offByDefault(NotificationCategory c) =>
     c == NotificationCategory.targetStarted ||
     c == NotificationCategory.frameCaptured;

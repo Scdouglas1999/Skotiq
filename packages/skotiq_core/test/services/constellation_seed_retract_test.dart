@@ -1,5 +1,5 @@
-// Pillar C ("Constellation") — Wave 2: hub seeding (proposeTarget) + real
-// Retract on the Wave-0 persisted contributionId.
+// Pillar C ("Constellation") : hub seeding (proposeTarget) + real
+// Retract on the persisted contributionId.
 //
 // Pins:
 //   * proposeTarget POSTs /v1/targets and decodes the echoed client-facing

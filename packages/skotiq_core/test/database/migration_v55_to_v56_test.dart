@@ -1,4 +1,4 @@
-// Migration round-trip test for the v55 -> v56 step (Collaborative Sky Wave 0 —
+// Migration round-trip test for the v55 -> v56 step (Collaborative Sky:
 // shared trust substrate). v56 is purely additive:
 //   * calibration_tags gains shared_by / shared_at / license / provenance_json /
 //     published_remote_id.

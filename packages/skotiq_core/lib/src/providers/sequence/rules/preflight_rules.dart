@@ -163,8 +163,7 @@ class DarkLibraryCoverageRule implements AsyncSequenceValidator {
     }
 
     // Darks the plan takes itself, at the same settings and temperature,
-    // cover their lights: the warning asked for darks the run was about to
-    // capture.
+    // cover their lights.
     for (final node in sequence.enabledNodes) {
       if (node is! ExposureNode || node.frameType != FrameType.dark) continue;
       // Fewer than the library's quorum would still leave them short.

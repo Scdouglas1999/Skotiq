@@ -26,12 +26,10 @@ final class FlatExposureOutOfRange extends FlatExposurePlan {
 
 /// Keeps flat frames inside the tolerance band while the light changes.
 ///
-/// The calibration finds one exposure, and the frames used to be taken at it
-/// for the whole filter. In twilight the sky darkens (dusk) or brightens
-/// (dawn) every frame, so the frames walked out of the band: the owner's ±5%
-/// dusk flats on 2026-11-08 left the band while the exposure never moved.
+/// The calibration finds one exposure. In twilight the sky darkens (dusk) or
+/// brightens (dawn) every frame, so frames taken at it walk out of the band.
 ///
-/// Every frame now feeds back. The next exposure is what the last frame would
+/// Every frame feeds back. The next exposure is what the last frame would
 /// have needed to land on the target, carried forward along the light's
 /// measured trend to the middle of the next exposure. The trend is the slope
 /// of log(ADU per second) against time over recent frames, which suits

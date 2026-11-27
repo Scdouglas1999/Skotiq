@@ -263,8 +263,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
     if (!ref.read(isRemoteModeProvider)) return;
     // The plan the host just sent is not written back to it. Identity alone
     // is not that test: an undo restores the very object the host sent
-    // before this client's edit, and skipping it left the host on the edit,
-    // whose next mirror frame put the undone step back.
+    // before this client's edit.
     final fromHost =
         identical(next, syncState.appliedFromHost) &&
         sequenceFingerprint(ref.read(sequenceFileServiceProvider), next) ==

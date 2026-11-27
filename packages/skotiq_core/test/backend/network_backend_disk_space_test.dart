@@ -4,8 +4,7 @@ import 'package:skotiq_core/src/models/disk_space.dart';
 
 import '../fakes/fakes.dart';
 
-// Night test 2026-11-26: a capture folder missing on the host dropped the
-// phone's Disk row and passed Pre-flight; the run was then refused. The host
+// The host
 // knows the folder is missing; the phone must get that answer, not a generic
 // failure.
 void main() {

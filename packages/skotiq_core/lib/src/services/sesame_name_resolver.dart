@@ -39,9 +39,7 @@ class TargetNameLookupUnavailable implements Exception {
 /// Sesame resolves an identifier the way SIMBAD's own search box does: `m42`,
 /// `M 42`, `Messier 42` and `Orion Nebula` all name `M  42`. It never does a
 /// substring match, so it cannot answer "M42" with an object that merely has
-/// "M42" inside one of its identifiers. That substring match (an ADQL
-/// `main_id LIKE '%M42%'` with `TOP 1`) is what used to resolve "M42" to
-/// "Cl* NGC 2516 HTR M42" and "[SSP2021] M42".
+/// "M42" inside one of its identifiers.
 class SesameNameResolver {
   static const String endpoint =
       'https://cds.unistra.fr/cgi-bin/nph-sesame/-oxp/S';

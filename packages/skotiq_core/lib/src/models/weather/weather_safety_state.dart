@@ -9,8 +9,7 @@ import 'sky_star_evidence.dart';
 /// situation (no connected source on the Dart side; poll error on the Rust
 /// side).
 ///
-/// Architecture-unification 2026-06-05 (Subsystem 2 step 1, cross-language
-/// parity). This is the Dart mirror of the Rust `NoDataResolution` enum in
+/// This is the Dart mirror of the Rust `NoDataResolution` enum in
 /// `native/skotiq_native/sequencer/src/lib.rs`. The two MUST agree on the
 /// same truth table; [noDataFailModeResolution] below is the single Dart
 /// definition and is pinned against the identical table by

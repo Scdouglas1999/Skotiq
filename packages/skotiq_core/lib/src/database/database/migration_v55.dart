@@ -44,7 +44,7 @@ extension _SkotiqDatabaseMigrationV55 on SkotiqDatabase {
     }
   }
 
-  /// The Wave 3 scale indexes as the v55 step created them. Idempotent
+  /// The scale indexes as the v55 step created them. Idempotent
   /// (`IF NOT EXISTS`).
   Future<void> _createLivingSkyWave3Indexes() async {
     await customStatement(
