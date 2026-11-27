@@ -907,7 +907,7 @@ class _FilterRow extends StatelessWidget {
   }
 }
 
-class _WindowBar extends StatelessWidget {
+class _WindowBar extends ConsumerWidget {
   final DateTime start;
   final DateTime end;
   final SkotiqColors colors;
@@ -919,14 +919,15 @@ class _WindowBar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final clock = ref.watch(clockProvider);
     final mins = end.difference(start).inMinutes;
     return Row(
       children: [
         Icon(LucideIcons.clock, size: 14, color: colors.textMuted),
         const SizedBox(width: 6),
         Text(
-          '${_format(start)} → ${_format(end)} '
+          '${clock.hm(start)} → ${clock.hm(end)} '
           '(${(mins / 60).toStringAsFixed(1)}h)',
           style: TextStyle(
             color: colors.textSecondary,
@@ -935,12 +936,6 @@ class _WindowBar extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String _format(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:'
-        '${local.minute.toString().padLeft(2, '0')}';
   }
 }
 
@@ -987,7 +982,7 @@ class _SummaryRow extends StatelessWidget {
 
 /// Offers the plan saved earlier tonight: pick it up where it was left, or
 /// throw it away and plan afresh.
-class _DraftOfferCard extends StatelessWidget {
+class _DraftOfferCard extends ConsumerWidget {
   final SmartNightDraft draft;
   final SkotiqColors colors;
   final VoidCallback onContinue;
@@ -1003,9 +998,9 @@ class _DraftOfferCard extends StatelessWidget {
   static const int _namedTargets = 3;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final plan = draft.plan;
-    final savedAt = ClockFormat.hm(draft.updatedAt.toLocal());
+    final savedAt = ref.watch(clockProvider).hm(draft.updatedAt);
     final names = plan.plannedTargets.map((t) => t.suggestion.targetName);
     final named = names.take(_namedTargets).join(', ');
     final more = plan.plannedTargets.length - _namedTargets;
