@@ -2,16 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-Future<
-  ({
-    bool isPhone,
-    bool isCompactPhone,
-    bool isMobile,
-    bool isLandscape,
-    bool isPhoneLandscape,
-    bool isPhonePortrait,
-  })
->
+Future<({bool isPhone, bool isMobile, bool isLandscape, bool isPhoneLandscape})>
 _probe(
   WidgetTester tester,
   Size size, {
@@ -22,11 +13,9 @@ _probe(
   addTearDown(tester.view.reset);
 
   late bool isPhone;
-  late bool isCompactPhone;
   late bool isMobile;
   late bool isLandscape;
   late bool isPhoneLandscape;
-  late bool isPhonePortrait;
 
   final touch =
       platform == TargetPlatform.android || platform == TargetPlatform.iOS;
@@ -38,11 +27,9 @@ _probe(
         home: Builder(
           builder: (context) {
             isPhone = Responsive.isPhone(context);
-            isCompactPhone = Responsive.isCompactPhone(context);
             isMobile = Responsive.isMobile(context);
             isLandscape = Responsive.isLandscape(context);
             isPhoneLandscape = Responsive.isPhoneLandscape(context);
-            isPhonePortrait = Responsive.isPhonePortrait(context);
             return const SizedBox.shrink();
           },
         ),
@@ -52,36 +39,29 @@ _probe(
 
   return (
     isPhone: isPhone,
-    isCompactPhone: isCompactPhone,
     isMobile: isMobile,
     isLandscape: isLandscape,
     isPhoneLandscape: isPhoneLandscape,
-    isPhonePortrait: isPhonePortrait,
   );
 }
 
 void main() {
   group('mobile device-class detection (orientation-independent)', () {
-    testWidgets('360x640 is a compact phone in portrait', (tester) async {
+    testWidgets('360x640 is a phone in portrait', (tester) async {
       final r = await _probe(tester, const Size(360, 640));
       expect(r.isPhone, isTrue);
-      expect(r.isCompactPhone, isTrue);
       expect(r.isMobile, isTrue);
-      expect(r.isPhonePortrait, isTrue);
       expect(r.isPhoneLandscape, isFalse);
     });
 
-    testWidgets('390x844 is a (compact) phone in portrait', (tester) async {
+    testWidgets('390x844 is a phone in portrait', (tester) async {
       final r = await _probe(tester, const Size(390, 844));
       expect(r.isPhone, isTrue);
-      expect(r.isCompactPhone, isTrue); // 390 < 480
-      expect(r.isPhonePortrait, isTrue);
     });
 
-    testWidgets('540x900 is a phone but not compact', (tester) async {
+    testWidgets('540x900 is a phone', (tester) async {
       final r = await _probe(tester, const Size(540, 900));
       expect(r.isPhone, isTrue);
-      expect(r.isCompactPhone, isFalse); // 540 >= 480
     });
 
     // A rotated phone's WIDTH is its long edge (>= 600), so a width-based
@@ -94,9 +74,6 @@ void main() {
       expect(r.isPhone, isTrue);
       expect(r.isLandscape, isTrue);
       expect(r.isPhoneLandscape, isTrue);
-      expect(r.isPhonePortrait, isFalse);
-      // Landscape gives plenty of width, so dense rows need not tighten.
-      expect(r.isCompactPhone, isFalse);
     });
 
     testWidgets('905x412 large-phone landscape IS a phone', (tester) async {
@@ -166,8 +143,7 @@ void main() {
     });
   });
 
-  test('phone/compact thresholds match BreakpointTokens', () {
+  test('the phone threshold matches BreakpointTokens', () {
     expect(Responsive.phoneMaxWidth, BreakpointTokens.breakpointPhone);
-    expect(Responsive.compactPhoneMaxWidth, 480.0);
   });
 }
