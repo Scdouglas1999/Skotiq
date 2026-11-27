@@ -45,9 +45,8 @@ Stream<T> resilientDistinctPoll<T>({
   late final Future<void> Function() poll;
 
   void scheduleNext() {
-    if (stopped || refused || paused || polling || (timer?.isActive ?? false)) {
-      return;
-    }
+    if (refused) return;
+    if (stopped || paused || polling || (timer?.isActive ?? false)) return;
     timer = Timer(PollPace.stretch(interval), () {
       timer = null;
       unawaited(poll());

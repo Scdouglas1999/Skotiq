@@ -372,9 +372,9 @@ class MobileSequenceHooks {
         _sessionHeld = true;
         await _startImagingSession(
           name: sequence?.name ?? progress.currentTarget ?? 'Skotiq run',
-          totalExposures: progress.totalExposures > 0
+          totalExposures: progress.totalExposures > 0 || sequence == null
               ? progress.totalExposures
-              : sequence?.totalExposures ?? 0,
+              : sequence.totalExposures,
         );
       case ImagingSessionChange.finish:
         _sessionHeld = false;
