@@ -203,7 +203,10 @@ void main() {
       var done = false;
       for (var i = 0; i < 50 && !done; i++) {
         final st = await backend.sequencerGetStatus();
-        final tag = '${st.state}@${(st.progress * 100).toStringAsFixed(0)}%';
+        final progress = st.progress;
+        final tag = progress == null
+            ? st.state
+            : '${st.state}@${(progress * 100).toStringAsFixed(0)}%';
         if (stateTrail.isEmpty || stateTrail.last != tag) stateTrail.add(tag);
         final s = st.state.toLowerCase();
         // "active" needs real evidence — a Progress WS event or a running/exposing
@@ -211,7 +214,7 @@ void main() {
         if (s.contains('run') ||
             s.contains('active') ||
             s.contains('expos') ||
-            st.progress > 0 ||
+            (progress != null && progress > 0) ||
             seqEvents.any(
               (e) =>
                   e.eventType == 'Progress' ||
