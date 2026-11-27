@@ -14,27 +14,45 @@ import 'package:skotiq_app/services/sequence_action_service.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-Sequence _plan({bool loop = false}) => Sequence.create(
+/// The shape of the one-tap plan ("Image tonight"): cool and unpark, the
+/// target's block ending in its Smart Exposure (with its meridian flip
+/// trigger), then warm and park.
+Sequence _plan({LoopNode? root}) => Sequence.create(
       name: 'M74 Plan',
       rootNodeId: 'root',
       nodes: {
-        'root': loop
-            ? LoopNode(
-                id: 'root',
-                conditionType: LoopConditionType.count,
-                repeatCount: 2,
-                childIds: const ['af', 'lights', 'warm', 'park'],
-              )
-            : InstructionSetNode(
-                id: 'root',
-                name: 'M74 Plan',
-                childIds: const ['af', 'lights', 'warm', 'park'],
-              ),
-        'af': AutofocusNode(id: 'af', parentId: 'root', orderIndex: 0),
-        'lights': ExposureNode(id: 'lights', parentId: 'root', orderIndex: 1),
-        'warm': WarmCameraNode(id: 'warm', parentId: 'root', orderIndex: 2),
-        'park': ParkNode(id: 'park', parentId: 'root', orderIndex: 3),
+        'root': root ??
+            InstructionSetNode(
+              id: 'root',
+              name: 'M74 Plan',
+              childIds: const ['cool', 'unpark', 'm74', 'warm', 'park'],
+            ),
+        'cool': CoolCameraNode(id: 'cool', parentId: 'root', orderIndex: 0),
+        'unpark': UnparkNode(id: 'unpark', parentId: 'root', orderIndex: 1),
+        'm74': TargetHeaderNode(
+          id: 'm74',
+          name: 'M74',
+          targetName: 'M74',
+          raHours: 1.61,
+          decDegrees: 15.78,
+          parentId: 'root',
+          orderIndex: 2,
+          childIds: const ['af', 'lights', 'flip'],
+        ),
+        'af': AutofocusNode(id: 'af', parentId: 'm74', orderIndex: 0),
+        'lights':
+            SmartExposureNode(id: 'lights', parentId: 'm74', orderIndex: 1),
+        'flip': MeridianFlipNode(id: 'flip', parentId: 'm74', orderIndex: 2),
+        'warm': WarmCameraNode(id: 'warm', parentId: 'root', orderIndex: 3),
+        'park': ParkNode(id: 'park', parentId: 'root', orderIndex: 4),
       },
+    );
+
+LoopNode _rootLoop(int count) => LoopNode(
+      id: 'root',
+      conditionType: LoopConditionType.count,
+      repeatCount: count,
+      childIds: const ['cool', 'unpark', 'm74', 'warm', 'park'],
     );
 
 NightPlanEntry _step(NightPlanTree tree, String id) =>
@@ -56,14 +74,21 @@ void main() {
       closingStepsAfterSkip(tree, _step(tree, 'lights'))?.map((s) => s.node.id),
       ['warm', 'park'],
     );
-    expect(closingStepsAfterSkip(tree, _step(tree, 'park')), isEmpty);
+    final once = buildNightPlanTree(_plan(root: _rootLoop(1)));
+    expect(closingStepsAfterSkip(once, _step(once, 'lights')), isNotNull);
   });
 
-  test('a step with imaging after it, or in a loop, does not', () {
+  test('a step with imaging after it, or one that may run again, does not', () {
     final tree = buildNightPlanTree(_plan());
     expect(closingStepsAfterSkip(tree, _step(tree, 'af')), isNull);
-    final looped = buildNightPlanTree(_plan(loop: true));
+    final looped = buildNightPlanTree(_plan(root: _rootLoop(2)));
     expect(closingStepsAfterSkip(looped, _step(looped, 'lights')), isNull);
+  });
+
+  test('skipping a closing step is not asked about', () {
+    final tree = buildNightPlanTree(_plan());
+    expect(closingStepsAfterSkip(tree, _step(tree, 'warm')), isNull);
+    expect(closingStepsAfterSkip(tree, _step(tree, 'park')), isNull);
   });
 
   testWidgets('the phone Skip asks before ending the night', (tester) async {

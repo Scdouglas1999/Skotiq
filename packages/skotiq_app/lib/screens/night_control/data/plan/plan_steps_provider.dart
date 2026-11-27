@@ -36,37 +36,42 @@ final nightActiveStepProvider = Provider<NightPlanEntry?>((ref) {
 });
 
 /// What a skip of the active step leaves the run to do, when that ends the
-/// night: the steps still to come (their labels), all of which only close it
-/// (warm the camera, stop guiding, park the mount or dome, close the cover or
-/// dome), or none at all. Null when the skip leaves imaging to do, when a loop
-/// may run the step again, or when no step is known to be running.
+/// night: the labels of the steps still to come, none of which takes a frame
+/// (warm the camera, stop guiding, park the mount or dome, close the cover
+/// or dome), or no steps at all. Null when the skip leaves imaging to
+/// do, when the active step itself takes no frame, when a loop may run it
+/// again, or when no step is known to be running.
 final nightSkipEndsRunProvider = Provider<List<String>?>((ref) {
   final tree = ref.watch(nightPlanTreeProvider);
   final active = ref.watch(nightActiveStepProvider);
   if (tree == null || active == null) return null;
   return closingStepsAfterSkip(tree, active)
-      ?.map(
-        (step) => nightStepLabel(step.node),
-      )
+      ?.map((step) => nightStepLabel(step.node))
       .toList();
 });
 
-/// The steps after [active] when each only closes the night; null when one
-/// does more, or when [active] may run again (it sits in a loop, or the plan
-/// itself loops).
+/// The steps after [active] when none of them takes a frame; null when one
+/// does, when [active] takes none itself, or when [active] may run again (a
+/// loop above it, or the plan itself, repeats).
 List<NightPlanEntry>? closingStepsAfterSkip(
   NightPlanTree tree,
   NightPlanEntry active,
 ) {
-  if (tree.sequence.rootNode is LoopNode) return null;
+  if (_takesNoFrame(active.node)) return null;
+  if (_repeats(tree.sequence.rootNode)) return null;
   if (active.multiplier > 1 || active.openEnded) return null;
   final index = tree.stepIndexOf(active.node.id);
   if (index < 0) return null;
   final after = tree.steps.sublist(index + 1);
-  return after.every((step) => _closesTheNight(step.node)) ? after : null;
+  return after.every((step) => _takesNoFrame(step.node)) ? after : null;
 }
 
-bool _closesTheNight(SequenceNode node) =>
+bool _repeats(SequenceNode? node) =>
+    node is LoopNode &&
+    (node.conditionType != LoopConditionType.count ||
+        (node.repeatCount ?? 1) > 1);
+
+bool _takesNoFrame(SequenceNode node) =>
     node is WarmCameraNode ||
     node is StopGuidingNode ||
     node is ParkNode ||
