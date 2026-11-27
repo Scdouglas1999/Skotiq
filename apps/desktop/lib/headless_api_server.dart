@@ -660,7 +660,8 @@ class HeadlessApiServer {
     PushConfig config;
     try {
       config = await PushConfig.load(appSupportDir: appSupportDir);
-    } catch (_) {
+    } on FileSystemException catch (e) {
+      log?.call('Push configuration unreadable, remote push is off: $e');
       config = PushConfig.disabled;
     }
     final delivery = config.mock && !config.hasCloudChannel
