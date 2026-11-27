@@ -465,7 +465,7 @@ mod calibration_leg_tests {
             },
         )
         .await;
-        let failure = leg.err().expect("the leg fails");
+        let failure = leg.expect_err("the leg fails");
         assert_eq!(failure.pulses_sent, sent.get(), "{how} at {fail_at}");
         failure
     }
