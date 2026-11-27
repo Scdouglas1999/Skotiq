@@ -22,6 +22,7 @@ final observingListsDaoProvider = Provider<ObservingListsDao>((ref) {
 /// The observing lists of whichever machine is the imaging host: this
 /// process's database, or the linked host's.
 final observingListsStoreProvider = hostRoleProvider<ObservingListsStore>(
+  phoneKeeps: true,
   here: (ref) => ref.watch(observingListsDaoProvider),
   linked: (ref, host) => host.observingLists,
 );

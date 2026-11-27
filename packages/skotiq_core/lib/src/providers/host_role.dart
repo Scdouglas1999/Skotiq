@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
+import '../backend/host_place.dart';
 import 'backend_provider.dart';
+import 'launch_role.dart';
 
 /// The linked host's side of every host-data role, or null when the imaging
 /// host is this process and host data is in its own database.
@@ -15,8 +17,26 @@ final remoteHostProvider = Provider<RemoteHost?>(
   (ref) => ref.watch(backendProvider).remoteHost,
 );
 
+/// The stand-in host of a client that is not linked: a phone, or a
+/// `--remote-host` desktop, resting on no backend. Null where host data is
+/// this process's own: a host launch, a linked client, the demo rig.
+final unlinkedHostProvider = Provider<RemoteHost?>((ref) {
+  if (ref.watch(launchRoleProvider).ownsRig) return null;
+  final place = ref.watch(backendProvider.select((b) => b.hostPlace));
+  if (place != HostPlace.none) return null;
+  final host = RemoteHost.unlinked();
+  ref.onDispose(host.dispose);
+  return host;
+});
+
 /// Declares the store of one kind of host-owned data: [here] where the
 /// imaging host is this process, [linked] on a client of another machine.
+///
+/// A client that is not linked reads the [linked] side of a host that
+/// refuses every call ([unlinkedHostProvider]): its own database holds no
+/// rig's data. [phoneKeeps] marks data the phone app keeps for browsing
+/// without a rig (targets, lists, plans, notes); an unlinked phone reads its
+/// own copy, and a `--remote-host` desktop still refuses.
 ///
 /// Readers watch the provider and call the role; they never ask which side
 /// they got. The side is chosen again only when the backend is replaced.
@@ -25,15 +45,23 @@ final remoteHostProvider = Provider<RemoteHost?>(
 /// final observingListsStoreProvider = hostRoleProvider<ObservingListsStore>(
 ///   here: (ref) => ref.watch(observingListsDaoProvider),
 ///   linked: (ref, host) => host.observingLists,
+///   phoneKeeps: true,
 /// );
 /// ```
 Provider<Role> hostRoleProvider<Role>({
   required Role Function(Ref ref) here,
   required Role Function(Ref ref, RemoteHost host) linked,
+  bool phoneKeeps = false,
   String? name,
 }) => Provider<Role>((ref) {
   final host = ref.watch(remoteHostProvider);
-  return host == null ? here(ref) : linked(ref, host);
+  if (host != null) return linked(ref, host);
+  final unlinked = ref.watch(unlinkedHostProvider);
+  if (unlinked == null) return here(ref);
+  if (phoneKeeps && ref.watch(launchRoleProvider) == LaunchRole.mobile) {
+    return here(ref);
+  }
+  return linked(ref, unlinked);
 }, name: name);
 
 /// Following the linked host across a change of host.

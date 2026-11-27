@@ -19,6 +19,7 @@ final predictiveAfServiceProvider = Provider<PredictiveAfService>((ref) {
 
 final predictiveAfSettingsControllerProvider =
     hostRoleProvider<PredictiveAfSettingsController>(
+      phoneKeeps: true,
       here: (ref) =>
           LocalPredictiveAfSettings(ref.watch(predictiveAfServiceProvider)),
       linked: (ref, host) => HostPredictiveAfSettings(host.focusModels),

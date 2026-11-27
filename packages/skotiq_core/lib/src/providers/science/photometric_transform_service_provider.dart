@@ -16,6 +16,7 @@ final photometricTransformServiceProvider =
 
 /// The photometric transform fits of whichever machine is the imaging host.
 final photometricTransformsProvider = hostRoleProvider<PhotometricTransforms>(
+  phoneKeeps: true,
   here: (ref) => ref.watch(photometricTransformServiceProvider),
   linked: (ref, host) => host.photometricTransforms,
 );

@@ -10,6 +10,7 @@ import 'sesame_name_resolver_provider.dart';
 /// The installed catalog a designation is looked up in: this machine's, or
 /// the linked host's.
 final _installedCatalogLookupProvider = hostRoleProvider<CatalogLookup>(
+  phoneKeeps: true,
   here: (_) => ResolverCatalogLookup(() => CatalogManager.instance.dsos.load()),
   linked: (_, host) => CatalogSearchLookup((designation) async {
     final response = await host.planning.planetariumCatalogSearch(designation);

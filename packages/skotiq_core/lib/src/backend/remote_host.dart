@@ -83,6 +83,16 @@ export 'network_backend.dart'
 final class RemoteHost {
   RemoteHost._(this._backend);
 
+  /// The host of a client that is not linked to one. Every role it hands out
+  /// refuses with [HostNotLinkedException] and opens no connection, so a
+  /// client never shows its own database as the imaging host's.
+  /// [dispose] releases it.
+  factory RemoteHost.unlinked() => RemoteHost._(NetworkBackend.unlinked());
+
+  /// Releases a host made by [RemoteHost.unlinked]. A linked host is released
+  /// with its backend.
+  void dispose() => _backend.dispose();
+
   final NetworkBackend _backend;
 
   static final _hosts = Expando<RemoteHost>('RemoteHost');

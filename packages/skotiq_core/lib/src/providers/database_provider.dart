@@ -177,6 +177,7 @@ final transientDetectionsDaoProvider = Provider<TransientDetectionsDao>((ref) {
 
 /// The saved targets of whichever machine is the imaging host.
 final targetLibraryProvider = hostRoleProvider<TargetLibrary>(
+  phoneKeeps: true,
   here: (ref) => ref.watch(targetsDaoProvider),
   linked: (ref, host) => host.records,
 );

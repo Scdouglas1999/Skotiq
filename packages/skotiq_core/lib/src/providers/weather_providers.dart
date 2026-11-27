@@ -93,6 +93,7 @@ typedef WeatherSettingsChange = ({
 });
 
 final weatherRulesProvider = hostRoleProvider<WeatherRules>(
+  phoneKeeps: true,
   here: (ref) => _LocalWeatherRules(ref.watch(databaseProvider)),
   linked: (ref, host) => _HostWeatherRules(host.weather),
 );

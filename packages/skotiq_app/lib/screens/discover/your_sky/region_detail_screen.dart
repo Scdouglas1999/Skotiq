@@ -49,6 +49,7 @@ Future<void> _shareRegionCutout(
 /// linked client downloads the host's cutout into its temporary folder.
 final _regionPngToShareProvider =
     hostRoleProvider<Future<String?> Function(int regionId, String name)>(
+  phoneKeeps: true,
   here: (ref) => (regionId, name) async {
     if (ref.read(backendProvider).hostPlace == HostPlace.none) {
       throw StateError('Reconnect to the imaging host before exporting.');

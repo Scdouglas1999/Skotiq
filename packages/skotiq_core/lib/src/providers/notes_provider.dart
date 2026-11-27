@@ -32,6 +32,7 @@ final notesServiceProvider = Provider<NotesService>((ref) {
 
 /// The notes journal of whichever machine is the imaging host.
 final notesJournalProvider = hostRoleProvider<NotesJournal>(
+  phoneKeeps: true,
   here: (ref) => ref.watch(notesServiceProvider),
   linked: (ref, host) => host.notesJournal,
 );

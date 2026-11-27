@@ -97,6 +97,7 @@ extension _NetworkBackendHttpTransport on NetworkBackendTransport {
     String endpoint, {
     Map<String, String>? extraHeaders,
   }) async {
+    if (_refusesEveryCall) throw const HostNotLinkedException();
     Future<HttpClientResponse> send() async {
       final request = await _httpClient.getUrl(_apiUri(endpoint));
       final headers = _buildRequestHeaders(
@@ -255,6 +256,7 @@ extension _NetworkBackendHttpTransport on NetworkBackendTransport {
     Duration? timeout,
     bool mutating = false,
   }) async {
+    if (_refusesEveryCall) throw const HostNotLinkedException();
     // Fail fast once the host has definitively rejected this exact token:
     // every call would 403 anyway, and each attempt feeds the server's
     // per-IP auth-failure counter toward a `429` lockout. Throwing locally
