@@ -3,10 +3,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/connection/work_locally.dart';
 import 'package:skotiq_app/screens/settings/widgets/replay_debug_settings.dart'
     as replay_ui;
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 
 import '../../harness/harness.dart';
@@ -24,12 +24,12 @@ Future<HarnessHandle> _pump(WidgetTester tester) => pumpAppScreen(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  tearDown(() => debugCanWorkLocallyOverride = null);
+  tearDown(() => DeviceTraits.debugOverride = null);
 
   testWidgets('a phone has the switch, and it turns the setting on', (
     tester,
   ) async {
-    debugCanWorkLocallyOverride = false;
+    DeviceTraits.debugOverride = DeviceTraits.phone;
     final handle = await _pump(tester);
 
     expect(find.text('TESTING'), findsOneWidget);
@@ -54,7 +54,7 @@ void main() {
   });
 
   testWidgets('a computer does not show it', (tester) async {
-    debugCanWorkLocallyOverride = true;
+    DeviceTraits.debugOverride = DeviceTraits.desktop;
     await _pump(tester);
     expect(find.text('Demo rig (testing)'), findsNothing);
   });

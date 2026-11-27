@@ -26,6 +26,7 @@ export 'src/utils/coordinate_parser.dart';
 export 'src/utils/resilient_poll_stream.dart';
 export 'src/utils/poll_pace.dart';
 export 'src/utils/dither_settle_presets.dart';
+export 'src/utils/device_traits.dart';
 export 'src/utils/export_target.dart';
 export 'src/utils/utc_timestamp.dart';
 export 'src/utils/local_time_of_day.dart';

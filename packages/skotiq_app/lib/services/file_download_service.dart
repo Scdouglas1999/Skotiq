@@ -98,7 +98,7 @@ Future<FileDownloadOutcome> downloadFileToDevice({
     return FileDownloadOutcome.failed(failureText('Download failed', e));
   }
 
-  final isMobile = Platform.isAndroid || Platform.isIOS;
+  final isMobile = DeviceTraits.current.touchOs;
   try {
     if (isMobile) {
       final share = mobileShare ??

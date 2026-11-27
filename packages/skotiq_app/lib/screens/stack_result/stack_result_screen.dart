@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 import 'dart:isolate';
 import 'dart:typed_data';
 
@@ -736,9 +735,8 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
       // save-only — the user picked the path. A share failure never means the
       // export failed — the file is already on disk — so it is the one notice,
       // a warning, in place of the success.
-      final handOffToShareSheet = format == ShareExportFormat.shareCard ||
-          Platform.isAndroid ||
-          Platform.isIOS;
+      final handOffToShareSheet =
+          format == ShareExportFormat.shareCard || DeviceTraits.current.touchOs;
       var shared = true;
       if (handOffToShareSheet) {
         try {

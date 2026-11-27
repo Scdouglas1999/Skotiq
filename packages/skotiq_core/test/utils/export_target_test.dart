@@ -79,7 +79,7 @@ void main() {
     // that carries the failure, so it is the one CI has to run.
     setUp(() {
       TestWidgetsFlutterBinding.ensureInitialized();
-      debugIsTouchPlatformOverride = true;
+      DeviceTraits.debugOverride = DeviceTraits.phone;
       // path_provider has no Linux-host implementation of the Android channel.
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
@@ -87,7 +87,7 @@ void main() {
             (call) async => Directory.systemTemp.path,
           );
     });
-    tearDown(() => debugIsTouchPlatformOverride = null);
+    tearDown(() => DeviceTraits.debugOverride = null);
 
     // Reaching `getSaveLocation` at all on Android is the failure, because that
     // call is what throws.

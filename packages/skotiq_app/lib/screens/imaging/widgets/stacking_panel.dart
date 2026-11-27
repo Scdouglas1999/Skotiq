@@ -339,7 +339,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
 
   /// Writing a master needs the native library: the FITS master, the PNG
   /// render and its stretch are all written by it.
-  bool get _canSaveMaster => ref.read(savedFrameDecodesOnDeviceProvider);
+  bool get _canSaveMaster => DeviceTraits.current.nativeLibrary;
 
   /// Writes the accumulated master out. Returns true only when a file was
   /// actually written (so the caller knows it is safe to release the stack).

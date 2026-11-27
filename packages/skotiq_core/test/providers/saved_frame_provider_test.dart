@@ -16,6 +16,7 @@ import 'package:skotiq_core/models.dart'
     show CapturedImageResult, ImageStatsResult;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/models/imaging/saved_frame.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 
 class _MockImagingBackend extends Mock implements ImagingBackend {}
 
@@ -267,11 +268,12 @@ void main() {
           timestamp: _capturedAt.toIso8601String(),
         ),
       );
+      DeviceTraits.debugOverride = DeviceTraits.phone;
+      addTearDown(() => DeviceTraits.debugOverride = null);
       final c = ProviderContainer(
         overrides: [
           imagingBackendProvider.overrideWithValue(backend),
           isRemoteModeProvider.overrideWithValue(true),
-          savedFrameDecodesOnDeviceProvider.overrideWithValue(false),
           linkedHostImagingRecordsProvider.overrideWithValue(network),
           frameFileDecoderProvider.overrideWithValue((path) async {
             decoded.add(path);

@@ -1,10 +1,9 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/snackbar_helper.dart';
@@ -14,13 +13,7 @@ import '../../utils/snackbar_helper.dart';
 /// Only the desktop/headless entry points install an FfiBackend
 /// (`apps/desktop/lib/main.dart`); the phone app is a client of a rig it never
 /// owns, so offering "work locally" there would be a button to nowhere.
-bool get canWorkLocally =>
-    debugCanWorkLocallyOverride ??
-    (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
-
-/// Lets a widget test on a desktop host render what a phone renders.
-@visibleForTesting
-bool? debugCanWorkLocallyOverride;
+bool get canWorkLocally => DeviceTraits.current.nativeLibrary;
 
 /// Reinstate the local [FfiBackend] on a machine sitting on a
 /// [DisconnectedBackend], and say what happened.

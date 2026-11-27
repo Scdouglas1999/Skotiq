@@ -20,6 +20,7 @@ import '../models/backend/image_result.dart';
 import '../models/imaging/imaging_models.dart';
 import '../services/capture_preview_loader.dart'
     show capturedImageDataFromResult, imageStatsFromResult;
+import '../utils/device_traits.dart';
 import '../utils/logging_service.dart';
 import 'backend_provider.dart';
 import 'linked_host.dart' show linkedHostImagingRecordsProvider;
@@ -34,10 +35,6 @@ final frameFileDecoderProvider = Provider<FrameFileDecoder>(
   (ref) =>
       (path) => bridge.apiReadFitsFile(filePath: path),
 );
-
-/// Whether this device can decode a FITS file itself. A phone carries no
-/// native library, so its frames are drawn by the host instead.
-final savedFrameDecodesOnDeviceProvider = Provider<bool>((ref) => true);
 
 /// The longest edge a host-drawn frame is sent at: plenty for a phone screen
 /// at 2-3x zoom, without a full sensor's RGBA in its memory.
@@ -72,7 +69,7 @@ class SavedFrameLoader
       return const SavedFrameFailed('This frame has no saved file.');
     }
     final remote = ref.read(isRemoteModeProvider);
-    if (remote && !ref.read(savedFrameDecodesOnDeviceProvider)) {
+    if (remote && !DeviceTraits.current.nativeLibrary) {
       unawaited(_loadDrawnByHost(frame));
       return const SavedFrameDownloading();
     }

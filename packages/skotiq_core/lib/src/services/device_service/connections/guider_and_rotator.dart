@@ -49,10 +49,7 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
     String host,
     int port,
   ) async {
-    // The demo rig runs on a phone, where no PHD2 can be launched.
-    if (_hostOwnsDevices ||
-        _backend.isDemoRig ||
-        !_phd2Launcher.isLocalHost(host)) {
+    if (_hostOwnsDevices || !_phd2Launcher.isLocalHost(host)) {
       return;
     }
     await _phd2Launcher.ensureRunning(

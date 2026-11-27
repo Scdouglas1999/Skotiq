@@ -343,9 +343,9 @@ class _AppDataFolderRow extends ConsumerWidget {
     };
 
     final openLabel =
-        Platform.isAndroid || Platform.isIOS ? 'Copy path' : 'Open folder';
+        DeviceTraits.current.touchOs ? 'Copy path' : 'Open folder';
     final openLogsLabel =
-        Platform.isAndroid || Platform.isIOS ? 'Copy logs path' : 'Open logs';
+        DeviceTraits.current.touchOs ? 'Copy logs path' : 'Open logs';
 
     return SettingRow(
       title: 'Database and logs',
@@ -493,9 +493,7 @@ class _BackupFolderRow extends ConsumerWidget {
             ),
           if (resolved != null)
             SkotiqButton(
-              label: Platform.isAndroid || Platform.isIOS
-                  ? 'Copy path'
-                  : 'Open folder',
+              label: DeviceTraits.current.touchOs ? 'Copy path' : 'Open folder',
               icon: LucideIcons.folderOpen,
               variant: ButtonVariant.ghost,
               size: ButtonSize.small,

@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show roundSiteEstimate;
 
 import '../../backend/ip_geolocation.dart';
+import '../../utils/device_traits.dart';
 import '../../errors/skotiq_error.dart';
 import '../../utils/logging_service.dart';
 import 'positioning/positioning_result.dart';
@@ -480,7 +481,7 @@ class GeolocationService {
     // A phone's GPS takes seconds to tens of seconds to a first fix from cold,
     // and its permission prompt waits for the user. Neither fits a budget
     // sized for a desktop location service that may never answer.
-    final onPhone = Platform.isAndroid || Platform.isIOS;
+    final onPhone = DeviceTraits.current.touchOs;
     PositioningDeadline? fixDeadline;
     try {
       if (!await deadline.run(Geolocator.isLocationServiceEnabled)) {
