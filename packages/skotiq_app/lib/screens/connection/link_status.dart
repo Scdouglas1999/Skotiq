@@ -95,8 +95,11 @@ class LinkStatusLook {
   }
 
   /// The chip's label; a host not answering names how long it has been.
-  String chipLabel(int? unansweredSeconds) =>
-      _chipLabel.replaceFirst('{s}', '${unansweredSeconds ?? 0}');
+  String chipLabel(int? unansweredSeconds) {
+    if (!_chipLabel.contains('{s}')) return _chipLabel;
+    if (unansweredSeconds == null) return settingsLabel;
+    return _chipLabel.replaceFirst('{s}', '$unansweredSeconds');
+  }
 }
 
 // Standalone (notConnected) is the normal state of a local install, not a
