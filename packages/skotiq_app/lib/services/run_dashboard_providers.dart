@@ -804,6 +804,10 @@ bool _saysWhyGuidingStopped(String reason) =>
 /// succeeds clears it.
 const String _meridianFlipFaultKey = 'meridian_flip';
 
+/// The banner key of a recovery. Its newest event replaces the older one,
+/// and the recovery's end clears it.
+const String _recoveryFaultKey = 'recovery';
+
 /// The banner key of a camera's failed exposures. A camera that reopens
 /// fails a frame or two and then images on; its newest failure replaces the
 /// older ones, and its next good frame clears them.
@@ -824,9 +828,21 @@ String? _faultKey(sk_events.SkotiqEvent event) {
     };
   }
   if (payload is! sk_events.EventPayload_Sequencer) return null;
-  return payload.field0 is sk_events.SequencerEvent_MeridianFlipOutcome
-      ? _meridianFlipFaultKey
-      : null;
+  return switch (payload.field0) {
+    sk_events.SequencerEvent_MeridianFlipOutcome() => _meridianFlipFaultKey,
+    sk_events.SequencerEvent_RecoveryStarted() ||
+    sk_events.SequencerEvent_RecoveryProgress() ||
+    sk_events.SequencerEvent_RecoveryGaveUp() =>
+      _recoveryFaultKey,
+    _ => null,
+  };
+}
+
+/// True for the event that says a recovery ended with the run going on.
+bool _isRecoveryEnd(sk_events.SkotiqEvent event) {
+  final payload = event.payload;
+  return payload is sk_events.EventPayload_Sequencer &&
+      payload.field0 is sk_events.SequencerEvent_RecoveryCompleted;
 }
 
 /// True for an event that says a frame came off the camera: the camera
@@ -1310,6 +1326,11 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
               .read(runDashboardCriticalEventsProvider.notifier)
               .clearFault(_meridianFlipFaultKey);
         }
+        if (_isRecoveryEnd(event)) {
+          ref
+              .read(runDashboardCriticalEventsProvider.notifier)
+              .clearFault(_recoveryFaultKey);
+        }
         if (event.severity == sk_events.EventSeverity.info) continue;
         if (!sk_events.isCriticalEvent(event)) continue;
         if (_isRestatedFailureReason(event, escalatedSequencerFailureReasons)) {
@@ -1342,6 +1363,12 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
     if (previous == SequenceExecutionState.paused &&
         next == SequenceExecutionState.running) {
       ref.read(runDashboardCriticalEventsProvider.notifier).clearRunFaults();
+    }
+    if (previous == SequenceExecutionState.recovering &&
+        next == SequenceExecutionState.running) {
+      ref
+          .read(runDashboardCriticalEventsProvider.notifier)
+          .clearFault(_recoveryFaultKey);
     }
   });
   return alerts.stream;

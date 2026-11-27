@@ -43,6 +43,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Guider))?;
         Ok(GuidingStatus {
             is_guiding: status.state == crate::guider::GuiderActivity::Guiding,
+            stop_reason: crate::guider::stop_reason::current(),
             rms_ra: status.rms_ra,
             rms_dec: status.rms_dec,
             rms_total: status.rms_total,

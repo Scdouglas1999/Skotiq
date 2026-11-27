@@ -48,6 +48,9 @@ pub enum GuiderObservation {
     /// The run is unguided and the guider reports guiding, but the mount is
     /// not tracking. Reported once until guiding runs again.
     GuidingWithoutTracking,
+    /// Someone asked the guider to stop while this run was guiding; the
+    /// run's guiding waits to be started again.
+    StoppedOnRequest,
 }
 
 impl GuidingState {
@@ -159,7 +162,8 @@ impl GuidingState {
         }
     }
 
-    /// The outermost move stopped this run's guiding.
+    /// The outermost move, or a stop someone asked for, stopped this run's
+    /// guiding.
     pub fn guiding_stopped_by_motion(&mut self) {
         self.set_enabled(false);
         self.set_star_lost(false);
@@ -192,15 +196,22 @@ impl GuidingState {
     /// Apply the monitor's guider poll: `Ok(is_guiding)`, or `Err` when the
     /// guider could not be read.
     pub fn observe_guider(&mut self, poll: Result<bool, ()>) -> GuiderObservation {
-        self.observe_guider_on_mount(poll, None)
+        self.observe_guider_on_mount(poll, None, None)
     }
 
-    /// [`Self::observe_guider`] knowing whether the mount tracks. A guider
-    /// that reports guiding on a mount known not to track is chasing a star
-    /// the sky carries away, so it does not end the run's unguided imaging.
+    /// [`Self::observe_guider`] knowing why the guider was stopped, if anyone
+    /// asked (`stop_reason`), and whether the mount tracks.
+    ///
+    /// A guider that reports guiding on a mount known not to track is chasing
+    /// a star the sky carries away, so it does not end the run's unguided
+    /// imaging. A guider someone asked to stop (an action's center, the
+    /// operator) has not lost its star: this run's guiding is interrupted, as
+    /// by one of its own moves, and is armed again when the guider is seen
+    /// guiding, or started again before the next light frame.
     pub fn observe_guider_on_mount(
         &mut self,
         poll: Result<bool, ()>,
+        stop_reason: Option<crate::GuidingStopReason>,
         mount_tracking: Option<bool>,
     ) -> GuiderObservation {
         if self.unguided && poll == Ok(true) && mount_tracking == Some(false) {
@@ -217,13 +228,26 @@ impl GuidingState {
         match poll {
             Ok(true) => {
                 // A guider seen guiding does not arm the trigger by itself;
-                // only guiding this run started does.
+                // only guiding this run started, or guiding started again
+                // after a stop someone asked for, does.
                 self.set_star_lost(false);
                 if self.unguided {
                     self.set_unguided(false);
                     self.set_enabled(true);
                     return GuiderObservation::GuidingAgain;
                 }
+                if self.resume_pending && mount_tracking != Some(false) {
+                    self.resume_pending = false;
+                    self.set_enabled(true);
+                    return GuiderObservation::GuidingAgain;
+                }
+            }
+            Ok(false) if stop_reason.is_some_and(crate::GuidingStopReason::stops_guiding) => {
+                if self.enabled {
+                    self.guiding_stopped_by_motion();
+                    return GuiderObservation::StoppedOnRequest;
+                }
+                self.set_star_lost(false);
             }
             Ok(false) => {
                 let lost = self.enabled;
@@ -256,12 +280,13 @@ impl GuidingState {
         self.star_lost = star_lost;
     }
 
-    /// A run is starting. Guiding stays armed only for a run resumed from a
-    /// checkpoint, which carries on the guiding it recorded.
+    /// A run is starting. Nothing is armed: a run resumed from a checkpoint
+    /// that recorded guiding starts it again before its next light frame,
+    /// and its Guide Star Lost is armed once guiding runs.
     pub fn reset_for_new_run(&mut self, resumed: bool) {
-        let enabled = resumed && self.enabled;
+        let resume_pending = resumed && self.enabled;
         *self = Self {
-            enabled,
+            resume_pending,
             ..Self::default()
         };
     }
@@ -330,6 +355,42 @@ mod tests {
     }
 
     #[test]
+    fn a_stop_someone_asked_for_interrupts_guiding_and_is_never_a_lost_star() {
+        use crate::GuidingStopReason as Reason;
+        let mut guiding = armed();
+        assert_eq!(
+            guiding.observe_guider_on_mount(Ok(false), Some(Reason::Operator), Some(true)),
+            GuiderObservation::StoppedOnRequest
+        );
+        assert!(!guiding.star_lost());
+        assert!(!guiding.is_enabled());
+        assert!(guiding.resume_pending());
+
+        // Not armed again on a mount that does not track.
+        assert_eq!(
+            guiding.observe_guider_on_mount(Ok(true), None, Some(false)),
+            GuiderObservation::Unchanged
+        );
+        assert!(!guiding.is_enabled());
+        assert_eq!(
+            guiding.observe_guider_on_mount(Ok(true), None, Some(true)),
+            GuiderObservation::GuidingAgain
+        );
+        assert!(guiding.is_enabled());
+        assert!(!guiding.resume_pending());
+
+        guiding.observe_guider_on_mount(Ok(false), None, Some(true));
+        assert!(guiding.armed_and_lost(), "an unasked stop is a lost star");
+
+        let mut settling = armed();
+        settling.observe_guider_on_mount(Ok(false), Some(Reason::DitherSettle), None);
+        assert!(
+            settling.armed_and_lost(),
+            "a dither keeps the guider guiding; dropping out of it is a loss"
+        );
+    }
+
+    #[test]
     fn a_run_that_went_unguided_is_armed_again_when_the_guider_guides() {
         let mut guiding = armed();
         guiding.give_up_guiding();
@@ -349,8 +410,11 @@ mod tests {
         assert!(guiding.judges_rms());
     }
 
+    /// A checkpoint-restored run on a restarted host found the guider idle
+    /// and read the guiding it had recorded as a lost star before its first
+    /// step. It owes the guiding instead, and arms nothing until it runs.
     #[test]
-    fn only_a_resumed_run_keeps_its_guiding_armed() {
+    fn a_resumed_run_owes_its_guiding_and_arms_nothing() {
         let mut guiding = armed();
         guiding.set_star_lost(true);
         guiding.set_unguided(true);
@@ -359,10 +423,12 @@ mod tests {
         assert_eq!(
             guiding,
             GuidingState {
-                enabled: true,
+                resume_pending: true,
                 ..Default::default()
             }
         );
+        guiding.observe_guider(Ok(false));
+        assert!(!guiding.star_lost(), "an idle guider is not a lost star");
         guiding.reset_for_new_run(false);
         assert_eq!(guiding, GuidingState::default());
     }
@@ -375,18 +441,18 @@ mod tests {
         let mut guiding = GuidingState::default();
         guiding.give_up_guiding();
         assert_eq!(
-            guiding.observe_guider_on_mount(Ok(true), Some(false)),
+            guiding.observe_guider_on_mount(Ok(true), None, Some(false)),
             GuiderObservation::GuidingWithoutTracking
         );
         assert_eq!(
-            guiding.observe_guider_on_mount(Ok(true), Some(false)),
+            guiding.observe_guider_on_mount(Ok(true), None, Some(false)),
             GuiderObservation::Unchanged,
             "reported once"
         );
         assert!(guiding.is_unguided());
         assert!(!guiding.is_enabled());
         assert_eq!(
-            guiding.observe_guider_on_mount(Ok(true), Some(true)),
+            guiding.observe_guider_on_mount(Ok(true), None, Some(true)),
             GuiderObservation::GuidingAgain
         );
         assert!(guiding.is_enabled());

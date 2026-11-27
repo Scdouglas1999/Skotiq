@@ -613,7 +613,6 @@ class NightActionController extends Notifier<ManualActionState>
       ref: ref,
       pause: _ops.pauseRun,
       end: _ops.endRunHold,
-      holdsPausedRun: id == ManualActionId.loop,
     );
     var hold = RunHold.notOwed;
     NightText? error;

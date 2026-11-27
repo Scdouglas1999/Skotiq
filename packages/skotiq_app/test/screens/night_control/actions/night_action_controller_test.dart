@@ -141,13 +141,34 @@ void main() {
       expect(state.runLeftPaused, isFalse);
     });
 
-    test('a run the operator paused is left paused', () async {
+    test('a run the operator paused is held for the action and left paused',
+        () async {
       final h = actionHarness(runState: paused);
       addTearDown(h.container.dispose);
 
       await h.container.read(nightActionApiProvider).autofocus();
 
-      expect(h.ops.calls, ['autofocus']);
+      expect(h.ops.calls, ['pause', 'autofocus', 'endHold']);
+      expect(h.container.read(sequenceExecutionStateProvider), paused);
+      final state = h.container.read(nightActionStateProvider);
+      expect(state.error, isNull);
+      expect(state.runLeftPaused, isFalse);
+    });
+
+    test('a center on a run the operator paused holds it until it is done',
+        () async {
+      final h = actionHarness(runState: paused);
+      addTearDown(h.container.dispose);
+
+      await h.container.read(nightActionApiProvider).center();
+
+      expect(h.ops.calls, [
+        'pause',
+        'stopGuiding',
+        'center M74',
+        'startGuidingAndSettle',
+        'endHold',
+      ]);
       expect(h.container.read(sequenceExecutionStateProvider), paused);
     });
 

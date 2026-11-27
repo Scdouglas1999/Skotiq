@@ -50,14 +50,16 @@ pub(crate) fn run_ended() {
 }
 
 /// An operator's stop: recorded as such unless the run already said why it
-/// is stopping the guider.
-pub(crate) fn note_operator_stop() {
+/// is stopping the guider. Returns whether it recorded it.
+pub(crate) fn note_operator_stop() -> bool {
     let mut current = reason_slot();
-    if current.is_none() {
-        *current = Some(GuidingStopReason::Operator);
-        drop(current);
-        publish(Some(GuidingStopReason::Operator));
+    if current.is_some() {
+        return false;
     }
+    *current = Some(GuidingStopReason::Operator);
+    drop(current);
+    publish(Some(GuidingStopReason::Operator));
+    true
 }
 
 /// The stop reason a status in `state` reports. A guider that is guiding

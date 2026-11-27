@@ -1603,6 +1603,7 @@ impl GuiderOps for ReacquireGuiderOps {
         let guiding = self.started.load(Ordering::Relaxed) && self.relock_after_start;
         Ok(GuidingStatus {
             is_guiding: guiding,
+            stop_reason: None,
             rms_ra: 0.5,
             rms_dec: 0.4,
             rms_total: 0.64,

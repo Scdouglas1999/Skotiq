@@ -6,6 +6,10 @@ use async_trait::async_trait;
 #[derive(Debug, Clone)]
 pub struct GuidingStatus {
     pub is_guiding: bool,
+    /// Why the guider was stopped or held, when someone asked for it (the
+    /// run, an action or the operator). `None` when nothing asked: a guider
+    /// that is not guiding with no reason lost its star.
+    pub stop_reason: Option<crate::GuidingStopReason>,
     pub rms_ra: f64,
     pub rms_dec: f64,
     pub rms_total: f64,

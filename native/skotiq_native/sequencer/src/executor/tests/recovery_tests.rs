@@ -995,6 +995,7 @@ fn stepping_is_not_guiding() {
     assert!(
         !guiding_is_settled(&GuidingStatus {
             is_guiding: true,
+            stop_reason: None,
             rms_ra: 56.8,
             rms_dec: 54.4,
             rms_total: measured_rms_total,
@@ -1005,6 +1006,7 @@ fn stepping_is_not_guiding() {
     // Just outside the settle bound: still not recovered.
     assert!(!guiding_is_settled(&GuidingStatus {
         is_guiding: true,
+        stop_reason: None,
         rms_ra: 2.0,
         rms_dec: 2.0,
         rms_total: 2.83,
@@ -1013,6 +1015,7 @@ fn stepping_is_not_guiding() {
     // A real lock.
     assert!(guiding_is_settled(&GuidingStatus {
         is_guiding: true,
+        stop_reason: None,
         rms_ra: 0.5,
         rms_dec: 0.4,
         rms_total: 0.64,
@@ -1022,6 +1025,7 @@ fn stepping_is_not_guiding() {
     // has measured nothing.
     assert!(!guiding_is_settled(&GuidingStatus {
         is_guiding: true,
+        stop_reason: None,
         rms_ra: 0.0,
         rms_dec: 0.0,
         rms_total: 0.0,
@@ -1030,6 +1034,7 @@ fn stepping_is_not_guiding() {
     // Not guiding at all is never settled, however small the (stale) RMS.
     assert!(!guiding_is_settled(&GuidingStatus {
         is_guiding: false,
+        stop_reason: None,
         rms_ra: 0.1,
         rms_dec: 0.1,
         rms_total: 0.14,

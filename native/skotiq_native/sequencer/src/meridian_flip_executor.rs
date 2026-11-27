@@ -2915,6 +2915,7 @@ mod tests {
         async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
             Ok(GuidingStatus {
                 is_guiding: !self.state.guider_stopped.load(Ordering::Relaxed),
+                stop_reason: None,
                 rms_ra: 0.5,
                 rms_dec: 0.4,
                 rms_total: if self

@@ -79,6 +79,13 @@ impl GuidingStopReason {
         }
     }
 
+    /// Whether the guider was asked to stop for this reason. A dither settling
+    /// keeps it guiding, so a guider that drops out of guiding then has lost
+    /// its star.
+    pub fn stops_guiding(self) -> bool {
+        self != Self::DitherSettle
+    }
+
     pub fn from_wire(wire: &str) -> Option<Self> {
         Self::ALL
             .into_iter()
