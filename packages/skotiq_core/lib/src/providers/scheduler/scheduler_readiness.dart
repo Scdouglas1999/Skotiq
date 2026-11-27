@@ -68,10 +68,12 @@ final schedulerStartReadinessProvider = Provider<SchedulerStartReadiness>((
   }
 
   final weather = ref.watch(weatherSafetyProvider);
-  final offGuard = WeatherOffGuard.of(
-    readSafetyMonitorSource(ref.watch(safetyMonitorStateProvider)),
+  // With weather safety off, the standard Weather Unsafe trigger still reads
+  // a configured safety monitor on its own.
+  final monitor = readSafetyMonitorSource(
+    ref.watch(safetyMonitorStateProvider),
   );
-  if (!weather.monitoringEnabled && offGuard == WeatherOffGuard.monitorUnsafe) {
+  if (!weather.monitoringEnabled && monitor == SafetySourceReading.unsafe) {
     issues.add(
       const SchedulerReadinessIssue(
         id: SchedulerReadinessIssueId.weather,
@@ -81,7 +83,7 @@ final schedulerStartReadinessProvider = Provider<SchedulerStartReadiness>((
       ),
     );
   } else if (!weather.monitoringEnabled &&
-      offGuard != WeatherOffGuard.monitorSafe) {
+      monitor != SafetySourceReading.safe) {
     issues.add(
       const SchedulerReadinessIssue(
         id: SchedulerReadinessIssueId.weather,

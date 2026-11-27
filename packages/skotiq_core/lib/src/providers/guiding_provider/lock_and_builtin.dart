@@ -115,12 +115,8 @@ GuiderKind guiderKindOf(String? deviceId, HostPlace place) {
 
 /// The kind of the connected guider.
 final connectedGuiderKindProvider = Provider<GuiderKind>((ref) {
-  final id = ref.watch(guiderStateProvider.select((s) => s.deviceId));
-  if (id != null && !isPhd2DeviceId(id) && ref.watch(isBuiltinGuiderProvider)) {
-    return GuiderKind.builtin;
-  }
   return guiderKindOf(
-    id,
+    ref.watch(guiderStateProvider.select((s) => s.deviceId)),
     ref.watch(backendProvider.select((b) => b.hostPlace)),
   );
 });
