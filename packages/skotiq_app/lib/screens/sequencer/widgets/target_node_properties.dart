@@ -48,7 +48,7 @@ class TargetGroupProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const Clock stepClock = SystemClock();
+    final stepClock = ref.watch(clockProvider);
     // Belt-and-suspenders gate. The parent `_NodeEditor`
     // already wraps the editor body in IgnorePointer when
     // [canEditSequenceProvider] is false, but we also wrap our own subtree

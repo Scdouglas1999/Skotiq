@@ -186,7 +186,8 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
         : null;
     final summaryFragments = nodeSummary(node,
         globalAutofocusMethod: globalAfMethod,
-        sensitivity: ref.watch(cameraSensitivityProvider));
+        sensitivity: ref.watch(cameraSensitivityProvider),
+        clock: ref.watch(clockProvider));
     final summaryA11yText = _summaryA11yText(summaryFragments);
     // The collapsed-container rollup, shown on the title row only when the
     // density has stripped the inline extras (compact): an expanded container

@@ -414,7 +414,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
   }
 
   Widget _buildConstraintsRow(TargetHeaderNode node) {
-    const Clock stepClock = SystemClock();
+    final stepClock = ref.watch(clockProvider);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(

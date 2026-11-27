@@ -137,7 +137,7 @@ class _ParamsEditor extends StatelessWidget {
 
 /// Small leaf widget so `showTimePicker` has a real BuildContext to
 /// anchor against.
-class _TimeInputButton extends StatelessWidget {
+class _TimeInputButton extends ConsumerWidget {
   final SkotiqColors colors;
   final int unixSecs;
   final ValueChanged<int> onChanged;
@@ -149,8 +149,8 @@ class _TimeInputButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    const Clock stepClock = SystemClock();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stepClock = ref.watch(clockProvider);
     final dt = DateTime.fromMillisecondsSinceEpoch(unixSecs * 1000);
     final hhmm = stepClock.timeOfDay(dt);
     return GestureDetector(

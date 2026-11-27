@@ -8,7 +8,7 @@ class _LoopProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const Clock stepClock = SystemClock();
+    final stepClock = ref.watch(clockProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -275,7 +275,7 @@ class _WaitTimeProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const Clock stepClock = SystemClock();
+    final stepClock = ref.watch(clockProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
