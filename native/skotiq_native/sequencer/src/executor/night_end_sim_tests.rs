@@ -417,6 +417,38 @@ async fn a_stopped_run_stops_the_guiding_it_started() {
     );
 }
 
+/// A run that fails after it started guiding ends that guiding, as a Stop
+/// does.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_failed_run_stops_the_guiding_it_started() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut plan = guided_plan(true);
+    // A flip step outside any target has no target to flip for and fails.
+    for n in &mut plan.nodes {
+        if n.id == "imaging" {
+            *n = flip_step();
+            n.id = "imaging".into();
+        }
+    }
+    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+
+    assert_eq!(state, super::ExecutorState::Failed, "calls={calls:?}");
+    let started = calls
+        .iter()
+        .position(|c| c == "guider_start")
+        .expect("the run started guiding");
+    assert!(
+        calls[started..].iter().any(|c| c == "guider_stop"),
+        "calls={calls:?}"
+    );
+    assert!(
+        calls.iter().any(|c| c == "guider_stop_reason:run_stopped"),
+        "calls={calls:?}"
+    );
+}
+
 /// Guiding the operator started before the run is not the run's: a Stop
 /// leaves it guiding and the run's verdict says so.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
