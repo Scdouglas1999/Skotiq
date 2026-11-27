@@ -58,7 +58,7 @@ class _DarkroomChannelMixControl extends StatelessWidget {
             .firstOrNull
             ?.mix;
     return {
-      'palette': 'custom',
+      'palette': kDarkroomCustomPaletteId,
       if (start != null && roles.length >= 2) 'mix': start.toJson(roles),
     };
   }
@@ -67,7 +67,7 @@ class _DarkroomChannelMixControl extends StatelessWidget {
   /// stores none yet.
   DarkroomChannelMix? get _mixInEffect {
     final palette = step.params['palette'];
-    if (palette == 'custom') {
+    if (palette == kDarkroomCustomPaletteId) {
       return DarkroomChannelMix.fromJson(step.params['mix']);
     }
     for (final preset in presets) {
@@ -85,7 +85,7 @@ class _DarkroomChannelMixControl extends StatelessWidget {
         return;
       }
     }
-    onChanged({'palette': 'custom', 'mix': mix.toJson(roles)});
+    onChanged({'palette': kDarkroomCustomPaletteId, 'mix': mix.toJson(roles)});
   }
 
   @override

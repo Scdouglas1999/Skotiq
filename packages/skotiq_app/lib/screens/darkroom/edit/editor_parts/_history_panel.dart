@@ -116,7 +116,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
     _mixOpenedFor = recipe;
     for (var i = 0; i < steps.length; i++) {
       if (steps[i].opId == 'channel_combine' &&
-          steps[i].params['palette'] == 'custom') {
+          steps[i].params['palette'] == kDarkroomCustomPaletteId) {
         _expanded.add(i);
         _mixToReveal = steps[i].identity;
       }
@@ -865,7 +865,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
               : null,
           isExpanded: true,
           onChanged: (value) {
-            if (spec.name == 'palette' && value == 'custom') {
+            if (spec.name == 'palette' && value == kDarkroomCustomPaletteId) {
               widget.onParamsChanged(
                 index,
                 _DarkroomChannelMixControl.customMix(

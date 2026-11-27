@@ -581,7 +581,7 @@ class _DarkroomChannelCombineDialogState
             '${plan.worstOffsetPx!.toStringAsFixed(2)} px.',
       for (final e in plan.excluded)
         'Left out ${e.filter ?? p.basename(e.path)}: ${e.reason}',
-      if (plan.combined && plan.palette?.id == 'custom')
+      if (plan.combined && plan.palette?.id == kDarkroomCustomPaletteId)
         'The weights start from the usual palette for these filters. Set '
             'each master\'s share of red, green and blue on the Channel '
             'combine step in the editor, where the picture follows each '
