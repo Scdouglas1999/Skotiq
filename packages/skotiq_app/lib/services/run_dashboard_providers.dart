@@ -260,8 +260,16 @@ final runDashboardFilterTotalsProvider =
 enum RunDashboardEventSeverity { info, warning, error, critical }
 
 /// What a feed row stands for, as the feed's folds read it: one stop of a
-/// run, one run's completion, a cooler set-point, or any other event.
-enum RunDashboardRowKind { stop, completion, coolerSetpoint, other }
+/// run, one run's completion, a cooler set-point, the guider stopping, the
+/// guider's reason for a stop, or any other event.
+enum RunDashboardRowKind {
+  stop,
+  completion,
+  coolerSetpoint,
+  guidingStopped,
+  guidingStopReason,
+  other,
+}
 
 /// A normalised event entry for the trigger feed.
 class RunDashboardEvent {
@@ -765,6 +773,15 @@ RunDashboardRowKind _rowKind(sk_events.SkotiqEvent event) =>
         field0: sk_events.EquipmentEvent_CameraCoolingStarted()
       ) =>
         RunDashboardRowKind.coolerSetpoint,
+      sk_events.EventPayload_Guiding(
+        field0: sk_events.GuidingEvent_GuidingStopped()
+      ) =>
+        RunDashboardRowKind.guidingStopped,
+      sk_events.EventPayload_Guiding(
+        field0: sk_events.GuidingEvent_StopReason(:final reason?)
+      )
+          when reason.isNotEmpty =>
+        RunDashboardRowKind.guidingStopReason,
       _ => RunDashboardRowKind.other,
     };
 
