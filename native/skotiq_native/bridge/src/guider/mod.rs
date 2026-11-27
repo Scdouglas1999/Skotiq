@@ -85,6 +85,40 @@ pub struct GuiderCalibration {
     pub dec_rate: Option<f64>,
 }
 
+/// Why a start of guiding is refused on a parked mount.
+pub(crate) const PARKED_MOUNT_REFUSAL: &str =
+    "The mount is parked. Unpark it and start tracking before guiding: guiding \
+     calibrates and corrects by moving the mount.";
+
+/// A guider calibrates and guides by moving the mount, and a parked mount
+/// neither tracks nor should move. Only a connected mount that reports parked
+/// refuses the start: with no mount, or one whose state cannot be read, the
+/// start is left to the guider.
+async fn refuse_on_a_parked_mount() -> Result<(), SkotiqError> {
+    let manager = get_device_manager();
+    let connected: Vec<String> = manager
+        .get_connected_device_infos()
+        .await
+        .into_iter()
+        .filter(|device| device.device_type == DeviceType::Mount)
+        .map(|device| device.id)
+        .collect();
+    let profile_mount = get_state().get_profile_device_id(DeviceType::Mount).await;
+    let Some(mount) = profile_mount
+        .filter(|id| connected.contains(id))
+        .or_else(|| connected.into_iter().next())
+    else {
+        return Ok(());
+    };
+    match manager.mount_get_status(&mount).await {
+        Ok(status) if status.parked => {
+            tracing::warn!("[GUIDING] Start refused: mount {mount} is parked");
+            Err(SkotiqError::InvalidState(PARKED_MOUNT_REFUSAL.to_string()))
+        }
+        _ => Ok(()),
+    }
+}
+
 /// One of the guiders this build can guide with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Guider {
@@ -162,6 +196,7 @@ impl Guider {
         settle_time: f64,
         settle_timeout: f64,
     ) -> Result<(), SkotiqError> {
+        refuse_on_a_parked_mount().await?;
         match self {
             Self::Phd2 => phd2::start_guiding(settle_pixels, settle_time, settle_timeout).await,
             Self::Builtin => {
@@ -362,6 +397,51 @@ impl GuiderActivity {
 mod tests {
 
     use super::*;
+
+    /// The phone check started the built-in guider on a parked simulated
+    /// mount: it calibrated at the pole and guided. A parked mount refuses
+    /// the start, and the guider is never asked.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_parked_mount_refuses_the_start_of_guiding() {
+        use crate::device::{DeviceInfo, DriverType};
+        let _sims = crate::simulator::sim_singleton_test_lock().lock().await;
+        let manager = get_device_manager();
+        manager
+            .register_device(
+                DeviceInfo {
+                    id: "sim_mount_1".to_string(),
+                    name: "sim_mount_1".to_string(),
+                    device_type: DeviceType::Mount,
+                    driver_type: DriverType::Simulator,
+                    description: String::new(),
+                    driver_version: String::new(),
+                    serial_number: None,
+                    unique_id: None,
+                    display_name: "sim_mount_1".to_string(),
+                },
+                false,
+            )
+            .await;
+        manager
+            .connect_device("sim_mount_1")
+            .await
+            .expect("connect simulator");
+        crate::simulator::mount::get_sim_mount()
+            .write()
+            .await
+            .status
+            .parked = true;
+
+        let refused = Guider::Builtin.start(1.5, 2.0, 10.0).await;
+        let _ = manager.disconnect_device("sim_mount_1").await;
+
+        match refused {
+            Err(SkotiqError::InvalidState(message)) => {
+                assert_eq!(message, PARKED_MOUNT_REFUSAL)
+            }
+            other => panic!("a start on a parked mount was not refused: {other:?}"),
+        }
+    }
 
     fn backend_name(device_id: &str) -> Result<&'static str, String> {
         match Guider::for_device(device_id) {
