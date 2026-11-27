@@ -1,8 +1,8 @@
 // A backup's plate-solver settings come from this computer's native solver
 // preference, the store the solver reads, even when the app settings were
-// never loaded, and are a fresh install's when it cannot be read. A client
-// launch's preference is its host's, linked or not, so its backup
-// carries none: restoring it leaves this computer's preference as it is.
+// never loaded. A backup carries none when the preference cannot be read, or
+// on a client launch, whose preference is its host's, linked or not:
+// restoring it leaves this computer's preference as it is.
 
 import 'dart:convert';
 import 'dart:io';
@@ -80,16 +80,19 @@ void main() {
     expect(settings['astrometry_path'], '/usr/bin/solve-field');
   });
 
-  test("carries a fresh install's solver settings when the preference cannot "
-      'be read', () async {
-    when(() => solver.getConfig()).thenThrow(StateError('no bridge'));
+  test(
+    'carries no solver settings when the preference cannot be read',
+    () async {
+      // A fresh install's rows would reset a working solver on a restore.
+      when(() => solver.getConfig()).thenThrow(StateError('no bridge'));
 
-    final settings = await backupSettings();
+      final settings = await backupSettings();
 
-    expect(settings['plate_solver'], 'Auto');
-    expect(settings['astap_path'], '');
-    expect(settings['astrometry_path'], '');
-  });
+      expect(settings.keys, isNot(contains('plate_solver')));
+      expect(settings.keys, isNot(contains('astap_path')));
+      expect(settings.keys, isNot(contains('astrometry_path')));
+    },
+  );
 
   test('on a linked client carries no solver settings', () async {
     final settings = await backupSettings(linked: true);
