@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:skotiq_hub/skotiq_hub.dart';
@@ -5,139 +6,49 @@ import 'package:test/test.dart';
 
 /// Trust / consent / identity guards that need no HTTP harness:
 ///  * the cross-package wire lock-step: the hub and `skotiq_core` cannot
-///    import each other and agree only by identical wire strings, so a rename
-///    on one side breaks delegation/consent at runtime with NO compile error.
-///    This reads the client enum source and pins it against the typed hub
-///    enums.
+///    import each other and agree only by identical wire strings, so the hub
+///    writes the words it understands to
+///    `test_fixtures/wire_words/hub_collaboration.json` and a core test checks
+///    the client enums against them.
 ///  * consent-record revocation stamps `revoked_at` (the retraction leg).
 ///  * attribution recompute drops a credit that falls to zero (the retraction
 ///    leg on the attribution ledger).
 void main() {
   group('cross-package wire lock-step (skotiq_core <-> hub)', () {
-    // The client trust model lives in a sibling package the hub cannot import.
-    // Locate its source relative to the repo root regardless of the test cwd
-    // (dart test → package dir; melos → repo root).
-    File clientModelFile() {
-      const rel =
-          'packages/skotiq_core/lib/src/models/collaboration/'
-          'collaboration_models.dart';
-      var dir = Directory.current;
-      for (var i = 0; i < 6; i++) {
-        final candidate = File('${dir.path}/$rel');
-        if (candidate.existsSync()) return candidate;
-        final parent = dir.parent;
-        if (parent.path == dir.path) break;
-        dir = parent;
+    /// Regenerate with `SKOTIQ_WRITE_FIXTURES=1 dart test
+    /// test/ws4_trust_lockstep_test.dart`.
+    test('the collaboration words the hub understands are the fixture', () {
+      final words = {
+        'actions': [for (final a in CollabAction.values) a.wireName]..sort(),
+        'licenses': ConsentService.knownLicenses.toList()..sort(),
+        'roles': [for (final s in HubScope.values) s.wireName],
+      };
+      final fixture = File(
+        '../../test_fixtures/wire_words/hub_collaboration.json',
+      );
+      if (Platform.environment.containsKey('SKOTIQ_WRITE_FIXTURES')) {
+        fixture.writeAsStringSync(
+          '${const JsonEncoder.withIndent('  ').convert(words)}\n',
+        );
+        return;
       }
-      fail(
-        'could not locate the client collaboration_models.dart from '
-        '${Directory.current.path}; the lock-step guard cannot run',
-      );
-    }
-
-    /// Extract the wire strings from the enum-constant section of [enumName]
-    /// (the block between `enum <name> {` and the first `;` that closes the
-    /// constants). Each constant carries its wire name as its first
-    /// single-quoted argument, e.g. `mosaicPublish('mosaic.publish')`.
-    Set<String> clientWireNames(String source, String enumName) {
-      // Strip `//`/`///` line comments first: a doc comment inside the enum
-      // block can carry a semicolon (e.g. ContributionLicense's "not shared;
-      // private to the contributor"), which would otherwise be mistaken for the
-      // `;` that closes the constant list and truncate the block to nothing.
-      // Wire names are single-quoted and contain no `//`, so cutting each line
-      // at its first `//` never touches a constant.
-      source = source
-          .split('\n')
-          .map((line) {
-            final i = line.indexOf('//');
-            return i < 0 ? line : line.substring(0, i);
-          })
-          .join('\n');
-      final open = source.indexOf('enum $enumName {');
       expect(
-        open,
-        greaterThanOrEqualTo(0),
+        jsonDecode(fixture.readAsStringSync()),
+        words,
         reason:
-            'enum $enumName vanished from the client model — lock-step '
-            'guard is stale',
+            'the hub collaboration words changed; regenerate the fixture '
+            'and update the client enums in skotiq_core',
       );
-      final semi = source.indexOf(';', open);
-      expect(semi, greaterThan(open));
-      final block = source.substring(open, semi);
-      // Match a constant line: `identifier('wire.name'` — the FIRST quoted arg
-      // is the wire name. Skip the `enum X {` header itself.
-      final re = RegExp(r"([A-Za-z][A-Za-z0-9]*)\s*\(\s*'([^']+)'");
-      return re.allMatches(block).map((m) => m.group(2)!).toSet();
-    }
-
-    late String clientSource;
-    setUp(() {
-      clientSource = clientModelFile().readAsStringSync();
     });
 
-    test('every client CollaborativeAction verb is understood by the hub', () {
-      final clientActions = clientWireNames(
-        clientSource,
-        'CollaborativeAction',
-      );
-      // Sanity: the guard actually parsed the enum (not an empty regex match).
+    test('the shareable licenses are every known one but private', () {
+      expect(ConsentService.shareableLicenses, isNot(contains('private')));
       expect(
-        clientActions,
-        contains('mosaic.upload'),
-        reason: 'the client action parse produced nothing recognizable',
+        ConsentService.knownLicenses.difference(
+          ConsentService.shareableLicenses,
+        ),
+        equals({'private'}),
       );
-      final hubActions = CollabAction.values.map((a) => a.wireName).toSet();
-      // Every action a client can embed in a scoped-token grant MUST resolve on
-      // the hub via CollabAction.fromWire, or delegation silently drops it.
-      final missing = clientActions.difference(hubActions);
-      expect(
-        missing,
-        isEmpty,
-        reason:
-            'client CollaborativeAction verbs the hub does not recognize '
-            '(delegation would silently drop these): $missing',
-      );
-      // Round-trip each through fromWire to prove resolution, not just presence.
-      for (final wire in clientActions) {
-        expect(
-          CollabAction.fromWire(wire),
-          isNotNull,
-          reason: 'CollabAction.fromWire($wire) failed — wire drift',
-        );
-      }
-    });
-
-    test(
-      'the client ContributionLicense set equals the hub known-license set',
-      () {
-        final clientLicenses = clientWireNames(
-          clientSource,
-          'ContributionLicense',
-        );
-        expect(
-          clientLicenses,
-          equals(ConsentService.knownLicenses),
-          reason:
-              'license wire drift between skotiq_core '
-              'ContributionLicense and hub ConsentService.knownLicenses — the '
-              'consent CHECK + client license enum are out of lock-step',
-        );
-        // And the shareable subset never includes `private` (the "do not share"
-        // sentinel), which every share path rejects.
-        expect(ConsentService.shareableLicenses, isNot(contains('private')));
-        expect(
-          ConsentService.knownLicenses.difference(
-            ConsentService.shareableLicenses,
-          ),
-          equals({'private'}),
-        );
-      },
-    );
-
-    test('the client CollaborativeRole names match the hub HubScope names', () {
-      final clientRoles = clientWireNames(clientSource, 'CollaborativeRole');
-      final hubRoles = HubScope.values.map((s) => s.wireName).toSet();
-      expect(clientRoles, equals(hubRoles));
     });
   });
 

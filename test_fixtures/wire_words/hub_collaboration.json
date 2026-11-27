@@ -1,0 +1,36 @@
+{
+  "actions": [
+    "attribution.read",
+    "calibration.download",
+    "calibration.publish",
+    "coimaging.contribute",
+    "coimaging.join",
+    "coimaging.read",
+    "handoff.manage",
+    "moderate",
+    "mosaic.assemble",
+    "mosaic.claim",
+    "mosaic.download",
+    "mosaic.publish",
+    "mosaic.read",
+    "mosaic.upload",
+    "retract",
+    "target.ensure",
+    "target.read",
+    "tile.contribute",
+    "tile.read",
+    "token.mint"
+  ],
+  "licenses": [
+    "cc-by",
+    "cc-by-nc",
+    "cc-by-sa",
+    "cc0",
+    "private"
+  ],
+  "roles": [
+    "read",
+    "contribute",
+    "admin"
+  ]
+}
