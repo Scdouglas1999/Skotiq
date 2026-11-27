@@ -295,7 +295,7 @@ class DarkroomBuildService {
         final label = [
           'Night of $night',
           darkroomFilterOf(f),
-          QuantityFormat.exposure(f.exposureDuration),
+          '${_seconds(f.exposureDuration)} s',
           if (f.gainText != null) f.gainText!,
           if (f.offset != null) 'offset ${f.offset}',
           if (f.binX != 1 || f.binY != 1) 'bin ${f.binX}x${f.binY}',
@@ -356,6 +356,9 @@ class DarkroomBuildService {
     if (shareFlats) shareFlatsWithinFilters(result);
     return result;
   }
+
+  static String _seconds(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 
   /// Groups of a filter without a flat take the flat most of that filter's
   /// frames use.

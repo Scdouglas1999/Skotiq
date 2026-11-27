@@ -474,6 +474,8 @@ final _handExposureLabel = RegExp(
 const _handExposureExempt = {
   // A master's file name: `MasterDark_2p5s_...` is read back by name.
   'packages/skotiq_core/lib/src/services/calibration_master_builder.dart',
+  // A Darkroom group label goes into the processing plan the native side reads.
+  'packages/skotiq_core/lib/src/services/darkroom_build_service.dart',
   'packages/skotiq_astro/lib/src/format/quantity_format.dart',
 };
 
