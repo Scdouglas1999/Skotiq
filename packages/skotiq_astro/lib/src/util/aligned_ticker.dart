@@ -31,11 +31,10 @@ Duration delayToNextBoundary(Duration period, {DateTime? now}) {
 /// the idle frame rate of the app is the number of independently-phased
 /// clocks in the tree, not the rate any one of them runs at.
 ///
-/// Skotiq had three, all legitimately wanting one tick a second: the
-/// status-bar wall clock, the planetarium's observation clock, and the
-/// planetarium's wall clock. Each armed a `Timer.periodic` at whatever instant
-/// its owner happened to be first built, so the dashboard rendered itself
-/// two to three times a second while sitting still.
+/// The status-bar wall clock, the planetarium's observation clock and the
+/// planetarium's wall clock each want one tick a second. A `Timer.periodic`
+/// armed whenever its owner is first built gives each its own phase, so the
+/// idle app renders two to three times a second.
 ///
 /// Aligning every clock to the same absolute reference — the epoch-second
 /// boundary — makes the ticks land in the same event-loop turn, so Flutter

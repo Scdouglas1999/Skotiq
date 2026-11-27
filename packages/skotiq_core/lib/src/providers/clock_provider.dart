@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AlignedTicker;
 
-import '../utils/aligned_ticker.dart';
 import 'settings_provider.dart';
 import 'logging_service_provider.dart';
 

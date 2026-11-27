@@ -23,9 +23,8 @@ void main() {
     magnitude: 3.44,
   );
 
-  /// Drive observation time explicitly: Flutter pumps fake timers, while the
-  /// aligned ticker schedules against real DateTime.now(). Mixing those two
-  /// clocks makes the number of ticks depend on the wall-clock millisecond.
+  /// Drive observation time explicitly, one known second per step, instead of
+  /// counting the ticker's ticks.
   Future<ProviderContainer> pumpPanel(
     WidgetTester tester, {
     required List<Override> overrides,

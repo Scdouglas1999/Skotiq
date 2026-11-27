@@ -48,3 +48,5 @@ export 'src/fov/mosaic_geometry.dart';
 
 export 'src/planning/target_scoring.dart';
 export 'src/planning/tonight_ranking.dart';
+
+export 'src/util/aligned_ticker.dart';
