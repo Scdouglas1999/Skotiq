@@ -62,6 +62,9 @@ enum UpdateApi implements ApiEndpoint {
 
   const UpdateApi(this.route);
 
+  /// The path every update route starts with.
+  static const pathPrefix = '/api/system/update/';
+
   @override
   final ApiRoute route;
 }

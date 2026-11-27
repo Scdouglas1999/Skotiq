@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show UpdateApi;
 
 void main() {
   group('LinkVersion', () {
@@ -49,6 +50,21 @@ void main() {
         '/api/sequencer/stop',
       ]) {
         expect(LinkVersion.openToOtherReleases(path), isFalse, reason: path);
+      }
+    });
+
+    test('every update route is open to another release', () {
+      for (final endpoint in UpdateApi.values) {
+        expect(
+          endpoint.route.path,
+          startsWith(UpdateApi.pathPrefix),
+          reason: endpoint.name,
+        );
+        expect(
+          LinkVersion.openToOtherReleases(endpoint.route.path),
+          isTrue,
+          reason: endpoint.name,
+        );
       }
     });
 
