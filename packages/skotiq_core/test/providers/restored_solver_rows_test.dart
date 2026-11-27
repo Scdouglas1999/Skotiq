@@ -115,6 +115,29 @@ void main() {
     },
   );
 
+  for (final fixture in ['backup_2_1', 'backup_3_0']) {
+    test('a $fixture backup sets the preference through a replace', () async {
+      final dir = await Directory.systemTemp.createTemp('sk_solver_legacy_');
+      addTearDown(() => dir.delete(recursive: true));
+      preference = const PlateSolverPreference(
+        choice: PlateSolverChoice.astrometry,
+        astapPath: '/opt/astap/astap',
+        astrometryPath: '/usr/bin/solve-field',
+      );
+      await db.close();
+      db = await replacedDatabase(
+        dir,
+        'test/fixtures/backups/$fixture.skbackup',
+        testLogger(dir),
+      );
+
+      expect(await open(), 'Auto');
+      expect(preference.choice, PlateSolverChoice.auto);
+      expect(preference.astapPath, '');
+      expect(preference.astrometryPath, '');
+    });
+  }
+
   test('a restore marks only the solver rows the backup carried', () async {
     await SettingsDao(db).setSettings({
       'plate_solver': 'Auto',
