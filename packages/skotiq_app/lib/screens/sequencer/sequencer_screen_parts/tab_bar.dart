@@ -191,16 +191,18 @@ class _SequencerPageHeader extends ConsumerWidget {
       ];
     }
     if (!_runToStop(transport)) {
-      final canStart = transport.start?.enabled == true;
+      final start = transport.start;
       return <Widget>[
-        SkotiqButton(
-          key: TourTarget.sequencerTransport.key,
-          label: 'Start',
-          icon: LucideIcons.play,
-          variant: ButtonVariant.start,
-          onPressed: canStart ? onStart : null,
-          semanticsHint:
-              canStart ? null : 'The sequence is finishing the last command.',
+        Builder(
+          builder: (context) => SkotiqButton(
+            key: TourTarget.sequencerTransport.key,
+            label: 'Start',
+            icon: LucideIcons.play,
+            variant: ButtonVariant.start,
+            onPressed: start?.enabled == true ? onStart : null,
+            semanticsHint:
+                start?.disabledReason?.resolve(SkotiqLocalizations.of(context)),
+          ),
         ),
       ];
     }

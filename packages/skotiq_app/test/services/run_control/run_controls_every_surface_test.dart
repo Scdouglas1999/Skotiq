@@ -112,7 +112,7 @@ const _expected = <String, List<String>>{
   ],
   'idle, no host': [
     'Fix 1 error+',
-    'Start+',
+    'Start-',
     '',
     'Start at dark-(ncPlanLinkComputer) Start now-(ncPlanLinkComputer)'
   ],
@@ -183,9 +183,9 @@ const _expected = <String, List<String>>{
     'Start at dark-(ncPlanNoSite) Start now+'
   ],
   'running, linked without authority': [
-    'Pause+ Stop+',
-    'Pause+ Stop+ Skip+',
-    'Pause+ Stop+ Skip+',
+    'Pause- Stop-',
+    'Pause- Stop- Skip-',
+    'Pause- Stop- Skip-',
     'Pause-(ncPlanCannotCommand) Skip step-(ncPlanCannotCommand) Stop-(ncPlanCannotCommand)'
   ],
 };

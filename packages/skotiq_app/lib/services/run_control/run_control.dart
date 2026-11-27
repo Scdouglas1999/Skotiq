@@ -347,5 +347,6 @@ final runTransportProvider = Provider<RunTransport>(
 
 /// The run's controls as the Sequencer and the shell's mini bar offer them.
 final sequencerRunTransportProvider = Provider<RunTransport>(
-  (ref) => _transport(ref, const {RunGate.actionHold}),
+  (ref) =>
+      _transport(ref, const {RunGate.actionHold, RunGate.commandAuthority}),
 );
