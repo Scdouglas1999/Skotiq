@@ -415,20 +415,11 @@ abstract class Sequence with _$Sequence {
 abstract class SequenceProgress with _$SequenceProgress {
   const SequenceProgress._();
 
-  static const _frameCountPrefix = 'Progress: ';
-
   /// The message a progress tick carries: the run's frame count so far, out
-  /// of [total] when the run has one.
+  /// of [total] when the run has one. Set with [messageIsFrameCount].
   static String frameCountMessage(int current, int total) => total > 0
-      ? '$_frameCountPrefix$current/$total exposures'
-      : '$_frameCountPrefix$current exposures';
-
-  /// The message says only the frame count, which a surface showing the
-  /// count beside it need not repeat.
-  bool get messageIsFrameCount {
-    final said = message;
-    return said != null && said.startsWith(_frameCountPrefix);
-  }
+      ? 'Progress: $current/$total exposures'
+      : 'Progress: $current exposures';
 
   const factory SequenceProgress({
     @Default(SequenceExecutionState.idle) SequenceExecutionState state,
@@ -448,6 +439,10 @@ abstract class SequenceProgress with _$SequenceProgress {
     /// says when the step starts; null while any other step runs.
     FrameType? currentFrameType,
     String? message,
+
+    /// [message] says only the frame count ([frameCountMessage]), which a
+    /// surface showing the count beside it need not repeat.
+    @Default(false) bool messageIsFrameCount,
     @Default(<String, NodeStatus>{}) Map<String, NodeStatus> nodeStatuses,
 
     /// Per-node instruction progress (0-100 percent)

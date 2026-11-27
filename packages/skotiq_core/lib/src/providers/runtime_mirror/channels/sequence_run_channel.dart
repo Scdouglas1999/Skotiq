@@ -68,6 +68,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
         'currentFilter': p.currentFilter,
         'currentFrameType': p.currentFrameType?.imageType,
         'message': p.message,
+        'messageIsFrameCount': p.messageIsFrameCount,
         'nodeStatuses': {
           for (final e in p.nodeStatuses.entries) e.key: e.value.name,
         },
@@ -169,6 +170,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
                 null => null,
               },
               message: jsonString(progress['message']),
+              messageIsFrameCount: progress['messageIsFrameCount'] == true,
               nodeStatuses: statuses,
               nodeProgressPercent: {
                 if (percent is Map)

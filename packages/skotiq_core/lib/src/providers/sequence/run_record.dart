@@ -259,6 +259,7 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
     String? currentTarget,
     String? currentFilter,
     String? message,
+    bool messageIsFrameCount = false,
   }) {
     final current = state.progress;
     _setProgress(
@@ -279,6 +280,9 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
         currentFilter: currentFilter ?? current.currentFilter,
         currentFrameType: current.currentFrameType,
         message: message ?? current.message,
+        messageIsFrameCount: message != null
+            ? messageIsFrameCount
+            : current.messageIsFrameCount,
         nodeStatuses: current.nodeStatuses,
         nodeProgressPercent: current.nodeProgressPercent,
         nodeProgressDetail: current.nodeProgressDetail,
