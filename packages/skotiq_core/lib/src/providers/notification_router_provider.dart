@@ -720,7 +720,7 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   if (ref.watch(isRemoteModeProvider)) {
     final router = NotificationRouter(
       transports: [InAppTransport(uiNotifier)],
-      matrix: inAppOnlyFallbackMatrix(),
+      matrix: NotificationRoutingMatrix.inAppOnly(),
     );
     router.attachEventStream(backend.eventStream);
     ref.onDispose(() => unawaited(router.dispose()));
@@ -772,15 +772,12 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
     mqtt,
   ];
 
-  // Fail-closed routing while the matrix authority is loading or errored: the
-  // router stays eager (safety-critical events still surface in-app) but the
-  // fallback deliberately omits systemPush and every external transport, so an
-  // unavailable/corrupt matrix cannot dispatch external notifications against
-  // NotificationRoutingMatrix.defaults() (which routes several categories to
-  // systemPush). Seeded from authoritative data only when it is already loaded.
+  // While the stored matrix is loading or unreadable the router still shows
+  // notices in-app but sends nothing anywhere else: no routing the operator
+  // never saw may page a phone or post to a webhook.
   final matrix =
       ref.read(notificationRoutingMatrixProvider).valueOrNull ??
-      inAppOnlyFallbackMatrix();
+      NotificationRoutingMatrix.inAppOnly();
   final router = NotificationRouter(transports: transports, matrix: matrix);
   router.attachEventStream(backend.eventStream);
 
@@ -807,11 +804,9 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
     _applyOrReset(next, mqtt.updateConfig, const MqttTransportConfig());
   });
   ref.listen(notificationRoutingMatrixProvider, (prev, next) {
-    // Update in-place on authoritative data; revert to the in-app-only
-    // fallback on error so a matrix that becomes corrupt/unavailable can no
-    // longer route to any external transport.
+    // A matrix that becomes unreadable can no longer send anywhere but in-app.
     if (next.hasError) {
-      router.updateMatrix(inAppOnlyFallbackMatrix());
+      router.updateMatrix(NotificationRoutingMatrix.inAppOnly());
       return;
     }
     next.whenData(router.updateMatrix);
@@ -963,26 +958,4 @@ void _applyOrReset<T>(AsyncValue<T> next, void Function(T) update, T safe) {
   }
   final value = next.valueOrNull;
   if (value != null) update(value);
-}
-
-/// Fail-closed routing matrix used while the persisted routing matrix is
-/// loading or has errored. Every category routes to the in-app banner only —
-/// so safety-critical events stay visible in the running UI — but NO external
-/// transport (systemPush, email, webhook, Pushover, Telegram, Discord, MQTT)
-/// can dispatch against a matrix the user never authorised. Unlike
-/// [NotificationRoutingMatrix.defaults] it deliberately omits systemPush. Its
-/// rules are non-empty so [NotificationRouter]'s empty-matrix→defaults()
-/// coercion (which would re-introduce systemPush) never fires on it.
-NotificationRoutingMatrix inAppOnlyFallbackMatrix() {
-  const inApp = [NotificationTransportKind.inApp];
-  return NotificationRoutingMatrix(
-    enabled: true,
-    rules: {
-      for (final c in NotificationCategory.values)
-        c: NotificationRoutingRule(
-          transports: inApp,
-          minSeverity: c.defaultSeverity,
-        ),
-    },
-  );
 }

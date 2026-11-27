@@ -12,6 +12,7 @@ export 'screens/shell/widgets/startup_splash_gate.dart';
 export 'startup/database_recovery_launcher.dart';
 export 'screens/shell/widgets/ios_background_banner.dart';
 export 'screens/shell/widgets/android_notifications_banner.dart';
+export 'services/android_alert_permission.dart';
 export 'screens/connection/connection_stale_banner.dart';
 export 'screens/connection/rig_connect_entry.dart';
 export 'services/app_update.dart';

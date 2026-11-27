@@ -227,6 +227,8 @@ NotificationDetails _pushDetails({
   ),
 );
 
+typedef _CategoryPost = ({int id, NotificationDetails details, String payload});
+
 class MobileNotificationService implements MobileNotificationSink {
   static final MobileNotificationService _instance =
       MobileNotificationService._internal();
@@ -284,6 +286,105 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _ownershipAutoReleasedId = 116;
   static const int _mountFaultId = 117;
   static const int _hostJobFailedId = 118;
+
+  /// How the phone shows each category it also tells itself, keyed by the
+  /// category's storage key, which is the `eventType` of the host's push. A
+  /// push of one of these takes the phone's own id, presentation and tap
+  /// target, so whichever of the two arrives second replaces the first
+  /// without turning an alarm into an ordinary notification.
+  static final Map<String, _CategoryPost> _categoryPosts = {
+    for (final (category, id, details, payload) in [
+      (
+        NotificationCategory.sequenceCompleted,
+        _sequenceCompleteId,
+        _sequenceDetails,
+        NotificationPayloadType.sequenceComplete,
+      ),
+      (
+        NotificationCategory.sequenceFailed,
+        _sequenceFailedId,
+        _sequenceDetails,
+        NotificationPayloadType.sequenceFailed,
+      ),
+      (
+        NotificationCategory.recoveryGaveUp,
+        _sequenceFailedId,
+        _sequenceDetails,
+        NotificationPayloadType.sequenceFailed,
+      ),
+      (
+        NotificationCategory.meridianFlipPerformed,
+        _meridianFlipId,
+        _infoDetails,
+        NotificationPayloadType.meridianFlip,
+      ),
+      (
+        NotificationCategory.diskSpaceLow,
+        _lowDiskSpaceId,
+        _warningDetails,
+        NotificationPayloadType.lowDiskSpace,
+      ),
+      (
+        NotificationCategory.weatherUnsafe,
+        _safetyId,
+        _criticalAlarmDetails,
+        NotificationPayloadType.safety,
+      ),
+      (
+        NotificationCategory.mountFault,
+        _mountFaultId,
+        _criticalAlarmDetails,
+        NotificationPayloadType.mountFault,
+      ),
+      (
+        NotificationCategory.guidingLost,
+        _guidingLostId,
+        _criticalDetails,
+        NotificationPayloadType.guidingLost,
+      ),
+      (
+        NotificationCategory.guidingRecovered,
+        _guidingLostId,
+        _infoDetails,
+        NotificationPayloadType.guidingLost,
+      ),
+      (
+        NotificationCategory.exposureFailed,
+        _exposureFailedId,
+        _warningDetails,
+        NotificationPayloadType.exposureFailed,
+      ),
+      (
+        NotificationCategory.autofocusFailed,
+        _autofocusFailedId,
+        _warningDetails,
+        NotificationPayloadType.autofocusFailed,
+      ),
+      (
+        NotificationCategory.autofocusContinued,
+        _autofocusFailedId,
+        _warningDetails,
+        NotificationPayloadType.autofocusFailed,
+      ),
+      (
+        NotificationCategory.equipmentDisconnected,
+        _equipmentDisconnectedId,
+        _criticalDetails,
+        NotificationPayloadType.equipmentDisconnected,
+      ),
+      (
+        NotificationCategory.targetCompleted,
+        _targetCompletedId,
+        _infoDetails,
+        NotificationPayloadType.targetCompleted,
+      ),
+    ])
+      category.storageKey: (
+        id: id,
+        details: details,
+        payload: payload.payload(),
+      ),
+  };
 
   /// Auto-incrementing ID for push notifications from the desktop
   int _nextPushNotificationId = 200;
@@ -797,6 +898,18 @@ class MobileNotificationService implements MobileNotificationSink {
         ? deepLinkRaw
         : null;
 
+    final categoryPost = _categoryPosts[eventType];
+    if (categoryPost != null) {
+      await _notifications.show(
+        categoryPost.id,
+        title,
+        body,
+        categoryPost.details,
+        payload: deepLink ?? categoryPost.payload,
+      );
+      return;
+    }
+
     // Map priority to Android notification importance and sound
     final bool playSound;
     final Importance importance;
@@ -817,20 +930,10 @@ class MobileNotificationService implements MobileNotificationSink {
         androidPriority = Priority.high;
     }
 
-    // The phone tells a finished or failed run itself, under a fixed id. The
-    // host's push for the same run takes that id, so the two replace each
-    // other instead of showing the run twice.
-    final int id;
-    if (eventType == NotificationCategory.sequenceCompleted.storageKey) {
-      id = _sequenceCompleteId;
-    } else if (eventType == NotificationCategory.sequenceFailed.storageKey) {
-      id = _sequenceFailedId;
-    } else {
-      id = _nextPushNotificationId++;
-      // Wrap around to avoid overflow, keeping it above the reserved IDs
-      if (_nextPushNotificationId > 9999) {
-        _nextPushNotificationId = 200;
-      }
+    final id = _nextPushNotificationId++;
+    // Wrap around to avoid overflow, keeping it above the reserved IDs
+    if (_nextPushNotificationId > 9999) {
+      _nextPushNotificationId = 200;
     }
 
     await _notifications.show(

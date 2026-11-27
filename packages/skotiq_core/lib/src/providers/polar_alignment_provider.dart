@@ -244,7 +244,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     final phaseStr = status.phase;
     final point = status.point;
 
-    final phase = _parsePhase(phaseStr);
+    final phase = polarAlignPhaseFromWire(phaseStr);
 
     switch (phase) {
       case PolarAlignPhase.complete:
@@ -364,21 +364,6 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       solvedRa: image.solvedRa ?? state.solvedRa,
       solvedDec: image.solvedDec ?? state.solvedDec,
     );
-  }
-
-  PolarAlignPhase _parsePhase(String phaseStr) {
-    switch (phaseStr.toLowerCase()) {
-      case 'measuring':
-        return PolarAlignPhase.measuring;
-      case 'adjusting':
-        return PolarAlignPhase.adjusting;
-      case 'complete':
-        return PolarAlignPhase.complete;
-      case 'error':
-        return PolarAlignPhase.error;
-      default:
-        return PolarAlignPhase.idle;
-    }
   }
 
   /// Start three-point (TPPA) polar alignment with the given configuration.

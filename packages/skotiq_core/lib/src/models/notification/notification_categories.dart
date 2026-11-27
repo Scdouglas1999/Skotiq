@@ -512,6 +512,22 @@ class NotificationRoutingMatrix extends Equatable {
     return NotificationRoutingMatrix(enabled: true, rules: rules);
   }
 
+  /// [NotificationRoutingMatrix.defaults] with every rule sent in-app only:
+  /// the matrix of a router that may not send anywhere else (a linked client,
+  /// whose host does the sending; a host whose stored matrix has not loaded or
+  /// could not be read). Every rule names the in-app notice, so it is never
+  /// empty and the router never replaces it with [defaults].
+  factory NotificationRoutingMatrix.inAppOnly() => NotificationRoutingMatrix(
+    enabled: true,
+    rules: {
+      for (final MapEntry(:key, :value)
+          in NotificationRoutingMatrix.defaults().rules.entries)
+        key: value.copyWith(
+          transports: const [NotificationTransportKind.inApp],
+        ),
+    },
+  );
+
   @override
   List<Object?> get props => [enabled, rules];
 }

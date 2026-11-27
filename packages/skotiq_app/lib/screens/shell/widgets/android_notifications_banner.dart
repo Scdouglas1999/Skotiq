@@ -2,18 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Whether Android lets Skotiq post notifications (`POST_NOTIFICATIONS`,
-/// a runtime permission from Android 13).
-///
-/// Defaults to `true` so nothing shows until the mobile app has read the
-/// real state.
-final androidNotificationsAuthorizedProvider = StateProvider<bool>((_) => true);
-
-/// Asks Android for the permission, or opens the app's notification settings
-/// once Android no longer shows the prompt. Returns whether it is granted.
-/// The mobile app supplies it; null elsewhere.
-final androidNotificationsRequestProvider =
-    Provider<Future<bool> Function()?>((_) => null);
+import '../../../services/android_alert_permission.dart';
 
 /// Set when the operator closes the banner; it stays closed until the app
 /// starts again.
@@ -61,12 +50,7 @@ class AndroidNotificationsBanner extends ConsumerWidget {
             : SkotiqButton(
                 label: 'Turn on',
                 size: ButtonSize.small,
-                onPressed: () async {
-                  final granted = await request();
-                  ref
-                      .read(androidNotificationsAuthorizedProvider.notifier)
-                      .state = granted;
-                },
+                onPressed: () => requestAndroidAlerts(ref),
               ),
         onDismiss: () => ref
             .read(androidNotificationsBannerDismissedProvider.notifier)
