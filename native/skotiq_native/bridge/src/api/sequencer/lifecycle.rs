@@ -128,7 +128,7 @@ pub async fn api_sequencer_pause(origin: Option<String>) -> Result<(), SkotiqErr
 /// the hold ends even when the resume then fails, and the run stays paused.
 /// When another pause took the run over while the hold lasted, the run stays
 /// paused under it and the resume is refused with
-/// [`Refusal::RunStillPaused`], naming that pause.
+/// [`SkotiqError::RunStillPaused`], naming that pause.
 pub async fn api_sequencer_resume(releases_hold_of: Option<String>) -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence execution");
     if let Some(holder) = releases_hold_of {
@@ -168,8 +168,8 @@ pub(crate) fn run_command_refused(e: skotiq_sequencer::RunCommandError) -> Skoti
         skotiq_sequencer::RunCommandError::HeldByAction => {
             SkotiqError::refused(Refusal::RunHeldByAction, e.to_string())
         }
-        skotiq_sequencer::RunCommandError::StillPaused(_) => {
-            SkotiqError::refused(Refusal::RunStillPaused, e.to_string())
+        skotiq_sequencer::RunCommandError::StillPaused(paused_by) => {
+            SkotiqError::RunStillPaused { paused_by }
         }
         skotiq_sequencer::RunCommandError::Failed(reason) => SkotiqError::OperationFailed(reason),
     }
@@ -541,6 +541,38 @@ pub fn api_sequencer_clear_checkpoint() -> Result<(), SkotiqError> {
     executor
         .clear_checkpoint()
         .map_err(|e| SkotiqError::OperationFailed(e))
+}
+
+#[cfg(test)]
+mod still_paused_tests {
+    use super::*;
+
+    const FIXTURE: &str = "ffi_replies/run_still_paused.json";
+
+    /// `test_fixtures/ffi_replies/run_still_paused.json`: the refusal a
+    /// release raises when another pause keeps the run paused carries that
+    /// pause's origin as it was given, and the app reads it from there.
+    /// Regenerate with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_bridge
+    /// still_paused`.
+    #[test]
+    fn a_release_another_pause_outlives_names_that_pause_once() {
+        let error = run_command_refused(skotiq_sequencer::RunCommandError::StillPaused(
+            "weather turned unsafe".to_string(),
+        ));
+        let SkotiqError::RunStillPaused { paused_by } = &error else {
+            panic!("{error:?}");
+        };
+        skotiq_wire_fixtures::pin_json(
+            FIXTURE,
+            &serde_json::json!({ "pausedBy": paused_by }),
+            "the still-paused refusal changed; regenerate the fixture and update the app's reader",
+        );
+        assert_eq!(paused_by, "weather turned unsafe");
+        assert_eq!(
+            error.to_string(),
+            "Operation failed: The run is still paused: weather turned unsafe."
+        );
+    }
 }
 
 #[cfg(test)]

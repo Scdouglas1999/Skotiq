@@ -112,6 +112,13 @@ pub enum SkotiqError {
     #[error("{}{}", .kind.display_prefix(), .message)]
     Refused { kind: Refusal, message: String },
 
+    /// A manual action released its hold, and another pause that took the
+    /// run over meanwhile (weather, a safety or device pause, the operator)
+    /// keeps it paused. `paused_by` names that pause in the words its origin
+    /// gave ("weather turned unsafe"); the sentence around it is the reader's.
+    #[error("Operation failed: The run is still paused: {paused_by}.")]
+    RunStillPaused { paused_by: String },
+
     /// The device cannot do this in the state it is in (a dither while
     /// guiding is paused, say). The message is the whole sentence a person
     /// reads, including what to do instead.
@@ -219,10 +226,6 @@ pub enum Refusal {
     /// A manual action holds the run paused, and the command was not its
     /// release.
     RunHeldByAction,
-    /// A manual action released its hold, and another pause that took the
-    /// run over meanwhile (weather, a safety or device pause, the operator)
-    /// keeps it paused.
-    RunStillPaused,
     /// No DepthLock goal has the id. Named so its rendering holds none of the
     /// words error text is classified by ("not found", "busy", ...).
     DepthLockNoSuchGoal,

@@ -30,11 +30,6 @@ enum Refusal {
   /// release.
   runHeldByAction,
 
-  /// A manual action released its hold, and another pause that took the
-  /// run over meanwhile (weather, a safety or device pause, the operator)
-  /// keeps it paused.
-  runStillPaused,
-
   /// No DepthLock goal has the id. Named so its rendering holds none of the
   /// words error text is classified by ("not found", "busy", ...).
   depthLockNoSuchGoal,
@@ -147,6 +142,13 @@ sealed class SkotiqError with _$SkotiqError implements FrbException {
     required Refusal kind,
     required String message,
   }) = SkotiqError_Refused;
+
+  /// A manual action released its hold, and another pause that took the
+  /// run over meanwhile (weather, a safety or device pause, the operator)
+  /// keeps it paused. `paused_by` names that pause in the words its origin
+  /// gave ("weather turned unsafe"); the sentence around it is the reader's.
+  const factory SkotiqError.runStillPaused({required String pausedBy}) =
+      SkotiqError_RunStillPaused;
 
   /// The device cannot do this in the state it is in (a dither while
   /// guiding is paused, say). The message is the whole sentence a person

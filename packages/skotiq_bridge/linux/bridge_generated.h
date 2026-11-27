@@ -2654,6 +2654,10 @@ typedef struct wire_cst_SkotiqError_Refused {
   struct wire_cst_list_prim_u_8_strict *message;
 } wire_cst_SkotiqError_Refused;
 
+typedef struct wire_cst_SkotiqError_RunStillPaused {
+  struct wire_cst_list_prim_u_8_strict *paused_by;
+} wire_cst_SkotiqError_RunStillPaused;
+
 typedef struct wire_cst_SkotiqError_InvalidState {
   struct wire_cst_list_prim_u_8_strict *field0;
 } wire_cst_SkotiqError_InvalidState;
@@ -2755,6 +2759,7 @@ typedef union SkotiqErrorKind {
   struct wire_cst_SkotiqError_NotSupported NotSupported;
   struct wire_cst_SkotiqError_DeviceBusy DeviceBusy;
   struct wire_cst_SkotiqError_Refused Refused;
+  struct wire_cst_SkotiqError_RunStillPaused RunStillPaused;
   struct wire_cst_SkotiqError_InvalidState InvalidState;
   struct wire_cst_SkotiqError_ImageError ImageError;
   struct wire_cst_SkotiqError_CameraError CameraError;

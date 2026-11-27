@@ -491,6 +491,10 @@ void main() {
         ),
         'm',
       ),
+      (
+        const bridge.SkotiqError.runStillPaused(pausedBy: 'm'),
+        'The run is still paused: m.',
+      ),
     ];
     for (final (error, expected) in rows) {
       test('${error.runtimeType}', () {
@@ -498,7 +502,7 @@ void main() {
       });
     }
     test('every variant has a row', () {
-      expect(rows.map((r) => r.$1.runtimeType).toSet(), hasLength(38));
+      expect(rows.map((r) => r.$1.runtimeType).toSet(), hasLength(39));
     });
   });
 

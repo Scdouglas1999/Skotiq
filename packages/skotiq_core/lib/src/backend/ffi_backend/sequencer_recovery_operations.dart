@@ -39,9 +39,8 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
         'sequencerResume',
         () => bridge.apiSequencerResume(releasesHoldOf: releasingHoldOf),
       );
-    } on bridge.SkotiqError_Refused catch (e) {
-      if (e.kind != bridge.Refusal.runStillPaused) rethrow;
-      throw RunStillPaused(e.message);
+    } on bridge.SkotiqError_RunStillPaused catch (e) {
+      throw RunStillPaused(e.pausedBy);
     }
   }
 

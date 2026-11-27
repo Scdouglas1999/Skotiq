@@ -32,7 +32,7 @@ Future<void> apiSequencerPause({String? origin}) => RustLib.instance.api
 /// the hold ends even when the resume then fails, and the run stays paused.
 /// When another pause took the run over while the hold lasted, the run stays
 /// paused under it and the resume is refused with
-/// [`Refusal::RunStillPaused`], naming that pause.
+/// [`SkotiqError::RunStillPaused`], naming that pause.
 Future<void> apiSequencerResume({String? releasesHoldOf}) =>
     RustLib.instance.api.crateApiSequencerLifecycleApiSequencerResume(
       releasesHoldOf: releasesHoldOf,

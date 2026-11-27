@@ -21,6 +21,33 @@ import 'handler_test_helpers.dart';
 
 class _MockSequencerBackend extends Mock implements SequencerBackend {}
 
+/// The host's real FFI backend over a run a manual action holds.
+class _HeldRunFfiBackend extends FfiBackend {
+  _HeldRunFfiBackend() : super(nativeEvents: () => const Stream.empty());
+
+  @override
+  Future<SequencerStatus> sequencerGetStatus() async =>
+      const SequencerStatus(state: 'paused', progress: 0.2, heldByAction: true);
+}
+
+/// The native library, refusing a release as the bridge does when another
+/// pause keeps the run paused (`test_fixtures/ffi_replies/run_still_paused.json`).
+class _StillPausedNative extends Mock implements bridge_api.RustLibApi {
+  static final pausedBy =
+      (jsonDecode(
+                File(
+                  '../../test_fixtures/ffi_replies/run_still_paused.json',
+                ).readAsStringSync(),
+              )
+              as Map)['pausedBy']
+          as String;
+
+  @override
+  Future<void> crateApiSequencerLifecycleApiSequencerResume({
+    String? releasesHoldOf,
+  }) async => throw bridge_api.SkotiqError.runStillPaused(pausedBy: pausedBy);
+}
+
 class _StoppedExecutor extends Fake implements SequenceExecutor {
   var stops = 0;
 
@@ -198,6 +225,38 @@ void main() {
       final body = await _bodyOf(response);
       expect(body['error'], ApiErrorCodes.runStillPaused);
       expect(body['message'], contains('Weather turned unsafe'));
+    },
+  );
+
+  test(
+    'a still-paused release crossing the bridge names the pause once',
+    () async {
+      bridge_api.NativeBridge.initMock(_StillPausedNative());
+      addTearDown(bridge_api.NativeBridge.disposeMock);
+      final host = createHeadlessTestContainer(
+        overrides: [
+          sequencerBackendProvider.overrideWithValue(_HeldRunFfiBackend()),
+          sequenceExecutorProvider.overrideWithValue(executor),
+        ],
+      );
+      addTearDown(host.dispose);
+
+      final response = await translateHandlerErrors(
+        SequencerHandlers(host).handleSequencerResume(
+          _post(
+            'resume',
+            body: {'releasesHold': true},
+            identity: 'phone-token',
+          ),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.conflict);
+      final body = await _bodyOf(response);
+      expect(body['pausedBy'], _StillPausedNative.pausedBy);
+      final message = body['message'] as String;
+      expect('still paused'.allMatches(message), hasLength(1), reason: message);
+      expect(message, contains(_StillPausedNative.pausedBy));
     },
   );
 

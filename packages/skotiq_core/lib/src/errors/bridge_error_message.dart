@@ -267,6 +267,15 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
         payload: message,
       ),
     },
+    runStillPaused: (pausedBy) => told(
+      SkotiqError(
+        category: system,
+        message: 'Operation failed: The run is still paused: $pausedBy.',
+        isRecoverable: true,
+        reason: 'The run is still paused: $pausedBy.',
+      ),
+      'The run is still paused: $pausedBy.',
+    ),
     deviceBusy: (deviceId, currentOperation) => told(
       SkotiqError(
         category: BackendErrorCategory.busy,
