@@ -21,7 +21,11 @@ sealed class FolderCheck {
 
 /// The folder is there and takes files.
 final class FolderUsable extends FolderCheck {
-  const FolderUsable();
+  const FolderUsable([this.path]);
+
+  /// The folder as the imaging host names it (links and `..` resolved), when
+  /// the host said.
+  final String? path;
 }
 
 /// No folder at that path yet.
@@ -370,7 +374,7 @@ class LinkedHostFolders extends HostFolders {
 
 /// What the host's answer about a folder means for the folder pickers.
 FolderCheck folderCheckOf(HostDirectoryVerdict verdict) {
-  if (verdict.valid) return const FolderUsable();
+  if (verdict.valid) return FolderUsable(verdict.normalizedPath);
   if (!verdict.exists && verdict.error == null) return const FolderMissing();
   return FolderRefused(
     verdict.reason ??

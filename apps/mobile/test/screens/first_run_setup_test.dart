@@ -12,6 +12,7 @@
 // the wizard UI itself is covered by a smoke render test.
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -314,6 +315,102 @@ void main() {
 
       expect(backend.validatedPath, '/host/captures/../data');
       expect(backend.updatedSettings?.imageOutputPath, '/srv/skotiq/captures');
+      expect(
+        find.textContaining('Plate solving needs at least one star catalog'),
+        findsOneWidget,
+      );
+    });
+    testWidgets('a host that does not answer is not called a bad folder', (
+      tester,
+    ) async {
+      final backend = _PathValidationBackend(
+        validationResult: const {},
+        unreachable: true,
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _TestBackendNotifier(ref, backend),
+            ),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: FirstRunSetupScreen(
+              needs: const FirstRunSetupNeeds(
+                missingImageOutputPath: true,
+                missingProfiles: false,
+                missingCatalogs: false,
+              ),
+              onCompleted: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '/srv/skotiq/captures');
+      await tester.tap(find.text('Save and continue'));
+      await tester.pumpAndSettle();
+
+      expect(backend.updatedSettings, isNull);
+      expect(
+        find.textContaining('Could not ask the imaging host about this folder'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('invalid_output_path'), findsNothing);
+    });
+
+    testWidgets('a typed folder the host does not have yet is made there', (
+      tester,
+    ) async {
+      final backend = _PathValidationBackend(
+        validationResult: const {
+          'valid': false,
+          'exists': false,
+          'writable': false,
+        },
+        createdResult: const {
+          'valid': true,
+          'exists': true,
+          'writable': true,
+          'normalizedPath': '/srv/skotiq/new-captures',
+        },
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _TestBackendNotifier(ref, backend),
+            ),
+          ],
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: FirstRunSetupScreen(
+              needs: const FirstRunSetupNeeds(
+                missingImageOutputPath: true,
+                missingProfiles: false,
+                missingCatalogs: true,
+              ),
+              onCompleted: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byType(TextField),
+        '/srv/skotiq/new-captures',
+      );
+      await tester.tap(find.text('Save and continue'));
+      await tester.pumpAndSettle();
+
+      expect(backend.createdPaths, ['/srv/skotiq/new-captures']);
+      expect(
+        backend.updatedSettings?.imageOutputPath,
+        '/srv/skotiq/new-captures',
+      );
       expect(
         find.textContaining('Plate solving needs at least one star catalog'),
         findsOneWidget,
@@ -662,13 +759,24 @@ class _SetupBackend extends NetworkBackend {
 }
 
 class _PathValidationBackend extends NetworkBackend {
-  _PathValidationBackend({required this.validationResult})
-    : super(serverHost: '127.0.0.1', autoConnectWebSocket: false);
+  _PathValidationBackend({
+    required this.validationResult,
+    this.createdResult,
+    this.unreachable = false,
+  }) : super(serverHost: '127.0.0.1', autoConnectWebSocket: false);
+
+  /// The host does not answer the check at all.
+  final bool unreachable;
 
   final Map<String, dynamic> validationResult;
+
+  /// The host's answer to a request that also makes the folder; null when
+  /// the host answers it as it answers a plain check.
+  final Map<String, dynamic>? createdResult;
   String? validatedPath;
   bool? requiredExistingDirectory;
   bool? requiredWritableDirectory;
+  final createdPaths = <String>[];
   AppSettings? updatedSettings;
 
   @override
@@ -681,7 +789,11 @@ class _PathValidationBackend extends NetworkBackend {
     validatedPath = path;
     requiredExistingDirectory = mustExist;
     requiredWritableDirectory = mustBeWritable;
-    return HostDirectoryVerdict.fromJson(validationResult);
+    if (unreachable) throw const SocketException('Connection refused');
+    if (create) createdPaths.add(path);
+    return HostDirectoryVerdict.fromJson(
+      create ? createdResult ?? validationResult : validationResult,
+    );
   }
 
   @override
