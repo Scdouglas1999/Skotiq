@@ -67,7 +67,6 @@ pub async fn execute_temperature_compensation(
         );
     }
 
-    // Check if we have trigger state with baseline temperature
     let trigger_state_lock = match &ctx.run.trigger_state {
         Some(lock) => lock,
         None => {

@@ -673,7 +673,6 @@ async fn take_burst(
             let g = crate::quality::grade_frame_with_baselines(qc, &metrics, &baselines);
             match g {
                 crate::quality::FrameGrade::Pass => {
-                    // Update the baselines with this accepted frame.
                     {
                         let mut baseline_guard = frame_baseline_handle.write().await;
                         let mut samples_guard = frame_baseline_samples_handle.write().await;
