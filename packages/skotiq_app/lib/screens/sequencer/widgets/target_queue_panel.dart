@@ -426,6 +426,7 @@ class _TargetQueuePanelState extends ConsumerState<TargetQueuePanel> {
                     colors: colors,
                     target: target,
                     visibility: visibility,
+                    now: now,
                     canEdit: canEdit,
                   );
                 },
@@ -882,12 +883,16 @@ class _QueueRow extends ConsumerWidget {
   final SkotiqColors colors;
   final QueuedTarget target;
   final _TargetVisibility? visibility;
+
+  /// The instant the row's times are read against.
+  final DateTime now;
   final bool canEdit;
 
   const _QueueRow({
     required this.colors,
     required this.target,
     required this.visibility,
+    required this.now,
     required this.canEdit,
   });
 
@@ -911,6 +916,7 @@ class _QueueRow extends ConsumerWidget {
       colors: colors,
       target: target,
       visibility: visibility,
+      now: now,
       onAddPressed: canEdit ? () => _addToSequence(context, ref) : null,
       onRemovePressed: () =>
           ref.read(targetQueueProvider.notifier).removeTarget(target.id),
@@ -964,6 +970,7 @@ class _RowCard extends StatelessWidget {
   final SkotiqColors colors;
   final QueuedTarget target;
   final _TargetVisibility? visibility;
+  final DateTime now;
   final VoidCallback? onAddPressed;
   final VoidCallback? onRemovePressed;
 
@@ -971,6 +978,7 @@ class _RowCard extends StatelessWidget {
     required this.colors,
     required this.target,
     required this.visibility,
+    required this.now,
     required this.onAddPressed,
     required this.onRemovePressed,
   });
@@ -988,7 +996,7 @@ class _RowCard extends StatelessWidget {
         : '${v!.transitAltitudeDeg!.toStringAsFixed(0)}°';
     final setText = v?.setTime == null
         ? (v?.isCircumpolar == true ? 'never sets' : '—')
-        : _formatTimeRemaining(v!.setTime!);
+        : _formatTimeRemaining(v!.setTime!, now);
 
     final coordsText =
         'RA ${CoordinateFormat.raCompact(target.coordinates.ra)}  Dec ${CoordinateFormat.decCompact(target.coordinates.dec)}';
@@ -1090,8 +1098,7 @@ class _RowCard extends StatelessWidget {
     );
   }
 
-  static String _formatTimeRemaining(DateTime when) {
-    final now = DateTime.now();
+  static String _formatTimeRemaining(DateTime when, DateTime now) {
     final diff = when.difference(now);
     if (diff.isNegative) return 'set';
     final hours = diff.inHours;

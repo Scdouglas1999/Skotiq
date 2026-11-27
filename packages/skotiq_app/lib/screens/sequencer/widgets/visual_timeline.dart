@@ -258,6 +258,7 @@ class VisualTimeline extends ConsumerWidget {
                         totalSecs: totalSecs,
                         progress: progress,
                         sequence: sequence,
+                        now: ref.watch(clockProvider).instant,
                       ),
                       child: const SizedBox.expand(),
                     ),
@@ -325,6 +326,9 @@ class _TimelinePainter extends CustomPainter {
   final SequenceProgress progress;
   final Sequence sequence;
 
+  /// The instant the now-line marks.
+  final DateTime now;
+
   _TimelinePainter({
     required this.colors,
     required this.segments,
@@ -332,6 +336,7 @@ class _TimelinePainter extends CustomPainter {
     required this.totalSecs,
     required this.progress,
     required this.sequence,
+    required this.now,
   });
 
   @override
@@ -435,8 +440,7 @@ class _TimelinePainter extends CustomPainter {
       final currentTiming =
           segments.where((t) => t.nodeId == progress.currentNodeId).firstOrNull;
       if (currentTiming != null) {
-        final elapsed =
-            DateTime.now().difference(currentTiming.start).inSeconds;
+        final elapsed = now.difference(currentTiming.start).inSeconds;
         final startOffset =
             currentTiming.start.difference(firstStart).inSeconds.toDouble();
         final xPos = ((startOffset + elapsed) / totalSecs) * size.width;
