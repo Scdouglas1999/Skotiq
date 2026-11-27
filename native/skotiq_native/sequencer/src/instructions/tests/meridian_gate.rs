@@ -810,7 +810,7 @@ async fn the_flip_step_reads_the_runs_site() {
 async fn the_flip_hold_is_reported_as_the_steps_progress() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
     let mut ec = crate::node::context::ExecutionContext::new_for_test("hold-node".to_string());
-    ec.run.device_ops = ops;
+    ec.run.device_ops = ops.clone();
     ec.run.rig.camera_id = Some("camera-1".to_string());
     ec.run.rig.mount_id = Some("mount-1".to_string());
     ec.run.rig.longitude = Some(0.0);
@@ -858,6 +858,11 @@ async fn the_flip_hold_is_reported_as_the_steps_progress() {
         held.is_err(),
         "a due flip holds the burst, not {:?}",
         held.ok()
+    );
+    assert_eq!(
+        ops.camera_exposure_calls.load(Ordering::SeqCst),
+        0,
+        "no frame is taken while the flip holds the burst"
     );
 
     let updates = updates.lock().unwrap();
