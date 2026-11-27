@@ -31,4 +31,8 @@ void main() {
     expect(words.map(recoveryPhaseFromWire).map((p) => p.wire), words);
     expect(words, hasLength(RecoveryPhase.values.length));
   });
+
+  test('the photometric bands are the sequencer\'s', () {
+    expect(kPhotometricFilterBands, _words('photometric_bands.json').toSet());
+  });
 }
