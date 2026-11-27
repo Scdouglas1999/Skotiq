@@ -2206,7 +2206,7 @@ async fn a_tracking_loss_during_a_hold_does_not_resume_the_run() {
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 
-    executor.handle().pause().await.expect("pause");
+    executor.handle().pause_from(None).await.expect("pause");
     let state = wait_for_state(&executor, std::time::Duration::from_secs(5), |s| {
         s == super::ExecutorState::Paused
     })
@@ -2665,7 +2665,7 @@ async fn a_pause_placed_during_recovery_survives_the_recovery() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_run_in_guide_star_recovery(ops.clone(), 2.0).await;
 
-    executor.handle().pause().await.expect("pause");
+    executor.handle().pause_from(None).await.expect("pause");
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     // The guider can restart now; the next attempt re-acquires.
     ops.relock_after_starts.store(1, Ordering::SeqCst);
@@ -2940,7 +2940,7 @@ async fn unsafe_weather_during_a_pause_does_not_park_when_parking_is_off() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_park_policy_run(ops.clone(), Some(WEATHER_OFF)).await;
     wait_for_monitor(&ops).await;
-    executor.handle().pause().await.expect("pause");
+    executor.handle().pause_from(None).await.expect("pause");
     let state = wait_for_state(&executor, std::time::Duration::from_secs(5), |s| {
         s == super::ExecutorState::Paused
     })

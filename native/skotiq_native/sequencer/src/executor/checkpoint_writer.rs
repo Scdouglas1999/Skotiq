@@ -56,10 +56,7 @@ impl CheckpointWriter {
         checkpoint.completed_exposures = progress.completed_exposures;
         checkpoint.completed_integration_secs = progress.completed_integration_secs;
         // A run in recovery is still in flight: a crash there resumes too.
-        checkpoint.is_active = matches!(
-            state,
-            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-        );
+        checkpoint.is_active = state.is_under_way();
         let resume = sources.resume.snapshot();
         let mut node_statuses = progress.node_statuses;
         node_statuses.retain(|id, _| !resume.from_earlier_pass.contains(id));

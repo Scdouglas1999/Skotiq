@@ -1052,10 +1052,7 @@ impl ExecutorHandle {
     /// while a run is active. The stop that follows is the operator's: it
     /// pauses the run, and it is never read as the mount's tracking limit.
     pub async fn note_operator_tracking_stop(&self) {
-        let active = matches!(
-            self.run_state.get(),
-            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-        );
+        let active = self.run_state.get().is_under_way();
         if !active {
             return;
         }

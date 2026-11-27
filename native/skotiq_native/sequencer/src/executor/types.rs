@@ -236,6 +236,12 @@ impl ExecutorState {
             Self::Recovering => "recovering",
         }
     }
+
+    /// A run is under way and not stopping: it may be paused, held or
+    /// recovering, and it can still go on.
+    pub fn is_under_way(self) -> bool {
+        matches!(self, Self::Running | Self::Paused | Self::Recovering)
+    }
 }
 
 #[cfg(test)]

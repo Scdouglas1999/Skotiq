@@ -243,20 +243,10 @@ impl SequenceExecutor {
 }
 
 impl ExecutorHandle {
-    /// Pause the sequence. The currently-running instruction (e.g. an in-
-    /// flight exposure) continues to completion; the next container's
-    /// tree-walk step honours the pause by blocking on `resume_notify`.
-    ///
-    /// Invariant: idempotent — calling `pause()` on an already-paused
-    /// sequence is a no-op (the channel send is dropped silently by the
-    /// command loop's `Pause` arm).
-    pub async fn pause(&self) -> Result<(), String> {
-        self.pause_from(None).await
-    }
-
     /// Pause the run; `origin` names who asked (weather, a safety pause, the
-    /// operator). A pause that reaches a run a manual action holds outlives
-    /// the hold.
+    /// operator). The instruction in flight (an exposure, say) finishes
+    /// first, and pausing a paused run changes nothing. A pause that reaches
+    /// a run a manual action holds outlives the hold.
     pub async fn pause_from(&self, origin: Option<String>) -> Result<(), String> {
         if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::Pause { origin })
@@ -275,10 +265,7 @@ impl ExecutorHandle {
     /// Refused when the run is not under way or another holder has it.
     pub async fn hold_for_action(&self, holder: &str) -> Result<(), RunCommandError> {
         let state = self.run_state.get();
-        if !matches!(
-            state,
-            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-        ) {
+        if !state.is_under_way() {
             return Err(RunCommandError::Failed(format!(
                 "No run to hold: the run is {}",
                 state.as_wire()

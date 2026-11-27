@@ -652,7 +652,7 @@ async fn dawn_ends_a_paused_plan_that_owns_its_end_time() {
     let plan = target_plan(TargetTrigger::TimeAfter(in_two_hours));
     let mut executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
     wait_for_monitor(&ops).await;
-    executor.handle().pause().await.expect("pause");
+    executor.handle().pause_from(None).await.expect("pause");
     let paused = wait_for_state(&executor, Duration::from_secs(5), |s| {
         s == super::ExecutorState::Paused
     })

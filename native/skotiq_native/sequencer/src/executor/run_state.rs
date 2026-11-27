@@ -96,15 +96,11 @@ impl RunCell {
         self.inner.progress.read().state
     }
 
-    /// Whether a run is under way: started and not yet at its end.
+    /// Whether a run is under way or stopping: started and not yet at its
+    /// end.
     pub(crate) fn run_in_flight(&self) -> bool {
-        matches!(
-            self.get(),
-            ExecutorState::Running
-                | ExecutorState::Paused
-                | ExecutorState::Recovering
-                | ExecutorState::Stopping
-        )
+        let state = self.get();
+        state.is_under_way() || state == ExecutorState::Stopping
     }
 
     /// The progress snapshot, state included.
@@ -142,7 +138,7 @@ impl RunCell {
             edit(&mut progress);
             progress.state = state;
         }
-        if !holds_a_run(state) {
+        if !state.is_under_way() {
             self.end_action_hold();
         }
         Unannounced {
@@ -198,7 +194,7 @@ impl RunCell {
             progress.state = to;
             progress.message = Some(message.to_string());
         }
-        if !holds_a_run(to) {
+        if !to.is_under_way() {
             self.end_action_hold();
         }
         let _ = self.inner.events.send(ExecutorEvent::StateChanged(to));
@@ -210,10 +206,7 @@ impl RunCell {
     pub(crate) fn begin_stopping(&self) {
         {
             let mut progress = self.inner.progress.write();
-            if !matches!(
-                progress.state,
-                ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-            ) {
+            if !progress.state.is_under_way() {
                 return;
             }
             progress.state = ExecutorState::Stopping;
@@ -232,10 +225,7 @@ impl RunCell {
     pub(crate) fn begin_operator_stop(&self) {
         {
             let progress = self.inner.progress.read();
-            if matches!(
-                progress.state,
-                ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-            ) {
+            if progress.state.is_under_way() {
                 self.inner
                     .stopped_by_operator
                     .store(true, Ordering::Release);
@@ -333,15 +323,6 @@ impl RunCell {
     pub(crate) fn subscribe(&self) -> broadcast::Receiver<ExecutorEvent> {
         self.inner.events.subscribe()
     }
-}
-
-/// The states a manual action's hold lives through: the run under way and
-/// not stopping.
-fn holds_a_run(state: ExecutorState) -> bool {
-    matches!(
-        state,
-        ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-    )
 }
 
 /// What a run task may change about the run itself: its state, its pause and
@@ -594,7 +575,7 @@ mod tests {
         state.transition(ExecutorState::Running);
         state.take_action_hold("host").unwrap();
         let run = control(state.clone());
-        run.pause(None);
+        run.pause_for_action();
         state.transition(ExecutorState::Recovering);
         state.transition(ExecutorState::Paused);
         assert!(state.held_by_action());

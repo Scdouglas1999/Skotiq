@@ -1910,7 +1910,11 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
         assert!(std::time::Instant::now() < deadline, "run never started");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    executor.handle().pause().await.expect("pause accepted");
+    executor
+        .handle()
+        .pause_from(None)
+        .await
+        .expect("pause accepted");
     while executor.get_state().await != ExecutorState::Paused {
         assert!(std::time::Instant::now() < deadline, "run never paused");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -1989,7 +1993,11 @@ async fn a_trigger_dropped_under_a_pause_fires_on_the_first_tick_after_resume() 
         assert!(std::time::Instant::now() < deadline, "run never started");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    executor.handle().pause().await.expect("pause accepted");
+    executor
+        .handle()
+        .pause_from(None)
+        .await
+        .expect("pause accepted");
     while executor.get_state().await != ExecutorState::Paused {
         assert!(std::time::Instant::now() < deadline, "run never paused");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
