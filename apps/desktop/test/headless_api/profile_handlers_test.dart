@@ -27,12 +27,12 @@ class _UnreadableOnceSettings extends AppSettingsNotifier {
   bool unreadable = true;
 
   @override
-  AppSettings exportRemoteSettings() {
+  Future<AppSettings> exportHostSettings() {
     if (unreadable) {
       unreadable = false;
       throw StateError('settings not readable');
     }
-    return super.exportRemoteSettings();
+    return super.exportHostSettings();
   }
 }
 
@@ -624,11 +624,12 @@ void main() {
           'pushoverKey': 'app-token',
           'pushoverUser': 'user-key',
         });
-        final full = container
-            .read(appSettingsProvider.notifier)
-            .exportRemoteSettings()
-            .copyWith(parkOnUnsafeWeather: false)
-            .toJson();
+        final full =
+            (await container
+                    .read(appSettingsProvider.notifier)
+                    .exportHostSettings())
+                .copyWith(parkOnUnsafeWeather: false)
+                .toJson();
 
         final response = await postAs(HeadlessTokenScope.control, full);
 
