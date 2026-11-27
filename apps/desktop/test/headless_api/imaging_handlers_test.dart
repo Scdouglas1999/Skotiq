@@ -721,12 +721,12 @@ void main() {
       );
       final body = jsonDecode(await response.readAsString()) as Map;
       final jobId = body['jobId'] as String;
-      await _pumpUntil(() => jobs.get(jobId)?.state == JobState.running);
+      await _pumpUntil(() => backend.started);
+      expect(jobs.get(jobId)?.state, JobState.running);
 
       jobs.cancel(jobId);
       await Future<void>.delayed(Duration.zero);
 
-      expect(backend.started, isTrue);
       expect(jobs.get(jobId)?.state, JobState.running);
     });
   });
