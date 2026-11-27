@@ -375,8 +375,8 @@ void main() {
   });
 
   test('run vitals carry errorMessages over the remote wire', () {
-    // The `/api/sequencer/status` mirror used to expose warnings only, so a
-    // remote operator could not see that the flip had failed.
+    // The `/api/sequencer/status` mirror carries errors as well as warnings,
+    // so a remote operator sees that the flip failed.
     final vitals = SequencerRunVitals(
       startTime: DateTime.utc(2026, 7, 25, 20, 46, 50),
       framesCaptured: 8,

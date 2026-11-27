@@ -1,8 +1,6 @@
-// The TargetScheduler step's weights as the app writes them and as the run
-// reads them: the node's defaults are the Rust `TargetSchedulerConfig`
-// defaults, read from the Rust source.
-
-import 'dart:io';
+// The TargetScheduler step's weights as the app writes them. The run's
+// defaults are checked against the same node's wire golden by
+// target_scheduler_default_weights.rs in the sequencer crate.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
@@ -10,19 +8,20 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 
 void main() {
   group('TargetScheduler Dart<->Rust weight contract', () {
-    test(
-      'node preview weights view IS the shared planetarium ScoringWeights',
-      () {
-        final node = TargetSchedulerNode();
-        final w = node.scoringWeights;
-        // The node's five duplicated fields delegate to the one contract.
-        expect(w.altitudeWeight, node.altitudeWeight);
-        expect(w.moonDistanceWeight, node.moonDistanceWeight);
-        expect(w.transitProximityWeight, node.transitProximityWeight);
-        expect(w.darknessWeight, node.darknessWeight);
-        expect(w.airmassWeight, node.airmassWeight);
-      },
-    );
+    test('the step preview scores with the step\'s own weights', () {
+      final w = TargetSchedulerNode(
+        altitudeWeight: 0.1,
+        moonDistanceWeight: 0.2,
+        transitProximityWeight: 0.3,
+        darknessWeight: 0.15,
+        airmassWeight: 0.25,
+      ).scoringWeights;
+      expect(w.altitudeWeight, 0.1);
+      expect(w.moonDistanceWeight, 0.2);
+      expect(w.transitProximityWeight, 0.3);
+      expect(w.darknessWeight, 0.15);
+      expect(w.airmassWeight, 0.25);
+    });
 
     test('Dart defaults match the pinned cross-language defaults', () {
       final node = TargetSchedulerNode();
@@ -43,65 +42,6 @@ void main() {
       expect(node.transitProximityWeight, planetarium.transitProximityWeight);
       expect(node.darknessWeight, planetarium.darknessWeight);
       expect(node.airmassWeight, planetarium.airmassWeight);
-    });
-
-    test('Rust source declares the SAME defaults + field set (canary)', () {
-      // Locate the Rust scoring source relative to the monorepo root.
-      final candidates = [
-        File('../../native/skotiq_native/sequencer/src/scheduling/scoring.rs'),
-        File(
-          '${Directory.current.path}/../../native/skotiq_native/sequencer/src/scheduling/scoring.rs',
-        ),
-      ];
-      final rust = candidates.firstWhere(
-        (f) => f.existsSync(),
-        orElse: () => candidates.first,
-      );
-      expect(
-        rust.existsSync(),
-        isTrue,
-        reason:
-            'scoring.rs moved; point this pin at the file that declares '
-            'ScoringWeights',
-      );
-      final src = rust.readAsStringSync();
-
-      // Field set + ordering: the snake_case mirror of the Dart fields.
-      final fieldOrder = <String>[
-        'altitude_weight',
-        'moon_distance_weight',
-        'transit_proximity_weight',
-        'darkness_weight',
-        'airmass_weight',
-      ];
-      var lastIndex = -1;
-      for (final field in fieldOrder) {
-        final idx = src.indexOf('pub $field: f64');
-        expect(
-          idx,
-          greaterThan(lastIndex),
-          reason: 'Rust field "$field" missing or out of contract order',
-        );
-        lastIndex = idx;
-      }
-
-      // Defaults declared in `impl Default for ScoringWeights`.
-      const expectedDefaults = {
-        'altitude_weight': '0.25',
-        'moon_distance_weight': '0.25',
-        'transit_proximity_weight': '0.20',
-        'darkness_weight': '0.15',
-        'airmass_weight': '0.15',
-      };
-      expectedDefaults.forEach((field, value) {
-        expect(
-          src.contains('$field: $value'),
-          isTrue,
-          reason:
-              'Rust default for "$field" drifted from the pinned $value; '
-              'update BOTH sides + the on-sky note if intentional.',
-        );
-      });
     });
   });
 }

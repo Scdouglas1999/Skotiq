@@ -49,7 +49,7 @@ void main() {
   }
 
   test('deletes only phantom/untracked targets and keeps the rest', () async {
-    // Phantom rows — exactly what Framing used to auto-create.
+    // Phantom rows: targets nothing tracks or images.
     final phantom1 = await insertTarget(name: 'Phantom A');
     final phantom2 = await insertTarget(name: 'Phantom B');
 

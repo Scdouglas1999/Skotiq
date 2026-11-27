@@ -1,9 +1,6 @@
-// A multi-node sequence save used to issue one `updateNode` / `createNode` /
-// `deleteNode` per node in a bare loop, with no enclosing transaction. An
-// exception (or an app kill) part-way through saving left the library row
-// updated and the node set half-migrated — some nodes renamed, some of the
-// to-delete set still present — with no recovery path: the next load rebuilt a
-// corrupted tree from whatever survived.
+// A multi-node sequence save is all or nothing: a failure part-way through
+// leaves the library row and every node as they were before the save, so the
+// next load never rebuilds a half-migrated tree.
 //
 // The failure is injected at the database, not at the repository, so the test
 // exercises the real save path: a BEFORE INSERT trigger aborts the insert of

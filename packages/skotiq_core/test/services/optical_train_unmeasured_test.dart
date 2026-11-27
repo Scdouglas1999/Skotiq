@@ -2,9 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/services.dart';
 
-/// A session with no PSF field map and no astrometric residuals used to grade
-/// "A / Excellent" — 0 is the best possible penalty, so "not measured" and
-/// "perfect" were the same number. These lock the distinction in.
+/// A session with no PSF field map and no astrometric residuals is not
+/// measured, which is not the same as perfect (a penalty of 0).
 void main() {
   const service = OpticalTrainDiagnosticsService();
 

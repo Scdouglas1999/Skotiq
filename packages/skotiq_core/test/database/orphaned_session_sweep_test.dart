@@ -91,8 +91,8 @@ void main() {
 
       expect(after.status, SessionStatus.interrupted.token);
       // Back-dated to the last frame, NOT to the recovery clock: a night
-      // abandoned on Wednesday and found on Friday used to report a 60-hour
-      // duration on its History card and in every efficiency figure built on
+      // abandoned on Wednesday and found on Friday lasts as long as it
+      // imaged, on its History card and in every efficiency figure built on
       // it. Whole seconds, because that is the column's resolution.
       expect(
         after.endTime!.millisecondsSinceEpoch ~/ 1000,

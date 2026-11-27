@@ -1,8 +1,6 @@
-// A target the operator named but never gave coordinates used to validate
-// clean. `TargetHeaderNode` is born at exactly RA 0h / Dec +0°, both values
-// are in range, so `TargetCoordinatesRule` passed it and `start()` ran. The
-// runtime stamps that placeholder onto the whole subtree, so an unattended
-// run slewed to a spot in Pisces and recorded every frame as "M31".
+// A target the operator named but never gave coordinates does not start.
+// `TargetHeaderNode` is born at exactly RA 0h / Dec +0°, both in range; a run
+// started from it would slew there and record every frame under the name.
 //
 // These tests drive the real start path — SequenceExecutor.start() ->
 // validateSequenceForStart() -> sequenceValidatorProvider -> the shared

@@ -302,9 +302,8 @@ void main() {
     });
   });
 
-  // The schedule's reasoning said "ill 33%" at 19:48 on 2026-11-03
-  // while Tonight said 27% for the same instant; the engine used its own
-  // cruder phase formula.
+  // At 19:48 local on 2026-11-03 Tonight shows the Moon 27% lit; the
+  // schedule's reasoning quotes the same figure, not one of its own.
   test('the moon factor quotes the lit fraction every screen uses', () async {
     final now = DateTime.utc(2026, 11, 4, 0, 48);
     final engine = SchedulerEngine(

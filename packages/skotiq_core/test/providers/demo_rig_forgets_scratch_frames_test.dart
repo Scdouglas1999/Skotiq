@@ -87,7 +87,7 @@ void main() {
 
     await want(false);
     // The rows go after the swap, without holding it up.
-    for (var i = 0; i < 50 && (await paths()).length > 1; i++) {
+    for (var i = 0; i < 500 && (await paths()).length > 1; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
 

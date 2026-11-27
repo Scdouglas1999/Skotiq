@@ -38,15 +38,11 @@ class _TestBackendNotifier extends BackendNotifier {
   }
 }
 
-/// A checkpoint stores the Rust-side sequence definition and a name — not a
-/// Dart DB id — so a resumed run used to image against a null
-/// `currentSequenceProvider`. Everything that reads the tree then degraded
-/// silently: frames registered with an exposure_duration of 0.0 and no
-/// gain/offset/binning/target, the Dashboard read "no sequence loaded" while the
-/// run was imaging, and the run's history row had no tree to show.
-///
-/// The interrupted run already stored its own tree in
-/// `sequence_runs.sequence_snapshot_json`, so resume recovers it from there.
+/// A checkpoint stores the Rust-side sequence definition and a name, not a
+/// Dart DB id. Resume recovers the tree from the interrupted run's
+/// `sequence_runs.sequence_snapshot_json`, so `currentSequenceProvider` is set
+/// while it images: frames register with the step's exposure, gain, offset,
+/// binning and target, and the run's history row has its tree.
 void main() {
   setUpAll(() {
     registerMocktailFallbackValues();

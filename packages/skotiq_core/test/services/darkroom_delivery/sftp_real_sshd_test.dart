@@ -447,10 +447,10 @@ void main() {
       'two rigs uploading the same file name into one incoming directory '
       'both land, because the delivered name says which rig wrote it',
       () async {
-        // The previous test is what a SECOND RIG used to hit: the same name is
-        // already on the server with different bytes, so its night was refused
-        // terminally and never arrived. A rig-identity component on the
-        // delivered name is what keeps both nights.
+        // The previous test is what a second rig would hit with a bare name:
+        // the same name already on the server with different bytes is refused
+        // for good. A rig-identity component on the delivered name keeps
+        // both nights.
         final shed = destination(
           hostKeyFingerprint: server.hostKeyFingerprint,
           hostKey: server.hostKeyEntry,

@@ -440,7 +440,10 @@ void main() {
       final failed = expectLater(pending, throwsA(isA<SkotiqException>()));
       backend.dispose();
       await failed;
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      // dispose() removes the scratch folder without waiting for it.
+      for (var i = 0; i < 500 && File(path).existsSync(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
       expect(File(path).existsSync(), isFalse);
     },
   );

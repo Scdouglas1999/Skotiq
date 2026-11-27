@@ -1,24 +1,23 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 
 void main() {
-  test('the Dart list names exactly the native seam\'s extensions', () {
-    final source = File(
-      '../../native/skotiq_native/imaging/src/frame_io.rs',
-    ).readAsStringSync();
-    final native = <String>{};
-    for (final block in RegExp(
-      r'fn extensions\(&self\) -> &.static \[&.static str\] \{\s*&\[([^\]]*)\]',
-    ).allMatches(source)) {
-      native.addAll(
-        RegExp(
-          r'"([a-z0-9]+)"',
-        ).allMatches(block.group(1)!).map((m) => m.group(1)!),
-      );
-    }
-    expect(native, isNotEmpty);
+  test('the Dart list names exactly the native readers\' extensions', () {
+    // frame_extensions_fixture.rs checks the native readers against the
+    // same file.
+    final native = {
+      for (final extension
+          in jsonDecode(
+                File(
+                  '../../test_fixtures/wire_words/frame_file_extensions.json',
+                ).readAsStringSync(),
+              )
+              as List)
+        extension as String,
+    };
     // XISF is read by the native side through its own reader as well.
     expect(
       {...FrameFiles.all}..removeAll(FrameFiles.xisf),

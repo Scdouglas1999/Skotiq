@@ -12,8 +12,7 @@
 //   3. A STOP LEAVES THE FILES OWED. Files the pass had not reached when the
 //      operator stopped it keep `retrying` rows with their attempt counts
 //      untouched, so the next sweep — including the one the next boot runs —
-//      resumes them. They used to be written `failed`, which is terminal, and
-//      the sweep reads only `retrying`.
+//      resumes them (the sweep reads only `retrying`; `failed` is terminal).
 
 import 'dart:convert';
 import 'dart:io';

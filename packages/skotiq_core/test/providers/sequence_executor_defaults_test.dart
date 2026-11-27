@@ -269,11 +269,7 @@ void main() {
         ditherEveryFrames: 3,
       );
       await container.read(appSettingsProvider.future);
-      // Warm sequencerDefaultsProvider so its async load completes
-      // before we serialise. Without this the notifier hasn't finished
-      // reading the (empty) settings DAO before the executor reads it.
-      container.read(sequencerDefaultsProvider);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await container.read(sequencerDefaultsProvider.notifier).ensureLoaded();
       final executor = container.read(sequenceExecutorProvider);
 
       final json = executor.sequenceToJsonForTest(
@@ -307,11 +303,7 @@ void main() {
         ditherEveryFrames: 3,
       );
       await container.read(appSettingsProvider.future);
-      // Warm sequencerDefaultsProvider so its async load completes
-      // before we serialise. Without this the notifier hasn't finished
-      // reading the (empty) settings DAO before the executor reads it.
-      container.read(sequencerDefaultsProvider);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await container.read(sequencerDefaultsProvider.notifier).ensureLoaded();
       final executor = container.read(sequenceExecutorProvider);
 
       final json = executor.sequenceToJsonForTest(
@@ -336,11 +328,7 @@ void main() {
         ditherEveryFrames: 3,
       );
       await container.read(appSettingsProvider.future);
-      // Warm sequencerDefaultsProvider so its async load completes
-      // before we serialise. Without this the notifier hasn't finished
-      // reading the (empty) settings DAO before the executor reads it.
-      container.read(sequencerDefaultsProvider);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await container.read(sequencerDefaultsProvider.notifier).ensureLoaded();
       final executor = container.read(sequenceExecutorProvider);
       final json = executor.sequenceToJsonForTest(
         _filterThenExposureSequence(),
@@ -424,11 +412,7 @@ void main() {
         ditherEveryFrames: 3,
       );
       await container.read(appSettingsProvider.future);
-      // Warm sequencerDefaultsProvider so its async load completes
-      // before we serialise. Without this the notifier hasn't finished
-      // reading the (empty) settings DAO before the executor reads it.
-      container.read(sequencerDefaultsProvider);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await container.read(sequencerDefaultsProvider.notifier).ensureLoaded();
       final executor = container.read(sequenceExecutorProvider);
       final json = executor.sequenceToJsonForTest(sequence);
       final decoded = jsonDecode(json) as Map<String, dynamic>;
@@ -470,11 +454,7 @@ void main() {
           ditherEveryFrames: 4,
         );
         await container.read(appSettingsProvider.future);
-        // Warm sequencerDefaultsProvider so its async load completes
-        // before we serialise. Without this the notifier hasn't finished
-        // reading the (empty) settings DAO before the executor reads it.
-        container.read(sequencerDefaultsProvider);
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await container.read(sequencerDefaultsProvider.notifier).ensureLoaded();
         final executor = container.read(sequenceExecutorProvider);
         final json = executor.sequenceToJsonForTest(sequence);
         final decoded = jsonDecode(json) as Map<String, dynamic>;
@@ -527,8 +507,7 @@ void main() {
           ditherEveryFrames: 0,
         );
         await container.read(appSettingsProvider.future);
-        container.read(sequencerDefaultsProvider);
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await container.read(sequencerDefaultsProvider.notifier).ensureLoaded();
         final executor = container.read(sequenceExecutorProvider);
 
         final json = executor.sequenceToJsonForTest(sequence);
@@ -566,8 +545,7 @@ void main() {
         floor: floor,
       );
       await container.read(appSettingsProvider.future);
-      container.read(sequencerDefaultsProvider);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await container.read(sequencerDefaultsProvider.notifier).ensureLoaded();
       final executor = container.read(sequenceExecutorProvider);
       final json = executor.sequenceToJsonForTest(sequence);
       final decoded = jsonDecode(json) as Map<String, dynamic>;

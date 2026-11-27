@@ -1,7 +1,7 @@
 // Live auto-calibration (frames calibrated as they are captured) picks the
 // flat for each light's own filter from the flat library, by its exact name.
-// Reproduction of P6-2: with the fixed master flat left at the Ha flat, an
-// OIII light was divided by it.
+// With the fixed master flat left at the Ha flat, an OIII light is still
+// divided by the OIII flat.
 import 'dart:io';
 
 import 'package:drift/native.dart';

@@ -154,9 +154,8 @@ void main() {
 
   test('a known camera model works before it is ever connected', () async {
     // The tier below "remembered": a camera the app has never seen, but whose
-    // manufacturer publishes its geometry. Framing used to refuse this
-    // outright, which is what made the owner's Plan screen call an
-    // ASI1600MM-Cool's specs unknown on a fresh install.
+    // manufacturer publishes its geometry, such as an ASI1600MM-Cool on a
+    // fresh install, whose specs the Plan screen then knows.
     final backend = MockBackend();
     when(
       () => backend.getCameraStatus(any()),

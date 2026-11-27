@@ -157,6 +157,7 @@ void main() {
       bool abortedByUser = false,
       int attemptCount = 2,
     }) async {
+      final before = mock.delivered.length;
       // The history-growth listener drives the exit push; fire the production
       // apply helper so the same code path the live stream uses runs here.
       applyRecoveryEventForTest(
@@ -169,12 +170,12 @@ void main() {
               : null,
         ),
       );
-      // Let the ref.listen microtask + the stream event flush.
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      for (var i = 0; i < 100 && mock.delivered.length == before; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
       expect(
-        mock.delivered,
-        isNotEmpty,
+        mock.delivered.length,
+        greaterThan(before),
         reason: 'exit event should produce a delivered frame',
       );
       return mock.delivered.last;

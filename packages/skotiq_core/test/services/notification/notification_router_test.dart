@@ -74,8 +74,8 @@ SkotiqEvent _evt({
 void main() {
   // routeRendered is what the dawn autopilot's morning message goes through,
   // and that message is the only surface listing the night's delivery
-  // problems. Every gate below used to be a bare `return`, so the producer
-  // could only report that it had ASKED — and it reported "sent".
+  // problems. Every gate below reports why nothing was sent, so the producer
+  // never reports "sent" for a message that did not leave.
   group('a routed message reports what left the process', () {
     test('a dispatch names the transports it reached', () async {
       final pushover = _RecordingTransport(NotificationTransportKind.pushover);
