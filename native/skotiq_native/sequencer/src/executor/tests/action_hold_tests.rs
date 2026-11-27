@@ -70,3 +70,45 @@ async fn a_held_run_still_stops() {
     executor.stop().await.expect("stop is never held back");
     assert!(!executor.handle().held_by_action());
 }
+
+#[tokio::test]
+async fn a_pause_that_took_over_a_held_run_outlives_the_release() {
+    let mut executor = running_executor().await;
+    let handle = executor.handle();
+    handle.hold_for_action("host").await.expect("hold taken");
+    wait_for(&executor, ExecutorState::Paused).await;
+    handle
+        .pause_from(Some("weather turned unsafe".to_string()))
+        .await
+        .expect("weather pauses the held run");
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    assert_eq!(
+        handle.release_action_hold_to_resume("host"),
+        Err(RunCommandError::StillPaused(
+            "weather turned unsafe".to_string()
+        ))
+    );
+    assert!(!handle.held_by_action(), "the hold itself is released");
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(executor.get_state().await, ExecutorState::Paused);
+
+    // The pause is an ordinary one now: a resume from anywhere lifts it.
+    handle.resume().await.expect("plain pause resumes");
+    wait_for(&executor, ExecutorState::Running).await;
+    executor.stop().await.ok();
+}
+
+#[tokio::test]
+async fn a_hold_alone_is_released_to_resume() {
+    let mut executor = running_executor().await;
+    let handle = executor.handle();
+    handle.hold_for_action("host").await.expect("hold taken");
+    wait_for(&executor, ExecutorState::Paused).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    assert_eq!(handle.release_action_hold_to_resume("host"), Ok(()));
+    handle.resume().await.expect("released run resumes");
+    wait_for(&executor, ExecutorState::Running).await;
+    executor.stop().await.ok();
+}

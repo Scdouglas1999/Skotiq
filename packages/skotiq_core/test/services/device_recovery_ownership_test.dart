@@ -65,7 +65,9 @@ void main() {
     when(() => backend.nativeReconnectedDeviceTypes).thenReturn(nativeTypes);
     when(() => backend.connectDevice(any(), any())).thenAnswer((_) async {});
     when(() => backend.saveCheckpoint()).thenAnswer((_) async {});
-    when(() => backend.sequencerPause()).thenAnswer((_) async {});
+    when(
+      () => backend.sequencerPause(origin: any(named: 'origin')),
+    ).thenAnswer((_) async {});
     final container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith(
@@ -103,7 +105,9 @@ void main() {
       // The run is still protected: the lost camera and mount each take a
       // checkpoint and pause it.
       verify(() => rig.backend.saveCheckpoint()).called(2);
-      verify(() => rig.backend.sequencerPause()).called(2);
+      verify(
+        () => rig.backend.sequencerPause(origin: any(named: 'origin')),
+      ).called(2);
       final health = rig.container.read(deviceHeartbeatHealthProvider.notifier);
       for (final type in DeviceType.values) {
         expect(
@@ -127,7 +131,9 @@ void main() {
       );
       verifyNever(() => rig.backend.connectDevice(any(), any()));
       verifyNever(() => rig.backend.saveCheckpoint());
-      verifyNever(() => rig.backend.sequencerPause());
+      verifyNever(
+        () => rig.backend.sequencerPause(origin: any(named: 'origin')),
+      );
       rig.container.dispose();
       async.flushTimers();
     });

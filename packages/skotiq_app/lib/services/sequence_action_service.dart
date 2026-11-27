@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/backend.dart' show RunStillPaused;
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -256,6 +257,8 @@ class SequenceActionService {
                 try {
                   await _executor.releaseActionHold(resume: resume);
                   return CommandActionResult.ok;
+                } on RunStillPaused catch (stillPaused) {
+                  return CommandActionResult.stillPaused(stillPaused.pausedBy);
                 } catch (e) {
                   return CommandActionResult.failure(
                       'Failed to resume sequence: ${userFacingError(e)}');

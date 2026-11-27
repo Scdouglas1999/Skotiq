@@ -47,6 +47,19 @@ abstract class AdaptiveSwapBackend {
 /// The holder name of a manual action the host's own window runs.
 const String hostActionHolder = 'host';
 
+/// A manual action's release found the run taken over by another pause while
+/// the action held it (weather, a safety or device pause, the operator): the
+/// hold is released, and the run stays paused under that pause.
+class RunStillPaused implements Exception {
+  const RunStillPaused(this.pausedBy);
+
+  /// Who paused the run while the action held it, in a plain phrase.
+  final String pausedBy;
+
+  @override
+  String toString() => 'The run is still paused: $pausedBy.';
+}
+
 abstract class SequencerBackend implements AdaptiveSwapBackend {
   Future<void> sequencerStart();
 
@@ -55,7 +68,10 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
   /// `'scheduler'` for the autopilot.
   Future<void> sequencerStop({String? origin});
 
-  Future<void> sequencerPause();
+  /// Pause a run. [origin] names who asked in a plain phrase ("weather
+  /// turned unsafe"): a pause that reaches a run a manual action holds keeps
+  /// the run paused after the action releases it, and the release names it.
+  Future<void> sequencerPause({String? origin});
 
   /// Hold the run for a manual action of [holder]: a running run is paused,
   /// a paused one stays paused, and until the holder releases it nothing else
@@ -65,7 +81,8 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
 
   /// Resume a paused run. [releasingHoldOf] is the holder whose hold this
   /// resume ends: a manual action's own release. The hold ends even when the
-  /// resume then fails.
+  /// resume then fails. Throws [RunStillPaused], without resuming, when
+  /// another pause took the run over while the hold lasted.
   Future<void> sequencerResume({String? releasingHoldOf});
 
   /// End [holder]'s hold without resuming the run. Returns whether [holder]

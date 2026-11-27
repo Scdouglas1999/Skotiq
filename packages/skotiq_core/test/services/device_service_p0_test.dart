@@ -303,7 +303,9 @@ void main() {
         when(() => mockBackend.saveCheckpoint()).thenAnswer((_) async {
           callOrder.add('checkpoint');
         });
-        when(() => mockBackend.sequencerPause()).thenAnswer((_) async {
+        when(
+          () => mockBackend.sequencerPause(origin: any(named: 'origin')),
+        ).thenAnswer((_) async {
           callOrder.add('pause');
         });
 
@@ -337,7 +339,9 @@ void main() {
           ..setConnected();
 
         when(() => mockBackend.saveCheckpoint()).thenAnswer((_) async {});
-        when(() => mockBackend.sequencerPause()).thenAnswer((_) async {});
+        when(
+          () => mockBackend.sequencerPause(origin: any(named: 'origin')),
+        ).thenAnswer((_) async {});
 
         eventStreamController.add(
           SkotiqEvent(
@@ -352,7 +356,9 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
 
         verify(() => mockBackend.saveCheckpoint()).called(1);
-        verifyNever(() => mockBackend.sequencerPause());
+        verifyNever(
+          () => mockBackend.sequencerPause(origin: any(named: 'origin')),
+        );
       },
     );
   });

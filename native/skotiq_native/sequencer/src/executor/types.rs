@@ -152,7 +152,13 @@ impl Default for ParkPolicy {
 /// [`RunConfigStore`]).
 #[derive(Debug, Clone)]
 pub enum ExecutorCommand {
-    Pause,
+    /// Pause the run; `origin` names who asked (weather, a safety pause, the
+    /// operator) when the caller says.
+    Pause {
+        origin: Option<String>,
+    },
+    /// The pause a manual action's hold makes for itself.
+    PauseForAction,
     Resume,
     Stop,
     Skip,

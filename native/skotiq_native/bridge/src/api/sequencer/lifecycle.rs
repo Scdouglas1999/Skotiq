@@ -102,13 +102,15 @@ fn start_refused(e: StartError) -> SkotiqError {
     }
 }
 
-/// Pause the sequence executor
-pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
-    tracing::info!("Pausing sequence execution");
+/// Pause the sequence executor. `origin` names who asked (weather, a safety
+/// pause, the operator); a pause that reaches a run a manual action holds
+/// keeps it paused after the action releases it, and the release names it.
+pub async fn api_sequencer_pause(origin: Option<String>) -> Result<(), SkotiqError> {
+    tracing::info!(origin = origin.as_deref(), "Pausing sequence execution");
 
     let executor = skotiq_sequencer::executor_handle();
     executor
-        .pause()
+        .pause_from(origin)
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to pause sequence: {}", e)))?;
 
@@ -120,10 +122,15 @@ pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
 /// Resume the sequence executor. `releases_hold_of` names the holder of a
 /// manual action's hold this resume ends ([`api_sequencer_hold_for_action`]);
 /// the hold ends even when the resume then fails, and the run stays paused.
+/// When another pause took the run over while the hold lasted, the run stays
+/// paused under it and the resume is refused with
+/// [`Refusal::RunStillPaused`], naming that pause.
 pub async fn api_sequencer_resume(releases_hold_of: Option<String>) -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence execution");
     if let Some(holder) = releases_hold_of {
-        skotiq_sequencer::executor_handle().release_action_hold(&holder);
+        skotiq_sequencer::executor_handle()
+            .release_action_hold_to_resume(&holder)
+            .map_err(run_command_refused)?;
     }
     crate::sequence_run::resume().await
 }
@@ -152,10 +159,13 @@ pub fn api_sequencer_release_action_hold(holder: String) -> bool {
     skotiq_sequencer::executor_handle().release_action_hold(&holder)
 }
 
-fn run_command_refused(e: skotiq_sequencer::RunCommandError) -> SkotiqError {
+pub(crate) fn run_command_refused(e: skotiq_sequencer::RunCommandError) -> SkotiqError {
     match e {
         skotiq_sequencer::RunCommandError::HeldByAction => {
             SkotiqError::refused(Refusal::RunHeldByAction, e.to_string())
+        }
+        skotiq_sequencer::RunCommandError::StillPaused(_) => {
+            SkotiqError::refused(Refusal::RunStillPaused, e.to_string())
         }
         skotiq_sequencer::RunCommandError::Failed(reason) => SkotiqError::OperationFailed(reason),
     }
@@ -824,7 +834,7 @@ mod executor_site_tests {
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let mut events = get_state().event_bus.subscribe();
 
-        let _ = crate::api::sequencer::lifecycle::api_sequencer_pause().await;
+        let _ = crate::api::sequencer::lifecycle::api_sequencer_pause(None).await;
 
         while let Ok(event) = events.try_recv() {
             assert!(

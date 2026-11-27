@@ -687,6 +687,20 @@ class NightActionController extends Notifier<ManualActionState>
               '${release.error}',
               source: _logSource,
             );
+          case RunReleaseOutcome.stillPaused:
+            // Another pause took the run over during the action; it stays
+            // paused under that pause.
+            runLeftPaused = true;
+            if (error != null) {
+              _log.error('${id.name} also failed: ${error.key}',
+                  source: _logSource);
+            }
+            error = NightText('nightActStillPaused',
+                params: {'reason': release.error ?? _noReason});
+            _log.info(
+              'Run stays paused after ${id.name}: ${release.error}',
+              source: _logSource,
+            );
           case RunReleaseOutcome.notOwed:
             break;
         }

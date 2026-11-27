@@ -219,6 +219,10 @@ pub enum Refusal {
     /// A manual action holds the run paused, and the command was not its
     /// release.
     RunHeldByAction,
+    /// A manual action released its hold, and another pause that took the
+    /// run over meanwhile (weather, a safety or device pause, the operator)
+    /// keeps it paused.
+    RunStillPaused,
     /// No DepthLock goal has the id. Named so its rendering holds none of the
     /// words error text is classified by ("not found", "busy", ...).
     DepthLockNoSuchGoal,

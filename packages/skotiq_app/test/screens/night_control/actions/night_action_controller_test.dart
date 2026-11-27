@@ -151,6 +151,23 @@ void main() {
       expect(h.container.read(sequenceExecutionStateProvider), paused);
     });
 
+    test('a pause that took the run over during the action keeps it paused',
+        () async {
+      final h = actionHarness(runState: running);
+      addTearDown(h.container.dispose);
+      h.ops.resumeResult =
+          const CommandActionResult.stillPaused('Weather turned unsafe');
+
+      await h.container.read(nightActionApiProvider).dither();
+
+      expect(h.ops.calls, ['pause', 'dither', 'resume']);
+      expect(h.container.read(sequenceExecutionStateProvider), paused);
+      final state = h.container.read(nightActionStateProvider);
+      expect(state.runLeftPaused, isTrue);
+      expect(state.error?.key, 'nightActStillPaused');
+      expect(state.error?.params['reason'], 'Weather turned unsafe');
+    });
+
     test('a failed resume leaves the run paused and never stops it', () async {
       final h = actionHarness(runState: running);
       addTearDown(h.container.dispose);

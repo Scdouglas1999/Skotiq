@@ -5396,6 +5396,7 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_load_json_impl(
 }
 fn wire__crate__api__sequencer__lifecycle__api_sequencer_pause_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
+    origin: impl CstDecode<Option<String>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -5404,11 +5405,13 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_pause_impl(
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
+            let api_origin = origin.cst_decode();
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
                         let output_ok =
-                            crate::api::sequencer::lifecycle::api_sequencer_pause().await?;
+                            crate::api::sequencer::lifecycle::api_sequencer_pause(api_origin)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -7728,14 +7731,15 @@ impl CstDecode<crate::error::Refusal> for i32 {
             3 => crate::error::Refusal::ExecutorNotIdle,
             4 => crate::error::Refusal::NoSequenceLoaded,
             5 => crate::error::Refusal::RunHeldByAction,
-            6 => crate::error::Refusal::DepthLockNoSuchGoal,
-            7 => crate::error::Refusal::DepthLockStaleRevision,
-            8 => crate::error::Refusal::DepthLockUnavailable,
-            9 => crate::error::Refusal::LightLeak,
-            10 => crate::error::Refusal::LiveStackMisaligned,
-            11 => crate::error::Refusal::LiveStackOtherFilter,
-            12 => crate::error::Refusal::LiveStackUnreadable,
-            13 => crate::error::Refusal::LiveStackTooFewReferenceStars,
+            6 => crate::error::Refusal::RunStillPaused,
+            7 => crate::error::Refusal::DepthLockNoSuchGoal,
+            8 => crate::error::Refusal::DepthLockStaleRevision,
+            9 => crate::error::Refusal::DepthLockUnavailable,
+            10 => crate::error::Refusal::LightLeak,
+            11 => crate::error::Refusal::LiveStackMisaligned,
+            12 => crate::error::Refusal::LiveStackOtherFilter,
+            13 => crate::error::Refusal::LiveStackUnreadable,
+            14 => crate::error::Refusal::LiveStackTooFewReferenceStars,
             _ => unreachable!("Invalid variant for Refusal: {}", self),
         }
     }
@@ -12197,14 +12201,15 @@ impl SseDecode for crate::error::Refusal {
             3 => crate::error::Refusal::ExecutorNotIdle,
             4 => crate::error::Refusal::NoSequenceLoaded,
             5 => crate::error::Refusal::RunHeldByAction,
-            6 => crate::error::Refusal::DepthLockNoSuchGoal,
-            7 => crate::error::Refusal::DepthLockStaleRevision,
-            8 => crate::error::Refusal::DepthLockUnavailable,
-            9 => crate::error::Refusal::LightLeak,
-            10 => crate::error::Refusal::LiveStackMisaligned,
-            11 => crate::error::Refusal::LiveStackOtherFilter,
-            12 => crate::error::Refusal::LiveStackUnreadable,
-            13 => crate::error::Refusal::LiveStackTooFewReferenceStars,
+            6 => crate::error::Refusal::RunStillPaused,
+            7 => crate::error::Refusal::DepthLockNoSuchGoal,
+            8 => crate::error::Refusal::DepthLockStaleRevision,
+            9 => crate::error::Refusal::DepthLockUnavailable,
+            10 => crate::error::Refusal::LightLeak,
+            11 => crate::error::Refusal::LiveStackMisaligned,
+            12 => crate::error::Refusal::LiveStackOtherFilter,
+            13 => crate::error::Refusal::LiveStackUnreadable,
+            14 => crate::error::Refusal::LiveStackTooFewReferenceStars,
             _ => unreachable!("Invalid variant for Refusal: {}", inner),
         };
     }
@@ -17326,14 +17331,15 @@ impl flutter_rust_bridge::IntoDart for crate::error::Refusal {
             Self::ExecutorNotIdle => 3.into_dart(),
             Self::NoSequenceLoaded => 4.into_dart(),
             Self::RunHeldByAction => 5.into_dart(),
-            Self::DepthLockNoSuchGoal => 6.into_dart(),
-            Self::DepthLockStaleRevision => 7.into_dart(),
-            Self::DepthLockUnavailable => 8.into_dart(),
-            Self::LightLeak => 9.into_dart(),
-            Self::LiveStackMisaligned => 10.into_dart(),
-            Self::LiveStackOtherFilter => 11.into_dart(),
-            Self::LiveStackUnreadable => 12.into_dart(),
-            Self::LiveStackTooFewReferenceStars => 13.into_dart(),
+            Self::RunStillPaused => 6.into_dart(),
+            Self::DepthLockNoSuchGoal => 7.into_dart(),
+            Self::DepthLockStaleRevision => 8.into_dart(),
+            Self::DepthLockUnavailable => 9.into_dart(),
+            Self::LightLeak => 10.into_dart(),
+            Self::LiveStackMisaligned => 11.into_dart(),
+            Self::LiveStackOtherFilter => 12.into_dart(),
+            Self::LiveStackUnreadable => 13.into_dart(),
+            Self::LiveStackTooFewReferenceStars => 14.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -22151,14 +22157,15 @@ impl SseEncode for crate::error::Refusal {
                 crate::error::Refusal::ExecutorNotIdle => 3,
                 crate::error::Refusal::NoSequenceLoaded => 4,
                 crate::error::Refusal::RunHeldByAction => 5,
-                crate::error::Refusal::DepthLockNoSuchGoal => 6,
-                crate::error::Refusal::DepthLockStaleRevision => 7,
-                crate::error::Refusal::DepthLockUnavailable => 8,
-                crate::error::Refusal::LightLeak => 9,
-                crate::error::Refusal::LiveStackMisaligned => 10,
-                crate::error::Refusal::LiveStackOtherFilter => 11,
-                crate::error::Refusal::LiveStackUnreadable => 12,
-                crate::error::Refusal::LiveStackTooFewReferenceStars => 13,
+                crate::error::Refusal::RunStillPaused => 6,
+                crate::error::Refusal::DepthLockNoSuchGoal => 7,
+                crate::error::Refusal::DepthLockStaleRevision => 8,
+                crate::error::Refusal::DepthLockUnavailable => 9,
+                crate::error::Refusal::LightLeak => 10,
+                crate::error::Refusal::LiveStackMisaligned => 11,
+                crate::error::Refusal::LiveStackOtherFilter => 12,
+                crate::error::Refusal::LiveStackUnreadable => 13,
+                crate::error::Refusal::LiveStackTooFewReferenceStars => 14,
                 _ => {
                     unimplemented!("");
                 }
@@ -32076,8 +32083,9 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_pause(
         port_: i64,
+        origin: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__sequencer__lifecycle__api_sequencer_pause_impl(port_)
+        wire__crate__api__sequencer__lifecycle__api_sequencer_pause_impl(port_, origin)
     }
 
     #[unsafe(no_mangle)]

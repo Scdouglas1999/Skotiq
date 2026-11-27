@@ -576,14 +576,29 @@ extension _SequencerLifecycle on SequencerHandlers {
         details: {kWasRunningField: true},
       );
 
+  /// A manual action's release found another pause holding the run: the
+  /// hold is released and the run stays paused under [pausedBy].
+  HandlerFailure _runStillPaused(RunStillPaused stillPaused) => HandlerFailure(
+    code: ApiErrorCodes.runStillPaused,
+    message:
+        'The hold was released, and the run is still paused: '
+        '${stillPaused.pausedBy}.',
+    statusCode: 409,
+    cause: stillPaused,
+    details: {'pausedBy': stillPaused.pausedBy, kWasRunningField: true},
+  );
+
   /// Run [command], answering the executor's refusal of a held run as
-  /// [_runHeldByAction].
+  /// [_runHeldByAction] and a release whose run stays paused as
+  /// [_runStillPaused].
   Future<void> _unlessHeld(String verb, Future<void> Function() command) async {
     try {
       await command();
     } on bridge_api.SkotiqError_Refused catch (error) {
       if (error.kind != bridge_api.Refusal.runHeldByAction) rethrow;
       throw _runHeldByAction(verb, error);
+    } on RunStillPaused catch (stillPaused) {
+      throw _runStillPaused(stillPaused);
     }
   }
 
@@ -592,10 +607,9 @@ extension _SequencerLifecycle on SequencerHandlers {
   /// it pauses a running run or holds a paused one.
   Future<Response> _handleSequencerPause(Request request) async {
     _logInfo('[API] POST /api/sequencer/pause');
-    final forAction = optionalBool(
-      await readJsonObjectOrEmpty(request),
-      'forAction',
-    );
+    final body = await readJsonObjectOrEmpty(request);
+    final forAction = optionalBool(body, 'forAction');
+    final origin = optionalString(body, 'origin', maxLength: 200);
     await _requireRunInFlight('pause');
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerPause,
@@ -609,7 +623,7 @@ extension _SequencerLifecycle on SequencerHandlers {
         ),
       );
     } else {
-      await backend.sequencerPause();
+      await backend.sequencerPause(origin: origin);
     }
     publishHostMutationFromContainer(
       container,

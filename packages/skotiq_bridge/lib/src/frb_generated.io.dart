@@ -15261,17 +15261,32 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__sequencer__lifecycle__api_sequencer_pause(int port_) {
-    return _wire__crate__api__sequencer__lifecycle__api_sequencer_pause(port_);
+  void wire__crate__api__sequencer__lifecycle__api_sequencer_pause(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> origin,
+  ) {
+    return _wire__crate__api__sequencer__lifecycle__api_sequencer_pause(
+      port_,
+      origin,
+    );
   }
 
   late final _wire__crate__api__sequencer__lifecycle__api_sequencer_pausePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
         'frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_pause',
       );
   late final _wire__crate__api__sequencer__lifecycle__api_sequencer_pause =
       _wire__crate__api__sequencer__lifecycle__api_sequencer_pausePtr
-          .asFunction<void Function(int)>();
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void
   wire__crate__api__sequencer__lifecycle__api_sequencer_plugin_node_finished(

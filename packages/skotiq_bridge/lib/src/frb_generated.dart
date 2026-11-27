@@ -1004,7 +1004,7 @@ abstract class RustLibApi extends BaseApi {
     required String json,
   });
 
-  Future<void> crateApiSequencerLifecycleApiSequencerPause();
+  Future<void> crateApiSequencerLifecycleApiSequencerPause({String? origin});
 
   Future<void> crateApiSequencerLifecycleApiSequencerPluginNodeFinished({
     required String nodeId,
@@ -8034,13 +8034,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSequencerLifecycleApiSequencerPause() {
+  Future<void> crateApiSequencerLifecycleApiSequencerPause({String? origin}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(origin);
           return wire
               .wire__crate__api__sequencer__lifecycle__api_sequencer_pause(
                 port_,
+                arg0,
               );
         },
         codec: DcoCodec(
@@ -8048,14 +8050,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiSequencerLifecycleApiSequencerPauseConstMeta,
-        argValues: [],
+        argValues: [origin],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiSequencerLifecycleApiSequencerPauseConstMeta =>
-      const TaskConstMeta(debugName: "api_sequencer_pause", argNames: []);
+      const TaskConstMeta(
+        debugName: "api_sequencer_pause",
+        argNames: ["origin"],
+      );
 
   @override
   Future<void> crateApiSequencerLifecycleApiSequencerPluginNodeFinished({

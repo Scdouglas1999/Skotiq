@@ -23,9 +23,25 @@ struct Inner {
     /// The operator's own Stop ended the run in flight. Read by the one rule
     /// on how a run ends ([`super::start::night_end::owes_end_steps`]).
     stopped_by_operator: AtomicBool,
-    /// Who holds the run for a manual action, while one does. See
+    /// The manual action's hold on the run, while one holds it. See
     /// [`RunCell::take_action_hold`].
-    action_hold: Mutex<Option<String>>,
+    action_hold: Mutex<Option<ActionHold>>,
+}
+
+struct ActionHold {
+    holder: String,
+    /// Why the run was paused again while the hold lasted: weather, a
+    /// safety or device pause, a trigger, the operator. That pause outlives
+    /// the hold.
+    paused_over: Option<String>,
+}
+
+/// What a hold's release leaves behind.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HoldReleased {
+    /// Another pause took the run over while the hold lasted; the run stays
+    /// paused under it.
+    pub still_paused: Option<String>,
 }
 
 /// A manual action of another holder holds the run.
@@ -248,10 +264,15 @@ impl RunCell {
     pub(crate) fn take_action_hold(&self, holder: &str) -> Result<(), HeldByAction> {
         {
             let mut hold = self.inner.action_hold.lock();
-            match hold.as_deref() {
-                Some(current) if current == holder => return Ok(()),
+            match hold.as_ref() {
+                Some(current) if current.holder == holder => return Ok(()),
                 Some(_) => return Err(HeldByAction),
-                None => *hold = Some(holder.to_string()),
+                None => {
+                    *hold = Some(ActionHold {
+                        holder: holder.to_string(),
+                        paused_over: None,
+                    })
+                }
             }
         }
         self.emit(ExecutorEvent::ActionHoldChanged { held: true });
@@ -259,17 +280,27 @@ impl RunCell {
     }
 
     /// End `holder`'s hold. The run is left as it is: still paused until
-    /// someone resumes it. Returns whether `holder` held it.
-    pub(crate) fn release_action_hold(&self, holder: &str) -> bool {
-        {
+    /// someone resumes it. None when `holder` did not hold it.
+    pub(crate) fn release_action_hold(&self, holder: &str) -> Option<HoldReleased> {
+        let released = {
             let mut hold = self.inner.action_hold.lock();
-            if hold.as_deref() != Some(holder) {
-                return false;
+            if hold.as_ref().map(|h| h.holder.as_str()) != Some(holder) {
+                return None;
             }
-            *hold = None;
-        }
+            hold.take()?
+        };
         self.emit(ExecutorEvent::ActionHoldChanged { held: false });
-        true
+        Some(HoldReleased {
+            still_paused: released.paused_over,
+        })
+    }
+
+    /// A pause other than the hold's own reached the run while a hold lasts:
+    /// it outlives the hold, so the release does not resume the run.
+    pub(crate) fn note_pause_over_hold(&self, origin: &str) {
+        if let Some(hold) = self.inner.action_hold.lock().as_mut() {
+            hold.paused_over = Some(origin.to_string());
+        }
     }
 
     /// Whether a manual action holds the run.
@@ -323,9 +354,27 @@ pub(crate) struct RunControl {
 }
 
 impl RunControl {
-    /// Pause the run for the operator, with `reason` as the status banner
-    /// when given.
+    /// Pause the run from inside it (a trigger, a recovery), with `reason`
+    /// as the status banner when given.
     pub(crate) fn pause(&self, reason: Option<String>) {
+        self.state
+            .note_pause_over_hold(reason.as_deref().unwrap_or("a run trigger paused it"));
+        self.pause_run(reason);
+    }
+
+    /// Pause the run on a command from outside it; `origin` names who asked.
+    pub(crate) fn pause_from(&self, origin: Option<&str>) {
+        self.state
+            .note_pause_over_hold(origin.unwrap_or("it was paused again"));
+        self.pause_run(None);
+    }
+
+    /// The pause a manual action's hold makes for itself.
+    pub(crate) fn pause_for_action(&self) {
+        self.pause_run(None);
+    }
+
+    fn pause_run(&self, reason: Option<String>) {
         self.is_paused.store(true, Ordering::Relaxed);
         if let Some(paused) = self.state.pause(reason) {
             paused.announce();
@@ -501,9 +550,9 @@ mod tests {
         assert_eq!(state.take_action_hold("phone"), Ok(()));
         assert_eq!(state.take_action_hold("host"), Err(HeldByAction));
         assert!(state.held_by_action());
-        assert!(!state.release_action_hold("host"));
+        assert!(state.release_action_hold("host").is_none());
         assert!(state.held_by_action());
-        assert!(state.release_action_hold("phone"));
+        assert!(state.release_action_hold("phone").is_some());
 
         assert!(!state.held_by_action());
         assert_eq!(hold_changes(&mut events), vec![true, false]);

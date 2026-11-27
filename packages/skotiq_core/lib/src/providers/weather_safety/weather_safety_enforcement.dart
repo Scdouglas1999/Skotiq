@@ -253,7 +253,7 @@ extension _WeatherSafetyEnforcement on WeatherSafetyNotifier {
     final failures = <String>[];
     if (sequenceResumeIssued) {
       try {
-        await backend.sequencerPause();
+        await backend.sequencerPause(origin: 'weather turned unsafe');
       } catch (error) {
         failures.add('pause sequence: $error');
       }

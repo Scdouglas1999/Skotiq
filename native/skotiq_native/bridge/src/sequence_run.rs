@@ -1,7 +1,7 @@
 //! Control of the sequence run that callers inside the bridge share with the
 //! app's FFI functions.
 
-use crate::error::{Refusal, SkotiqError};
+use crate::error::SkotiqError;
 use crate::event::bus::EventPayload;
 use crate::event::correlation::create_event_auto_id;
 use crate::event::equipment::{EventCategory, EventSeverity};
@@ -21,12 +21,10 @@ pub(crate) async fn resume() -> Result<(), SkotiqError> {
         .resume()
         .await
         .map_err(|e| match e {
-            skotiq_sequencer::RunCommandError::HeldByAction => {
-                SkotiqError::refused(Refusal::RunHeldByAction, e.to_string())
-            }
             skotiq_sequencer::RunCommandError::Failed(reason) => {
                 SkotiqError::OperationFailed(format!("Failed to resume sequence: {reason}"))
             }
+            refused => crate::api::sequencer::lifecycle::run_command_refused(refused),
         })?;
 
     get_state().publish_event(create_event_auto_id(

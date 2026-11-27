@@ -41,9 +41,11 @@ impl ExecutorHandle {
             ts.guiding.is_enabled()
         };
         if let Some(tx) = self.commands.sender() {
-            tx.send(ExecutorCommand::Pause)
-                .await
-                .map_err(|e| e.to_string())?;
+            tx.send(ExecutorCommand::Pause {
+                origin: Some("a mount fault paused it".to_string()),
+            })
+            .await
+            .map_err(|e| e.to_string())?;
         }
         if run_guiding {
             crate::guiding_stop::stop_guider_for_move(

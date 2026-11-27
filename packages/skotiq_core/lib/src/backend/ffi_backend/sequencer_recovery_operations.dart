@@ -15,8 +15,11 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> sequencerPause() async {
-    await _native('sequencerPause', () => bridge.apiSequencerPause());
+  Future<void> sequencerPause({String? origin}) async {
+    await _native(
+      'sequencerPause',
+      () => bridge.apiSequencerPause(origin: origin),
+    );
   }
 
   @override
@@ -31,10 +34,15 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
 
   @override
   Future<void> sequencerResume({String? releasingHoldOf}) async {
-    await _native(
-      'sequencerResume',
-      () => bridge.apiSequencerResume(releasesHoldOf: releasingHoldOf),
-    );
+    try {
+      await _native(
+        'sequencerResume',
+        () => bridge.apiSequencerResume(releasesHoldOf: releasingHoldOf),
+      );
+    } on bridge.SkotiqError_Refused catch (e) {
+      if (e.kind != bridge.Refusal.runStillPaused) rethrow;
+      throw RunStillPaused(e.message);
+    }
   }
 
   @override

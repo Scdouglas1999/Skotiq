@@ -21,13 +21,18 @@ Future<void> apiSequencerLoadJson({required String json}) => RustLib
 Future<void> apiSequencerStart() =>
     RustLib.instance.api.crateApiSequencerLifecycleApiSequencerStart();
 
-/// Pause the sequence executor
-Future<void> apiSequencerPause() =>
-    RustLib.instance.api.crateApiSequencerLifecycleApiSequencerPause();
+/// Pause the sequence executor. `origin` names who asked (weather, a safety
+/// pause, the operator); a pause that reaches a run a manual action holds
+/// keeps it paused after the action releases it, and the release names it.
+Future<void> apiSequencerPause({String? origin}) => RustLib.instance.api
+    .crateApiSequencerLifecycleApiSequencerPause(origin: origin);
 
 /// Resume the sequence executor. `releases_hold_of` names the holder of a
 /// manual action's hold this resume ends ([`api_sequencer_hold_for_action`]);
 /// the hold ends even when the resume then fails, and the run stays paused.
+/// When another pause took the run over while the hold lasted, the run stays
+/// paused under it and the resume is refused with
+/// [`Refusal::RunStillPaused`], naming that pause.
 Future<void> apiSequencerResume({String? releasesHoldOf}) =>
     RustLib.instance.api.crateApiSequencerLifecycleApiSequencerResume(
       releasesHoldOf: releasesHoldOf,

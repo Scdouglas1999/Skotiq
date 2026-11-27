@@ -27,8 +27,8 @@ extension _DeviceServiceGuidingSequencerControls on DeviceService {
     await _backend.sequencerStop();
   }
 
-  Future<void> _pauseSequence() async {
-    await _backend.sequencerPause();
+  Future<void> _pauseSequence({String? origin}) async {
+    await _backend.sequencerPause(origin: origin);
   }
 
   Future<void> _resumeSequence() async {

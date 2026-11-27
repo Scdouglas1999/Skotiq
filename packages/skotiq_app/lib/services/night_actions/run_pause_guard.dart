@@ -110,6 +110,11 @@ enum RunReleaseOutcome {
 
   /// Resume failed. The run stays paused; it is never stopped or parked.
   resumeFailed,
+
+  /// The hold ended, and another pause that took the run over while it
+  /// lasted (weather, a safety or device pause, the operator) keeps the run
+  /// paused. [RunReleaseResult.error] names it.
+  stillPaused,
 }
 
 class RunReleaseResult {
@@ -216,6 +221,10 @@ class RunPauseGuard {
       final result = await _resume();
       if (result.isSuccess) {
         return const RunReleaseResult(RunReleaseOutcome.resumed);
+      }
+      final pausedBy = result.stillPausedBy;
+      if (pausedBy != null) {
+        return RunReleaseResult(RunReleaseOutcome.stillPaused, error: pausedBy);
       }
       return RunReleaseResult(
         RunReleaseOutcome.resumeFailed,

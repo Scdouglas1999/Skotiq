@@ -30,6 +30,11 @@ enum Refusal {
   /// release.
   runHeldByAction,
 
+  /// A manual action released its hold, and another pause that took the
+  /// run over meanwhile (weather, a safety or device pause, the operator)
+  /// keeps it paused.
+  runStillPaused,
+
   /// No DepthLock goal has the id. Named so its rendering holds none of the
   /// words error text is classified by ("not found", "busy", ...).
   depthLockNoSuchGoal,

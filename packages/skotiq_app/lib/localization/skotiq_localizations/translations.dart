@@ -745,6 +745,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActErrPause': 'The run could not be paused: {detail}',
     'nightActErrResume':
         'The run could not be resumed and is still paused: {detail}',
+    'nightActStillPaused':
+        'The run stays paused because something else paused it: {reason}',
     'nightActErrRunMoved':
         'The run was resumed or stopped before the action could start',
     'nightActStartAtDark': 'Start at dark',
@@ -2495,6 +2497,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActErrPause': 'No se pudo pausar la sesión: {detail}',
     'nightActErrResume':
         'No se pudo reanudar la sesión y sigue en pausa: {detail}',
+    'nightActStillPaused':
+        'La sesión sigue en pausa porque otra cosa la pausó: {reason}',
     'nightActErrRunMoved':
         'La sesión se reanudó o se detuvo antes de que empezara la acción',
     'nightActStartAtDark': 'Empezar al anochecer',

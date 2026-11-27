@@ -176,6 +176,49 @@ void main() {
     expect((await _bodyOf(response))['error'], ApiErrorCodes.runHeldByAction);
   });
 
+  test(
+    'a release whose run another pause took over answers 409 naming it',
+    () async {
+      hostReports(held: true);
+      when(
+        () => backend.sequencerResume(releasingHoldOf: 'phone-token'),
+      ).thenThrow(const RunStillPaused('Weather turned unsafe'));
+
+      final response = await translateHandlerErrors(
+        handlers.handleSequencerResume(
+          _post(
+            'resume',
+            body: {'releasesHold': true},
+            identity: 'phone-token',
+          ),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.conflict);
+      final body = await _bodyOf(response);
+      expect(body['error'], ApiErrorCodes.runStillPaused);
+      expect(body['message'], contains('Weather turned unsafe'));
+    },
+  );
+
+  test('a pause names who asked for it', () async {
+    hostReports(held: true);
+    when(
+      () => backend.sequencerPause(origin: any(named: 'origin')),
+    ).thenAnswer((_) async {});
+
+    final response = await translateHandlerErrors(
+      handlers.handleSequencerPause(
+        _post('pause', body: {'origin': 'Weather turned unsafe'}),
+      ),
+    );
+
+    expect(response.statusCode, HttpStatus.ok);
+    verify(
+      () => backend.sequencerPause(origin: 'Weather turned unsafe'),
+    ).called(1);
+  });
+
   test('a held run still stops', () async {
     hostReports(held: true);
 

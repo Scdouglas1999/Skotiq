@@ -21,6 +21,7 @@
 //!     `recovery_try_now` / `recovery_abort` *commands* live here because
 //!     they are lifecycle gestures (drive the loop), not state reads.
 
+use super::run_state::HoldReleased;
 use super::{ExecutorCommand, ExecutorHandle, ExecutorState, SequenceExecutor};
 use crate::decision::{DecisionCategory, DecisionEvent, RunStop};
 
@@ -30,6 +31,9 @@ pub enum RunCommandError {
     /// A manual action holds the run paused, and the command was not its
     /// release.
     HeldByAction,
+    /// The hold was released, and another pause that took the run over
+    /// while it lasted keeps it paused; the text names that pause.
+    StillPaused(String),
     /// The command could not be made; the text says why.
     Failed(String),
 }
@@ -40,6 +44,7 @@ impl std::fmt::Display for RunCommandError {
             Self::HeldByAction => f.write_str(
                 "A manual action holds the run paused; it resumes the run when it finishes.",
             ),
+            Self::StillPaused(origin) => write!(f, "The run is still paused: {origin}."),
             Self::Failed(reason) => f.write_str(reason),
         }
     }
@@ -246,8 +251,15 @@ impl ExecutorHandle {
     /// sequence is a no-op (the channel send is dropped silently by the
     /// command loop's `Pause` arm).
     pub async fn pause(&self) -> Result<(), String> {
+        self.pause_from(None).await
+    }
+
+    /// Pause the run; `origin` names who asked (weather, a safety pause, the
+    /// operator). A pause that reaches a run a manual action holds outlives
+    /// the hold.
+    pub async fn pause_from(&self, origin: Option<String>) -> Result<(), String> {
         if let Some(tx) = self.commands.sender() {
-            tx.send(ExecutorCommand::Pause)
+            tx.send(ExecutorCommand::Pause { origin })
                 .await
                 .map_err(|e| e.to_string())?;
         }
@@ -277,7 +289,7 @@ impl ExecutorHandle {
             .map_err(|_| RunCommandError::HeldByAction)?;
         if state != ExecutorState::Paused {
             if let Some(tx) = self.commands.sender() {
-                tx.send(ExecutorCommand::Pause)
+                tx.send(ExecutorCommand::PauseForAction)
                     .await
                     .map_err(|e| RunCommandError::Failed(e.to_string()))?;
             }
@@ -289,7 +301,20 @@ impl ExecutorHandle {
     /// End `holder`'s hold on the run. The run stays paused; resuming it is a
     /// separate command. Returns whether `holder` held it.
     pub fn release_action_hold(&self, holder: &str) -> bool {
-        self.run_state.release_action_hold(holder)
+        self.run_state.release_action_hold(holder).is_some()
+    }
+
+    /// End `holder`'s hold ahead of the action's own resume. Refused with
+    /// [`RunCommandError::StillPaused`] when another pause took the run over
+    /// while the hold lasted: the run stays paused under that pause and is
+    /// not resumed. A holder that holds nothing has nothing to release.
+    pub fn release_action_hold_to_resume(&self, holder: &str) -> Result<(), RunCommandError> {
+        match self.run_state.release_action_hold(holder) {
+            Some(HoldReleased {
+                still_paused: Some(origin),
+            }) => Err(RunCommandError::StillPaused(origin)),
+            _ => Ok(()),
+        }
     }
 
     /// Whether a manual action holds the run.

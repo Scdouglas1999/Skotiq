@@ -3541,7 +3541,8 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_load_json(int64_t port_,
                                                                                           struct wire_cst_list_prim_u_8_strict *json);
 
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_pause(int64_t port_);
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_pause(int64_t port_,
+                                                                                      struct wire_cst_list_prim_u_8_strict *origin);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_plugin_node_finished(int64_t port_,
                                                                                                      struct wire_cst_list_prim_u_8_strict *node_id,
