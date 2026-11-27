@@ -250,8 +250,15 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
       // IPv4 host); a tailnet address may be IPv6, which tailscaleUrl
       // brackets.
       final lanIp = LocalAddresses.lanIpv4(interfaces, skipTailnet: true);
-      final tailscaleIp =
-          LocalAddresses.tailnet(interfaces, preferIpv4: true)?.address ?? '';
+      final tailscaleV4 = LocalAddresses.tailnet(
+        interfaces,
+        type: InternetAddressType.IPv4,
+      )?.address;
+      final tailscaleV6 = LocalAddresses.tailnet(
+        interfaces,
+        type: InternetAddressType.IPv6,
+      )?.address;
+      final tailscaleIp = tailscaleV4 ?? tailscaleV6 ?? '';
       final tailscaleReachable = tailscaleIp.isNotEmpty && !state.bindLocalOnly;
 
       state = state.copyWith(

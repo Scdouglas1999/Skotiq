@@ -419,7 +419,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         includeLoopback: false,
         type: InternetAddressType.any,
       );
-      final address = LocalAddresses.tailnet(interfaces, preferIpv4: false);
+      final address = LocalAddresses.tailnet(interfaces);
       if (address != null) {
         _tailscaleHost = address.address;
         _logInfo('[remote] tailnet address detected: ${address.address}');

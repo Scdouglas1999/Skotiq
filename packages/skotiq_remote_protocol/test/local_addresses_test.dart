@@ -41,19 +41,19 @@ void main() {
     );
   });
 
-  test('the tailnet address is the first one, or the first IPv4 one', () {
+  test('the tailnet address is the first one, or the first of a family', () {
+    expect(LocalAddresses.tailnet(interfaces)?.address, 'fd7a:115c:a1e0::1');
     expect(
-      LocalAddresses.tailnet(interfaces, preferIpv4: false)?.address,
-      'fd7a:115c:a1e0::1',
-    );
-    expect(
-      LocalAddresses.tailnet(interfaces, preferIpv4: true)?.address,
+      LocalAddresses.tailnet(
+        interfaces,
+        type: InternetAddressType.IPv4,
+      )?.address,
       '100.101.102.103',
     );
     expect(
       LocalAddresses.tailnet([
         _Interface('eth0', ['100.63.0.1', '10.0.0.5']),
-      ], preferIpv4: true),
+      ]),
       isNull,
     );
   });

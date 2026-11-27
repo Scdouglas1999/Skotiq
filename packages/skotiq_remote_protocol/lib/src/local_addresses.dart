@@ -29,24 +29,21 @@ abstract final class LocalAddresses {
     return null;
   }
 
-  /// The first Tailscale address of [interfaces] in interface order, or with
-  /// [preferIpv4] the first IPv4 one when there is any.
+  /// The first Tailscale address of [interfaces] in interface order, of
+  /// address family [type].
   static InternetAddress? tailnet(
     List<NetworkInterface> interfaces, {
-    required bool preferIpv4,
+    InternetAddressType type = InternetAddressType.any,
   }) {
-    final found = [
-      for (final interface in interfaces)
-        for (final address in interface.addresses)
-          if (!address.isLoopback &&
-              TailnetDetector.isTailscaleInterfaceAddress(address))
-            address,
-    ];
-    if (preferIpv4) {
-      for (final address in found) {
-        if (address.type == InternetAddressType.IPv4) return address;
+    for (final interface in interfaces) {
+      for (final address in interface.addresses) {
+        if (type != InternetAddressType.any && address.type != type) continue;
+        if (!address.isLoopback &&
+            TailnetDetector.isTailscaleInterfaceAddress(address)) {
+          return address;
+        }
       }
     }
-    return found.firstOrNull;
+    return null;
   }
 }
