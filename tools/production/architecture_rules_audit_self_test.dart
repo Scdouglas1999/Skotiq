@@ -131,6 +131,27 @@ Future<void> main() async {
   );
 
   await check(
+    'any crate may take the fixtures crate as a dev-dependency',
+    (root) => _write(
+      root,
+      'native/skotiq_native/device/Cargo.toml',
+      _cargo('skotiq_device', [], devDeps: ['skotiq_wire_fixtures']),
+    ),
+    exitCode: 0,
+  );
+
+  await check(
+    'the fixtures crate as a shipped dependency fails',
+    (root) => _write(
+      root,
+      'native/skotiq_native/device/Cargo.toml',
+      _cargo('skotiq_device', ['skotiq_wire_fixtures']),
+    ),
+    exitCode: 1,
+    stderrHas: ['skotiq_device depends on skotiq_wire_fixtures'],
+  );
+
+  await check(
     'a backend class test in app code fails',
     (root) => _write(
       root,
@@ -1278,7 +1299,11 @@ String _pubspec(String name, List<String> deps) => [
   '',
 ].join('\n');
 
-String _cargo(String name, List<String> deps) => [
+String _cargo(
+  String name,
+  List<String> deps, {
+  List<String> devDeps = const [],
+}) => [
   '[package]',
   'name = "$name"',
   '',
@@ -1286,6 +1311,11 @@ String _cargo(String name, List<String> deps) => [
   'serde = "1"',
   for (final dep in deps) '$dep = { path = "../$dep" }',
   '',
+  if (devDeps.isNotEmpty) ...[
+    '[dev-dependencies]',
+    for (final dep in devDeps) '$dep = { path = "../$dep" }',
+    '',
+  ],
 ].join('\n');
 
 Future<void> _write(Directory root, String relative, String content) async {
