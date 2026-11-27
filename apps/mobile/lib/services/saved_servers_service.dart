@@ -1171,18 +1171,3 @@ class SavedServersService {
 final savedServersServiceProvider = Provider<SavedServersService>((ref) {
   return SavedServersService();
 });
-
-/// Signature of the relay-reconnect bridge — see [relayReconnectProvider].
-typedef RelayReconnectFn = Future<void> Function(SavedServer server);
-
-/// Bridge for reconnecting a saved *relay* server from the saved-servers
-/// screen.
-///
-/// The relay tunnel (`RelayTunnelClient`) is owned by the always-mounted
-/// mobile connection shell so it outlives the dashboard-launched
-/// `SavedServersScreen`. The screen can't reach that state directly, so the
-/// shell registers a relay-connect closure here on first frame; the screen
-/// reads it to dial a saved relay row. `null` until the shell is mounted
-/// (e.g. a widget test that pumps the screen in isolation) — in that case the
-/// relay row tap surfaces a "not available" message rather than crashing.
-final relayReconnectProvider = StateProvider<RelayReconnectFn?>((ref) => null);

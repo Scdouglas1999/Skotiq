@@ -12,6 +12,7 @@ export 'src/services/catalog_target_types.dart';
 export 'src/services/target_library_service.dart' show TargetLibraryService;
 export 'src/services/sequence_rollup.dart';
 export 'src/services/linked_rig/linked_rig_store.dart';
+export 'src/services/linked_rig/rig_connection_service.dart';
 export 'src/services/linked_rig/rig_link_service.dart';
 export 'src/services/host_mutation_event_hub.dart';
 export 'src/services/catalog_lookup/simbad_provider.dart';
