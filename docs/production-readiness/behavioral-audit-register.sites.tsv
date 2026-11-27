@@ -1663,7 +1663,6 @@ packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.da
 packages/skotiq_app/lib/screens/guiding/guiding_screen_parts/desktop_sections.dart	_buildTargetDisplayPanel	literal_null_coalesce	1	U2-08	currentRaError: shown(currentError?.raError ?? 0),
 packages/skotiq_app/lib/screens/guiding/widgets/brain_settings_panel.dart	collect	literal_null_coalesce	1	V0258	final raw = _controllers['${axis}_${param.name}']?.text.trim() ?? '';
 packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	literal_null_coalesce	1	V0002	.watch(equipmentMountCapabilitiesProvider(mountState.deviceId ?? ''));
-packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	unimplemented_behavior	1	V0002	// `canPark` no longer ships a button that hits a "Not implemented"
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	_countForFilterType	literal_null_coalesce	1	V0121	(typeCounts[ObjectType.asterism] ?? 0);
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	_countForFilterType	literal_null_coalesce	1	V0121	(typeCounts[ObjectType.doubleStar] ?? 0);
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	_countForFilterType	literal_null_coalesce	1	V0121	return (typeCounts[ObjectType.star] ?? 0) +

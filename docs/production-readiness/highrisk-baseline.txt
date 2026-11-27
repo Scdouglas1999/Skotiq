@@ -29,11 +29,8 @@ native/skotiq_native/bridge/src/device_manager/rig/ascom.rs	temperature	highrisk
 native/skotiq_native/bridge/src/hotplug.rs	start_platform_hotplug_listener	highrisk	1	baseline	tracing::debug!("USB hotplug listener is not implemented for this Unix platform yet");
 native/skotiq_native/device/src/ascom/dome.rs	-	highrisk	1	baseline	//! is not implemented reads as absent and any other failure fails the read.
 native/skotiq_native/native/src/vendor/skywatcher/tests.rs	-	highrisk	1	baseline	/// The UDP transport is declared but not implemented: connecting says so
-packages/skotiq_app/lib/screens/diagnostics/diagnostic_dump_screen.dart	_createDump	highrisk	1	baseline	// Android/iOS, so asking for one there threw UnimplementedError and this
-packages/skotiq_app/lib/screens/imaging/tabs/mount_tab.dart	build	highrisk	1	baseline	// `canPark` no longer ships a button that hits a "Not implemented"
 packages/skotiq_app/lib/screens/imaging/widgets/annotation_panel_parts/objects_panel.dart	-	highrisk	1	baseline	/// Android/iOS have no save dialog (`getSavePath` throws UnimplementedError),
 packages/skotiq_app/lib/screens/planetarium/planetarium_screen/actions.dart	_exportFinderChart	highrisk	1	baseline	// UnimplementedError there — so the chart goes to a sandbox path and
-packages/skotiq_app/lib/screens/sequencer/tabs/sequence_library_tab/sequence_row.dart	_exportSequence	highrisk	1	baseline	// UnimplementedError: getSavePath() has not been implemented."
 packages/skotiq_app/lib/screens/sequencer/widgets/node_summary_inline_editors.dart	build	highrisk	1	baseline	// '+' re-applies 4+1 and is a silent no-op, while the popup keeps
 packages/skotiq_app/lib/screens/settings/backup_screen.dart	_BackupScreenState	highrisk	1	baseline	/// UnimplementedError — so on those platforms the file goes to a sandbox path
 packages/skotiq_app/lib/screens/settings/widgets/solver_detection_card.dart	_open	highrisk	1	baseline	// error rather than a silent no-op.
