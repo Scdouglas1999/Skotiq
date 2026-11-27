@@ -261,10 +261,6 @@ impl InstructionNode for ExposeInstruction {
         if result.status == NodeStatus::Success {
             let total_exposure_time = duration_secs * f64::from(frames_to_take);
             context.record_scheduler_completed_exposures(u64::from(frames_to_take));
-            {
-                let mut counter = context.completed_integration_secs.write().await;
-                *counter += total_exposure_time;
-            }
             context
                 .resume
                 .credit_integration(&context.integration_loops, total_exposure_time);
@@ -279,13 +275,11 @@ impl InstructionNode for ExposeInstruction {
             //
             // Why subtract instead of skipping `record_exposure` entirely
             // when there were rejects: a partial burst (e.g. 8 of 10
-            // frames passed) should still credit the 8 that passed. The
-            // global `completed_integration_secs` above intentionally
-            // credits the FULL burst time — that counter measures
-            // "exposure time spent" (wall-clock-relevant), which the user
-            // wants to see even for rejected subs. The budget counter
-            // measures "integration that contributes to the goal", which
-            // is the passed-frames-only quantity.
+            // frames passed) should still credit the 8 that passed. An
+            // integration-time Loop is credited the FULL burst time above:
+            // it counts exposure time spent. The budget counter measures
+            // "integration that contributes to the goal", which is the
+            // passed-frames-only quantity.
             let rejected_in_burst = burst.frames_rejected;
             let passed_count = frames_to_take.saturating_sub(rejected_in_burst);
             let budget_credit_secs = duration_secs * f64::from(passed_count);

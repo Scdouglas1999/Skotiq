@@ -8,6 +8,7 @@ mod checkpoint_writer_tests;
 mod depth_goal_tests;
 mod dome_shutter_tests;
 mod idle_decision_tests;
+mod loop_integration_tests;
 mod recovery_tests;
 mod resume_tests;
 mod runtime_tests;

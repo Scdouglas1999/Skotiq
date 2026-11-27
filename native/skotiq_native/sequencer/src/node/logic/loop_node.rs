@@ -161,8 +161,7 @@ async fn run_loop(
             }
             LoopCondition::IntegrationTime => {
                 if let Some(target_secs) = config.condition_value {
-                    let integrated_secs = context.get_completed_integration_secs().await;
-                    integrated_secs < target_secs
+                    context.resume.loop_integration(node.id()) < target_secs
                 } else {
                     false
                 }

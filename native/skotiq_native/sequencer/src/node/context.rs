@@ -211,8 +211,6 @@ pub struct ExecutionContext {
     pub polar_align_image_callback: Option<PolarAlignImageCallback>,
     /// Per-device exclusion locks shared across every derived branch context.
     pub device_locks: Arc<DeviceLockRegistry>,
-    /// Completed integration time in seconds (shared counter)
-    pub completed_integration_secs: Arc<RwLock<f64>>,
     /// Safety fail mode - determines behavior when safety devices fail or are unavailable
     pub safety_fail_mode: Arc<parking_lot::RwLock<SafetyFailMode>>,
     /// in-memory SmartExposure per-node resume state,
@@ -474,7 +472,6 @@ impl ExecutionContext {
             progress_callback: None,
             polar_align_image_callback: None,
             device_locks: Arc::new(DeviceLockRegistry::default()),
-            completed_integration_secs: Arc::new(RwLock::new(0.0)),
             safety_fail_mode: Arc::new(parking_lot::RwLock::new(SafetyFailMode::default())),
             smart_exposure_states: Arc::new(RwLock::new(std::collections::HashMap::new())),
             resume: crate::node::resume::ResumeRecord::default(),
@@ -847,19 +844,9 @@ impl ExecutionContext {
     }
 
     pub fn send_progress(&self, update: ProgressUpdate) {
-        // Integration time is not tracked here: the canonical update happens on
-        // the awaiting path in `TakeExposure` (the
-        // `completed_integration_secs.write().await` block in the exposure
-        // instruction). `send_progress` is sync because it is invoked from the
-        // synchronous progress callbacks supplied to instruction code.
         if let Some(callback) = &self.progress_callback {
             callback(update);
         }
-    }
-
-    /// Get the current completed integration time in seconds
-    pub async fn get_completed_integration_secs(&self) -> f64 {
-        *self.completed_integration_secs.read().await
     }
 
     /// The active target's altitude and azimuth now, in degrees (azimuth from
@@ -1014,10 +1001,7 @@ mod tests {
         // Arc fields must point at the same allocation (shared state preserved).
         assert!(Arc::ptr_eq(&cloned.is_cancelled, &ctx.is_cancelled));
         assert!(Arc::ptr_eq(&cloned.is_paused, &ctx.is_paused));
-        assert!(Arc::ptr_eq(
-            &cloned.completed_integration_secs,
-            &ctx.completed_integration_secs
-        ));
+        assert!(Arc::ptr_eq(&cloned.device_locks, &ctx.device_locks));
     }
 
     #[test]
