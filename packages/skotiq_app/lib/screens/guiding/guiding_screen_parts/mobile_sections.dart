@@ -283,13 +283,12 @@ mixin _GuidingMobileSections
 
     // The demo rig's guider is simulated on the phone and has no settings.
     if (kind == GuiderKind.demo) {
-      return const SingleChildScrollView(
-        padding: EdgeInsets.all(SkotiqTokens.spaceMd),
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
         child: EmptyState.compact(
           icon: SkotiqIcons.guider,
-          title: 'Demo guider',
-          body: 'This guider is simulated on the phone and has no settings. '
-              'Start and stop it from the Controls tab.',
+          title: context.l10n.text('demoGuiderTitle'),
+          body: context.l10n.text('demoGuiderBody'),
         ),
       );
     }

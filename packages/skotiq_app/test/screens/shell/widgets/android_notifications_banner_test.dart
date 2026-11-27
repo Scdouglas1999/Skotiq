@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/shell/widgets/android_notifications_banner.dart';
 import 'package:skotiq_app/services/android_alert_permission.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -61,5 +62,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Alerts are off.', findRichText: true),
         findsNothing);
+  });
+
+  testWidgets('a Spanish phone reads the offer in Spanish', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          androidNotificationsAuthorizedProvider.overrideWith((_) => false),
+          androidNotificationsRequestProvider.overrideWithValue(
+            () async => false,
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          locale: const Locale('es'),
+          supportedLocales: SkotiqLocalizations.supportedLocales,
+          localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
+          home: const Scaffold(body: AndroidNotificationsBanner()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Activar'), findsOneWidget);
+    expect(find.text('Turn on'), findsNothing);
+    expect(
+      find.textContaining('Las alertas est\u00E1n desactivadas.',
+          findRichText: true),
+      findsOneWidget,
+    );
   });
 }

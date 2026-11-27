@@ -234,6 +234,17 @@ final Map<String, Map<String, String>> _localizedValues = {
     'settingsImaging': 'Imaging',
     'settingsLocation': 'Location',
     'settingsNotifications': 'Notifications',
+    'alertsOff': 'Alerts are off',
+    'alertsOffReason':
+        'Turn them on to hear if the run stops, guiding is lost or clouds arrive.',
+    'alertsTurnOn': 'Turn on',
+    'settingsTesting': 'Testing',
+    'demoRigTitle': 'Demo rig (testing)',
+    'demoRigLinkedDesc':
+        'Simulates equipment on this phone when it is not linked to an imaging computer. This phone is linked now, so it starts when you disconnect.',
+    'demoRigDesc':
+        'Simulates equipment on this phone when it is not linked to an imaging computer. Frames are synthetic star fields, not a real sky.',
+    'demoRigChangeFailed': 'Could not change the demo rig: {error}',
     'settingsPhd2Guiding': 'PHD2 guiding',
     'settingsPlateSolving': 'Plate solving',
     'settingsRemoteAccess': 'Remote access',
@@ -339,6 +350,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'hfr': 'HFR',
     'rms': 'RMS',
     'guiding': 'Guiding',
+    'demoGuiderTitle': 'Demo guider',
+    'demoGuiderBody':
+        'This guider is simulated on the phone and has no settings. Start and stop it from the Controls tab.',
     'disconnected': 'Disconnected',
     'stopping': 'Stopping...',
     'starting': 'Starting...',
@@ -1963,6 +1977,18 @@ final Map<String, Map<String, String>> _localizedValues = {
     'settingsImaging': 'Captura',
     'settingsLocation': 'Ubicaci\u00F3n',
     'settingsNotifications': 'Notificaciones',
+    'alertsOff': 'Las alertas est\u00E1n desactivadas',
+    'alertsOffReason':
+        'Act\u00EDvalas para saber si la sesi\u00F3n se detiene, se pierde el guiado o llegan nubes.',
+    'alertsTurnOn': 'Activar',
+    'settingsTesting': 'Pruebas',
+    'demoRigTitle': 'Equipo de demostraci\u00F3n (pruebas)',
+    'demoRigLinkedDesc':
+        'Simula el equipo en este tel\u00E9fono cuando no est\u00E1 vinculado a un ordenador de captura. Ahora est\u00E1 vinculado, as\u00ED que se inicia al desconectar.',
+    'demoRigDesc':
+        'Simula el equipo en este tel\u00E9fono cuando no est\u00E1 vinculado a un ordenador de captura. Las im\u00E1genes son campos de estrellas sint\u00E9ticos, no el cielo real.',
+    'demoRigChangeFailed':
+        'No se pudo cambiar el equipo de demostraci\u00F3n: {error}',
     'settingsPhd2Guiding': 'Guiado PHD2',
     'settingsPlateSolving': 'Resoluci\u00F3n de placas',
     'settingsRemoteAccess': 'Acceso remoto',
@@ -2073,6 +2099,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'hfr': 'HFR',
     'rms': 'RMS',
     'guiding': 'Guiado',
+    'demoGuiderTitle': 'Guiado de demostraci\u00F3n',
+    'demoGuiderBody':
+        'Este guiado se simula en el tel\u00E9fono y no tiene ajustes. In\u00EDcialo y detenlo desde la pesta\u00F1a Controles.',
     'disconnected': 'Desconectado',
     'stopping': 'Deteniendo...',
     'starting': 'Iniciando...',
