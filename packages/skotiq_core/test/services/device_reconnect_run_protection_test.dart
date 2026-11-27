@@ -70,7 +70,10 @@ void main() {
     await coordinator.handleCriticalDeviceDisconnect('camera', cameraId);
     camera.setConnecting(cameraId, 'Camera');
     camera.setConnected();
-    await coordinator.onAuthoritativeDeviceConnected('camera', cameraId);
+    await coordinator.onAuthoritativeDeviceConnected(
+      DeviceType.camera,
+      cameraId,
+    );
   }
 
   test('a running run is checkpointed, paused, and resumed when the camera '
@@ -107,7 +110,10 @@ void main() {
     runIs(SequenceExecutionState.paused);
     camera.setConnecting(cameraId, 'Camera');
     camera.setConnected();
-    await coordinator.onAuthoritativeDeviceConnected('camera', cameraId);
+    await coordinator.onAuthoritativeDeviceConnected(
+      DeviceType.camera,
+      cameraId,
+    );
     expect(calls, ['checkpoint', 'pause']);
   });
 

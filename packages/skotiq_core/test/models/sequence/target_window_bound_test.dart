@@ -41,8 +41,11 @@ TargetHeaderNode _target(
   maxAltitude: maxAltitude,
 );
 
-NodeOpenEnd? _rollupOpenEnd(Sequence sequence) =>
-    computeNodeRollups(sequence, const SequenceTimeEstimator()).openEnds['exp'];
+NodeOpenEnd? _rollupOpenEnd(Sequence sequence) => computeNodeRollups(
+  sequence,
+  const SequenceTimeEstimator(),
+  now: DateTime.now(),
+).openEnds['exp'];
 
 bool _validatorRefuses(Sequence sequence) => SmartExposureUnboundedLoopRule()
     .validate(sequence)

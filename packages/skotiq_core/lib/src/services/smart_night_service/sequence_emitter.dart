@@ -240,9 +240,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
 
     // -- 3. Polar alignment if stale
     if (settings.prependPolarAlignmentIfStale &&
-        context.daysSinceLastPolarAlignment != null &&
-        context.daysSinceLastPolarAlignment! >
-            settings.polarAlignmentStaleAfterDays) {
+        settings.polarAlignmentIsStale(context.daysSinceLastPolarAlignment)) {
       addRootChild(
         PolarAlignmentNode(
           id: SmartNightService._uuid.v4(),

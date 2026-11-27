@@ -4,7 +4,8 @@ import 'dart:math' as math;
 import 'package:skotiq_astro/format.dart';
 import 'package:uuid/uuid.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_event_codec.dart'
+    show eventMayBeFromCamera, imagingEventOf;
 import '../backend/bridge_events.dart'
     show
         ImagingEvent_ExposureCancelled,
@@ -13,7 +14,6 @@ import '../backend/bridge_events.dart'
         ImagingEvent_ExposureCompletedWithFrame,
         ImagingEvent_ExposureFailed,
         ImagingEvent_ExposureFailedOld;
-import '../backend/network_backend.dart';
 import '../models/flat_wizard/flat_capture_config.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
 import '../models/sequence/sequence_models.dart';
@@ -25,7 +25,7 @@ import '../models/backend/backend_types.dart';
 import '../utils/logging_service.dart';
 part 'flat_wizard_service/flat_wizard_models.dart';
 part 'flat_wizard_service/exposure_events.dart';
-part 'flat_wizard_service/exposure_event_keys.dart';
+part 'flat_wizard_service/capability_range.dart';
 
 class FlatWizardService {
   final SkotiqBackend backend;
@@ -78,7 +78,7 @@ class FlatWizardService {
   /// backend command, the FITS header, and the DB record so they cannot drift.
   ///
   /// Host authority: [backend.getCameraStatus] and
-  /// [backend.getCameraCapabilities] route to the master on a [NetworkBackend],
+  /// [backend.getCameraCapabilities] route to the master on a `NetworkBackend`,
   /// so the host — not the phone — defines the range and capability limits. Both
   /// Calls are best-effort so the UI can still render a disconnected/partial
   /// preview, but the returned [FlatCaptureConfig.rangeKnown] tells capture

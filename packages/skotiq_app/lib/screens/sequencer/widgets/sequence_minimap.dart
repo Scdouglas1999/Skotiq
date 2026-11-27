@@ -11,12 +11,7 @@ import 'sequence_tree_shortcuts.dart'
     show VisibleNode, visibleNodeOrderProvider;
 import 'node_appearance.dart';
 
-/// One row of the sequence overview.
-///
-/// The 80 px strip below the tree and the Ledger gutter at its right edge draw
-/// the SAME list of entries through the SAME painter; only the box they are
-/// given differs. Anything that changes how a step reads in one of them has to
-/// change it in the other, so both live here.
+/// One row of the sequence overview, the 80 px strip below the tree.
 @immutable
 class SequenceMapEntry {
   final SequenceNode node;
@@ -155,9 +150,8 @@ const double _viewportIndicatorMinExtent = 8.0;
 /// Shows a viewport indicator for the currently visible region and highlights
 /// the executing node. Click to navigate to that position in the tree.
 ///
-/// The Comfortable and Compact shape of the overview the canvas bar toggles
-/// through `sequenceOverviewVisibleProvider`; Ledger draws the same map as a
-/// gutter at the tree's right edge instead.
+/// The canvas bar toggles it through `sequenceOverviewVisibleProvider`;
+/// Ledger draws no overview.
 class SequenceMinimap extends ConsumerWidget {
   final SkotiqColors colors;
   final ScrollController scrollController;
@@ -220,9 +214,6 @@ class SequenceMinimap extends ConsumerWidget {
 
 /// Paints one block per visible row, the selection outline, the viewport
 /// indicator and the execution marker.
-///
-/// Shared by [SequenceMinimap] and the Ledger gutter: the gutter is this
-/// painter in a tall, narrow box rather than a short, wide one.
 class SequenceMapPainter extends CustomPainter {
   final SkotiqColors colors;
   final List<SequenceMapEntry> entries;
@@ -333,9 +324,8 @@ class SequenceMapPainter extends CustomPainter {
 
   /// The tint + hairline that says which rows are on screen.
   ///
-  /// A fill rather than a scrim over everything else: the gutter is 34 px wide
-  /// and permanently on screen, so dimming the majority of it would make the
-  /// map read as disabled rather than as positioned.
+  /// A fill rather than a scrim over everything else: dimming most of the
+  /// strip would make the map read as disabled rather than as positioned.
   ///
   /// The fill is [SkotiqTokens.opacityMedium], not the accent tint the
   /// rest of the language uses for a selected surface: this rectangle is read

@@ -173,8 +173,8 @@ class _GroupRow extends StatelessWidget {
             ? '${group.missingFiles} of ${group.frames.length} frames are '
                 'not on this computer'
             : group.offSetPointNote ??
-                (group.frames.length < calibrationBacklogMinFrames
-                    ? 'A master needs at least $calibrationBacklogMinFrames '
+                (group.frames.length < calibrationMasterMinFrames
+                    ? 'A master needs at least $calibrationMasterMinFrames '
                         'frames'
                     : null));
 

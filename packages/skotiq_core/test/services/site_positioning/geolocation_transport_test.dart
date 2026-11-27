@@ -116,7 +116,7 @@ void main() {
       );
     });
 
-    final result = await GeolocationService.fetchLocationFromIP();
+    final result = await GeolocationService.fetchLocation();
 
     expect(result, isNotNull);
     expect(result!.$1, closeTo(39.9815, 1e-6));
@@ -126,6 +126,10 @@ void main() {
 
   test('a seven-decimal city-centroid is rounded to four decimals', () async {
     GeolocationService.clientFactory = () => MockClient((request) async {
+      // The fallback host answers: the primary has no coordinate.
+      if (request.url.host.contains('ipinfo.io')) {
+        return http.Response('{"error":{"title":"RateLimit"}}', 200);
+      }
       return http.Response(
         '{"success":true,"latitude":39.9523835,'
         '"longitude":-75.1636197,"city":"Philadelphia"}',
@@ -133,7 +137,7 @@ void main() {
       );
     });
 
-    final result = await GeolocationService.fetchLocationFromIPAlternative();
+    final result = await GeolocationService.fetchLocation();
 
     expect(result, isNotNull);
     expect(result!.$1, 39.9524);
@@ -151,7 +155,7 @@ void main() {
       );
     });
 
-    final result = await GeolocationService.fetchLocationFromIP();
+    final result = await GeolocationService.fetchLocation();
 
     expect(result, isNotNull);
     expect(result!.$1, 40.0);

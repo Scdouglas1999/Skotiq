@@ -123,20 +123,26 @@ Sequence sequenceFromVersionSnapshot(
   return fileService.parseFromMap(decoded).copyWith(databaseId: sequenceId);
 }
 
-/// [sequence] as its first save should file it: under a name no saved plan
-/// uses ("NGC1313 Plan 2" beside an "NGC1313 Plan"). Unchanged when it
-/// already has a row, its name is free, or the library cannot be read.
-Future<Sequence> withFreeNameForFirstSave(
-  SequenceRepository repository,
-  Sequence sequence,
-) async {
-  if (sequence.databaseId != null) return sequence;
-  final List<SequenceSummary> saved;
-  try {
-    saved = await repository.loadSequenceSummaries();
-  } on Object {
-    return sequence;
+extension SequenceFirstSave on SequenceRepository {
+  /// Save [sequence]; a first save files it under a name no saved plan uses
+  /// ("NGC1313 Plan 2" beside an "NGC1313 Plan"). The name stays when the
+  /// sequence already has a row, its name is free, or the library cannot be
+  /// read. Returns the sequence as saved: its name and its row id.
+  Future<Sequence> saveUnderFreeName(Sequence sequence) async {
+    final named = await _withFreeNameForFirstSave(sequence);
+    final id = await saveSequence(named);
+    return named.copyWith(databaseId: id);
   }
-  final name = freeSequenceName(sequence.name, saved.map((s) => s.name));
-  return name == sequence.name ? sequence : sequence.copyWith(name: name);
+
+  Future<Sequence> _withFreeNameForFirstSave(Sequence sequence) async {
+    if (sequence.databaseId != null) return sequence;
+    final List<SequenceSummary> saved;
+    try {
+      saved = await loadSequenceSummaries();
+    } on Object {
+      return sequence;
+    }
+    final name = freeSequenceName(sequence.name, saved.map((s) => s.name));
+    return name == sequence.name ? sequence : sequence.copyWith(name: name);
+  }
 }

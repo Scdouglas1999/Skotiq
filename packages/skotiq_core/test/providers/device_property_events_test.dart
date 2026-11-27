@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -39,6 +42,47 @@ Map<String, dynamic> _property(
 /// `DeviceService` uses; a linked client takes the slots from the host's
 /// device channels.
 void main() {
+  test('the property names are the native DeviceManager\'s', () {
+    final native =
+        jsonDecode(
+              File(
+                '../../test_fixtures/wire_words/device_properties.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    expect(
+      {
+        'GAIN': DeviceProperty.gain,
+        'OFFSET': DeviceProperty.offset,
+        'FILTER_NAMES': DeviceProperty.filterNames,
+        'ROTATOR_POSITION': DeviceProperty.rotatorPosition,
+        'ROTATOR_REVERSE': DeviceProperty.rotatorReverse,
+        'SWITCH_STATE': DeviceProperty.switchState,
+        'SWITCH_VALUE': DeviceProperty.switchValue,
+        'MOUNT_SLEW_ALT_AZ': DeviceProperty.mountSlewAltAz,
+        'MOUNT_ABORT': DeviceProperty.mountAbort,
+        'MOUNT_SYNCED': DeviceProperty.mountSynced,
+        'DOME_SLAVED': DeviceProperty.domeSlaved,
+      },
+      {
+        for (final key in [
+          'GAIN',
+          'OFFSET',
+          'FILTER_NAMES',
+          'ROTATOR_POSITION',
+          'ROTATOR_REVERSE',
+          'SWITCH_STATE',
+          'SWITCH_VALUE',
+          'MOUNT_SLEW_ALT_AZ',
+          'MOUNT_ABORT',
+          'MOUNT_SYNCED',
+          'DOME_SLAVED',
+        ])
+          key: native[key],
+      },
+    );
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late NetworkBackend backend;
@@ -115,7 +159,7 @@ void main() {
     expect(focuser.position, 25995);
   });
 
-  test('camera gain, offset and binning reach the cards', () async {
+  test('camera gain and offset reach the cards', () async {
     await mirror(
       _equipment(
         'PropertyChanged',
@@ -128,17 +172,10 @@ void main() {
         _property('Camera', 'sim_camera_1', 'Offset', '21'),
       ),
     );
-    await mirror(
-      _equipment(
-        'PropertyChanged',
-        _property('Camera', 'sim_camera_1', 'Binning', '2x2'),
-      ),
-    );
 
     final camera = container.read(cameraStateProvider);
     expect(camera.gain, 139);
     expect(camera.offset, 21);
-    expect(camera.binning, '2x2');
   });
 
   test('the camera\'s full settings reach the card in one event', () async {

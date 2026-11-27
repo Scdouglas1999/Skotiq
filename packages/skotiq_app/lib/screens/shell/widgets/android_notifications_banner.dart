@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../localization/skotiq_localizations.dart';
 import '../../../services/android_alert_permission.dart';
 
 /// Set when the operator closes the banner; it stays closed until the app
@@ -28,6 +29,7 @@ class AndroidNotificationsBanner extends ConsumerWidget {
     // The device class, not the width: on its side a phone is wide but only
     // ~400 dp tall, and the long banner took a fifth of it.
     final phone = Responsive.isPhone(context);
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -40,15 +42,12 @@ class AndroidNotificationsBanner extends ConsumerWidget {
         tone: BannerTone.warning,
         icon: Icons.notifications_off_outlined,
         // On a phone it shows on every screen, so it is one line there.
-        title: phone ? 'Alerts are off' : 'Alerts are off.',
-        message: phone
-            ? null
-            : 'Turn them on to hear if the run stops, guiding is lost or '
-                'clouds arrive.',
+        title: phone ? l10n.text('alertsOff') : '${l10n.text('alertsOff')}.',
+        message: phone ? null : l10n.text('alertsOffReason'),
         action: request == null
             ? null
             : SkotiqButton(
-                label: 'Turn on',
+                label: l10n.text('alertsTurnOn'),
                 size: ButtonSize.small,
                 onPressed: () => requestAndroidAlerts(ref),
               ),

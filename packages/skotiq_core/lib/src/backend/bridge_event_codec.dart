@@ -60,6 +60,23 @@ bridge.ImagingEvent? imagingEventOf(core.SkotiqEvent event) {
   };
 }
 
+/// Whether [event] may be from the camera [cameraId]: an imaging event either
+/// names no camera (a native one: the native side drives a single active
+/// camera) or names this one. On a dual-camera rig the guide camera publishes
+/// onto the same stream, so an event naming another camera is never ours.
+/// The capture service and the Flat Wizard attribute frames by this.
+bool eventMayBeFromCamera(core.SkotiqEvent event, String cameraId) {
+  for (final key in const ['deviceId', 'device_id', 'cameraId', 'camera_id']) {
+    final raw = event.data[key];
+    if (raw != null &&
+        raw.toString().isNotEmpty &&
+        raw.toString() != cameraId) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /// The guiding event [event] carries; null for any other event.
 bridge.GuidingEvent? guidingEventOf(core.SkotiqEvent event) {
   if (event.category != core.EventCategory.guiding) return null;

@@ -144,8 +144,8 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
     _hostRequiresPairing = advert.authRequired;
     // The server instance decides whether the event cursor cached on the
     // previous attachment still applies to the server about to be joined.
-    final advertisedInstance = info['serverInstanceId'];
-    if (advertisedInstance is String && advertisedInstance.isNotEmpty) {
+    final advertisedInstance = advert.serverInstanceId;
+    if (advertisedInstance != null) {
       _reconcileInstanceFromInfo(advertisedInstance);
     }
     final release = advert.version;

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sequence/sequence_models.dart';
 import '../../services/sequence_rollup.dart';
+import '../clock_provider.dart';
 import '../sequence_provider.dart' show currentSequenceProvider;
 import 'plan_timer_provider.dart';
 
@@ -72,5 +73,6 @@ final _nodeRollupMapProvider = Provider<NodeRollups>((ref) {
     tonight: timer.site == null
         ? null
         : ref.watch(currentPlanTimingProvider)?.timings,
+    now: ref.read(clockProvider).instant,
   );
 });

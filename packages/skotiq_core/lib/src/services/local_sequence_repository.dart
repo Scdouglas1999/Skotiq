@@ -578,4 +578,4 @@ final class LocalSequenceRepository implements SequenceRepository {
 /// The saved plan's length for the library card: the Builder's own estimate,
 /// so the card and the Builder show the same figure for the same plan.
 int _estimatedMinutes(Sequence sequence) =>
-    (sequenceRollupSecs(sequence) / 60).ceil();
+    (sequenceRollupSecs(sequence, now: DateTime.now()) / 60).ceil();

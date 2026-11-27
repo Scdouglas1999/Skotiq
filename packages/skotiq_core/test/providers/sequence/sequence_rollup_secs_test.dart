@@ -30,7 +30,7 @@ void main() {
       rootNodeId: root.id,
     );
 
-    expect(sequenceRollupSecs(sequence), 0);
+    expect(sequenceRollupSecs(sequence, now: DateTime.now()), 0);
 
     // With counts the plan has a length: 120 frames of 20 s, plus download
     // and filter changes.
@@ -47,7 +47,7 @@ void main() {
       },
       rootNodeId: root.id,
     );
-    final secs = sequenceRollupSecs(counted);
+    final secs = sequenceRollupSecs(counted, now: DateTime.now());
     expect(secs, greaterThan(120 * 20));
     expect(
       secs,
@@ -89,7 +89,7 @@ void main() {
     final summary = (await repo.loadSequenceSummaries()).single;
     expect(
       summary.totalIntegrationSecs,
-      (sequenceRollupSecs(sequence) / 60).ceil() * 60,
+      (sequenceRollupSecs(sequence, now: DateTime.now()) / 60).ceil() * 60,
     );
   });
 }

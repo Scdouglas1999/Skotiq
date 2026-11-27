@@ -34,15 +34,20 @@ import '../models/meridian_flip_progress.dart';
 import 'rig_activity.dart';
 import '../models/rig_activity.dart';
 
-/// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].
 ///
 /// The settings provider holds a plain [MeridianFlipSettings] state shape
 /// because many runtime consumers read it synchronously. This companion state
 /// keeps the settings UI and the sequence-start boundary from mistaking the
 /// model defaults for a loaded host snapshot.
+///
+/// It follows the notifier's life: a new notifier (the host link dropped or
+/// returned) is loading until its own load ends.
 final globalMeridianFlipSettingsLoadStateProvider =
-    StateProvider<AsyncValue<void>>((ref) => const AsyncLoading());
+    StateProvider<AsyncValue<void>>((ref) {
+      ref.watch(globalMeridianFlipSettingsProvider.notifier);
+      return const AsyncLoading();
+    });
 
 /// What to write for [settings], given the row as it is [stored].
 ///
@@ -118,9 +123,7 @@ class GlobalMeridianFlipSettingsNotifier
               event.data['namespace'] != 'meridian-flip') {
             return;
           }
-          _loadFuture = _writeTail.then(
-            (_) => _loadSettings(showLoading: false),
-          );
+          _loadFuture = _writeTail.then((_) => _loadSettings());
         },
         onError: (Object error, StackTrace stackTrace) {
           Log.error(
@@ -132,10 +135,7 @@ class GlobalMeridianFlipSettingsNotifier
         },
       );
     }
-    // Started a microtask later: the load says "loading" to another provider
-    // first, and a provider may not write another while it is being built
-    // (this one is rebuilt whenever the host link drops or returns).
-    _loadFuture = Future.microtask(() => _loadSettings(showLoading: true));
+    _loadFuture = _loadSettings();
   }
 
   /// Wait until the authoritative settings snapshot has loaded.
@@ -158,25 +158,13 @@ class GlobalMeridianFlipSettingsNotifier
 
   /// Load settings from the imaging host in network mode, or the local DB on
   /// the host/desktop path.
-  Future<void> _loadSettings({required bool showLoading}) async {
+  ///
+  /// It writes the load state only after the read has come back, never while
+  /// the notifier (and the load-state provider that watches it) is built.
+  Future<void> _loadSettings() async {
     if (!mounted) return;
-    if (showLoading) {
-      _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
-          const AsyncLoading();
-    }
     try {
-      final MeridianFlipSettings loaded;
-      if (_remote case final remote?) {
-        loaded = await remote.getMeridianFlipSettings();
-      } else {
-        final db = _database!;
-        final stored = await db.settingsDao.read(StoreSettings.meridianFlip);
-        loaded = stored == null
-            ? const MeridianFlipSettings()
-            : MeridianFlipSettings.fromJson(
-                jsonDecode(stored) as Map<String, dynamic>,
-              );
-      }
+      final loaded = await _readSettings();
       if (!mounted) return;
       state = loaded;
       _loadError = null;
@@ -194,6 +182,21 @@ class GlobalMeridianFlipSettingsNotifier
         stackTrace: stackTrace,
       );
     }
+  }
+
+  /// An async function, so a read that fails at once still fails as a future.
+  Future<MeridianFlipSettings> _readSettings() async {
+    if (_remote case final remote?) {
+      return remote.getMeridianFlipSettings();
+    }
+    final stored = await _database!.settingsDao.read(
+      StoreSettings.meridianFlip,
+    );
+    return stored == null
+        ? const MeridianFlipSettings()
+        : MeridianFlipSettings.fromJson(
+            jsonDecode(stored) as Map<String, dynamic>,
+          );
   }
 
   /// Update settings on the authoritative owner and publish the new in-memory

@@ -51,7 +51,7 @@ class PlaceSearchHit {
 class GeolocationService {
   /// Client used for the IP-geolocation lookups. Injectable so a test can
   /// assert what actually goes on the wire — the transport of these requests
-  /// is the point (see [fetchLocationFromIPAlternative]), and a hard-coded
+  /// is the point (see [ipFallbackEndpoint]), and a hard-coded
   /// `http.get` cannot be inspected.
   @visibleForTesting
   static http.Client Function() clientFactory = http.Client.new;
@@ -74,19 +74,6 @@ class GeolocationService {
   static final Uri placeSearchEndpoint = Uri.parse(
     'https://geocoding-api.open-meteo.com/v1/search',
   );
-
-  /// Fetch location from IP using ipinfo.io (free, no API key required).
-  /// Returns (latitude, longitude, locationName) or null if failed.
-  static Future<(double latitude, double longitude, String? locationName)?>
-  fetchLocationFromIP() async =>
-      _tupleOf((await _fetchIp(ipPrimaryEndpoint)).fix);
-
-  /// Fallback for when the primary service is unreachable or rate-limited.
-  /// The fallback must remain HTTPS because its coordinates become the active
-  /// observing site.
-  static Future<(double latitude, double longitude, String? locationName)?>
-  fetchLocationFromIPAlternative() async =>
-      _tupleOf((await _fetchIp(ipFallbackEndpoint)).fix);
 
   /// The internet lookup with its provenance attached: which host answered
   /// rides along so the caller can say "from your internet address

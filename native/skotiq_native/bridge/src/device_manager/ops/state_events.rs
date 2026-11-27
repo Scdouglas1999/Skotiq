@@ -355,3 +355,57 @@ fn unknown_pixel_size_notice(camera: &str, pixel_x: f64, pixel_y: f64) -> Option
 #[cfg(test)]
 #[path = "state_events_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod wire_words {
+    use super::property;
+
+    const FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/wire_words/device_properties.json"
+    );
+
+    /// `test_fixtures/wire_words/device_properties.json`: the
+    /// `PropertyChanged.property` names, which the app matches. Regenerate
+    /// with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_bridge device_property_wire_words`.
+    #[test]
+    fn device_property_wire_words_fixture() {
+        let value = serde_json::json!({
+            "GAIN": property::GAIN,
+            "OFFSET": property::OFFSET,
+            "READOUT_MODE": property::READOUT_MODE,
+            "FILTER_NAMES": property::FILTER_NAMES,
+            "ROTATOR_POSITION": property::ROTATOR_POSITION,
+            "ROTATOR_REVERSE": property::ROTATOR_REVERSE,
+            "UNVERIFIED": property::UNVERIFIED,
+            "MOUNT_SYNCED": property::MOUNT_SYNCED,
+            "MOUNT_SLEW_ALT_AZ": property::MOUNT_SLEW_ALT_AZ,
+            "MOUNT_ABORT": property::MOUNT_ABORT,
+            "COVER": property::COVER,
+            "CALIBRATOR": property::CALIBRATOR,
+            "SWITCH_STATE": property::SWITCH_STATE,
+            "SWITCH_VALUE": property::SWITCH_VALUE,
+            "DOME_SHUTTER": property::DOME_SHUTTER,
+            "DOME_SLEW": property::DOME_SLEW,
+            "DOME_PARK": property::DOME_PARK,
+            "DOME_HOME": property::DOME_HOME,
+            "DOME_ABORT": property::DOME_ABORT,
+            "DOME_SLAVED": property::DOME_SLAVED,
+        });
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            let path = std::path::Path::new(FIXTURE);
+            std::fs::create_dir_all(path.parent().expect("dir")).expect("fixture dir");
+            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+            text.push('\n');
+            std::fs::write(path, text).expect("write fixture");
+            return;
+        }
+        let committed: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(FIXTURE).expect("fixture"))
+                .expect("JSON");
+        assert_eq!(
+            committed, value,
+            "the PropertyChanged names changed; regenerate the fixture and update the app"
+        );
+    }
+}

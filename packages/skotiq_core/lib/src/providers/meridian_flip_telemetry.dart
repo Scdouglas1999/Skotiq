@@ -1,11 +1,11 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/bridge_events.dart' show SequencerEvent_InstructionProgress;
 import '../backend/remote_host.dart';
-import '../backend/sequencer_run_events.dart' show sequencerEventOf;
+import '../backend/sequencer_run_events.dart' show StepReport, sequencerEventOf;
 import '../models/meridian_flip_event.dart';
+import '../models/sequence/instruction_progress_detail.dart'
+    show MeridianFlipStepProgressDetail;
 import '../models/sequence/sequence_models.dart';
 import 'backend_provider.dart';
 import 'meridian_flip_provider.dart';
@@ -23,11 +23,17 @@ final meridianFlipTelemetryProvider = Provider<void>((ref) {
   var endedAtRunEnd = false;
   final subscription = backend.eventStream.listen(
     (event) {
-      if (sequencerEventOf(event) case SequencerEvent_InstructionProgress(
-        detailKind: 'MeridianFlip',
-        detailJson: final raw,
-      )) {
-        endedAtRunEnd = _applyFlipStep(ref, raw, endedAtRunEnd: endedAtRunEnd);
+      if (sequencerEventOf(event)
+          case final SequencerEvent_InstructionProgress progress) {
+        if (progress.report case MeridianFlipStepProgressDetail(
+          event: final step,
+        )) {
+          endedAtRunEnd = _applyFlipStep(
+            ref,
+            step,
+            endedAtRunEnd: endedAtRunEnd,
+          );
+        }
       }
     },
     onError: (Object error, StackTrace stack) {
@@ -73,17 +79,13 @@ final meridianFlipTelemetryProvider = Provider<void>((ref) {
 
 /// Applies one native flip step; returns whether the flip is still the one
 /// the run's end ended ([endedAtRunEnd] until another flip starts).
-bool _applyFlipStep(Ref ref, String raw, {required bool endedAtRunEnd}) {
-  final Object? decoded;
-  try {
-    decoded = jsonDecode(raw);
-  } on FormatException {
-    return endedAtRunEnd;
-  }
+bool _applyFlipStep(
+  Ref ref,
+  MeridianFlipEvent step, {
+  required bool endedAtRunEnd,
+}) {
   final progress = ref.read(flipMonitorProgressProvider.notifier);
-  switch (MeridianFlipEvent.fromWire(decoded)) {
-    case null:
-      return endedAtRunEnd;
+  switch (step) {
     case MeridianFlipStarting():
       endedAtRunEnd = false;
       progress.update(

@@ -132,7 +132,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         if (!_hasBackendAuthority(backend)) return;
         final imaging = imagingEventOf(event);
         if (imaging == null) return;
-        if (!ImagingService._eventNamesCamera(event, deviceId)) return;
+        if (!eventMayBeFromCamera(event, deviceId)) return;
         switch (imaging) {
           case ImagingEvent_ExposureProgress(
             :final progress,

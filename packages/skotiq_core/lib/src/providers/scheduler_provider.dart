@@ -20,7 +20,6 @@ import '../models/sequence/run_stop_classification.dart' show RunStopOrigin;
 import '../models/sequence/sequence_models.dart';
 import 'safe_rig_service.dart';
 import 'equipment/safety_monitor_state_provider.dart';
-import '../models/weather/weather_safety_state.dart' show SafetySourceReading;
 import '../services/disk_space_guard.dart' show kSafetyMarginBytes;
 import '../models/site/horizon_profile.dart';
 import '../services/scheduler/horizon_profile_store.dart';

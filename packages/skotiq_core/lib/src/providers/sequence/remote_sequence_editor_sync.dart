@@ -305,16 +305,16 @@ Future<bool> _persistRemoteSequence(
 
   try {
     // A plan built from Best tonight files under a free name, not as one
-    // more "NGC1313 Plan" (night test 2026-11-25: three alike in the list).
-    final toSave = await withFreeNameForFirstSave(repository, sequence);
-    final savedId = await repository.saveSequence(toSave);
+    // more "NGC1313 Plan".
+    final saved = await repository.saveUnderFreeName(sequence);
+    final savedId = saved.databaseId!;
     if (!isActive()) return true;
     if (ref.backendScopeOver(backend).isStale) return true;
 
     final markedClean = editor.applyRemoteSave(
       savedId,
       expectedSnapshot: sequence,
-      savedName: toSave.name,
+      savedName: saved.name,
     );
     ref.invalidate(savedSequencesProvider);
     ref.invalidate(savedSequenceSummariesProvider);

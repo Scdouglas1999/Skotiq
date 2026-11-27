@@ -84,6 +84,7 @@ class HostAdvertRead {
     this.tailscaleHost,
     this.relayApplianceId,
     this.platform,
+    this.serverInstanceId,
   });
 
   factory HostAdvertRead.fromJson(Map<String, Object?> json) {
@@ -116,6 +117,10 @@ class HostAdvertRead {
       tailscaleHost: text('tailscaleHost'),
       relayApplianceId: text('relayApplianceId'),
       platform: filled('platform'),
+      serverInstanceId: switch (text('serverInstanceId')) {
+        final String value when value.isNotEmpty => value,
+        _ => null,
+      },
     );
   }
 
@@ -150,6 +155,10 @@ class HostAdvertRead {
 
   /// The host's operating system, trimmed; null when blank.
   final String? platform;
+
+  /// The running server process, as `/api/info` names it; null when empty.
+  /// An event cursor is only good against the instance that issued it.
+  final String? serverInstanceId;
 }
 
 /// A `_skotiq._tcp` TXT record as read, before a reader applies its defaults.

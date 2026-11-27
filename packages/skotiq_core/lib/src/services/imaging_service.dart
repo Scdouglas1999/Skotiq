@@ -21,7 +21,8 @@ import '../providers/settings_provider.dart';
 import '../providers/session_provider.dart';
 import 'local_imaging_records.dart';
 import '../providers/ui_notification_provider.dart';
-import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_event_codec.dart'
+    show eventMayBeFromCamera, imagingEventOf;
 import '../backend/bridge_events.dart'
     show
         ImagingEvent_ExposureCancelled,
@@ -345,35 +346,6 @@ class ImagingService {
 
   bool _hasBackendAuthority(SkotiqBackend backend) =>
       identical(backend, _host.value) && _host.isCurrent;
-
-  /// Keys under which an imaging event may carry the originating camera id.
-  /// Mirrors `FlatWizardService._deviceIdKeys` — the two services listen to the
-  /// same stream and must agree on how a frame is attributed to a camera.
-  static const List<String> _cameraIdKeys = [
-    'deviceId',
-    'device_id',
-    'cameraId',
-    'camera_id',
-  ];
-
-  /// Whether [event] belongs to the exposure we started on [deviceId].
-  ///
-  /// FFI-originated events do NOT carry a camera id (the native side drives a
-  /// single active camera), so absence means "accept" — the event is scoped to
-  /// the operation. When an id IS present it must be ours: on a dual-camera rig
-  /// the guide camera publishes onto this same stream, and its completion used
-  /// to settle the main camera's wait, sending the download in mid-exposure.
-  static bool _eventNamesCamera(SkotiqEvent event, String deviceId) {
-    for (final key in _cameraIdKeys) {
-      final raw = event.data[key];
-      if (raw != null &&
-          raw.toString().isNotEmpty &&
-          raw.toString() != deviceId) {
-        return false;
-      }
-    }
-    return true;
-  }
 
   bool get isCapturing => _isCapturing;
 

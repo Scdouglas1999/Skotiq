@@ -514,12 +514,15 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       // carries the same statement in words for anything that only shows text.
       finalStatus = WeatherSafetyStatus.safe;
       finalActions = WeatherSafetyActions(
-        reason: safetyMonitorReading == SafetySourceReading.absent
-            ? 'Weather safety is off. Conditions are not being checked'
-            // The standard Weather Unsafe trigger reads the monitor on its
-            // own, so the run is still guarded.
-            : 'Weather safety is off. The safety monitor still stops the run '
-                  'when it reads unsafe',
+        reason: switch (WeatherOffGuard.of(safetyMonitorReading)) {
+          WeatherOffGuard.none =>
+            'Weather safety is off. Conditions are not being checked',
+          WeatherOffGuard.monitorUnread ||
+          WeatherOffGuard.monitorSafe ||
+          WeatherOffGuard.monitorUnsafe =>
+            'Weather safety is off. The safety monitor still stops the run '
+                'when it reads unsafe',
+        },
       );
     } else if (useFailMode) {
       // The no-data fail-mode resolution comes from the single shared truth

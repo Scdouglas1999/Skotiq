@@ -43,9 +43,6 @@ enum CalibrationFrameKind {
       };
 }
 
-/// The fewest frames a master is built from.
-const int calibrationBacklogMinFrames = calibrationMasterMinFrames;
-
 /// Raw calibration frames of one kind and one capture setting, taken the same
 /// night, that no master in the library covers yet.
 class CalibrationBacklogGroup {
@@ -140,7 +137,7 @@ class CalibrationBacklogGroup {
   ].join(' · ');
 
   bool get buildable =>
-      missingFiles == 0 && frames.length >= calibrationBacklogMinFrames;
+      missingFiles == 0 && frames.length >= calibrationMasterMinFrames;
 
   /// What [offSetPoint] means for the master, for the operator; null when
   /// every frame was at the set-point.
@@ -151,8 +148,8 @@ class CalibrationBacklogGroup {
         ? 'the set-point'
         : 'the ${_trim(setPointC!)} °C set-point';
     final read = '$n of ${n + frames.length} frames read too far from $at';
-    return frames.length < calibrationBacklogMinFrames
-        ? '$read; a master needs at least $calibrationBacklogMinFrames at it'
+    return frames.length < calibrationMasterMinFrames
+        ? '$read; a master needs at least $calibrationMasterMinFrames at it'
         : '$read and are left out of the master';
   }
 
@@ -620,9 +617,9 @@ class CalibrationBacklogService {
         'this computer.',
       );
     }
-    if (group.frames.length < calibrationBacklogMinFrames) {
+    if (group.frames.length < calibrationMasterMinFrames) {
       throw const CalibrationBacklogException(
-        'A master needs at least $calibrationBacklogMinFrames frames.',
+        'A master needs at least $calibrationMasterMinFrames frames.',
       );
     }
     final paths = [for (final f in group.frames) f.filePath];
@@ -641,7 +638,7 @@ class CalibrationBacklogService {
     final output = p.join(
       p.dirname(paths.first),
       'Masters',
-      masterFileName(
+      _masterFileName(
         kind: group.kind,
         exposureSeconds: group.exposureSeconds,
         gain: group.gain,
@@ -686,9 +683,9 @@ class CalibrationBacklogService {
     required int binY,
     double? temperature,
   }) async {
-    if (paths.length < calibrationBacklogMinFrames) {
+    if (paths.length < calibrationMasterMinFrames) {
       throw const CalibrationBacklogException(
-        'A master flat needs at least $calibrationBacklogMinFrames frames.',
+        'A master flat needs at least $calibrationMasterMinFrames frames.',
       );
     }
     final pedestal = await flatPedestal(
@@ -711,7 +708,7 @@ class CalibrationBacklogService {
     final output = p.join(
       p.dirname(paths.first),
       'Masters',
-      masterFileName(
+      _masterFileName(
         kind: CalibrationFrameKind.flat,
         exposureSeconds: exposureSeconds,
         gain: gain,
@@ -776,8 +773,7 @@ class CalibrationBacklogService {
     return null;
   }
 
-  /// File name of a built master.
-  String masterFileName({
+  String _masterFileName({
     required CalibrationFrameKind kind,
     required double exposureSeconds,
     required int? gain,

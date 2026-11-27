@@ -87,6 +87,30 @@ SafetySourceReading readSafetyMonitorSource(SafetyMonitorState monitorState) {
       : SafetySourceReading.unsafe;
 }
 
+/// What still guards a run while weather safety is off: the standard Weather
+/// Unsafe trigger reads a configured safety monitor on its own, whatever the
+/// weather-safety setting says.
+enum WeatherOffGuard {
+  /// No safety monitor: nothing is checked.
+  none,
+
+  /// A monitor that has no current reading.
+  monitorUnread,
+
+  /// A monitor reading safe.
+  monitorSafe,
+
+  /// A monitor reading unsafe: the run parks as soon as it starts.
+  monitorUnsafe;
+
+  static WeatherOffGuard of(SafetySourceReading monitor) => switch (monitor) {
+    SafetySourceReading.absent => none,
+    SafetySourceReading.unknown => monitorUnread,
+    SafetySourceReading.safe => monitorSafe,
+    SafetySourceReading.unsafe => monitorUnsafe,
+  };
+}
+
 /// The three-state read of each hardware safety source.
 ///
 /// Lets a settings surface state which sources are attached and usable without

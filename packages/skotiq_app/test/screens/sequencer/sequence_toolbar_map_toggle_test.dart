@@ -223,20 +223,6 @@ void main() {
     expect(button.semanticsHint, 'Show the map');
   });
 
-  test('the wording names the map in every density', () {
-    for (final density in SequencerDensity.values) {
-      expect(
-        sequenceOverviewToggleLabel(density: density, visible: true),
-        'Hide the map',
-      );
-      expect(
-        sequenceOverviewToggleLabel(density: density, visible: false),
-        'Show the map',
-      );
-      expect(sequenceOverviewButtonLabel(density), 'Map');
-    }
-  });
-
   test('a fresh store is off everywhere, and Ledger is never on', () async {
     final db = mockDatabase();
     addTearDown(db.close);

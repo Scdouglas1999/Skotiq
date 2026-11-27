@@ -28,6 +28,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/confirm_dialog.dart';
 import '../../connection/work_locally.dart' show canWorkLocally;
 import 'settings_widgets.dart';
@@ -319,19 +320,14 @@ class _DemoRigSection extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     if (settings == null) return const SizedBox.shrink();
     final linked = ref.watch(backendProvider).hostPlace.isLinked;
+    final l10n = context.l10n;
     return SettingsSection(
-      title: 'Testing',
+      title: l10n.text('settingsTesting'),
       children: [
         SettingRow(
           key: const ValueKey('settings.demoRig'),
-          title: 'Demo rig (testing)',
-          subtitle: linked
-              ? 'Simulates equipment on this phone when it is not linked to '
-                  'an imaging computer. This phone is linked now, so it '
-                  'starts when you disconnect.'
-              : 'Simulates equipment on this phone when it is not linked to '
-                  'an imaging computer. Frames are synthetic star fields, '
-                  'not a real sky.',
+          title: l10n.text('demoRigTitle'),
+          subtitle: l10n.text(linked ? 'demoRigLinkedDesc' : 'demoRigDesc'),
           trailing: SettingsSwitch(
             value: settings.demoRig,
             onChanged: (value) async {
@@ -340,7 +336,10 @@ class _DemoRigSection extends ConsumerWidget {
               } catch (error) {
                 if (!context.mounted) return;
                 context.showErrorSnackBar(
-                  'Could not change the demo rig: ${userFacingError(error)}',
+                  l10n.text(
+                    'demoRigChangeFailed',
+                    params: {'error': userFacingError(error)},
+                  ),
                 );
               }
             },

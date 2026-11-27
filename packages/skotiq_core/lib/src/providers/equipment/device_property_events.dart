@@ -13,6 +13,23 @@ import 'switch_state_provider.dart';
 import '../../backend/bridge_events.dart' as ev;
 import '../../models/backend/device_types.dart';
 
+/// The `PropertyChanged.property` names the native `DeviceManager` publishes
+/// (`state_events.rs`), as `test_fixtures/wire_words/device_properties.json`
+/// lists them.
+abstract final class DeviceProperty {
+  static const gain = 'Gain';
+  static const offset = 'Offset';
+  static const filterNames = 'FilterNames';
+  static const rotatorPosition = 'Position';
+  static const rotatorReverse = 'Reverse';
+  static const switchState = 'SwitchState';
+  static const switchValue = 'SwitchValue';
+  static const mountSlewAltAz = 'SlewToAltAz';
+  static const mountAbort = 'AbortSlew';
+  static const mountSynced = 'Synced';
+  static const domeSlaved = 'Slaved';
+}
+
 /// Apply a device setting change the host published as an Equipment
 /// `PropertyChanged` event.
 ///
@@ -48,25 +65,23 @@ bool applyDevicePropertyChange(
       final camera = read(cameraStateProvider.notifier);
       if (camera.deviceId != deviceId) return false;
       switch (property) {
-        case 'Gain':
+        case DeviceProperty.gain:
           final gain = int.tryParse(value);
           if (gain == null) return false;
           camera.applySetting(gain: gain);
           return true;
-        case 'Offset':
+        case DeviceProperty.offset:
           final offset = int.tryParse(value);
           if (offset == null) return false;
           camera.applySetting(offset: offset);
-          return true;
-        case 'Binning':
-          camera.applySetting(binning: value);
           return true;
       }
       return false;
 
     case DeviceType.filterWheel:
       final wheel = read(filterWheelStateProvider.notifier);
-      if (wheel.deviceId != deviceId || property != 'FilterNames') {
+      if (wheel.deviceId != deviceId ||
+          property != DeviceProperty.filterNames) {
         return false;
       }
       final decoded = _decodeNames(value);
@@ -78,12 +93,12 @@ bool applyDevicePropertyChange(
       final rotator = read(rotatorStateProvider.notifier);
       if (read(rotatorStateProvider).deviceId != deviceId) return false;
       switch (property) {
-        case 'Position':
+        case DeviceProperty.rotatorPosition:
           final angle = double.tryParse(value);
           if (angle == null) return false;
           rotator.updatePosition(angle);
           return true;
-        case 'Reverse':
+        case DeviceProperty.rotatorReverse:
           rotator.setReversed(value == 'true');
           return true;
       }
@@ -97,10 +112,10 @@ bool applyDevicePropertyChange(
       if (index == null) return false;
       final notifier = read(switchStateProvider.notifier);
       switch (property) {
-        case 'SwitchState':
+        case DeviceProperty.switchState:
           notifier.setChannelState(index, parts[1] == 'true');
           return true;
-        case 'SwitchValue':
+        case DeviceProperty.switchValue:
           final number = double.tryParse(parts[1]);
           if (number == null) return false;
           notifier.setChannelValue(index, number);
@@ -114,11 +129,11 @@ bool applyDevicePropertyChange(
       if (read(mountStateProvider).deviceId != deviceId) return false;
       final mount = read(mountStateProvider.notifier);
       switch (property) {
-        case 'SlewToAltAz':
+        case DeviceProperty.mountSlewAltAz:
           mount.setSlewing(true);
-        case 'AbortSlew':
+        case DeviceProperty.mountAbort:
           mount.setSlewing(false);
-        case 'Synced':
+        case DeviceProperty.mountSynced:
           break;
         default:
           return false;
@@ -128,7 +143,7 @@ bool applyDevicePropertyChange(
 
     case DeviceType.dome:
       if (read(domeStateProvider).deviceId != deviceId ||
-          property != 'Slaved') {
+          property != DeviceProperty.domeSlaved) {
         return false;
       }
       read(domeStateProvider.notifier).setSlaved(value == 'true');

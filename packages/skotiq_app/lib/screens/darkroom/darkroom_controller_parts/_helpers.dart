@@ -43,6 +43,10 @@ const double kDarkroomSliderMaxSpan = 10000.0;
 /// step whose presence decides whether a missing catalogue is worth reporting.
 const String kDarkroomColorCalibrateOpId = 'color_calibrate';
 
+/// The palette of a hand-set channel mix, as the native composite names it;
+/// a combine step's params carry it under `palette`.
+const String kDarkroomCustomPaletteId = 'custom';
+
 /// The operations the recipe engine defines a result for on THREE channels
 /// only, with what each one states it requires — the `expected` clause of its
 /// own `unsupported channel layout` refusal, word for word.
