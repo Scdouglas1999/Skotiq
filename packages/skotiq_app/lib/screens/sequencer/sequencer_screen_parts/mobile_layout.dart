@@ -106,8 +106,9 @@ class _MobileBuilderLayout extends ConsumerWidget {
 
               // Live telemetry while executing: the one-line strip Imaging
               // shows, so a phone has one status bar and the plan keeps the
-              // height a two-row stat grid took.
-              if (isRunning) const ImagingStatusStrip(),
+              // height a two-row stat grid took. On its side the height is
+              // the plan's: the run's band above already says what runs.
+              if (isRunning && !landscape) const ImagingStatusStrip(),
 
               // Tree (portrait: full width; landscape: split with properties).
               Expanded(

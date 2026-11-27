@@ -226,4 +226,31 @@ void main() {
     handle.container.dispose();
     await tester.pump(const Duration(milliseconds: 10));
   });
+
+  // A phone on its side, running, with no plan yet: under the header, the
+  // run's wide band, the toolbar and the status strip the plan kept 196 of
+  // the window's 390 px. In a desktop window that size the window frame and
+  // the bottom bar take another 109, which left the plan about 87 px.
+  Future<double> planHeight(WidgetTester tester, Size size) async {
+    await pumpAppScreen(
+      tester,
+      const SequencerScreen(),
+      size: size,
+      extraOverrides: [
+        ..._overrides(),
+        currentSequenceProvider.overrideWith((_) => CurrentSequenceNotifier()),
+        _running(),
+      ],
+      settle: false,
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SequenceProgressBar), findsOneWidget);
+    return tester.getRect(find.byType(SequenceTree)).height;
+  }
+
+  testWidgets('844x390 running: the plan keeps usable height', (tester) async {
+    expect(await planHeight(tester, const Size(844, 390)),
+        greaterThanOrEqualTo(230));
+  });
 }
