@@ -502,7 +502,7 @@ mod tests {
         );
     }
 
-    /// P8-8: a nudge asks the guider to stop before the axis moves; the
+    /// A nudge asks the guider to stop before the axis moves; the
     /// stop of the axis does not.
     #[tokio::test]
     async fn a_nudge_stops_the_guider_first_and_stopping_the_axis_does_not() {

@@ -1,4 +1,4 @@
-//! P8-4: a vendor camera registered as another kind of device (a guide
+//! A vendor camera registered as another kind of device (a guide
 //! camera as a guider) is heartbeated through the camera's own status probe,
 //! not the driver's in-process connected flag, which stays true after the
 //! camera is unplugged.

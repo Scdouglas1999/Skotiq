@@ -672,7 +672,7 @@ async fn a_uniform_frame_passes_validation_by_its_length() {
     );
 }
 
-/// P8-3: a bias may be uniform at any length (a camera whose shortest
+/// A bias may be uniform at any length (a camera whose shortest
 /// exposure is 0.1 s or more still takes biases); nothing accepted before is
 /// refused.
 #[tokio::test]

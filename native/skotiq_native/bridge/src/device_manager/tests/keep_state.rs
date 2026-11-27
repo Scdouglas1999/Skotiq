@@ -1,4 +1,4 @@
-//! P8-9 (owner 2026-11-22): a reconnect keeps the operating state the device
+//! A reconnect keeps the operating state the device
 //! had at its last disconnect, and moves nothing. A mount that was tracking
 //! and comes back without tracking tracks again at the rate it had; a first
 //! connect, with nothing held, adopts what the device reports.

@@ -783,7 +783,7 @@ async fn a_not_connected_kind_without_the_words_is_gone_at_every_recovery_site()
     let _ = manager.disconnect_device(focuser).await;
 }
 
-/// P8-7: the app's own wheel and focuser moves (the FFI calls the manager
+/// The app's own wheel and focuser moves (the FFI calls the manager
 /// directly) get the reopen the run's moves get after a bus drop.
 #[tokio::test]
 async fn a_manual_wheel_and_focuser_move_after_a_bus_drop_reopens_and_lands() {
