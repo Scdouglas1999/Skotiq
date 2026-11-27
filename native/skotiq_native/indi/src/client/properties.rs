@@ -215,7 +215,7 @@ impl IndiClient {
     /// Set a switch property with permission check.
     ///
     /// For `OneOfMany` / `AtMostOne` rules, turning a switch **on** sends a full vector with
-    /// sibling switches forced off (audit ND-).
+    /// sibling switches forced off.
     pub async fn set_switch(
         &mut self,
         device: &str,

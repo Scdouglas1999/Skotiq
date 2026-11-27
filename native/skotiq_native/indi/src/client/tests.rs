@@ -1607,7 +1607,7 @@ async fn a_focuser_compensation_property_without_a_value_stays_unknown() {
     assert_eq!(focuser.temp_comp().await, None);
 }
 
-/// P5-6: a value that is missing because the server link dropped or the
+/// A value that is missing because the server link dropped or the
 /// device's whole property set vanished reads as a lost device; a property
 /// the device never had stays a plain failure, so it never starts a
 /// reconnect loop.
