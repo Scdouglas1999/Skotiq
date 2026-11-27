@@ -41,7 +41,7 @@ base64.workspace = true
 lz4 = "1.28"
 zstd = "0.13"
 sha1 = "0.10"
-sha2 = "0.10"
+sha2 = "0.11"
 sha3 = "0.10"
 
 [build-dependencies]
@@ -51,4 +51,4 @@ cc = "1.1"
 skotiq_wire_fixtures = { path = "../wire_fixtures" }
 tempfile = "3"
 # Hashes the decoded mosaic in tests/camera_raw.rs to compare with an independent decoder.
-sha2 = "0.10"
+sha2 = "0.11"
