@@ -94,7 +94,7 @@
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, loggingServiceProvider, mountStateProvider, notificationServiceProvider, sequenceExecutionStateProvider, uiNotificationProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/device_service.dart": {
-        "count": 23,
+        "count": 22,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider. Remains: Other services import it (device_commands.dart, device_service_lifecycle.dart, profile_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/frame_identity.dart": {
@@ -130,7 +130,7 @@
         "reason": "Holds a Riverpod Ref; reads imagingRecordsRepositoryProvider, loggingServiceProvider, scienceBackendProvider, scienceDaoProvider, scienceProcessingStatusTrackerProvider. Remains: Reads 15 providers, among them scienceSettingsProvider whose ScienceSettings type is declared in providers/science_provider/settings.dart; that type has to move down before the service can take readers."
       },
       "services/switch_channel_service.dart": {
-        "count": 4,
+        "count": 3,
         "reason": "Holds a Riverpod Ref; reads backendProvider, errorServiceProvider, loggingServiceProvider, switchStateProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       }
     }
