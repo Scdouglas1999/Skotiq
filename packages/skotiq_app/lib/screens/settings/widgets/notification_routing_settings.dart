@@ -170,9 +170,11 @@ class NotificationRoutingSettings extends ConsumerWidget {
     Set<NotificationTransportKind> configured,
   ) {
     final rule = matrix.ruleFor(category);
-    final summary = rule.enabled && rule.transports.isNotEmpty
+    final sent = rule.enabled && rule.transports.isNotEmpty
         ? rule.transports.map((t) => _transportLabel(t, configured)).join(', ')
         : 'Not sent';
+    final summary =
+        category.alwaysShownInApp ? '$sent. Always shown in the app' : sent;
 
     return SettingRow(
       title: category.label,

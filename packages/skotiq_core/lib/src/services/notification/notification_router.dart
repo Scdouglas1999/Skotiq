@@ -28,6 +28,7 @@ import '../../backend/bridge_event_codec.dart' show systemEventOf;
 import '../../backend/bridge_events.dart' as typed show SequencerEvent_Started;
 import '../../backend/bridge_events.dart' show SystemEvent_Notification;
 import '../../backend/sequencer_run_events.dart' show sequencerEventOf;
+import '../../models/app_screen.dart';
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../models/sequence/run_stop_classification.dart';
@@ -223,15 +224,20 @@ class NotificationRouter {
     Map<String, String> contextValues, {
     EventSeverity severity = EventSeverity.info,
   }) {
-    if (!_matrix.enabled) return;
     final rule = _ruleFor(category);
-    if (!rule.enabled) return;
-    if (severity.index < rule.minSeverity.index) return;
+    final ruled =
+        _matrix.enabled &&
+        rule.enabled &&
+        severity.index >= rule.minSeverity.index;
+    if (!ruled && !category.alwaysShownInApp) return;
 
     if (_isDebounced(category, rule)) return;
     if (_isRateLimited(category, rule)) return;
 
-    final configured = _eligibleTransports(rule.transports);
+    final configured = _eligibleTransports([
+      if (ruled) ...rule.transports,
+      if (category.alwaysShownInApp) NotificationTransportKind.inApp,
+    ]);
     if (configured.isEmpty) return;
 
     if (category == NotificationCategory.sequenceStopped) {
@@ -271,14 +277,19 @@ class NotificationRouter {
         false;
   }
 
-  /// Whether a [category] notice at [severity] is shown in the app under
-  /// the operator's rules: notifications and the category's rule are on, the
-  /// severity clears the rule's floor, the rule names the in-app notice and
-  /// the in-app transport is set up.
+  /// Whether a [category] notice at [severity] is shown in the app: the
+  /// in-app transport is set up and either the category is always shown or,
+  /// under the operator's rules, notifications and the category's rule are
+  /// on, the severity clears the rule's floor and the rule names the in-app
+  /// notice.
   bool wouldShowInApp(
     NotificationCategory category, {
     EventSeverity severity = EventSeverity.critical,
   }) {
+    if (category.alwaysShownInApp) {
+      return _transports[NotificationTransportKind.inApp]?.isConfigured ??
+          false;
+    }
     if (!_matrix.enabled) return false;
     final rule = _ruleFor(category);
     if (!rule.enabled || severity.index < rule.minSeverity.index) return false;
@@ -288,31 +299,18 @@ class NotificationRouter {
     return _transports[NotificationTransportKind.inApp]?.isConfigured ?? false;
   }
 
-  /// Whether the notice for [event] is the router's: it shows it in-app, or
-  /// keeps it out of the app because the operator switched its row off. Either
-  /// way no other producer may tell it. [router] is null where no router runs.
-  ///
-  /// A classified sequencer or imaging event is the router's whatever its row
-  /// says. A classified safety event is the router's only while its rules show
-  /// it in the app: a safety notice is never silent. A Notification node that
-  /// names its own transports is the router's while routing is on.
-  static bool tellsInApp(SkotiqEvent event, {NotificationRouter? router}) {
+  /// Whether the notice for [event] is the router's: it routes every event
+  /// the classifier knows and every Notification node that names its own
+  /// transports. Its row and the routing switch are then the operator's answer
+  /// for that notice, shown or not (a safety notice is shown in the app
+  /// regardless, see [NotificationCategory.alwaysShownInApp]), and no other
+  /// producer may tell it. A router runs on every app role.
+  static bool tellsInApp(SkotiqEvent event) {
     if (systemEventOf(event) case final SystemEvent_Notification notification
         when nodeNotificationTransports(notification) != null) {
-      return router != null && router.matrix.enabled;
+      return true;
     }
-    final classified = NotificationEventClassifier.classify(event);
-    if (classified == null) return false;
-    return switch (event.category) {
-      EventCategory.sequencer || EventCategory.imaging => true,
-      EventCategory.safety =>
-        router != null &&
-            router.wouldShowInApp(
-              classified.category,
-              severity: classified.severity,
-            ),
-      _ => false,
-    };
+    return NotificationEventClassifier.classify(event) != null;
   }
 
   /// A classified event is presented at its category's severity; [severity]
@@ -474,7 +472,8 @@ class NotificationRouter {
   ///
   /// [severity] is the message's own: it is checked against the row's floor
   /// and it is what the transports present (toast style, Pushover priority,
-  /// the embed color of a `custom` message).
+  /// the embed color of a `custom` message). The in-app banner keeps quiet
+  /// while the operator is on one of the [quietOn] screens.
   ///
   /// Returns what was handed to a transport, or which gate sent nothing, so a
   /// caller that states an outcome (the dawn autopilot's morning message lists
@@ -486,6 +485,7 @@ class NotificationRouter {
     EventSeverity severity = EventSeverity.info,
     List<NotificationTransportKind>? explicitTransports,
     String? deepLink,
+    Set<AppScreen> quietOn = const {},
   }) {
     if (!_matrix.enabled) {
       return const NotificationRouteOutcome.dropped(
@@ -531,6 +531,7 @@ class NotificationRouter {
       body: body,
       severity: severity,
       deepLink: deepLink,
+      quietOn: quietOn,
     );
     final eligible = _willing(configured, message);
     if (eligible.isEmpty) {
@@ -595,7 +596,17 @@ class NotificationRouter {
     // Followed with notifications off too, so an episode under way when they
     // are turned on is not told as new.
     final guideStar = _guideStar.observe(event);
-    if (!_matrix.enabled) return;
+    if (!_matrix.enabled) {
+      final classified = NotificationEventClassifier.classify(event);
+      if (classified != null && classified.category.alwaysShownInApp) {
+        route(
+          classified.category,
+          _buildContext(event, classified.context),
+          severity: classified.severity,
+        );
+      }
+      return;
+    }
     if (guideStar != null) {
       route(
         guideStar.category,

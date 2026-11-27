@@ -74,12 +74,12 @@ void main() {
     expect(toasts.single.title, 'Clouds');
   });
 
-  test('with notifications off, a node with its own transports keeps its '
+  test('with notifications off, a node with its own transports raises no '
       'toast', () async {
     final toasts = await toastsFor(
       _nodeWarning(transports: ['telegram']),
       notificationsOn: false,
     );
-    expect(toasts.single.title, 'Clouds');
+    expect(toasts, isEmpty);
   });
 }

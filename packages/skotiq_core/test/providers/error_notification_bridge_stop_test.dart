@@ -304,46 +304,40 @@ void main() {
     },
   );
 
-  test(
-    'error-severity equipment Error is left to DeviceService, not toasted',
-    () async {
-      final (container, controller) = await _bridge();
-      addTearDown(container.dispose);
-      addTearDown(controller.close);
-      container.read(deviceServiceProvider);
+  test('an error-severity equipment Error is told once, by the notification '
+      'router', () async {
+    final (container, controller) = await _bridge();
+    addTearDown(container.dispose);
+    addTearDown(controller.close);
+    container.read(notificationRouterProvider);
+    container.read(deviceServiceProvider);
 
-      controller.add(
-        equipment('Error', 'Device not responding', EventSeverity.error),
-      );
-      controller.add(
-        equipment('Error', 'Device vanished', EventSeverity.critical),
-      );
-      await pumpEventQueue();
+    controller.add(
+      equipment('Error', 'Device not responding', EventSeverity.error),
+    );
+    controller.add(
+      equipment('Error', 'Device vanished', EventSeverity.critical),
+    );
+    await pumpEventQueue();
 
-      final shown = container.read(uiNotificationProvider);
-      expect(
-        shown.where((n) => n.message.contains('Device not responding')).length,
-        1,
-        reason:
-            'DeviceService._handleDeviceError surfaces these via errorService '
-            'with its own dedupe; the bridge must not double-toast them',
-      );
-      expect(
-        shown.where((n) => n.message.contains('Device vanished')).length,
-        1,
-      );
-    },
-  );
+    final shown = container.read(uiNotificationProvider);
+    for (final said in ['Device not responding', 'Device vanished']) {
+      final told = shown.where((n) => n.message.contains(said)).toList();
+      expect(told, hasLength(1), reason: said);
+      expect(told.single.title, 'Equipment disconnected');
+    }
+  });
 
-  // The suppression above is only right while a DeviceService is listening
-  // to the same backend. It is created lazily, by the first thing that reads
-  // it, so a phone that only watches a remote host may never have one, and a
-  // backend swap leaves the old one subscribed to the old backend.
-  test('an equipment Error still reaches the operator when no DeviceService '
+  // DeviceService is created lazily, by the first thing that reads it, so a
+  // phone that only watches a remote host may never have one, and a backend
+  // swap leaves the old one subscribed to the old backend. The router runs on
+  // every role and follows the backend.
+  test('an equipment Error reaches the operator when no DeviceService '
       'is listening', () async {
     final (container, controller) = await _bridge();
     addTearDown(container.dispose);
     addTearDown(controller.close);
+    container.read(notificationRouterProvider);
 
     controller.add(
       equipment(
@@ -356,7 +350,7 @@ void main() {
 
     expect(
       container.read(uiNotificationProvider).map((n) => n.message),
-      contains('Device unresponsive after 3 heartbeat failures'),
+      contains(contains('Device unresponsive after 3 heartbeat failures')),
       reason: 'the mount dropped and nothing told the operator',
     );
   });
@@ -367,6 +361,7 @@ void main() {
       final (container, controller) = await _bridge();
       addTearDown(container.dispose);
       addTearDown(controller.close);
+      container.read(notificationRouterProvider);
       // The app used a device before connecting to the remote host.
       container.read(deviceServiceProvider);
 
@@ -377,6 +372,7 @@ void main() {
       (container.read(backendProvider.notifier) as _FixedBackendNotifier)
           .swapTo(remote);
       container.read(errorNotificationBridgeProvider);
+      container.read(notificationRouterProvider);
       await pumpEventQueue();
 
       remoteEvents.add(

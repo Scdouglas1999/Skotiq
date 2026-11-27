@@ -20,8 +20,10 @@ import '../providers/constellation_provider.dart'
     show coImagingSessionServiceProvider;
 import '../providers/equipment_provider.dart';
 import '../providers/logging_service_provider.dart';
-import '../providers/smart_notification_service_provider.dart';
 import '../utils/logging_service.dart';
+import '../models/notification/notification_categories.dart'
+    show NotificationCategory;
+import 'notification/notification_router.dart' show NotificationRouter;
 part 'centering_service/centering_models.dart';
 
 /// Where a centering runs: the sequence's Center step in this process's
@@ -132,11 +134,19 @@ final class HostCenteringRunner implements CenteringRunner {
 /// step, so the guider is stopped for the move, the frames take the camera's
 /// stated defaults and the solves search near the target as they do in a run.
 class CenteringService {
-  CenteringService(this._ref, {CenteringRunner? runner})
-    : _runner = runner ?? const NativeCenteringRunner();
+  CenteringService(
+    this._ref, {
+    CenteringRunner? runner,
+    NotificationRouter Function()? notices,
+  }) : _runner = runner ?? const NativeCenteringRunner(),
+       _notices = notices;
 
   final Ref _ref;
   final CenteringRunner _runner;
+
+  /// The notification router the centered notice goes through; null tells
+  /// nothing.
+  final NotificationRouter Function()? _notices;
 
   bool _abortRequested = false;
   bool _isRunning = false;
@@ -362,14 +372,13 @@ class CenteringService {
       'Target centered successfully!',
       solved: solved,
     );
-    _ref
-        .read(smartNotificationServiceProvider)
-        .showSuccessIfNotOnScreens(
-          message:
-              'Target centered (offset: ${(offset / 60.0).toStringAsFixed(2)} arcmin)',
-          relevantScreens: [AppScreen.imaging, AppScreen.sequencer],
-          title: 'Centering Complete',
-        );
+    _notices?.call().routeRendered(
+      category: NotificationCategory.targetCentered,
+      title: 'Centering Complete',
+      body:
+          'Target centered (offset: ${(offset / 60.0).toStringAsFixed(2)} arcmin)',
+      quietOn: const {AppScreen.imaging, AppScreen.sequencer},
+    );
     return CenteringResult.success(
       finalOffsetArcsec: offset,
       iterations: attempts,

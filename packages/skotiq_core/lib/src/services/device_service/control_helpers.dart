@@ -547,16 +547,17 @@ extension _DeviceServiceControlHelpers on DeviceService {
         source: 'DeviceService',
       );
       try {
-        _ref
-            .read(uiNotificationProvider.notifier)
-            .showWarning(
+        _tell(
+          NotificationCategory.focusOffsetFailed,
+          title: 'Filter Focus Offset Failed',
+          body:
               'Focus offset for filter "$filterName" failed: $e. Frames may '
               'be out of focus until the focuser is checked.',
-              title: 'Filter Focus Offset Failed',
-            );
+          severity: EventSeverity.warning,
+        );
       } on Object {
-        // Notification surface unavailable (headless) — the log entry above
-        // remains the record.
+        // The router is unavailable while the app tears down; the log entry
+        // above remains the record.
       }
       if (rethrowOnFailure) {
         rethrow;

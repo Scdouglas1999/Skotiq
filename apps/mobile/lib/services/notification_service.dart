@@ -286,6 +286,7 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _ownershipAutoReleasedId = 116;
   static const int _mountFaultId = 117;
   static const int _hostJobFailedId = 118;
+  static const int _recoveryId = 119;
 
   /// How the phone shows each category it also tells itself, keyed by the
   /// category's storage key, which is the `eventType` of the host's push. A
@@ -311,6 +312,20 @@ class MobileNotificationService implements MobileNotificationSink {
         _sequenceFailedId,
         _sequenceDetails,
         NotificationPayloadType.sequenceFailed,
+      ),
+      // The host pushes a recovery's start and its success at critical
+      // priority; the second replaces the first, and both stay loud.
+      (
+        NotificationCategory.recoveryStarted,
+        _recoveryId,
+        _warningDetails,
+        NotificationPayloadType.push,
+      ),
+      (
+        NotificationCategory.recoveryRecovered,
+        _recoveryId,
+        _warningDetails,
+        NotificationPayloadType.push,
       ),
       (
         NotificationCategory.meridianFlipPerformed,

@@ -12,6 +12,7 @@
 import 'dart:convert';
 
 import '../../backend/bridge_event_codec.dart';
+import '../../backend/bridge_event_union.dart' as typed_union;
 import '../../backend/bridge_events.dart' as typed;
 import '../../models/backend/event_types.dart';
 import '../../errors/error_text.dart';
@@ -223,6 +224,14 @@ class NotificationEventClassifier {
       severity: severity,
     );
   }
+
+  /// The category [event] is told under by its kind and severity, without
+  /// the classifier's per-event state, or null when no category tells it.
+  static NotificationCategory? categoryOf(typed_union.SkotiqEvent event) =>
+      _categoryAndContext(
+        event.payload,
+        EventSeverity.values.byName(event.severity.name),
+      )?.$1;
 
   static bool _isDecisionRow(typed.EventPayload payload) =>
       payload is typed.EventPayload_Sequencer &&
@@ -535,25 +544,35 @@ class NotificationEventClassifier {
       return _autofocusOutcome(value);
     }
     if (severity.index < EventSeverity.error.index) return null;
-    final (deviceType, deviceId) = switch (event) {
-      typed.EquipmentEvent_Disconnected(:final deviceType, :final deviceId) ||
+    final (deviceType, deviceId, said) = switch (event) {
+      typed.EquipmentEvent_Disconnected(:final deviceType, :final deviceId) => (
+        deviceType,
+        deviceId,
+        null,
+      ),
       typed.EquipmentEvent_Error(
         :final deviceType,
         :final deviceId,
-      ) => (deviceType, deviceId),
-      _ => (null, null),
+        :final message,
+      ) =>
+        (deviceType, deviceId, message.trim()),
+      _ => (null, null, null),
     };
     if (deviceType == null || deviceId == null) return null;
+    // The operator-facing template renders this, never the raw id.
+    // `friendlyNameFromDeviceId` is the same resolver the run dashboard's
+    // feed uses, so a disconnect toast and the event feed cannot name one
+    // device two ways.
+    final name = _disconnectedDeviceName(deviceId, deviceType);
     return (
       NotificationCategory.equipmentDisconnected,
       <String, String>{
         'equipment.device_type': deviceType,
         'equipment.device_id': deviceId,
-        // The operator-facing template renders this, never the raw id.
-        // `friendlyNameFromDeviceId` is the same resolver the run dashboard's
-        // feed uses, so a disconnect toast and the event feed cannot name one
-        // device two ways.
-        'equipment.device_name': _disconnectedDeviceName(deviceId, deviceType),
+        'equipment.device_name': name,
+        'equipment.summary': said == null || said.isEmpty
+            ? '$name disconnected.'
+            : '$name: $said',
       },
     );
   }
@@ -571,8 +590,19 @@ class NotificationEventClassifier {
       return null;
     }
     if (outcome is! Map<String, dynamic>) return null;
+    final hfr = switch (outcome['result']) {
+      {'best_hfr': final num value} when value.isFinite && value > 0 => value,
+      _ => null,
+    };
     return switch (outcome['status']) {
-      'Success' => (NotificationCategory.autofocusCompleted, _none),
+      'Success' => (
+        NotificationCategory.autofocusCompleted,
+        <String, String>{
+          'autofocus.summary': hfr == null
+              ? 'Autofocus run completed.'
+              : 'Autofocus run completed (HFR: ${hfr.toStringAsFixed(2)}).',
+        },
+      ),
       'Failure' when outcome['in_run'] != true => (
         NotificationCategory.autofocusFailed,
         _none,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'backend_provider.dart';
 import 'linked_host.dart';
+import 'notification_router_provider.dart' show notificationRouterProvider;
 import '../models/backend/backend_types.dart';
 import '../services/device_service.dart';
 import '../services/device_service/connect_attempts.dart';
@@ -24,6 +25,7 @@ final deviceServiceProvider = Provider<DeviceService>((ref) {
     attempts: ref.watch(connectAttemptsProvider),
     hostDevices: ref.watch(linkedHostDevicesProvider),
     hostLink: ref.watch(linkedHostLinkProvider),
+    notices: () => ref.read(notificationRouterProvider),
   );
   ref.onDispose(() => service.dispose());
   return service;

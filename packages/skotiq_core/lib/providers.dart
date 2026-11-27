@@ -273,7 +273,6 @@ export 'src/providers/sequence_repository_provider.dart';
 export 'src/providers/sesame_name_resolver_provider.dart';
 export 'src/providers/end_of_night_calibration/eon_deferral_provider.dart';
 export 'src/providers/sky_atlas/sky_atlas_seam_provider.dart';
-export 'src/providers/smart_notification_service_provider.dart';
 export 'src/providers/smart_project_service_provider.dart';
 export 'src/providers/snippet_file_service_provider.dart';
 export 'src/providers/stack_and_share_service_provider.dart';

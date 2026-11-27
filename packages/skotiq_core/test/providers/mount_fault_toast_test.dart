@@ -1,6 +1,6 @@
 // Mobile rework P2-14: one mount fault was told five times on the phone,
 // three of them toasts. The notification router tells it ("Mount fault");
-// the toast bridge leaves it alone while the router's rules show it.
+// the toast bridge leaves it alone.
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,8 +70,12 @@ void main() {
     expect(await bridgeToastsFor(_mountFault()), isEmpty);
   });
 
-  test('with notifications off the bridge still tells it', () async {
-    final toasts = await bridgeToastsFor(_mountFault(), notificationsOn: false);
-    expect(toasts.single.title, startsWith('Critical'));
+  // The router's rows are the operator's answer for what it routes: with
+  // routing off the bridge does not tell it in their place.
+  test('with notifications off the bridge does not tell it', () async {
+    expect(
+      await bridgeToastsFor(_mountFault(), notificationsOn: false),
+      isEmpty,
+    );
   });
 }

@@ -46,6 +46,8 @@ import 'device_exceptions.dart';
 import 'mount_home_watcher.dart';
 import 'mount_slew_watcher.dart';
 import 'error_service.dart';
+import 'notification/event_classifier.dart' show ConnectingDevices;
+import 'notification/notification_router.dart' show NotificationRouter;
 import 'phd2_launcher.dart';
 import '../backend/phd2_status_poll.dart';
 import 'predictive_af_service.dart';
@@ -64,7 +66,8 @@ import '../providers/mount_home_watcher_provider.dart';
 import '../providers/mount_slew_watcher_providers.dart';
 import '../providers/predictive_af_service_providers.dart';
 import '../providers/profile_service_provider.dart';
-import '../providers/smart_notification_service_provider.dart';
+import '../models/notification/notification_categories.dart'
+    show NotificationCategory;
 
 part 'device_service/event_handling.dart';
 part 'device_service/control_helpers.dart';
@@ -114,6 +117,11 @@ class DeviceService {
   /// Where each of this service's own connects stands; consulted before a
   /// native connection event writes a slot.
   final ConnectAttempts _attempts;
+
+  /// Follows every device's connects, so the `Error` of a connect that did
+  /// not succeed is told here and a lost device by the notification router,
+  /// which follows them the same way.
+  final ConnectingDevices _connecting = ConnectingDevices();
   late final DeviceHeartbeatRouter _heartbeat;
   late final SwitchChannelService _switchChannels;
 
@@ -236,9 +244,6 @@ class DeviceService {
     }
   }
 
-  /// The backend whose events this service is listening to.
-  SkotiqBackend get eventSource => _backend;
-
   /// The linked host's devices, or null where the devices are this
   /// process's own.
   final HostDeviceControl? _hostDevices;
@@ -246,6 +251,27 @@ class DeviceService {
   /// True on a companion: the imaging host owns every device, so this client
   /// never tears one down to clean up after its own failed request.
   bool get _hostOwnsDevices => _hostDevices != null;
+
+  /// The notification router every operator notice this service raises goes
+  /// through; null tells nothing.
+  final NotificationRouter Function()? _notices;
+
+  /// Tell the operator through the notification router, on [category]'s row.
+  void _tell(
+    NotificationCategory category, {
+    required String title,
+    required String body,
+    EventSeverity severity = EventSeverity.info,
+    Set<AppScreen> quietOn = const {},
+  }) {
+    _notices?.call().routeRendered(
+      category: category,
+      title: title,
+      body: body,
+      severity: severity,
+      quietOn: quietOn,
+    );
+  }
 
   /// [attempts] is shared with whatever else writes device slots (see
   /// `connectAttemptsProvider`). [hostDevices] and [hostLink] are the linked
@@ -256,8 +282,10 @@ class DeviceService {
     ConnectAttempts? attempts,
     HostDeviceControl? hostDevices,
     HostLink? hostLink,
+    NotificationRouter Function()? notices,
   }) : _attempts = attempts ?? ConnectAttempts(),
-       _hostDevices = hostDevices {
+       _hostDevices = hostDevices,
+       _notices = notices {
     _temperaturePoller = CameraTemperaturePoller(
       ref: _ref,
       backend: _backend,
@@ -289,6 +317,7 @@ class DeviceService {
       pauseSequence: pauseSequence,
       surfaceReconnecting: (deviceId) =>
           _heartbeat.surfaceReconnecting(deviceId: deviceId),
+      notices: notices,
     );
     _switchChannels = SwitchChannelService(
       ref: _ref,

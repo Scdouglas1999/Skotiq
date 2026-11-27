@@ -50,6 +50,7 @@ import '../services/notification/transports/system_push_transport.dart';
 import '../services/notification/transports/telegram_transport.dart';
 import '../services/notification/transports/webhook_transport.dart';
 import 'backend_provider.dart';
+import 'current_screen_provider.dart';
 import 'database_provider.dart';
 import 'push_notification_provider.dart';
 import 'settings_provider.dart';
@@ -719,7 +720,12 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   // host exposes routing configuration APIs.
   if (ref.watch(isRemoteModeProvider)) {
     final router = NotificationRouter(
-      transports: [InAppTransport(uiNotifier)],
+      transports: [
+        InAppTransport(
+          uiNotifier,
+          currentScreen: () => ref.read(currentScreenProvider),
+        ),
+      ],
       matrix: NotificationRoutingMatrix.inAppOnly(),
     );
     router.attachEventStream(backend.eventStream);
@@ -752,7 +758,10 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
       ref.read(mqttTransportConfigProvider).valueOrNull ??
       const MqttTransportConfig();
 
-  final inApp = InAppTransport(uiNotifier);
+  final inApp = InAppTransport(
+    uiNotifier,
+    currentScreen: () => ref.read(currentScreenProvider),
+  );
   final systemPush = SystemPushTransport(pushService);
   final email = EmailTransport(config: emailCfg);
   final webhook = WebhookTransport(config: webhookCfg);

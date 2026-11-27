@@ -36,6 +36,14 @@ enum NotificationCategory {
 
   // Mount / hardware milestones
   meridianFlipPerformed('Meridian flip performed'),
+
+  /// The mount finished a slew, parked or unparked. Not told for a slew the
+  /// run made, which is the run's own step.
+  mountMoved('Mount slewed or parked'),
+
+  /// A centering the operator started put the target in the middle of the
+  /// frame.
+  targetCentered('Target centered'),
   autofocusCompleted('Autofocus completed'),
   autofocusFailed('Autofocus failed'),
 
@@ -45,6 +53,10 @@ enum NotificationCategory {
   /// Info, not error: the night goes on slightly soft, and an error here would
   /// train the operator to ignore the alerts that do end a run.
   autofocusContinued('Autofocus continued'),
+
+  /// A filter change could not move the focuser by the filter's focus offset;
+  /// frames on that filter may be soft until the focuser is checked.
+  focusOffsetFailed('Focus offset failed'),
 
   // Imaging
   frameCaptured('Frame captured'),
@@ -95,6 +107,14 @@ enum NotificationCategory {
   // System / operational
   diskSpaceLow('Disk space low'),
   equipmentDisconnected('Equipment disconnected'),
+
+  /// A device whose connect had been told as failed answered after all: it
+  /// came up, or it answered but did not come up.
+  deviceAnsweredLate('Device answered late'),
+
+  /// A run's checkpoint could not be saved after a critical device
+  /// disconnected, so a restart could not pick the run up from there.
+  checkpointFailed('Checkpoint not saved'),
   triggerFired('Trigger fired'),
 
   // Custom (user-script / NotificationNode-defined)
@@ -118,6 +138,9 @@ enum NotificationCategory {
       case NotificationCategory.targetStarted:
       case NotificationCategory.targetCompleted:
       case NotificationCategory.meridianFlipPerformed:
+      case NotificationCategory.mountMoved:
+      case NotificationCategory.targetCentered:
+      case NotificationCategory.deviceAnsweredLate:
       case NotificationCategory.autofocusCompleted:
       case NotificationCategory.autofocusContinued:
       case NotificationCategory.frameCaptured:
@@ -138,6 +161,7 @@ enum NotificationCategory {
         return EventSeverity.info;
       case NotificationCategory.frameRejected:
       case NotificationCategory.problemNoticed:
+      case NotificationCategory.focusOffsetFailed:
       case NotificationCategory.cloudArriving:
       case NotificationCategory.recoveryStarted:
         return EventSeverity.warning;
@@ -148,6 +172,7 @@ enum NotificationCategory {
       case NotificationCategory.weatherUnsafe:
       case NotificationCategory.diskSpaceLow:
       case NotificationCategory.equipmentDisconnected:
+      case NotificationCategory.checkpointFailed:
         return EventSeverity.error;
       // A possible new transient is a time-critical, must-not-miss event: the
       // chase window closes by morning. Severity `critical` so it clears the
@@ -185,6 +210,13 @@ enum NotificationCategory {
         return false;
     }
   }
+
+  /// A safety notice is never silent: shown in the app whatever its row or
+  /// the routing switch says. The row and the switch still decide the phone
+  /// push and the other transports.
+  bool get alwaysShownInApp =>
+      this == NotificationCategory.weatherUnsafe ||
+      this == NotificationCategory.mountFault;
 
   static NotificationCategory? fromStorageKey(String key) {
     for (final c in NotificationCategory.values) {
@@ -533,10 +565,12 @@ class NotificationRoutingMatrix extends Equatable {
 }
 
 /// Categories whose row starts switched off; the operator can turn it on in
-/// Settings. A new target is a step the run takes, which the run's own screens
-/// show; as a toast it covered the phone's frame strip at every target.
+/// Settings. A new target and a captured frame are steps the run takes, which
+/// the run's own screens show; as a toast a new target covered the phone's
+/// frame strip at every target, and a frame would at every exposure.
 bool _offByDefault(NotificationCategory c) =>
-    c == NotificationCategory.targetStarted;
+    c == NotificationCategory.targetStarted ||
+    c == NotificationCategory.frameCaptured;
 
 /// Categories routed to systemPush by default. The 8 critical-by-default
 /// categories plus the three non-critical completion milestones the legacy

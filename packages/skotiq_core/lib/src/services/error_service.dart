@@ -113,7 +113,10 @@ class ErrorService {
   final LoggingService? _loggingService;
   final UiNotices? _uiNotificationNotifier;
 
-  void log(ErrorEntry entry) {
+  /// Record [entry] and log it; an error or warning is also shown as a toast
+  /// unless [showNotice] is false, for an entry whose notice another
+  /// producer tells.
+  void log(ErrorEntry entry, {bool showNotice = true}) {
     _errorHistory.add(entry);
     while (_errorHistory.length > _maxHistorySize) {
       _errorHistory.removeFirst();
@@ -134,7 +137,7 @@ class ErrorService {
       );
     }
 
-    final notices = _uiNotificationNotifier;
+    final notices = showNotice ? _uiNotificationNotifier : null;
     if (notices != null) {
       final text = describeError(
         entry.message,
@@ -213,8 +216,10 @@ class ErrorService {
     String? deviceId,
     ErrorSeverity severity = ErrorSeverity.error,
     Map<String, dynamic>? context,
+    bool showNotice = true,
   }) {
     log(
+      showNotice: showNotice,
       ErrorEntry(
         severity: severity,
         category: ErrorCategory.device,

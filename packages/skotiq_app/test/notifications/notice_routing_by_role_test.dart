@@ -56,9 +56,22 @@ final List<ProviderListenable<Object?>> _noticeProducers = [
 ];
 
 class _Happening {
-  const _Happening(this.category, this.events, {this.waitForStopPush = false});
-  final NotificationCategory category;
+  const _Happening(
+    this.category,
+    this.events, {
+    this.waitForStopPush = false,
+    this.label,
+  });
+
+  /// The routing row the row-off setting switches off; null for a happening
+  /// no row tells, where row-off is the defaults.
+  final NotificationCategory? category;
   final List<SkotiqEvent> Function(int cell) events;
+
+  /// The table's name for a happening that is not one category's own.
+  final String? label;
+
+  String get name => label ?? category!.name;
 
   /// A stop's phone push waits out the authorship grace.
   final bool waitForStopPush;
@@ -369,16 +382,134 @@ final List<_Happening> _happenings = [
       ),
     ],
   ),
+  _Happening(
+    NotificationCategory.equipmentDisconnected,
+    (cell) => [
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.disconnected(
+            deviceType: 'Camera',
+            deviceId: 'sim_camera_$cell',
+          ),
+        ),
+        sk.EventSeverity.error,
+      ),
+    ],
+    label: 'equipmentLostNoMessage',
+  ),
+  _Happening(
+    NotificationCategory.equipmentDisconnected,
+    (cell) => [
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.connecting(
+            deviceType: 'Camera',
+            deviceId: 'sim_camera_$cell',
+            deviceName: 'Sim camera',
+          ),
+        ),
+        sk.EventSeverity.info,
+      ),
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.error(
+            deviceType: 'Camera',
+            deviceId: 'sim_camera_$cell',
+            message: 'No camera on the bus ($cell)',
+          ),
+        ),
+        sk.EventSeverity.error,
+      ),
+    ],
+    label: 'equipmentConnectFailed',
+  ),
+  _Happening(
+    null,
+    (cell) => [
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.error(
+            deviceType: 'Camera',
+            deviceId: 'sim_camera_$cell',
+            message: 'Gain was not restored ($cell)',
+          ),
+        ),
+        sk.EventSeverity.warning,
+      ),
+    ],
+    label: 'equipmentWarning',
+  ),
+  _Happening(
+    NotificationCategory.equipmentDisconnected,
+    (cell) => [
+      _wire(
+        sk.EventCategory.equipment,
+        sk.EventPayload.equipment(
+          sk.EquipmentEvent.error(
+            deviceType: 'Mount',
+            deviceId: 'sim_mount_$cell',
+            message: 'Mount stopped answering ($cell)',
+          ),
+        ),
+        sk.EventSeverity.critical,
+      ),
+    ],
+    label: 'equipmentCritical',
+  ),
+  _Happening(
+    NotificationCategory.mountMoved,
+    (_) => [
+      _mount(const sk.EquipmentEvent.mountSlewCompleted(
+        deviceId: '',
+        ra: 10,
+        dec: 41,
+      ))
+    ],
+    label: 'mountSlewIdle',
+  ),
+  _Happening(
+    NotificationCategory.mountMoved,
+    (_) => [
+      _seq(const sk.SequencerEvent.started(sequenceName: 'Night')),
+      _mount(const sk.EquipmentEvent.mountSlewCompleted(
+        deviceId: '',
+        ra: 10,
+        dec: 41,
+      )),
+    ],
+    label: 'mountSlewInRun',
+  ),
+  _Happening(
+    NotificationCategory.mountMoved,
+    (_) => [_mount(const sk.EquipmentEvent.mountParkCompleted(deviceId: ''))],
+    label: 'mountParked',
+  ),
+  _Happening(
+    NotificationCategory.mountMoved,
+    (_) => [_mount(const sk.EquipmentEvent.mountUnparked(deviceId: ''))],
+    label: 'mountUnparked',
+  ),
 ];
+
+SkotiqEvent _mount(sk.EquipmentEvent event) => _wire(
+      sk.EventCategory.equipment,
+      sk.EventPayload.equipment(event),
+      sk.EventSeverity.info,
+    );
 
 NotificationRoutingMatrix? _storedMatrix(
   _Setting setting,
-  NotificationCategory category,
+  NotificationCategory? category,
 ) =>
     switch (setting) {
       _Setting.defaults => null,
+      _Setting.rowOff when category == null => null,
       _Setting.rowOff => NotificationRoutingMatrix.defaults().withRule(
-          category,
+          category!,
           NotificationRoutingMatrix.defaults()
               .ruleFor(category)
               .copyWith(enabled: false),
@@ -390,7 +521,8 @@ NotificationRoutingMatrix? _storedMatrix(
 
 /// What the operator gets from [happening] in [role] under [setting]: each
 /// toast as `toast <level> <title>` and each queued phone push as
-/// `push <title>`, in the order they were raised.
+/// `push <title> [<eventType>]` (the phone keys its notification on the
+/// event type), in the order they were raised.
 Future<List<String>> _noticesFor(
   _Role role,
   _Happening happening,
@@ -410,10 +542,14 @@ Future<List<String>> _noticesFor(
   if (role.linked) {
     final network = _MockNetworkBackend();
     when(() => network.eventStream).thenAnswer((_) => events.stream);
+    when(() => network.nativeReconnectedDeviceTypes)
+        .thenReturn(DeviceType.values.toSet());
     backend = network;
   } else {
     final local = _MockFfiBackend();
     when(() => local.eventStream).thenAnswer((_) => events.stream);
+    when(() => local.nativeReconnectedDeviceTypes)
+        .thenReturn(DeviceType.values.toSet());
     backend = local;
   }
   final container = ProviderContainer(
@@ -448,11 +584,14 @@ Future<List<String>> _noticesFor(
           .read(notificationRoutingMatrixProvider.future)
           .catchError((Object _) => const NotificationRoutingMatrix());
     }
+    // A screen that shows none of the happenings, so a notice that keeps
+    // quiet where its result is on screen still shows.
+    container.read(currentScreenProvider.notifier).state = AppScreen.settings;
     await pumpEventQueue();
     pushSub = container
         .read(pushNotificationServiceProvider)
         .notifications
-        .listen((p) => pushes.add('push ${p.title}'));
+        .listen((p) => pushes.add('push ${p.title} [${p.eventType}]'));
     container.listen<List<UiNotification>>(uiNotificationProvider, (
       previous,
       next,
@@ -485,8 +624,8 @@ Future<List<String>> _noticesFor(
   }
 }
 
-String _key(_Role role, NotificationCategory category, _Setting setting) =>
-    '${role.name} ${category.name} ${setting.name}';
+String _key(_Role role, _Happening happening, _Setting setting) =>
+    '${role.name} ${happening.name} ${setting.name}';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -509,7 +648,7 @@ void main() {
   for (final role in _Role.values) {
     for (final happening in _happenings) {
       for (final setting in _Setting.values) {
-        final key = _key(role, happening.category, setting);
+        final key = _key(role, happening, setting);
         final thisCell = cell++;
         test(key, () async {
           final got = await _noticesFor(role, happening, setting, thisCell);
@@ -548,18 +687,18 @@ const _expected = <String, List<String>>{
   ],
   'hostGui sequenceCompleted defaults': [
     'toast success Sequence complete',
-    'push Sequence complete',
+    'push Sequence complete [sequenceCompleted]',
   ],
   'hostGui sequenceFailed defaults': [
     'toast error Sequence failed',
-    'push Sequence failed',
+    'push Sequence failed [sequenceFailed]',
   ],
   'hostGui sequenceFailed rowOff': [
-    'push Critical · Sequencer',
+    'push Critical · Sequencer [sequenceFailed]',
   ],
   'hostGui sequenceStopped defaults': [
     'toast info Sequence stopped',
-    'push Sequence stopped',
+    'push Sequence stopped [sequenceStopped]',
   ],
   'hostGui sequencePaused defaults': [
     'toast info Sequence paused',
@@ -569,35 +708,32 @@ const _expected = <String, List<String>>{
   ],
   'hostGui targetCompleted defaults': [
     'toast success Target complete: M31',
-    'push Target complete: M31',
+    'push Target complete: M31 [targetCompleted]',
   ],
   'hostGui meridianFlipPerformed defaults': [
     'toast info Meridian flip performed',
-    'push Meridian flip performed',
+    'push Meridian flip performed [meridianFlipPerformed]',
   ],
   'hostGui autofocusCompleted defaults': [
     'toast success Autofocus complete',
   ],
   'hostGui autofocusContinued defaults': [
     'toast info Autofocus failed: continuing',
-    'push Autofocus failed: continuing',
-  ],
-  'hostGui frameCaptured defaults': [
-    'toast info Frame captured',
+    'push Autofocus failed: continuing [autofocusContinued]',
   ],
   'hostGui frameRejected defaults': [
     'toast warning Frames being rejected',
   ],
   'hostGui problemNoticed defaults': [
     'toast warning Problem noticed: the run continues',
-    'push Problem noticed: the run continues',
+    'push Problem noticed: the run continues [problemNoticed]',
   ],
   'hostGui exposureFailed defaults': [
     'toast error Exposure failed',
-    'push Exposure failed',
+    'push Exposure failed [exposureFailed]',
   ],
   'hostGui exposureFailed rowOff': [
-    'push Critical · Imaging',
+    'push Critical · Imaging [exposureFailed]',
   ],
   'hostGui recoveryStarted defaults': [
     'toast warning Recovery started',
@@ -607,77 +743,107 @@ const _expected = <String, List<String>>{
   ],
   'hostGui recoveryGaveUp defaults': [
     'toast error Recovery gave up',
-    'push Recovery gave up',
+    'push Recovery gave up [recoveryGaveUp]',
   ],
   'hostGui recoveryGaveUp rowOff': [
-    'push Critical · Sequencer',
+    'push Critical · Sequencer [recoveryGaveUp]',
   ],
   'hostGui guidingLost defaults': [
     'toast error Guiding lost',
-    'push Guiding lost',
+    'push Guiding lost [guidingLost]',
   ],
   'hostGui weatherUnsafe defaults': [
     'toast error Weather unsafe',
-    'push Weather unsafe',
+    'push Weather unsafe [weatherUnsafe]',
   ],
   'hostGui weatherUnsafe rowOff': [
-    'toast error Safety Error',
-    'push Critical · Safety',
+    'toast error Weather unsafe',
+    'push Critical · Safety [weatherUnsafe]',
   ],
   'hostGui weatherUnsafe routingOff': [
-    'toast error Safety Error',
+    'toast error Weather unsafe',
   ],
   'hostGui weatherSafeAgain defaults': [
     'toast success Weather safe again',
   ],
   'hostGui mountFault defaults': [
     'toast error Mount fault',
-    'push Mount fault',
+    'push Mount fault [mountFault]',
   ],
   'hostGui mountFault rowOff': [
-    'toast error Critical: Safety Error',
-    'push Critical · Safety',
+    'toast error Mount fault',
+    'push Critical · Safety [mountFault]',
   ],
   'hostGui mountFault routingOff': [
-    'toast error Critical: Safety Error',
+    'toast error Mount fault',
   ],
   'hostGui diskSpaceLow defaults': [
     'toast error Disk space low',
-    'push Disk space low',
+    'push Disk space low [diskSpaceLow]',
   ],
   'hostGui diskSpaceLow rowOff': [
-    'push Critical · System',
+    'push Critical · System [diskSpaceLow]',
   ],
   'hostGui equipmentDisconnected defaults': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
-  ],
-  'hostGui equipmentDisconnected rowOff': [
-    'toast error Camera Error',
-  ],
-  'hostGui equipmentDisconnected routingOff': [
-    'toast error Camera Error',
   ],
   'hostGui triggerFired defaults': [
     'toast info Trigger fired',
+  ],
+  'hostGui equipmentLostNoMessage defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'hostGui equipmentConnectFailed defaults': [
+    'toast error Camera Error',
+  ],
+  'hostGui equipmentWarning defaults': [
+    'toast warning Camera Warning',
+  ],
+  'hostGui equipmentWarning rowOff': [
+    'toast warning Camera Warning',
+  ],
+  'hostGui equipmentWarning routingOff': [
+    'toast warning Camera Warning',
+  ],
+  'hostGui equipmentCritical defaults': [
+    'toast error Equipment disconnected',
+    'push Critical · Equipment [equipmentDisconnected]',
+  ],
+  'hostGui equipmentCritical rowOff': [
+    'push Critical · Equipment [equipmentDisconnected]',
+  ],
+  'hostGui mountSlewIdle defaults': [
+    'toast success Mount',
+  ],
+  'hostGui mountSlewInRun defaults': [
+    'toast info Sequence started',
+  ],
+  'hostGui mountSlewInRun rowOff': [
+    'toast info Sequence started',
+  ],
+  'hostGui mountParked defaults': [
+    'toast success Mount',
+  ],
+  'hostGui mountUnparked defaults': [
+    'toast success Mount',
   ],
   'hostDaemon sequenceStarted defaults': [
     'toast info Sequence started',
   ],
   'hostDaemon sequenceCompleted defaults': [
     'toast success Sequence complete',
-    'push Sequence complete',
+    'push Sequence complete [sequenceCompleted]',
   ],
   'hostDaemon sequenceFailed defaults': [
     'toast error Sequence failed',
-    'push Sequence failed',
+    'push Sequence failed [sequenceFailed]',
   ],
   'hostDaemon sequenceFailed rowOff': [
-    'push Critical · Sequencer',
+    'push Critical · Sequencer [sequenceFailed]',
   ],
   'hostDaemon sequenceStopped defaults': [
     'toast info Sequence stopped',
-    'push Sequence stopped',
+    'push Sequence stopped [sequenceStopped]',
   ],
   'hostDaemon sequencePaused defaults': [
     'toast info Sequence paused',
@@ -687,35 +853,32 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon targetCompleted defaults': [
     'toast success Target complete: M31',
-    'push Target complete: M31',
+    'push Target complete: M31 [targetCompleted]',
   ],
   'hostDaemon meridianFlipPerformed defaults': [
     'toast info Meridian flip performed',
-    'push Meridian flip performed',
+    'push Meridian flip performed [meridianFlipPerformed]',
   ],
   'hostDaemon autofocusCompleted defaults': [
     'toast success Autofocus complete',
   ],
   'hostDaemon autofocusContinued defaults': [
     'toast info Autofocus failed: continuing',
-    'push Autofocus failed: continuing',
-  ],
-  'hostDaemon frameCaptured defaults': [
-    'toast info Frame captured',
+    'push Autofocus failed: continuing [autofocusContinued]',
   ],
   'hostDaemon frameRejected defaults': [
     'toast warning Frames being rejected',
   ],
   'hostDaemon problemNoticed defaults': [
     'toast warning Problem noticed: the run continues',
-    'push Problem noticed: the run continues',
+    'push Problem noticed: the run continues [problemNoticed]',
   ],
   'hostDaemon exposureFailed defaults': [
     'toast error Exposure failed',
-    'push Exposure failed',
+    'push Exposure failed [exposureFailed]',
   ],
   'hostDaemon exposureFailed rowOff': [
-    'push Critical · Imaging',
+    'push Critical · Imaging [exposureFailed]',
   ],
   'hostDaemon recoveryStarted defaults': [
     'toast warning Recovery started',
@@ -725,51 +888,80 @@ const _expected = <String, List<String>>{
   ],
   'hostDaemon recoveryGaveUp defaults': [
     'toast error Recovery gave up',
-    'push Recovery gave up',
+    'push Recovery gave up [recoveryGaveUp]',
   ],
   'hostDaemon recoveryGaveUp rowOff': [
-    'push Critical · Sequencer',
+    'push Critical · Sequencer [recoveryGaveUp]',
   ],
   'hostDaemon guidingLost defaults': [
     'toast error Guiding lost',
-    'push Guiding lost',
+    'push Guiding lost [guidingLost]',
   ],
   'hostDaemon weatherUnsafe defaults': [
     'toast error Weather unsafe',
-    'push Weather unsafe',
+    'push Weather unsafe [weatherUnsafe]',
   ],
   'hostDaemon weatherUnsafe rowOff': [
-    'push Critical · Safety',
+    'toast error Weather unsafe',
+    'push Critical · Safety [weatherUnsafe]',
+  ],
+  'hostDaemon weatherUnsafe routingOff': [
+    'toast error Weather unsafe',
   ],
   'hostDaemon weatherSafeAgain defaults': [
     'toast success Weather safe again',
   ],
   'hostDaemon mountFault defaults': [
     'toast error Mount fault',
-    'push Mount fault',
+    'push Mount fault [mountFault]',
   ],
   'hostDaemon mountFault rowOff': [
-    'push Critical · Safety',
+    'toast error Mount fault',
+    'push Critical · Safety [mountFault]',
+  ],
+  'hostDaemon mountFault routingOff': [
+    'toast error Mount fault',
   ],
   'hostDaemon diskSpaceLow defaults': [
     'toast error Disk space low',
-    'push Disk space low',
+    'push Disk space low [diskSpaceLow]',
   ],
   'hostDaemon diskSpaceLow rowOff': [
-    'push Critical · System',
+    'push Critical · System [diskSpaceLow]',
   ],
   'hostDaemon equipmentDisconnected defaults': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
-  ],
-  'hostDaemon equipmentDisconnected rowOff': [
-    'toast error Camera Error',
-  ],
-  'hostDaemon equipmentDisconnected routingOff': [
-    'toast error Camera Error',
   ],
   'hostDaemon triggerFired defaults': [
     'toast info Trigger fired',
+  ],
+  'hostDaemon equipmentLostNoMessage defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'hostDaemon equipmentConnectFailed defaults': [
+    'toast error Camera Error',
+  ],
+  'hostDaemon equipmentCritical defaults': [
+    'toast error Equipment disconnected',
+    'push Critical · Equipment [equipmentDisconnected]',
+  ],
+  'hostDaemon equipmentCritical rowOff': [
+    'push Critical · Equipment [equipmentDisconnected]',
+  ],
+  'hostDaemon mountSlewIdle defaults': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountSlewInRun defaults': [
+    'toast info Sequence started',
+  ],
+  'hostDaemon mountSlewInRun rowOff': [
+    'toast info Sequence started',
+  ],
+  'hostDaemon mountParked defaults': [
+    'toast success Mount',
+  ],
+  'hostDaemon mountUnparked defaults': [
+    'toast success Mount',
   ],
   'linkedDesktop sequenceStarted defaults': [
     'toast info Sequence started',
@@ -860,15 +1052,6 @@ const _expected = <String, List<String>>{
   ],
   'linkedDesktop autofocusContinued routingOff': [
     'toast info Autofocus failed: continuing',
-  ],
-  'linkedDesktop frameCaptured defaults': [
-    'toast info Frame captured',
-  ],
-  'linkedDesktop frameCaptured rowOff': [
-    'toast info Frame captured',
-  ],
-  'linkedDesktop frameCaptured routingOff': [
-    'toast info Frame captured',
   ],
   'linkedDesktop frameRejected defaults': [
     'toast warning Frames being rejected',
@@ -970,15 +1153,12 @@ const _expected = <String, List<String>>{
     'toast error Disk space low',
   ],
   'linkedDesktop equipmentDisconnected defaults': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedDesktop equipmentDisconnected rowOff': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedDesktop equipmentDisconnected routingOff': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedDesktop triggerFired defaults': [
@@ -989,6 +1169,81 @@ const _expected = <String, List<String>>{
   ],
   'linkedDesktop triggerFired routingOff': [
     'toast info Trigger fired',
+  ],
+  'linkedDesktop equipmentLostNoMessage defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentLostNoMessage rowOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentLostNoMessage routingOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentConnectFailed defaults': [
+    'toast error Camera Error',
+  ],
+  'linkedDesktop equipmentConnectFailed rowOff': [
+    'toast error Camera Error',
+  ],
+  'linkedDesktop equipmentConnectFailed routingOff': [
+    'toast error Camera Error',
+  ],
+  'linkedDesktop equipmentWarning defaults': [
+    'toast warning Camera Warning',
+  ],
+  'linkedDesktop equipmentWarning rowOff': [
+    'toast warning Camera Warning',
+  ],
+  'linkedDesktop equipmentWarning routingOff': [
+    'toast warning Camera Warning',
+  ],
+  'linkedDesktop equipmentCritical defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentCritical rowOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop equipmentCritical routingOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedDesktop mountSlewIdle defaults': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewIdle rowOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewIdle routingOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewInRun defaults': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewInRun rowOff': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedDesktop mountSlewInRun routingOff': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedDesktop mountParked defaults': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountParked rowOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountParked routingOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountUnparked defaults': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountUnparked rowOff': [
+    'toast success Mount',
+  ],
+  'linkedDesktop mountUnparked routingOff': [
+    'toast success Mount',
   ],
   'linkedPhone sequenceStarted defaults': [
     'toast info Sequence started',
@@ -1079,15 +1334,6 @@ const _expected = <String, List<String>>{
   ],
   'linkedPhone autofocusContinued routingOff': [
     'toast info Autofocus failed: continuing',
-  ],
-  'linkedPhone frameCaptured defaults': [
-    'toast info Frame captured',
-  ],
-  'linkedPhone frameCaptured rowOff': [
-    'toast info Frame captured',
-  ],
-  'linkedPhone frameCaptured routingOff': [
-    'toast info Frame captured',
   ],
   'linkedPhone frameRejected defaults': [
     'toast warning Frames being rejected',
@@ -1189,15 +1435,12 @@ const _expected = <String, List<String>>{
     'toast error Disk space low',
   ],
   'linkedPhone equipmentDisconnected defaults': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedPhone equipmentDisconnected rowOff': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedPhone equipmentDisconnected routingOff': [
-    'toast error Camera Error',
     'toast error Equipment disconnected',
   ],
   'linkedPhone triggerFired defaults': [
@@ -1208,5 +1451,80 @@ const _expected = <String, List<String>>{
   ],
   'linkedPhone triggerFired routingOff': [
     'toast info Trigger fired',
+  ],
+  'linkedPhone equipmentLostNoMessage defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentLostNoMessage rowOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentLostNoMessage routingOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentConnectFailed defaults': [
+    'toast error Camera Error',
+  ],
+  'linkedPhone equipmentConnectFailed rowOff': [
+    'toast error Camera Error',
+  ],
+  'linkedPhone equipmentConnectFailed routingOff': [
+    'toast error Camera Error',
+  ],
+  'linkedPhone equipmentWarning defaults': [
+    'toast warning Camera Warning',
+  ],
+  'linkedPhone equipmentWarning rowOff': [
+    'toast warning Camera Warning',
+  ],
+  'linkedPhone equipmentWarning routingOff': [
+    'toast warning Camera Warning',
+  ],
+  'linkedPhone equipmentCritical defaults': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentCritical rowOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone equipmentCritical routingOff': [
+    'toast error Equipment disconnected',
+  ],
+  'linkedPhone mountSlewIdle defaults': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewIdle rowOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewIdle routingOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewInRun defaults': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewInRun rowOff': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedPhone mountSlewInRun routingOff': [
+    'toast info Sequence started',
+    'toast success Mount',
+  ],
+  'linkedPhone mountParked defaults': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountParked rowOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountParked routingOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountUnparked defaults': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountUnparked rowOff': [
+    'toast success Mount',
+  ],
+  'linkedPhone mountUnparked routingOff': [
+    'toast success Mount',
   ],
 };
