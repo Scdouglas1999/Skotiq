@@ -20,6 +20,13 @@ double _siderealGap(double a, double b) {
   return d;
 }
 
+/// Within 0.01 sidereal hours of [truth], across the 0/24 seam: the provider
+/// reads the wall clock a moment after the test does.
+Matcher _nearSidereal(double truth) => predicate<double>(
+  (lst) => _siderealGap(lst, truth) < 0.01,
+  'within 0.01 h of $truth',
+);
+
 void main() {
   late ProviderContainer container;
 
@@ -39,7 +46,7 @@ void main() {
     );
     expect(
       container.read(localSiderealTimeProvider)!,
-      closeTo(truth, 0.01),
+      _nearSidereal(truth),
       reason: 'baseline: the chip agrees with now',
     );
 
@@ -58,7 +65,7 @@ void main() {
 
     expect(
       container.read(localSiderealTimeProvider)!,
-      closeTo(truth, 0.01),
+      _nearSidereal(truth),
       reason: 'the shell status bar states a fact about now, not a preview',
     );
   });
@@ -73,7 +80,7 @@ void main() {
       DateTime.now(),
       _longitude,
     );
-    expect(container.read(localSiderealTimeProvider)!, closeTo(truth, 0.01));
+    expect(container.read(localSiderealTimeProvider)!, _nearSidereal(truth));
   });
 
   test('the real LST tracks the site, not the observation clock', () {
