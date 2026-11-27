@@ -10,6 +10,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/mock_database.dart';
+import 'settled_review.dart';
 
 const _staleHeadline = 'A clean night: no problems detected (stale)';
 
@@ -70,13 +71,7 @@ void main() {
         sessionReviewControllerProvider(SessionReviewScope.session(sessionId)),
       );
 
-  Future<void> waitUntilLoaded() async {
-    for (var i = 0;
-        i < 100 && (state().loading || state().loadingSmartData);
-        i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-  }
+  Future<void> waitUntilLoaded() => settledReview(state);
 
   test('Refresh recomputes the verdict instead of re-reading it', () async {
     // Written after the last sub, so the staleness rule alone would keep it.

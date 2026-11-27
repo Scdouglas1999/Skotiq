@@ -17,6 +17,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/services.dart' as seam;
 
 import '../../harness/mock_database.dart';
+import 'settled_review.dart';
 
 class _FakeSeam implements PostSessionSeam {
   @override
@@ -167,13 +168,7 @@ void main() {
         sessionReviewControllerProvider(SessionReviewScope.session(sessionId)),
       );
 
-  Future<void> waitUntilLoaded() async {
-    for (var i = 0;
-        i < 50 && (state().loading || state().loadingSmartData);
-        i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-  }
+  Future<void> waitUntilLoaded() => settledReview(state);
 
   test('loadSmartData populates a night report and settles loading flag',
       () async {
@@ -213,11 +208,7 @@ void main() {
     failing.read(sessionReviewControllerProvider(scope).notifier);
     SessionReviewState failingState() =>
         failing.read(sessionReviewControllerProvider(scope));
-    for (var i = 0;
-        i < 50 && (failingState().loading || failingState().loadingSmartData);
-        i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
+    await settledReview(failingState);
 
     expect(failingState().nightReport, isNull);
     expect(failingState().error, isNotNull);
@@ -421,12 +412,10 @@ void main() {
     Future<String> titleFor(int id) async {
       final scope = SessionReviewScope.session(id);
       container.read(sessionReviewControllerProvider(scope).notifier);
-      for (var i = 0; i < 50; i++) {
-        final s = container.read(sessionReviewControllerProvider(scope));
-        if (!s.loading && !s.loadingSmartData) return s.title;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
-      return container.read(sessionReviewControllerProvider(scope)).title;
+      final settled = await settledReview(
+        () => container.read(sessionReviewControllerProvider(scope)),
+      );
+      return settled.title;
     }
 
     test('two sessions on one night get distinct, session-named titles',
