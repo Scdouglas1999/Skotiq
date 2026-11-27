@@ -58,6 +58,21 @@ Uint8List encodeDemoFits({
       .takeBytes();
 }
 
+/// [value] (hours or degrees) as `HH MM SS.ss`, the native writer's form for
+/// `OBJCTRA` and `OBJCTDEC`; [signed] always shows the sign.
+String demoSexagesimal(double value, {bool signed = false}) {
+  final negative = value < 0;
+  var total = value.abs() * 3600.0;
+  total = (total * 100).round() / 100;
+  final units = (total / 3600).floor();
+  final minutes = ((total - units * 3600) / 60).floor();
+  final seconds = total - units * 3600 - minutes * 60;
+  final sign = signed ? (negative ? '-' : '+') : (negative ? '-' : '');
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '$sign${two(units)} ${two(minutes)} '
+      '${seconds.toStringAsFixed(2).padLeft(5, '0')}';
+}
+
 String _fit(String line) {
   final ascii7 = line.replaceAll(RegExp(r'[^\x20-\x7E]'), '?');
   return ascii7.length >= 80 ? ascii7.substring(0, 80) : ascii7.padRight(80);
