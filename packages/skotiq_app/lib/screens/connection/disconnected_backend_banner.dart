@@ -22,7 +22,7 @@ class DisconnectedBackendBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(sequencerBackendProvider).hasNoHost) {
+    if (ref.watch(sequencerBackendProvider).hostPlace != HostPlace.none) {
       return const SizedBox.shrink();
     }
 

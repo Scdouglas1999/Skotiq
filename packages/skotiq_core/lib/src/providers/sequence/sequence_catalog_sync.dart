@@ -128,7 +128,7 @@ final sequenceLibrarySyncProvider = Provider<void>((ref) {
   void attachBackendEvents(SkotiqBackend backend) {
     eventSub?.cancel();
     eventSub = null;
-    if (backend.linksToHost) {
+    if (backend.hostPlace.isLinked) {
       eventSub = backend.eventStream.listen((event) {
         if (event.eventType == sequenceUpdatedEventType) {
           final id = event.data['sequenceId'];

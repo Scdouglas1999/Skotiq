@@ -336,7 +336,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
   Future<void> _createMosaicProject() async {
     _logWizardAction('create-project requested');
     final backend = ref.read(backendProvider);
-    if (!backend.runsRigHere) {
+    if (!backend.hostPlace.rigIsHere) {
       _logWizardAction('create-project refused: not the imaging host');
       _showMosaicProjectHostOnlyMessage();
       return;
@@ -369,7 +369,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
 
   Future<void> _persistProject() async {
     if (_isCreatingProject) return;
-    if (!host.value.runsRigHere) {
+    if (!host.value.hostPlace.rigIsHere) {
       _showMosaicProjectHostOnlyMessage();
       return;
     }

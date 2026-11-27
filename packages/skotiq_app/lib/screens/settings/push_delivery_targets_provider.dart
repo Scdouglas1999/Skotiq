@@ -67,7 +67,7 @@ final pushDeliveryTargetsProvider = FutureProvider<PushDeliveryTargets>((
   ref,
 ) {
   final backend = ref.watch(backendProvider);
-  if (backend.hasNoHost || backend.isDemoRig) {
+  if (backend.hostPlace.offersLink) {
     return PushDeliveryTargets.none;
   }
   return ref.watch(_pushDeliveryTargetsReadProvider)(ref);

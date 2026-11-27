@@ -64,7 +64,9 @@ final phd2ConnectedProvider = Provider<bool>((ref) {
 /// unlinked mid-run kept "Guiding" on the Guiding tab with nothing linked.
 /// A reconnect to the same host keeps the value.
 final phd2StateProvider = StateProvider<Phd2State>((ref) {
-  ref.watch(backendProvider.select((backend) => backend.hasNoHost));
+  ref.watch(
+    backendProvider.select((backend) => backend.hostPlace == HostPlace.none),
+  );
   return Phd2State.stopped;
 });
 

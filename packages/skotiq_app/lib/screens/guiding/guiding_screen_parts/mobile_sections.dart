@@ -283,7 +283,8 @@ mixin _GuidingMobileSections
     }
 
     // The demo rig's guider is simulated on the phone and has no settings.
-    if (!isPhd2Guider && ref.watch(backendProvider).isDemoRig) {
+    if (!isPhd2Guider &&
+        ref.watch(backendProvider).hostPlace == HostPlace.demo) {
       return const SingleChildScrollView(
         padding: EdgeInsets.all(SkotiqTokens.spaceMd),
         child: EmptyState.compact(

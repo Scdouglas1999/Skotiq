@@ -79,7 +79,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     previous,
     next,
   ) {
-    if (ref.read(backendProvider).linksToHost &&
+    if (ref.read(backendProvider).hostPlace.isLinked &&
         previous?.isBusy == true &&
         next.canStart) {
       // Sequence cleanup can end an exposure without a camera terminal event.

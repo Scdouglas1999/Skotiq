@@ -194,7 +194,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       _startRemoteStatusPolling();
       return;
     }
-    if (backend.hasNoHost || backend.isDemoRig) {
+    if (backend.hostPlace.offersLink) {
       // UI-only mode has no rig to protect and no authority to issue hardware
       // commands. Keep the conservative unknown/unsafe verdict so imaging is
       // never presented as weather-safe, but make the state passive: evaluating
@@ -204,7 +204,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       // its mount in the middle of a demo would say something untrue.
       state = state.copyWith(
         actions: WeatherSafetyActions.safe,
-        failModeWarning: backend.isDemoRig
+        failModeWarning: backend.hostPlace == HostPlace.demo
             ? 'Weather safety is not evaluated on the demo rig.'
             : 'Connect to an imaging host to evaluate weather safety.',
       );

@@ -362,7 +362,7 @@ class WeatherHandlers implements RouteSource {
     // Reload the settings stream and await a fresh evaluation so the response
     // cannot claim the toggle succeeded while safety/status still exposes the
     // previous decision.
-    if (!container.read(backendProvider).hasNoHost) {
+    if (container.read(backendProvider).hostPlace != HostPlace.none) {
       container.invalidate(weatherDecisionPolicyProvider);
       container.invalidate(weatherSettingsDataProvider);
       await container.read(weatherSettingsDataProvider.future);

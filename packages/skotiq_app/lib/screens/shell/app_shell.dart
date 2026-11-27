@@ -222,7 +222,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// is not the host's run. Leave the check unconsumed until the link exists.
   bool _checkpointWaitsForHost() =>
       ref.read(remoteClientLaunchProvider) &&
-      !ref.read(backendProvider).linksToHost;
+      !ref.read(backendProvider).hostPlace.isLinked;
 
   Future<AppStartupCheckpointOutcome> _checkCheckpointIfNeeded({
     bool linked = false,
@@ -434,7 +434,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     // A companion that deferred recovery starts it once the host link exists.
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (_checkpointCheck != null) return;
-      if (!ref.read(remoteClientLaunchProvider) || !next.linksToHost) return;
+      if (!ref.read(remoteClientLaunchProvider) || !next.hostPlace.isLinked)
+        return;
       // The listen callback can run before this widget's read of the
       // provider sees the new backend. The check has to run after that.
       WidgetsBinding.instance.addPostFrameCallback((_) {

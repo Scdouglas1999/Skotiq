@@ -50,7 +50,7 @@ Future<void> _shareRegionCutout(
 final _regionPngToShareProvider =
     hostRoleProvider<Future<String?> Function(int regionId, String name)>(
   here: (ref) => (regionId, name) async {
-    if (ref.read(backendProvider).hasNoHost) {
+    if (ref.read(backendProvider).hostPlace == HostPlace.none) {
       throw StateError('Reconnect to the imaging host before exporting.');
     }
     final export = await ref.read(yourSkyRegionExporterProvider)(regionId);
@@ -436,8 +436,8 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
-    final isHost = backend.runsRigHere;
-    final canAccessAtlas = !backend.hasNoHost;
+    final isHost = backend.hostPlace.rigIsHere;
+    final canAccessAtlas = backend.hostPlace != HostPlace.none;
 
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (_busy && previous != null && !identical(previous, next)) {
@@ -528,7 +528,7 @@ class _RegionCutoutActionsState extends ConsumerState<RegionCutoutActions> {
     final backend = ref.read(backendProvider);
     setState(() => _busy = true);
     try {
-      if (!backend.runsRigHere) {
+      if (!backend.hostPlace.rigIsHere) {
         throw StateError(
           'Reference frames can only be armed on the imaging host.',
         );

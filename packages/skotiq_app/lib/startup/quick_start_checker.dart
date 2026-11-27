@@ -61,7 +61,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   /// machine's sessions. The check stays unconsumed until the link exists.
   bool _waitsForHost() =>
       ref.read(remoteClientLaunchProvider) &&
-      !ref.read(backendProvider).linksToHost;
+      !ref.read(backendProvider).hostPlace.isLinked;
 
   void _passBoth() {
     _queue
@@ -607,7 +607,8 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   Widget build(BuildContext context) {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (_hasChecked) return;
-      if (!ref.read(remoteClientLaunchProvider) || !next.linksToHost) return;
+      if (!ref.read(remoteClientLaunchProvider) || !next.hostPlace.isLinked)
+        return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _hasChecked || _waitsForHost()) return;
         unawaited(_checkForStartupOptions());

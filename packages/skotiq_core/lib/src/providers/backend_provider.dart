@@ -110,8 +110,8 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     _demoRigLatitude = latitudeDeg;
     _demoRigLongitude = longitudeDeg;
     final current = state;
-    final resting = current.hasNoHost || current.isDemoRig;
-    if (!resting || current.isDemoRig == wanted) return;
+    final resting = current.hostPlace.offersLink;
+    if (!resting || (current.hostPlace == HostPlace.demo) == wanted) return;
     final next = _restingBackend();
     try {
       // The current generation, not a new one: this must never supersede a
@@ -402,13 +402,12 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
 
     final executionState = _ref.read(sequenceExecutionStateProvider);
     final outgoingHostIsControllable =
-        !oldBackend.hasNoHost &&
+        oldBackend.hostPlace != HostPlace.none &&
         (oldBackend.remoteHost?.link.connectionState ??
                 BackendConnectionState.connected) ==
             BackendConnectionState.connected;
     final leavingRemoteHost =
-        oldBackend.linksToHost &&
-        (newBackend.hasNoHost || newBackend.isDemoRig);
+        oldBackend.hostPlace.isLinked && newBackend.hostPlace.offersLink;
     if (outgoingHostIsControllable &&
         executionState.isBusy &&
         !leavingRemoteHost) {
@@ -511,7 +510,7 @@ final backendProvider = StateNotifierProvider<BackendNotifier, SkotiqBackend>((
 /// store serves host data is a [hostRoleProvider] (`host_role.dart`), never a
 /// test of this flag.
 final isRemoteModeProvider = Provider<bool>(
-  (ref) => ref.watch(backendProvider).linksToHost,
+  (ref) => ref.watch(backendProvider).hostPlace.isLinked,
 );
 
 /// True when this process was LAUNCHED as a thin client of a remote imaging
@@ -622,7 +621,7 @@ final networkBackendConnectionStateProvider =
 /// unreachable host.
 final backendCanCommandProvider = Provider<bool>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend.hasNoHost) return false;
+  if (backend.hostPlace == HostPlace.none) return false;
   if (backend.remoteHost != null) {
     return ref.watch(networkBackendConnectionStateProvider).valueOrNull ==
         BackendConnectionState.connected;

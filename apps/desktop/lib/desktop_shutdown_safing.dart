@@ -9,7 +9,7 @@ import 'package:skotiq_core/providers.dart';
 /// Disconnected (UI-only) mode has nothing to safe either. Returns whether
 /// safing ran.
 Future<bool> safeRigForDesktopShutdown(ProviderContainer container) async {
-  if (!container.read(backendProvider).runsRigHere) return false;
+  if (!container.read(backendProvider).hostPlace.rigIsHere) return false;
   await container
       .read(safeRigServiceProvider)
       .safeTheRig(

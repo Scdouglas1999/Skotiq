@@ -265,7 +265,7 @@ bool _mayNameBackendClass(String path) =>
 
 const _backendInstead =
     'Ask the backend, not its class: `backend.remoteHost?.<role>` for host '
-    'data, `backend.hasNoHost`, `backend.isDemoRig`, `backend.runsRigHere`, '
+    'data, `backend.hostPlace` (packages/skotiq_core/lib/src/backend/host_place.dart), '
     '`backend.ownsDeviceBridge`, or `isRemoteModeProvider` '
     '(packages/skotiq_core/lib/src/backend/remote_host.dart). Something only '
     'a linked host has becomes a role in backend/roles/host_data/ with a '

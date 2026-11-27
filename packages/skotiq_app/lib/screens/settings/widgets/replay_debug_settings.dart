@@ -318,7 +318,7 @@ class _DemoRigSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     if (settings == null) return const SizedBox.shrink();
-    final linked = ref.watch(backendProvider).linksToHost;
+    final linked = ref.watch(backendProvider).hostPlace.isLinked;
     return SettingsSection(
       title: 'Testing',
       children: [

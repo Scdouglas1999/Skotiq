@@ -7,6 +7,7 @@ import 'network_backend/host_data/remote_polar_alignment_log.dart';
 import 'demo_backend/demo_backend.dart';
 import 'disconnected_backend.dart';
 import 'ffi_backend.dart';
+import 'host_place.dart';
 import 'roles/host_data/calibration_library.dart';
 import 'roles/host_data/host_link.dart';
 import 'roles/host_data/notes_journal.dart';
@@ -22,6 +23,7 @@ import 'roles/host_data/photometric_transforms.dart';
 import 'network_backend/host_data/remote_photometric_transforms.dart';
 import '../models/backend/backend_types.dart';
 
+export 'host_place.dart';
 export 'roles/host_data/host_link.dart';
 // The host-only roles a RemoteHost hands out.
 export 'network_backend.dart'
@@ -217,29 +219,8 @@ extension HostDataDispatch on SkotiqBackend {
   /// identity.
   RemoteHost? get remoteHost => _remoteHostOf(this);
 
-  /// True when this process is a client of an imaging host on another
-  /// machine, reached over the link. The question `isRemoteModeProvider`
-  /// answers, for code that holds the backend itself: a backend listener's
-  /// new value, or the backend an operation began on.
-  bool get linksToHost => this is NetworkBackend;
-
-  /// True when this process has no imaging host at all: it was launched as a
-  /// client and is not linked, or its link was given up. Every host call
-  /// fails; screens show what to connect instead of loading.
-  bool get hasNoHost => this is DisconnectedBackend;
-
-  /// True when the phone runs the demo rig: simulated equipment inside this
-  /// app, with no imaging computer. Like [hasNoHost], the app is not linked
-  /// and offers the link; unlike it, device calls are answered.
-  bool get isDemoRig => this is DemoBackend;
-
-  /// True when the rig is this machine: its devices, files and database are
-  /// in this process, so paths are local paths and device work happens here.
-  /// The demo rig is not a rig: host-only features stay closed on it.
-  bool get runsRigHere =>
-      this is! NetworkBackend &&
-      this is! DisconnectedBackend &&
-      this is! DemoBackend;
+  /// Where this backend's imaging host is. See [HostPlace].
+  HostPlace get hostPlace => _placeOf(this);
 
   /// True when the device drivers are loaded in this process, so device calls
   /// that have no backend method yet may go straight to the bridge.
@@ -251,9 +232,7 @@ extension HostDataDispatch on SkotiqBackend {
 extension SequencerRoleHostDispatch on SequencerBackend {
   RemoteHost? get remoteHost => _remoteHostOf(this);
 
-  bool get hasNoHost => this is DisconnectedBackend;
-
-  bool get isDemoRig => this is DemoBackend;
+  HostPlace get hostPlace => _placeOf(this);
 }
 
 RemoteHost? _remoteHostOf(Object backend) {
@@ -261,12 +240,19 @@ RemoteHost? _remoteHostOf(Object backend) {
   return RemoteHost._hosts[backend] ??= RemoteHost._(backend);
 }
 
+HostPlace _placeOf(Object backend) => switch (backend) {
+  NetworkBackend() => HostPlace.linked,
+  DisconnectedBackend() => HostPlace.none,
+  DemoBackend() => HostPlace.demo,
+  _ => HostPlace.rigHere,
+};
+
 /// The same questions for a backend held as its diagnostics role, which is
 /// how the notification router and the host sync binding receive it.
 extension DiagnosticsRoleHostDispatch on DiagnosticsBackend {
   RemoteHost? get remoteHost => _remoteHostOf(this);
 
-  bool get hasNoHost => this is DisconnectedBackend;
+  HostPlace get hostPlace => _placeOf(this);
 
   bool get ownsDeviceBridge => this is FfiBackend;
 }
@@ -276,7 +262,7 @@ extension DiagnosticsRoleHostDispatch on DiagnosticsBackend {
 extension DeviceRoleHostDispatch on DeviceBackend {
   RemoteHost? get remoteHost => _remoteHostOf(this);
 
-  bool get isDemoRig => this is DemoBackend;
+  HostPlace get hostPlace => _placeOf(this);
 }
 
 extension HostLinkIdentity on HostLink {

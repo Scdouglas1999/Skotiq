@@ -372,7 +372,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         // The demo rig is not a link either: losing the host lands on it
         // when it is turned on.
         if (_connectedServer != null &&
-            (next.hasNoHost || next.isDemoRig) &&
+            next.hostPlace.offersLink &&
             !_skippedConnection) {
           // Audit drop the checkpoint-once latch alongside the
           // backend swap. Otherwise a Settings-driven disconnect then
