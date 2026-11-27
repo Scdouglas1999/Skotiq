@@ -18,7 +18,6 @@ import 'mobile_event_notifier.dart';
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
 import 'power_service.dart';
-import 'rig_connection.dart';
 import 'package:skotiq_core/utils.dart';
 
 /// Mobile-specific hooks for sequence execution

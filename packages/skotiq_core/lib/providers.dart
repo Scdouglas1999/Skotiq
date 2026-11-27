@@ -72,6 +72,7 @@ export 'src/providers/remote_session_sync_provider.dart';
 export 'src/providers/host_link_provider.dart';
 export 'src/providers/remote_launch_provider.dart';
 export 'src/providers/linked_rig_provider.dart';
+export 'src/providers/rig_connection_provider.dart';
 export 'src/providers/remote_sync_handler.dart';
 export 'src/providers/host_mutation_event_provider.dart';
 export 'src/providers/host_local_sync_provider.dart';

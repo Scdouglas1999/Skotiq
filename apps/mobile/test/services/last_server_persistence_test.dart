@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_mobile/services/last_server_persistence.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('a direct host is saved while a relay tunnel is open', () {

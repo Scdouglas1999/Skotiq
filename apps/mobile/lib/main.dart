@@ -8,47 +8,38 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/connection/link_mismatch_actions.dart';
-import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
 import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
-import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_relay/client.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skotiq_app/widgets/red_night_filter.dart';
-import 'screens/qr_scanner_screen.dart';
 import 'screens/setup/first_run_setup_screen.dart';
 import 'screens/servers/saved_servers_screen.dart';
-import 'services/last_server_persistence.dart';
 import 'services/saved_servers_service.dart';
 import 'services/android_system_ui.dart';
 import 'services/foreground_service.dart';
 import 'services/manual_server_endpoint.dart';
-import 'services/mobile_pairing_service.dart';
 import 'services/mobile_platform_services.dart';
 import 'services/mobile_preferences.dart';
 import 'services/mobile_sequence_hooks.dart';
 import 'services/battery_service.dart';
 import 'services/network_service.dart';
 import 'services/notification_service.dart';
-import 'services/push_registration_service.dart';
-import 'services/rig_connection.dart';
+import 'services/phone_rig_connection.dart';
 import 'services/voice_control_lifecycle_provider.dart';
 import 'services/voice_control_service.dart';
+import 'widgets/connect_texts.dart';
 import 'widgets/phone_battery_indicator.dart';
+import 'widgets/relay_connect_dialog.dart';
 import 'widgets/tailscale_setup_sheet.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 
-part 'main_parts/mobile_connection_state.dart';
-part 'main_parts/mobile_discovery_ops.dart';
-part 'main_parts/mobile_reconnect_ops.dart';
+part 'main_parts/mobile_connect_actions.dart';
 
 /// Product version of the running build, straight from the package manifest
 /// (`pubspec.yaml` `version:`, which `version.yaml` stamps at release time).
@@ -63,28 +54,6 @@ Future<AppVersionInfo> loadMobileAppVersion() async {
     version: packageInfo.version,
     buildNumber: int.tryParse(packageInfo.buildNumber) ?? 0,
   );
-}
-
-/// Delay before the Nth automatic re-attach attempt after the connection
-/// monitor has declared a session lost (attempt is 0-based).
-///
-/// Ramps 5 s → 10 s → 20 s → 30 s and then holds at 30 s forever. Retrying
-/// without end is the point: without it, losing WiFi for longer than the grace
-/// period is terminal — the app drops to the connection screen and stays
-/// there, so restoring the network minutes later still leaves "Please
-/// reconnect" on screen even though a cold start reconnects instantly from the
-/// same saved server. A 30 s idle poll costs far less than a user who wakes to
-/// an app that quit watching their run hours ago.
-@visibleForTesting
-Duration lostSessionRetryDelay(int attempt) {
-  const schedule = <Duration>[
-    Duration(seconds: 5),
-    Duration(seconds: 10),
-    Duration(seconds: 20),
-    Duration(seconds: 30),
-  ];
-  if (attempt < 0) return schedule.first;
-  return attempt < schedule.length ? schedule[attempt] : schedule.last;
 }
 
 void main() async {
@@ -193,72 +162,10 @@ void main() async {
               ? MobileNotificationService().requestAndroidNotificationPermission
               : null,
         ),
+        ...phoneConnectionOverrides,
       ],
       child: const SkotiqMobileApp(),
     ),
-  );
-}
-
-/// identity payload passed to [BackendNotifier.connect] so the
-/// [NetworkBackend] can populate its `collaboration.join` frame after the
-/// WS handshake succeeds. The values are derived from:
-///   * `viewerId` — `computeServerFingerprint(authToken)` so the digest
-///     matches what the server computes from the authenticated bearer.
-///     When auth is disabled we fall back to the stable per-device id
-///     persisted by [MobilePairingService] so the slot still has an id.
-///   * `deviceName` — the stable per-device id (used as a machine-
-///     readable secondary key in the slot list).
-///   * `displayName` — user-visible label. Default is `"PLATFORM · SHORTID"`;
-///     a future preference can override it.
-class _CollaborationIdentityBundle {
-  final String viewerId;
-  final String deviceName;
-  final String displayName;
-
-  const _CollaborationIdentityBundle({
-    required this.viewerId,
-    required this.deviceName,
-    required this.displayName,
-  });
-}
-
-/// Compute the collaboration identity used for `collaboration.join`.
-///
-/// Why this lives outside the widget class: it's a pure function (one
-/// SharedPreferences read + one async device-id load) and putting it at
-/// top level lets the tests exercise it without booting the widget tree.
-Future<_CollaborationIdentityBundle> _buildCollaborationIdentity(
-  String? authToken,
-) async {
-  // Stable per-install device id — populated lazily by MobilePairingService
-  // and persisted in SharedPreferences. This is the same identifier used
-  // by the pairing flow, so the slot label stays consistent across the
-  // pairing handshake and the WS collaboration channel.
-  final deviceId = await MobilePairingService.deviceId();
-  // Short tail (the suffix bytes are random; the prefix is the constant
-  // `mobile:` discriminator) keeps the display readable in the host's
-  // viewer slot list without exposing the full id.
-  final shortId = deviceId.length > 14
-      ? deviceId.substring(deviceId.length - 6)
-      : deviceId;
-  final platformLabel = Platform.isIOS
-      ? 'iPhone'
-      : Platform.isAndroid
-      ? 'Android'
-      : Platform.operatingSystem;
-  // The viewerId MUST match the server's `computeServerFingerprint(token)`
-  // when auth is enabled — otherwise the server's override branch
-  // would log every join as an impersonation attempt. When auth is off
-  // (no token), use the stable device id so the slot still has a unique
-  // identifier — the server's override will not fire in that case.
-  final viewerId = (authToken != null && authToken.trim().isNotEmpty)
-      ? computeServerFingerprint(authToken)
-      : deviceId;
-  final displayName = '$platformLabel · $shortId';
-  return _CollaborationIdentityBundle(
-    viewerId: viewerId,
-    deviceName: deviceId,
-    displayName: displayName,
   );
 }
 
@@ -270,29 +177,15 @@ class SkotiqMobileApp extends ConsumerStatefulWidget {
 }
 
 class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
-    with
-        WidgetsBindingObserver,
-        _MobileConnectionState,
-        _MobileDiscoveryOps,
-        _MobileReconnectOps {
+    with WidgetsBindingObserver, _MobileConnectActions {
   StreamSubscription<VoiceControlAction>? _voiceActionSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Register the relay-reconnect bridge so the dashboard-launched
-    // SavedServersScreen can dial a saved relay row through the tunnel this
-    // (always-mounted) shell owns. Done post-frame because mutating a
-    // provider during initState/build is disallowed.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.read(relayReconnectProvider.notifier).state = _reconnectSavedRelay;
-      ref.read(rigConnectProvider.notifier).state = connectToRig;
-      ref.read(openRigConnectProvider.notifier).state = (_) =>
-          _showConnectionScreen();
-    });
-    _autoConnect();
+    // Creating the connect flow starts the search.
+    ref.read(rigConnectionProvider);
 
     // "Hey Siri, show the last Skotiq image": the voice lifecycle
     // controller receives this action but owns no router, so the shell
@@ -321,7 +214,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      _onAppResumed();
+      _connection.appResumed();
       // Alerts may have been turned on in Android's settings meanwhile.
       unawaited(
         ref
@@ -334,21 +227,14 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      _onAppBackgrounded();
+      _connection.appBackgrounded();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _stopConnectionMonitor();
     _voiceActionSub?.cancel();
-    _pushRegistration?.dispose();
-    final relayTunnel = _activeRelayTunnel;
-    _activeRelayTunnel = null;
-    if (relayTunnel != null) {
-      unawaited(relayTunnel.close());
-    }
     _ipController.dispose();
     _accessTokenController.dispose();
     super.dispose();
@@ -360,36 +246,15 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
       // The phone rests on the demo rig instead of no backend while it is
       // turned on in Settings > Replay & debug.
       ref.watch(demoRigSelectionProvider);
-      // Handle disconnection from Settings — if the backend becomes
-      // DisconnectedBackend, return to the connection screen. Listening
-      // (instead of watching+addPostFrameCallback in build) avoids the
-      // build-time setState cycle flagged
-      ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-        if (!mounted) return;
-        // The demo rig is not a link either: losing the host lands on it
-        // when it is turned on.
-        if (_connectedServer != null &&
-            next.hostPlace.offersLink &&
-            !_skippedConnection) {
-          setState(() {
-            _connectedServer = null;
-            _error = null;
-            _statusMessage = '';
-          });
-          return;
-        }
-      });
-      // The monitor follows the link, whoever made it. Idempotent — it
-      // cancels any prior subscription first. A backend listener would run
-      // before the link is rebuilt.
-      ref.listen<HostLink?>(linkedHostLinkProvider, (previous, next) {
-        if (!mounted) return;
-        if (next != null && !identical(previous, next)) {
-          _startConnectionMonitor();
-        }
+      final connection = ref.watch(rigConnectionProvider).state;
+      ref.listen<bool>(rigConnectionProvider.select((c) => c.state.stale), (
+        _,
+        stale,
+      ) {
+        ref.read(connectionStaleProvider.notifier).state = stale;
       });
 
-      if (_connectedServer == null && !_skippedConnection) {
+      if (connection.connected == null && !connection.skipped) {
         // The connection screen IS the app's ready state while it is
         // disconnected — pairing, discovery and manual connect all have
         // to stay reachable, so the splash plays its draw over it once
@@ -398,9 +263,11 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         return _standaloneApp(
           SkotiqSplashGate(
             ready: true,
-            child: Builder(builder: (context) => _buildConnectionScreen()),
+            child: Builder(
+              builder: (context) => _buildConnectionScreen(connection),
+            ),
           ),
-          navigatorKey: _connectionNavigatorKey,
+          navigatorKey: phoneConnectionNavigatorKey,
         );
       }
 
@@ -427,7 +294,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           return SkotiqApp(platformServices: mobilePlatformServices);
         },
       );
-      if (_connectedServer == null) return shell;
+      if (connection.connected == null) return shell;
       return FirstRunSetupGate(frame: _standaloneApp, child: shell);
     } catch (e, stackTrace) {
       Log.error(
@@ -474,12 +341,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      setState(() {
-                        _connectedServer = null;
-                        _error = null;
-                        _isDiscovering = false;
-                      });
-                      _autoConnect();
+                      _connection.resetAfterAppError();
+                      unawaited(_connection.autoConnect());
                     },
                     child: Text(
                       SkotiqLocalizations.of(context).text('mobileRetry'),
@@ -525,7 +388,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     );
   }
 
-  Widget _buildConnectionScreen() {
+  Widget _buildConnectionScreen(RigConnectState connection) {
     return Builder(
       builder: (context) {
         final l10n = context.l10n;
@@ -545,7 +408,14 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         final borderColor = colors?.border ?? theme.colorScheme.outlineVariant;
         final errorColor = colors?.error ?? theme.colorScheme.error;
 
-        final showChoices = !_isDiscovering && !_showManualEntry;
+        final busy = connection.busy;
+        final manualEntryOpen = connection.manualEntryOpen;
+        final status = connectActivityText(connection.activity, l10n);
+        final problem = connection.problem;
+        final error = problem == null
+            ? null
+            : connectProblemText(problem, l10n);
+        final showChoices = !busy && !manualEntryOpen;
 
         Widget awayRow({
           required IconData icon,
@@ -613,7 +483,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   ),
                   const SizedBox(height: 20),
 
-                  if (_isDiscovering)
+                  if (busy)
                     Container(
                       padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
                       decoration: BoxDecoration(
@@ -632,8 +502,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                           const SizedBox(width: SkotiqTokens.spaceMd),
                           Expanded(
                             child: Text(
-                              _statusMessage.isNotEmpty
-                                  ? _statusMessage
+                              status.isNotEmpty
+                                  ? status
                                   : l10n.text('mobileLookingOnWifi'),
                               style: SkotiqTypography.body.copyWith(
                                 color: textColor,
@@ -644,8 +514,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       ),
                     ),
 
-                  if (_error != null) ...[
-                    if (_isDiscovering) const SizedBox(height: 12),
+                  if (error != null) ...[
+                    if (busy) const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: SkotiqDecorations.statusChip(
@@ -655,26 +525,27 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                         ),
                       ),
                       child: Text(
-                        _error!,
+                        error,
                         style: TextStyle(
                           fontSize: SkotiqTypography.fontSize13,
                           color: errorColor,
                         ),
                       ),
                     ),
-                    if (_mismatchedHost?.linkMismatch case final mismatch?
-                        when mismatch.message == _error)
+                    if (connection.mismatchedHost case final host?
+                        when host.linkMismatch != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 12),
                         child: LinkMismatchActions(
-                          host: _mismatchedHost!,
-                          mismatch: mismatch,
+                          host: host,
+                          mismatch: host.linkMismatch!,
                         ),
                       ),
                     const SizedBox(height: 16),
                   ],
 
-                  if (_unpairedHost case final found? when showChoices) ...[
+                  if (connection.unpairedHost case final found?
+                      when showChoices) ...[
                     Container(
                       padding: const EdgeInsets.fromLTRB(
                         SkotiqTokens.spaceLg,
@@ -724,7 +595,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                           ),
                           const SizedBox(width: SkotiqTokens.spaceSm),
                           SkotiqButton(
-                            onPressed: () => unawaited(connectToRig(found)),
+                            onPressed: () =>
+                                unawaited(_connection.connect(found)),
                             label: l10n.text('mobilePair'),
                           ),
                         ],
@@ -741,7 +613,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       size: ButtonSize.large,
                       // A found computer's Pair is the step; its dialog
                       // offers the scan too.
-                      variant: _unpairedHost == null
+                      variant: connection.unpairedHost == null
                           ? ButtonVariant.primary
                           : ButtonVariant.secondary,
                     ),
@@ -758,7 +630,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       children: [
                         Expanded(
                           child: SkotiqButton(
-                            onPressed: _autoConnect,
+                            onPressed: _connection.autoConnect,
                             icon: LucideIcons.search,
                             label: l10n.text('mobileSearchAgain'),
                             variant: ButtonVariant.secondary,
@@ -767,12 +639,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                         const SizedBox(width: SkotiqTokens.spaceSm),
                         Expanded(
                           child: SkotiqButton(
-                            onPressed: () {
-                              setState(() {
-                                _showManualEntry = true;
-                                _error = null;
-                              });
-                            },
+                            onPressed: _connection.openManualEntry,
                             icon: LucideIcons.keyboard,
                             label: l10n.text('mobileEnterAddress'),
                             variant: ButtonVariant.secondary,
@@ -789,7 +656,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                     ),
                   ],
 
-                  if (_showManualEntry) ...[
+                  if (manualEntryOpen) ...[
                     TextField(
                       controller: _ipController,
                       decoration: InputDecoration(
@@ -813,8 +680,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       controller: _accessTokenController,
                       obscureText: !_accessTokenVisible,
                       decoration: InputDecoration(
-                        labelText: 'Access token (optional)',
-                        hintText: 'Only for a host that asks for one',
+                        labelText: l10n.text('mobileAccessTokenLabel'),
+                        hintText: l10n.text('mobileAccessTokenHint'),
                         prefixIcon: const Icon(Icons.vpn_key),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -822,9 +689,11 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                                 ? Icons.visibility_off
                                 : Icons.visibility,
                           ),
-                          tooltip: _accessTokenVisible
-                              ? 'Hide access token'
-                              : 'Show access token',
+                          tooltip: l10n.text(
+                            _accessTokenVisible
+                                ? 'mobileHideAccessToken'
+                                : 'mobileShowAccessToken',
+                          ),
                           onPressed: () {
                             setState(() {
                               _accessTokenVisible = !_accessTokenVisible;
@@ -847,11 +716,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       children: [
                         Expanded(
                           child: SkotiqButton(
-                            onPressed: () {
-                              setState(() {
-                                _showManualEntry = false;
-                              });
-                            },
+                            onPressed: _connection.closeManualEntry,
                             label: l10n.text('cancel'),
                             variant: ButtonVariant.secondary,
                           ),
@@ -892,7 +757,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                     const SizedBox(height: 20),
                     Center(
                       child: TextButton(
-                        onPressed: _skipConnection,
+                        onPressed: _connection.skip,
                         child: Text(
                           l10n.text('mobileLookAround'),
                           style: TextStyle(color: textSecondary),

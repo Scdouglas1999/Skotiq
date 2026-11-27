@@ -33,7 +33,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../services/rig_connection.dart';
 import '../../services/saved_servers_service.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 
@@ -283,24 +282,22 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
             .setStatus(server.id, authExpired);
         return;
       }
-      final connect = ref.read(rigConnectProvider);
-      if (connect == null) {
-        throw StateError('The app has not finished starting.');
-      }
-      final linked = await connect(
-        DiscoveredServer(
-          name: server.displayName,
-          host: host,
-          webPort: server.port,
-          mode: 'headless',
-          scheme: scheme,
-          authToken: token,
-          authRequired: token != null,
-          pairingSupported: true,
-          fingerprint: server.pinnedFingerprint,
-        ),
-        savedServerId: server.id,
-      );
+      final linked = await ref
+          .read(rigConnectionProvider)
+          .connect(
+            DiscoveredServer(
+              name: server.displayName,
+              host: host,
+              webPort: server.port,
+              mode: 'headless',
+              scheme: scheme,
+              authToken: token,
+              authRequired: token != null,
+              pairingSupported: true,
+              fingerprint: server.pinnedFingerprint,
+            ),
+            savedServerId: server.id,
+          );
       if (!linked) {
         // The connect flow said why on the connection screen.
         return;
@@ -329,24 +326,26 @@ class _SavedServersScreenState extends ConsumerState<SavedServersScreen> {
     }
   }
 
-  /// Reconnect a saved relay row through the relay-reconnect bridge the
-  /// connection shell registered. The shell opens the tunnel and swaps the
-  /// backend; the screen just kicks it off and pops back to the dashboard
-  /// (mirroring the direct-connect [onServerSelected] contract). When the
-  /// bridge is absent (the shell isn't mounted, e.g. an isolated widget test)
-  /// we surface a clear message rather than silently no-op.
+  /// Reconnect a saved relay row through the connect flow, which opens the
+  /// tunnel and swaps the backend; the screen then pops back to the dashboard
+  /// (as the direct-connect [onServerSelected] does).
   Future<void> _activateRelayServer(SavedServer server) async {
-    final reconnect = ref.read(relayReconnectProvider);
-    if (reconnect == null) {
-      _showSnack(
-        context.l10n.text('savedServersRelayUnavailable'),
-        isError: true,
-      );
-      return;
-    }
     setState(() => _busy = true);
     try {
-      await reconnect(server);
+      // The relay row's appliance bearer is in secure storage, so the
+      // appliance behind the relay is not paired again every session.
+      final token = await ref
+          .read(savedServersServiceProvider)
+          .tokenFor(server.id);
+      await ref
+          .read(rigConnectionProvider)
+          .connectViaRelay(
+            relayUrl: server.relayUrl!,
+            applianceId: server.relayApplianceId!,
+            allowInsecureTls: server.relayAllowInsecureTls,
+            presetAuthToken: token,
+            savedServerDisplayName: server.displayName,
+          );
       if (!mounted) return;
       // The shell stamps lastConnectedAt + secure-storage token via
       // upsertRelay; refresh the list so the row floats to the top.

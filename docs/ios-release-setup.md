@@ -333,7 +333,7 @@ entitlements):
 | --- | --- |
 | APNs registration + token forward | `apps/mobile/ios/Runner/AppDelegate.swift` (`skotiq/push`, methods `registerForRemoteNotifications` / `getApnsToken`; host→Dart `onApnsToken` / `onApnsRegistrationError`) |
 | Dart token POST | `apps/mobile/lib/services/push_registration_service.dart` → `POST /api/push/register-token` body `{deviceId, platform:"apns", token}` |
-| Connect-flow wiring | `apps/mobile/lib/main_parts/mobile_connection_ops.dart` (`_registerPushTokenIfIos`) |
+| Connect-flow wiring | `apps/mobile/lib/services/phone_rig_connection.dart` (`PhoneRigConnectionDevice.registerPush`) |
 | Server endpoint | `apps/desktop/lib/headless_api/handlers/push_handlers.dart` (`handleRegisterToken`; accepts `platform ∈ {fcm, apns}`) |
 | Entitlements (Debug/Profile, `aps-environment=development`) | `apps/mobile/ios/Runner/Runner.entitlements` |
 | Entitlements (Release, `aps-environment=production`) | `apps/mobile/ios/Runner/RunnerRelease.entitlements` |
