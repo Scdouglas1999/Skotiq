@@ -137,26 +137,24 @@ class ProfileHandlers implements RouteSource {
     }
 
     // Defense-in-depth semantic validation: a remote caller must not be able to
-    // bypass the editors' input checks and push a blank/overlong name,
-    // malformed optics, negative gain/offset, or an out-of-range centering
-    // exposure straight into the DAO. Reject with a 400 before any mutation, so
-    // the client gets an actionable error rather than a downstream DB fault.
-    final semanticError = ProfileValidator.validateWireProfile(profile);
-    if (semanticError != null) {
+    // bypass the editors' input checks. Reject with a 400 before any mutation,
+    // so the client gets an actionable error rather than a downstream DB fault.
+    try {
+      ProfileStore.validate(profile);
+    } on ProfileRefused catch (refused) {
       throw BadRequestError(
         field: 'profile',
         expected: 'valid_profile',
-        message: semanticError,
+        message: refused.message,
       );
     }
 
-    final dao = _profilesDao;
-    // Deterministic create-vs-update by id. If the payload's id parses to an
-    // EXISTING row, issue a full-row update (preserving default/active/sort
-    // flags via the converter's `existing` arg); otherwise create a new row and
-    // capture the autoincrement id. Going through updateProfile (not
-    // createProfile) for an existing row avoids createProfile's first-row
-    // auto-default/auto-active side effect silently flipping a slave's flags.
+    // Deterministic create-vs-update by id. An id of an EXISTING row is a
+    // full-row update (preserving default/active/sort flags via the
+    // converter's `existing` arg); otherwise a new row is created. Going
+    // through updateProfile (not createProfile) for an existing row avoids
+    // createProfile's first-row auto-default/auto-active side effect silently
+    // flipping a slave's flags.
     final rawId = profile.id.trim();
     final isCreate = rawId.isEmpty || rawId == '0';
     final int? parsedId;
@@ -172,49 +170,33 @@ class ProfileHandlers implements RouteSource {
         );
       }
     }
-    final existing = parsedId == null
-        ? null
-        : await dao.getProfileById(parsedId);
-    if (parsedId != null && existing == null) {
+
+    final dao = _profilesDao;
+    final int resultId;
+    try {
+      resultId =
+          await ProfileStore(
+            dao: dao,
+            native: container.read(profileSettingsBackendProvider),
+            logger: _logger,
+            hub: container.read(hostMutationEventHubProvider),
+          ).save(
+            id: parsedId,
+            newRow: () => remoteProfileToCompanion(profile),
+            updateRow: (existing) => dao.updateProfile(
+              remoteProfileToDbRow(profile, existing: existing),
+            ),
+            notice: ProfileSaveNotice(
+              remoteOnly: false,
+              extra: {'name': profile.name},
+            ),
+          );
+    } on ProfileNotFound catch (missing) {
       return jsonNotFound({
         'error': 'profile_not_found',
-        'message': 'Profile $parsedId was not found.',
+        'message': 'Profile ${missing.profileId} was not found.',
       });
     }
-
-    final int resultId;
-    if (existing != null) {
-      final row = remoteProfileToDbRow(profile, existing: existing);
-      await dao.updateProfile(row);
-      resultId = existing.id;
-    } else {
-      resultId = await dao.createProfile(remoteProfileToCompanion(profile));
-    }
-
-    // The native store keeps its own copy of the active profile (the built-in
-    // guider, the sequencer and plate solving read it). The host's own editor
-    // writes an active row through after saving; a linked client's save comes
-    // here, so do the same: a phone's first profile is made active by
-    // createProfile, and an edit to the active one must not leave the native
-    // copy stale.
-    if ((await dao.getProfileById(resultId))?.isActive == true) {
-      await writeActiveProfileThrough(
-        dao: dao,
-        backend: container.read(profileSettingsBackendProvider),
-        logger: _logger,
-        profileId: resultId,
-      );
-    }
-
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.profile,
-      action: existing == null
-          ? HostMutationAction.created
-          : HostMutationAction.updated,
-      entityId: resultId.toString(),
-      extra: {'name': profile.name},
-    );
     // Return the resulting id so the slave's saveProfile can resolve the row
     // deterministically instead of by (racy) name.
     return jsonOk({"status": "saved", "id": resultId.toString()});
