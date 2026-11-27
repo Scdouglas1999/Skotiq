@@ -104,6 +104,11 @@ class RunEventHandler {
   /// so its verdict must not count it again.
   bool _flipCountedAtPierChange = false;
 
+  /// The run's line a trigger that does not pause the run last wrote. It
+  /// notes a passing happening, so a later pause must not show it as the
+  /// pause's reason.
+  String? _passingTriggerNote;
+
   /// The Center step whose progress this executor is publishing. A solve
   /// from any other step must not replace a plate solve the operator is
   /// looking at.
@@ -203,6 +208,8 @@ class RunEventHandler {
         _flipCountedAtPierChange = false;
         _setExecutionState(SequenceExecutionState.running);
       case SequencerEvent_Paused():
+        final passing = _passingTriggerNote;
+        if (passing != null) progressNotifier.clearMessage(passing);
         _setExecutionState(SequenceExecutionState.paused);
         // A phone, a mount fault and a trigger pause emit this event
         // without going through pause(). The elapsed clock and the run
@@ -487,9 +494,13 @@ class RunEventHandler {
       'Trigger fired: $triggerName -> $action',
       source: 'SequenceExecutor',
     );
-    progressNotifier.updateProgress(
-      message: 'Trigger "$triggerName" fired: $action',
-    );
+    final note = 'Trigger "$triggerName" fired: $action';
+    progressNotifier.updateProgress(message: note);
+    _passingTriggerNote = switch (event.action) {
+      SequencerTriggerAction.pause ||
+      SequencerTriggerAction.pauseAndWaitForClear => null,
+      _ => note,
+    };
   }
 
   /// A run that skipped a target at entry and captured no frame imaged

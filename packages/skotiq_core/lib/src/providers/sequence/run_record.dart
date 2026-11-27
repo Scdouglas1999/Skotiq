@@ -307,6 +307,13 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
     );
   }
 
+  /// Clears the run's line while it still reads [message].
+  void clearMessage(String message) {
+    final current = state.progress;
+    if (current.message != message) return;
+    _setProgress(current.copyWith(message: null, messageIsFrameCount: false));
+  }
+
   /// A step started, taking [frameType] frames (null for a step that takes
   /// none).
   void beginStep(String nodeId, String nodeType, FrameType? frameType) {

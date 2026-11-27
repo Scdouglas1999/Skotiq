@@ -98,4 +98,89 @@ void main() {
       SequenceExecutionState.paused,
     );
   });
+
+  // An operator pause after a trigger that only noted something (a filter
+  // change that continues) must not read as that trigger's pause.
+  test(
+    "a trigger that did not pause the run is not the pause's reason",
+    () async {
+      final backend = MockBackend();
+      final events = StreamController<wire.SkotiqEvent>.broadcast();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      when(
+        () => backend.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(events.close);
+      addTearDown(db.close);
+
+      final executor = container.read(sequenceExecutorProvider);
+      executor.handleSequencerEventForTest(
+        _event('TriggerFired', {
+          'trigger_id': 'filter_change',
+          'trigger_name': 'Filter Change',
+          'action': 'Continue',
+        }),
+      );
+      expect(
+        container.read(sequenceProgressProvider).message,
+        'Trigger "Filter Change" fired: continue',
+      );
+      executor.handleSequencerEventForTest(_event('Paused', {}));
+
+      expect(
+        container.read(sequenceProgressProvider).message,
+        isNot(contains('Filter Change')),
+      );
+      expect(
+        container.read(sequenceExecutionStateProvider),
+        SequenceExecutionState.paused,
+      );
+    },
+  );
+
+  test("a trigger that pauses the run stays the pause's reason", () async {
+    final backend = MockBackend();
+    final events = StreamController<wire.SkotiqEvent>.broadcast();
+    when(() => backend.eventStream).thenAnswer((_) => events.stream);
+    when(
+      () => backend.polarAlignmentEvents,
+    ).thenAnswer((_) => const Stream.empty());
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        backendProvider.overrideWith(
+          (ref) => _TestBackendNotifier(ref, backend),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(events.close);
+    addTearDown(db.close);
+
+    final executor = container.read(sequenceExecutorProvider);
+    executor.handleSequencerEventForTest(
+      _event('TriggerFired', {
+        'trigger_id': 'hfr_limit',
+        'trigger_name': 'HFR Limit',
+        'action': 'Pause',
+      }),
+    );
+    executor.handleSequencerEventForTest(_event('Paused', {}));
+
+    expect(
+      container.read(sequenceProgressProvider).message,
+      'Trigger "HFR Limit" fired: pause the run',
+    );
+  });
 }
