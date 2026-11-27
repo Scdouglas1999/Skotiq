@@ -52,10 +52,7 @@ class _SequencerPageHeader extends ConsumerWidget {
         startWithPreflight(context, ref);
         return;
       }
-      showDialog<void>(
-        context: context,
-        builder: (_) => const PreFlightValidationDialog(),
-      );
+      showPreflight(context);
     }
 
     // Derive the strip from the single SequencerTab enum so adding a tab there
