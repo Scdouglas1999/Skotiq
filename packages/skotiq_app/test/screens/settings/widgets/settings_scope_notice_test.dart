@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/router/settings_sections.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_scope_notice.dart';
 import 'package:skotiq_core/backend.dart';
@@ -25,8 +26,9 @@ Future<void> _pump(
   String key,
   SkotiqBackend? backend, {
   LinkedRig? rig,
-}) {
-  return tester.pumpWidget(
+  Locale locale = const Locale('en'),
+}) async {
+  await tester.pumpWidget(
     ProviderScope(
       overrides: [
         if (backend != null)
@@ -35,12 +37,17 @@ Future<void> _pump(
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
+        locale: locale,
+        supportedLocales: SkotiqLocalizations.supportedLocales,
+        localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
         home: Scaffold(
           body: SettingsScopeNotice.forSection(SettingsSectionId.resolve(key)!),
         ),
       ),
     ),
   );
+  // The localizations load before the first frame that shows the line.
+  await tester.pump();
 }
 
 void main() {
@@ -132,6 +139,22 @@ void main() {
         reason: key,
       );
     }
+  });
+
+  testWidgets('the line reads in the language this device shows', (
+    tester,
+  ) async {
+    final backend = _MockNetworkBackend();
+    when(() => backend.serverHost).thenReturn('192.168.1.100');
+    await _pump(tester, 'general', backend, locale: const Locale('es'));
+    expect(
+      find.textContaining(
+          'Guardado en el ordenador de captura (192.168.1.100)'),
+      findsOneWidget,
+    );
+    await _pump(tester, 'appearance', backend, locale: const Locale('es'));
+    expect(find.textContaining('Guardado solo en este dispositivo'),
+        findsOneWidget);
   });
 
   testWidgets('the machine that owns the rig shows nothing', (tester) async {

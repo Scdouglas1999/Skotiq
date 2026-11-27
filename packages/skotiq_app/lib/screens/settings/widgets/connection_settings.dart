@@ -10,6 +10,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../tours/tour_target.dart';
 import '../../connection/link_status.dart';
@@ -256,15 +257,12 @@ class ConnectionSettings extends ConsumerWidget {
         context: context,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setDialogState) => AlertDialog(
-            title: const Text('Disconnect from Server?'),
+            title: Text(ctx.l10n.text('connectionDisconnectTitle')),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'You will return to the connection screen where you can '
-                  'connect to a different server.',
-                ),
+                Text(ctx.l10n.text('connectionDisconnectBody')),
                 if (disconnectError != null) ...[
                   const SizedBox(height: 12),
                   Text(
@@ -278,13 +276,17 @@ class ConnectionSettings extends ConsumerWidget {
             ),
             actions: [
               SkotiqButton(
-                label: 'Cancel',
+                label: ctx.l10n.text('cancel'),
                 variant: ButtonVariant.ghost,
                 size: ButtonSize.small,
                 onPressed: disconnecting ? null : () => Navigator.pop(ctx),
               ),
               SkotiqButton(
-                label: disconnecting ? 'Disconnecting...' : 'Disconnect',
+                label: ctx.l10n.text(
+                  disconnecting
+                      ? 'connectionDisconnecting'
+                      : 'connectionDisconnect',
+                ),
                 variant: ButtonVariant.destructive,
                 size: ButtonSize.small,
                 onPressed: disconnecting

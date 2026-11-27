@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../localization/skotiq_localizations.dart';
 import '../../../router/settings_sections.dart';
 
 /// On a linked client, one line above a Settings section, or above one group
@@ -46,10 +47,13 @@ class SettingsScopeNotice extends ConsumerWidget {
     final hostLink = ref.watch(linkedHostLinkProvider);
     if (hostLink == null) return const SizedBox.shrink();
     final colors = SkotiqColors.of(context);
+    final l10n = context.l10n;
     final text = onHost
-        ? 'Saved on the imaging host (${hostLink.serverHost}). A change '
-            'here changes the rig for everyone linked to it.'
-        : 'Saved on this device only. The imaging host keeps its own.';
+        ? l10n.text(
+            'settingsScopeHost',
+            params: {'host': hostLink.serverHost},
+          )
+        : l10n.text('settingsScopeDevice');
     return Padding(
       padding: padding,
       child: Semantics(

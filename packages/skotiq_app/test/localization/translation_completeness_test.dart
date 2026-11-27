@@ -99,6 +99,7 @@ void main() {
           params: {'current': '2', 'total': '7'}),
       'Paso 2 de 7',
     );
+    expect(es.text('navMore'), 'M\u00E1s');
     // Unknown key falls back to the key itself.
     expect(es.text('___definitely_missing___'), '___definitely_missing___');
   });
