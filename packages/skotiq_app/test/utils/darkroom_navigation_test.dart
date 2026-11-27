@@ -134,7 +134,7 @@ void main() {
       final target = await withRef(
         tester,
         [
-          remoteClientLaunchProvider.overrideWithValue(true),
+          launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
           backendProvider.overrideWith(
             (ref) => _PinnedBackend(ref, DisconnectedBackend()),
           ),
@@ -315,7 +315,7 @@ void main() {
       'point, and does not navigate',
       (tester) async {
         final router = await pumpRow(tester, [
-          remoteClientLaunchProvider.overrideWithValue(true),
+          launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
           backendProvider.overrideWith(
             (ref) => _PinnedBackend(ref, DisconnectedBackend()),
           ),
@@ -361,7 +361,7 @@ void main() {
       final target = await withRef(
         tester,
         [
-          remoteClientLaunchProvider.overrideWithValue(true),
+          launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
           backendProvider.overrideWith(
             (ref) => _PinnedBackend(ref, DisconnectedBackend()),
           ),

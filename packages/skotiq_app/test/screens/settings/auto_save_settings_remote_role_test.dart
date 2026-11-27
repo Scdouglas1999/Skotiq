@@ -49,7 +49,8 @@ void main() {
       database: database,
       extraOverrides: [
         autoSaveServiceProvider.overrideWithValue(service),
-        remoteClientLaunchProvider.overrideWithValue(launchedAsClient),
+        launchRoleProvider.overrideWithValue(
+            launchedAsClient ? LaunchRole.linkedClient : LaunchRole.hostGui),
         isRemoteModeProvider.overrideWithValue(connected),
       ],
     );

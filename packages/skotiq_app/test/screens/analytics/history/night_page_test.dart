@@ -125,7 +125,9 @@ void main() {
         backendProvider.overrideWith(
           (ref) => _PinnedBackend(ref, backend ?? DisconnectedBackend()),
         ),
-        remoteClientLaunchProvider.overrideWithValue(launchedAsRemoteClient),
+        launchRoleProvider.overrideWithValue(launchedAsRemoteClient
+            ? LaunchRole.linkedClient
+            : LaunchRole.hostGui),
         dawnMasterResolverProvider
             .overrideWithValue(resolver ?? _ScriptedResolver(_oneMaster())),
         ...overrides,

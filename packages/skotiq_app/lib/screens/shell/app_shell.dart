@@ -223,7 +223,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// start-up queue is passed meanwhile so the prompts after it are not held
   /// by a link that may never come; the link asks for the turn again.
   bool _checkpointWaitsForHost() =>
-      ref.read(remoteClientLaunchProvider) &&
+      ref.read(isRemoteClientProvider) &&
       !ref.read(backendProvider).hostPlace.isLinked;
 
   Future<AppStartupCheckpointOutcome> _checkCheckpointIfNeeded({
@@ -357,7 +357,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 final hostChange = ref.listenManual<SkotiqBackend>(
                   backendProvider,
                   (previous, next) {
-                    if (ref.read(remoteClientLaunchProvider) &&
+                    if (ref.read(isRemoteClientProvider) &&
                         !identical(previous, next)) {
                       closePrompt();
                     }
@@ -464,7 +464,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     // A companion that deferred recovery starts it once the host link exists,
     // and asks again each time it links after leaving its host.
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-      if (!ref.read(remoteClientLaunchProvider)) return;
+      if (!ref.read(isRemoteClientProvider)) return;
       if (!identical(previous, next) &&
           (previous != null && previous.hostPlace.isLinked)) {
         _checkpointCheck = null;
@@ -478,7 +478,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     // again.
     ref.listen<bool>(connectionStaleProvider, (previous, next) {
       if (previous != true || next) return;
-      if (!ref.read(remoteClientLaunchProvider)) return;
+      if (!ref.read(isRemoteClientProvider)) return;
       if (_checkpointCheckRunning) return;
       _checkpointCheck = null;
       _askAfterLink();

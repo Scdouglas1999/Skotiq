@@ -1212,7 +1212,7 @@ void main() {
           // The launch flags said `--remote-host`; the handshake has not landed
           // (or has dropped), so the connection-shaped gate reads false. A
           // destination added here would go into a database no dawn job reads.
-          remoteClientLaunchProvider.overrideWithValue(true),
+          launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
           isRemoteModeProvider.overrideWithValue(false),
         ],
       );
@@ -1267,7 +1267,7 @@ void main() {
         size: const Size(1280, 1000),
         extraOverrides: [
           ..._overrides(),
-          remoteClientLaunchProvider.overrideWithValue(false),
+          launchRoleProvider.overrideWithValue(LaunchRole.hostGui),
           isRemoteModeProvider.overrideWithValue(false),
         ],
       );

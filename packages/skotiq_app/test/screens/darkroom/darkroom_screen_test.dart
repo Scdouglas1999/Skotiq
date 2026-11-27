@@ -447,7 +447,7 @@ void main() {
             darkroomSeamProvider.overrideWithValue(darkroom),
             dawnPhotometryResolverProvider
                 .overrideWithValue(_emptyPhotometry()),
-            remoteClientLaunchProvider.overrideWithValue(true),
+            launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
             backendProvider.overrideWith(
               (ref) => _FixedBackendNotifier(ref, DisconnectedBackend()),
             ),

@@ -337,7 +337,8 @@ void main() {
           sidecarCalls++;
           return sidecarAnswer;
         }),
-        if (remoteClient) remoteClientLaunchProvider.overrideWithValue(true),
+        if (remoteClient)
+          launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
       ],
     );
     addTearDown(container.dispose);

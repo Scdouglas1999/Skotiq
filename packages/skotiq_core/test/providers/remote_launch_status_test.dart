@@ -54,7 +54,7 @@ void main() {
       overrides: [
         inMemoryDatabaseOverride(),
         remoteLaunchTargetProvider.overrideWithValue(_target),
-        remoteClientLaunchProvider.overrideWithValue(true),
+        launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
         backendProvider.overrideWith((ref) {
           notifier = _FailingBackendNotifier(
             ref,
@@ -199,7 +199,7 @@ void main() {
               remembered: true,
             ),
           ),
-          remoteClientLaunchProvider.overrideWithValue(true),
+          launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
           remoteLaunchFingerprintCheckProvider.overrideWithValue(
             (_) async => 'ffff000011112222',
           ),

@@ -83,7 +83,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(db),
-          remoteClientLaunchProvider.overrideWithValue(false),
+          launchRoleProvider.overrideWithValue(LaunchRole.hostGui),
           backendProvider.overrideWith((ref) => _Linked(ref, host)),
         ],
         child: MaterialApp(
