@@ -307,6 +307,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         debugShowCheckedModeBanner: false,
         localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
         supportedLocales: SkotiqLocalizations.supportedLocales,
+        builder: (context, child) => skotiqAppFrame(child),
+        navigatorObservers: skotiqNavigatorObservers(),
         home: Scaffold(
           body: Center(
             child: Padding(

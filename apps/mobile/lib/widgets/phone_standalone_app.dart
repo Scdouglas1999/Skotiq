@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/app_frame.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_app/widgets/red_night_filter.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -31,9 +30,7 @@ class PhoneStandaloneApp extends ConsumerWidget {
         theme: theme,
         localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
         supportedLocales: SkotiqLocalizations.supportedLocales,
-        builder: (context, child) => UnfocusOnKeyboardClose(
-          child: RedNightScreen(child: child ?? const SizedBox.shrink()),
-        ),
+        builder: (context, child) => skotiqAppFrame(child),
         navigatorObservers: skotiqNavigatorObservers(),
         home: home,
       ),
