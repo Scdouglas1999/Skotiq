@@ -94,9 +94,10 @@ Future<void> _stopReading(HttpRequest request, _Server server) async {
   sub = request.listen((_) => sub.pause());
 }
 
-/// About 1.5 s of transfer at [_rate], five times the idle limit.
-const _transferBytes = 1536 * 1024;
-const _rate = 1024 * 1024;
+/// About 1.5 s of transfer at [_rate], five times the idle limit, in steps
+/// of about 16 ms.
+const _transferBytes = 6 * 1024 * 1024;
+const _rate = 4 * 1024 * 1024;
 
 Future<File> _file(Directory dir, int bytes) async {
   final file = File('${dir.path}/payload.fits');
@@ -329,4 +330,45 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 20)),
   );
+
+  test(
+    'an upload that cannot connect leaves its file closed',
+    () async {
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+      final file = await _file(tmp, 1024 * 1024);
+      final client = ConstellationClient(
+        hubBaseUrl: Uri.parse('http://127.0.0.1:$port'),
+        bearerToken: 'tok',
+      );
+      addTearDown(client.close);
+
+      await expectLater(
+        client.pushSubframe(
+          tileId: 42,
+          order: 9,
+          fitsPath: file.path,
+          license: 'cc-by',
+        ),
+        throwsA(isA<ConstellationException>()),
+      );
+      await pumpEventQueue();
+
+      final open = [
+        for (final fd in Directory('/proc/self/fd').listSync())
+          if (_linkTarget(fd.path) == file.path) fd.path,
+      ];
+      expect(open, isEmpty);
+    },
+    skip: !Directory('/proc/self/fd').existsSync(),
+  );
+}
+
+String? _linkTarget(String path) {
+  try {
+    return Link(path).targetSync();
+  } on FileSystemException {
+    return null;
+  }
 }

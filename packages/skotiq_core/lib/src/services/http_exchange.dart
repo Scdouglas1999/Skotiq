@@ -52,32 +52,26 @@ class HttpExchange {
   }) async {
     assert(body == null || file == null, 'one request body at most');
     final watch = _IdleWatch(_idleLimit);
-    final request = http.AbortableStreamedRequest(
-      method,
-      uri,
-      abortTrigger: watch.expired,
-    );
-    if (headers != null) request.headers.addAll(headers);
     final Stream<List<int>> content;
+    final int length;
     if (file != null) {
-      request.contentLength = await file.length();
+      length = await file.length();
       content = file.openRead();
     } else {
       final bytes = body ?? const <int>[];
-      request.contentLength = bytes.length;
+      length = bytes.length;
       content = _slices(bytes);
     }
-    unawaited(
-      request.sink
-          .addStream(
-            content.map((chunk) {
-              watch.touch();
-              return chunk;
-            }),
-          )
-          .then((_) {}, onError: request.sink.addError)
-          .whenComplete(request.sink.close),
-    );
+    final request = _BodyRequest(
+      method,
+      uri,
+      content.map((chunk) {
+        watch.touch();
+        return chunk;
+      }),
+      abortTrigger: watch.expired,
+    )..contentLength = length;
+    if (headers != null) request.headers.addAll(headers);
 
     final http.StreamedResponse streamed;
     try {
@@ -185,6 +179,23 @@ class HttpExchange {
       TimeoutException() => _networkFailure('Request to ${uri.host} timed out'),
       _ => null,
     };
+  }
+}
+
+/// A request whose body is [_body], read only when the transport takes it:
+/// a request that fails before it is sent never opens its file.
+final class _BodyRequest extends http.BaseRequest with http.Abortable {
+  _BodyRequest(super.method, super.url, this._body, {this.abortTrigger});
+
+  final Stream<List<int>> _body;
+
+  @override
+  final Future<void>? abortTrigger;
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(_body);
   }
 }
 
