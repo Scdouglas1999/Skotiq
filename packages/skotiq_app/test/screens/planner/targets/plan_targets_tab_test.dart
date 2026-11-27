@@ -479,6 +479,50 @@ void main() {
     });
   });
 
+  // New York leaves daylight time at 02:00 on 2026-11-01. A band drawn from
+  // site-clock renderings, which carry this device's zone, put "now" an hour
+  // off its time on that night; this test only bites on a device in such a
+  // zone.
+  testWidgets('the night band puts now at its instant on a DST-change night',
+      (tester) async {
+    const site = LocationSettings(latitude: 47, longitude: -71);
+    final at = DateTime.utc(2026, 11, 1, 9);
+    final clock = _StoppedSiteClock(at, const Duration(hours: 2));
+    await _pump(
+      tester,
+      site: site,
+      extra: [
+        altitudeFloorProvider.overrideWithValue(
+          const AltitudeFloor(horizon: null, minimumDeg: 0),
+        ),
+        clockProvider.overrideWithValue(clock),
+      ],
+    );
+    await tester.tap(find.text('NGC0891'));
+    await tester.pumpAndSettle();
+
+    final night = AstronomyCalculations.nightAt(
+      now: at,
+      latitudeDeg: 47,
+      longitudeDeg: -71,
+    );
+    final sunset = night.sunset!;
+    final sunrise = night.sunrise!;
+    final expected = at.difference(sunset).inMilliseconds /
+        sunrise.difference(sunset).inMilliseconds;
+    final band = tester.widget<NightBand>(find.byType(NightBand));
+    expect(band.fractionOf(band.now), closeTo(expected, 1e-6));
+    expect(
+        band.fractionOf(band.astroDark),
+        closeTo(
+            night.astronomicalDusk!.difference(sunset).inMilliseconds /
+                sunrise.difference(sunset).inMilliseconds,
+            1e-6));
+    expect(find.text('now ${ClockFormat.hm(clock.wallClockOf(at))}'),
+        findsOneWidget);
+    await settleProviderTeardown(tester);
+  });
+
   testWidgets('at phone width every row keeps its name and nothing overflows',
       (tester) async {
     await _pump(tester, size: const Size(390, 844));
