@@ -354,6 +354,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
           children: [
             SettingRow(
               title: 'ASTAP executable',
+              stackWhenNarrow: true,
               subtitle: preference.astapPath.isEmpty
                   ? (detection.astapPath ?? 'Auto-detect: not found')
                   : preference.astapPath,
@@ -363,11 +364,14 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
                   path: preference.astapPath,
                   onBrowse: () => _browseAstapExecutable(preference),
                   authorityKey: authority,
+                  emptyLabel: 'Auto-detect',
+                  fillWhenNarrow: true,
                 ),
               ),
             ),
             SettingRow(
               title: 'ASTAP catalog directory',
+              stackWhenNarrow: true,
               subtitle: preference.catalogPath.isEmpty
                   ? (detection.catalogPath ?? 'Auto-detect: not found')
                   : preference.catalogPath,
@@ -376,6 +380,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
                 path: preference.catalogPath,
                 onBrowse: () => _browseAstapCatalogDirectory(preference),
                 authorityKey: authority,
+                emptyLabel: 'Auto-detect',
+                fillWhenNarrow: true,
               ),
             ),
             SettingRow(
@@ -404,6 +410,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
           children: [
             SettingRow(
               title: 'solve-field executable',
+              stackWhenNarrow: true,
               subtitle: preference.astrometryPath.isEmpty
                   ? (detection.astrometryPath ?? 'Auto-detect: not found')
                   : preference.astrometryPath,
@@ -413,6 +420,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
                   path: preference.astrometryPath,
                   onBrowse: () => _browseAstrometryExecutable(preference),
                   authorityKey: authority,
+                  emptyLabel: 'Auto-detect',
+                  fillWhenNarrow: true,
                 ),
               ),
             ),

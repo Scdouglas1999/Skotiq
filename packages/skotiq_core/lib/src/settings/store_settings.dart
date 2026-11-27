@@ -444,6 +444,7 @@ abstract final class StoreSettings {
     'push_notification_config',
     unsetText: '',
     sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.everyPhone,
   );
 
   /// The scheduler's scoring weights and limits.

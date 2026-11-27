@@ -355,6 +355,45 @@ void main() {
     );
   });
 
+  test(
+    'only an admin link changes which events every phone is pushed',
+    () async {
+      const body = {
+        'settings': {'push_notification_config': '{"enabled":false}'},
+      };
+      final (status, error) = await call(
+        'control-token',
+        'POST',
+        '/api/settings/store',
+        body,
+      );
+      expect(status, HttpStatus.forbidden);
+      expect(error['code'], 'admin_setting');
+      expect(
+        error['message'],
+        'push_notification_config decides what every phone linked to the '
+        'imaging computer is pushed, which only a link with admin access can '
+        'change. Change it on the imaging computer, or link with admin access.',
+      );
+      expect(
+        await db.settingsDao.getSetting('push_notification_config'),
+        isNull,
+      );
+
+      final (adminStatus, _) = await call(
+        'admin-token',
+        'POST',
+        '/api/settings/store',
+        body,
+      );
+      expect(adminStatus, HttpStatus.ok);
+      expect(
+        await db.settingsDao.getSetting('push_notification_config'),
+        '{"enabled":false}',
+      );
+    },
+  );
+
   test('a control link saving the document it read changes what it meant to '
       'and leaves the credential alone', () async {
     final (_, read) = await call('control-token', 'GET', '/api/settings');

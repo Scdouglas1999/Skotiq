@@ -229,6 +229,43 @@ void main() {
     expect(top(host), lessThan(top(find.text('DISCOVERY'))));
   });
 
+  testWidgets('the Disconnect question reads in the language this device shows',
+      (tester) async {
+    final backend = NetworkBackend(
+      serverHost: '10.0.0.5',
+      serverPort: 8080,
+      webSocketPort: 8080,
+      autoConnectWebSocket: false,
+    );
+    addTearDown(backend.dispose);
+
+    await pumpAppScreen(
+      tester,
+      const ConnectionSettings(),
+      size: const Size(1280, 1600),
+      locale: const Locale('es'),
+      extraOverrides: [
+        appSettingsProvider.overrideWith(
+          () => _StubAppSettingsNotifier(const AppSettingsState()),
+        ),
+        backendProvider.overrideWith(
+          (ref) => TestBackendNotifier(ref, backend),
+        ),
+        networkBackendConnectionStateProvider.overrideWith(
+          (ref) => Stream.value(BackendConnectionState.connected),
+        ),
+        _hostAnswering(),
+      ],
+    );
+
+    await tester.tap(find.widgetWithText(SkotiqButton, 'Disconnect').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('\u00BFDesconectar del servidor?'), findsOneWidget);
+    expect(find.text('Disconnect from Server?'), findsNothing);
+    expect(find.widgetWithText(SkotiqButton, 'Cancelar'), findsOneWidget);
+  });
+
   testWidgets(
     'Discovery exposes an INDI Server Address entry that opens the dialog',
     (tester) async {

@@ -3,7 +3,13 @@ part of '../integrations_settings.dart';
 /// Top section: the honest "Discord fires on events" answer — a cross-link to
 /// the notification router, which owns the event→transport routing.
 class _NotificationCrossLinkSection extends StatelessWidget {
-  const _NotificationCrossLinkSection();
+  const _NotificationCrossLinkSection({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -11,9 +17,8 @@ class _NotificationCrossLinkSection extends StatelessWidget {
       title: 'Notifications & events',
       children: [
         SettingRow(
-          title: 'Send run events to Discord, Pushover or email',
-          subtitle: 'Which events go where is set on the Notifications '
-              'page.',
+          title: title,
+          subtitle: subtitle,
           stackWhenNarrow: true,
           trailing: SkotiqButton(
             label: 'Open notifications',

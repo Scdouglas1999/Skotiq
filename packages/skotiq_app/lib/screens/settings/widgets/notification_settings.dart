@@ -255,12 +255,18 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
     final authority = ref.watch(backendProvider);
-    // Phones pair with the imaging computer, so a client launch never edits
-    // push config, linked or not.
     final isRemoteController = ref.watch(isRemoteClientProvider);
     final credentialsHidden = hostRefusesAdminOnly(ref);
+    // The push config is a row of the imaging host's store. A client edits
+    // it only while its settings store is the host's; before that it would
+    // save into its own database, where nothing reads it.
+    final pushConfigEditable =
+        !isRemoteController || ref.watch(hostSettingsStoreProvider) != null;
+    // Which events reach every phone stays with admin links, as the host's
+    // other shared settings do; without admin access it is shown, not changed.
+    final pushReadOnly = pushConfigEditable && credentialsHidden;
     final AsyncValue<PushNotificationConfig>? pushConfigAsync =
-        isRemoteController ? null : ref.watch(pushNotificationConfigProvider);
+        pushConfigEditable ? ref.watch(pushNotificationConfigProvider) : null;
     // Real delivery state, so the critical-alert row can stop asserting a
     // capability the system may not have.
     final pushTargetsAsync = ref.watch(pushDeliveryTargetsProvider);
@@ -416,7 +422,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 ),
               ],
             ),
-            if (isRemoteController)
+            if (!pushConfigEditable)
               const SettingsSection(
                 title: 'Push to phones',
                 children: [
@@ -466,12 +472,27 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
               SettingsSection(
                 title: 'Push to phones',
                 children: [
+                  if (pushReadOnly)
+                    const SettingRow(
+                      title: 'Shared by every phone',
+                      subtitle: 'These settings apply to every phone linked '
+                          'to the imaging computer.',
+                      trailing: AdminOnlyNotice(
+                        text: 'Which events reach every phone is changed on '
+                            'the imaging computer, or link with admin access.',
+                      ),
+                    ),
                   SettingRow(
                     title: 'Push to phones',
-                    subtitle: 'Send these events to phones paired with this '
-                        'computer. Each one can be turned off here.',
+                    subtitle: isRemoteController
+                        ? 'Send these events to phones paired with the '
+                            'imaging computer. Each one can be turned off '
+                            'here.'
+                        : 'Send these events to phones paired with this '
+                            'computer. Each one can be turned off here.',
                     trailing: SettingsSwitch(
                       value: pushConfig.enabled,
+                      enabled: !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -484,7 +505,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When a run finishes.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifySequenceCompleted,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -497,7 +518,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When a run fails or is stopped.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifySequenceFailed,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -510,7 +531,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When the mount flips.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyMeridianFlip,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -523,7 +544,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When the weather turns unsafe.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyWeatherUnsafe,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -536,7 +557,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When the guide star stays lost.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyGuidingLost,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -549,7 +570,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When an exposure fails.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyExposureFailed,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -562,7 +583,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When autofocus fails.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyAutofocusFailed,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -575,7 +596,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'When a device drops.',
                     trailing: SettingsSwitch(
                       value: pushConfig.notifyEquipmentDisconnected,
-                      enabled: pushConfig.enabled,
+                      enabled: pushConfig.enabled && !pushReadOnly,
                       onChanged: (value) {
                         return ref
                             .read(pushNotificationConfigProvider.notifier)
@@ -583,20 +604,23 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                       },
                     ),
                   ),
-                  SettingRow(
-                    title: 'Send a test',
-                    subtitle: 'Sends a test to paired phones. If it does not '
-                        'arrive, the log says why.',
-                    trailing: SkotiqButton(
-                      label: 'Send test',
-                      variant: ButtonVariant.secondary,
-                      size: ButtonSize.small,
-                      isLoading: _activeTest == _NotificationTest.push,
-                      onPressed: (pushConfig.enabled && _activeTest == null)
-                          ? _testPushToMobile
-                          : null,
+                  // The test is sent by this process's own broadcaster; the
+                  // imaging host has no route that sends one for a client.
+                  if (!isRemoteController)
+                    SettingRow(
+                      title: 'Send a test',
+                      subtitle: 'Sends a test to paired phones. If it does not '
+                          'arrive, the log says why.',
+                      trailing: SkotiqButton(
+                        label: 'Send test',
+                        variant: ButtonVariant.secondary,
+                        size: ButtonSize.small,
+                        isLoading: _activeTest == _NotificationTest.push,
+                        onPressed: (pushConfig.enabled && _activeTest == null)
+                            ? _testPushToMobile
+                            : null,
+                      ),
                     ),
-                  ),
                 ],
               ),
             // A linked client cannot reach the host's keyring, so it edits

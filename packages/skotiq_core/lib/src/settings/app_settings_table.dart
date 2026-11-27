@@ -54,7 +54,7 @@ const List<Setting<Object?>> kAppSettingsTable = [
   TextSetting('theme', 'theme', 'dark', clientKeepsOwn: true, seeded: true),
 
   /// `en` or `es`.
-  TextSetting('language', 'language', 'en', seeded: true),
+  TextSetting('language', 'language', 'en', clientKeepsOwn: true, seeded: true),
   TextSetting(
     'accentColor',
     'accent_color',

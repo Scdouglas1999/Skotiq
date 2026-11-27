@@ -118,4 +118,60 @@ void main() {
     expect(writes, [(HostPathSetting.imageOutput, '/current-host-images')]);
     expect(tester.takeException(), isNull);
   });
+
+  // A headless host has no screen, so a phone linked to it sets the host's
+  // sequences folder; the host's settings carry it like the image folder.
+  testWidgets('a linked phone sets the host sequences folder', (tester) async {
+    final backend = NetworkBackend(
+      serverHost: '10.0.0.5',
+      serverPort: 8080,
+      webSocketPort: 8080,
+      autoConnectWebSocket: false,
+    );
+    addTearDown(backend.dispose);
+    var pickerCalls = 0;
+    final writes = <(HostPathSetting, String)>[];
+
+    await pumpAppScreen(
+      tester,
+      const SettingsFormScope(
+        narrow: false,
+        embedded: true,
+        child: FilePathSettings(),
+      ),
+      settle: false,
+      extraOverrides: [
+        launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+        backendProvider
+            .overrideWith((ref) => TestBackendNotifier(ref, backend)),
+        isRemoteModeProvider.overrideWithValue(true),
+        appSettingsProvider.overrideWith(_LoadedAppSettings.new),
+        hostFoldersProvider.overrideWithValue(FakeHostFolders(
+          onPick: ({required initialPath}) async {
+            pickerCalls++;
+            return '/host/sequences';
+          },
+        )),
+        filePathSettingsWriterProvider.overrideWithValue(
+          (settingKey, path) async => writes.add((settingKey, path)),
+        ),
+      ],
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final sequencesBrowse = find.descendant(
+      of: find.byType(SettingsPathInput).at(1),
+      matching: find.byType(GestureDetector),
+    );
+    await tester.ensureVisible(sequencesBrowse.first);
+    await tester.tap(sequencesBrowse.first);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('This path can only be changed on the host machine.'),
+        findsNothing);
+    expect(pickerCalls, 1);
+    expect(writes, [(HostPathSetting.sequences, '/host/sequences')]);
+  });
 }

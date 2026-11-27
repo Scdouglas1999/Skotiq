@@ -8,33 +8,39 @@ import 'validation.dart';
 
 /// The `code` of the 403 that refuses a change to a setting declared
 /// [reason], and what one such setting is and several are, in its message.
-({String code, String one, String many}) _refusal(AdminOnly reason) =>
-    switch (reason) {
-      AdminOnly.credential => (
-        code: 'credential_setting',
-        one: 'holds a credential',
-        many: 'hold credentials',
-      ),
-      AdminOnly.credentialTarget => (
-        code: 'credential_setting',
-        one: 'says where the imaging computer sends a credential',
-        many: 'say where the imaging computer sends its credentials',
-      ),
-      AdminOnly.hostProgram => (
-        code: 'host_program_setting',
-        one: 'decides which program the imaging computer runs',
-        many: 'decide which programs the imaging computer runs',
-      ),
-      AdminOnly.administration => (
-        code: 'admin_setting',
-        one:
-            "belongs to the imaging computer's backups, download source or "
-            'remote access',
-        many:
-            "belong to the imaging computer's backups, download source or "
-            'remote access',
-      ),
-    };
+({String code, String one, String many}) _refusal(
+  AdminOnly reason,
+) => switch (reason) {
+  AdminOnly.credential => (
+    code: 'credential_setting',
+    one: 'holds a credential',
+    many: 'hold credentials',
+  ),
+  AdminOnly.credentialTarget => (
+    code: 'credential_setting',
+    one: 'says where the imaging computer sends a credential',
+    many: 'say where the imaging computer sends its credentials',
+  ),
+  AdminOnly.hostProgram => (
+    code: 'host_program_setting',
+    one: 'decides which program the imaging computer runs',
+    many: 'decide which programs the imaging computer runs',
+  ),
+  AdminOnly.administration => (
+    code: 'admin_setting',
+    one:
+        "belongs to the imaging computer's backups, download source or "
+        'remote access',
+    many:
+        "belong to the imaging computer's backups, download source or "
+        'remote access',
+  ),
+  AdminOnly.everyPhone => (
+    code: 'admin_setting',
+    one: 'decides what every phone linked to the imaging computer is pushed',
+    many: 'decide what every phone linked to the imaging computer is pushed',
+  ),
+};
 
 /// The `code` of the 403 for a setting declared [reason].
 String adminOnlyRefusalCode(AdminOnly reason) => _refusal(reason).code;

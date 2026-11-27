@@ -463,3 +463,37 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
              {scale:.2}\" pixel"
     );
 }
+
+/// With no catalog folder saved, the sky reads the catalog detection finds
+/// beside ASTAP, the one Settings reports as detected; before, it rendered no
+/// catalog stars at all and Center failed on the simulator.
+#[tokio::test]
+async fn with_no_catalog_saved_the_sky_reads_the_detected_catalog() {
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+
+    let astap_dir = tempfile::TempDir::new().unwrap();
+    crate::simulator::sky::astap_integration::write_synthetic_area(
+        &astap_dir.path().join("d05_0001.1476"),
+        &[(83.8, -5.4, 9.0), (83.9, -5.3, 10.0), (84.0, -5.5, 11.0)],
+    );
+    let astap = astap_dir.path().join("astap_cli");
+    std::fs::write(&astap, b"").unwrap();
+
+    crate::simulator::capture::shared_platesolver_store();
+    let previous =
+        crate::state::get_platesolver_preference().expect("read plate-solver preference");
+    crate::solver::save_solver_preference(&crate::storage::PlateSolverPreference {
+        astap_path: astap.to_string_lossy().to_string(),
+        catalog_path: String::new(),
+        ..previous.clone()
+    })
+    .expect("save plate-solver preference");
+
+    let index = crate::simulator::sky::configured_index();
+    crate::solver::save_solver_preference(&previous).expect("restore plate-solver preference");
+
+    assert!(
+        index.is_some(),
+        "the detected catalog beside ASTAP should back the simulated sky"
+    );
+}

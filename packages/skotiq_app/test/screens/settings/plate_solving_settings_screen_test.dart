@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/plate_solving_settings_screen.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/solver_detection_card.dart';
 // SolverDetectionCard imports the model leaf directly to avoid a circular
 // dependency on the core barrel; the screen-level tests below need the
@@ -546,5 +547,64 @@ void main() {
       expect(det.hasAnySolver, true);
       expect(det.astapReady, false);
     });
+  });
+
+  // Phone check: the catalog row read "Not set" beside a subtitle naming the
+  // folder ASTAP uses, and laid out unlike the executable row above it.
+  testWidgets(
+      'on a phone an unsaved path reads as auto-detect, row by row alike',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 2400);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, _MockNetworkBackend()),
+          ),
+          plateSolverDetectionProvider.overrideWith(
+            (ref) async => const PlateSolverDetection(
+              astapPath: '/host/astap/astap_cli',
+              catalogPath: '/host/astap',
+              catalogName: 'D05',
+            ),
+          ),
+          plateSolverPreferenceProvider.overrideWith(
+            (ref) async => const PlateSolverPreference(
+              astapPath: '/host/astap/astap_cli',
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(
+            body: SettingsFormScope(
+              narrow: true,
+              child: SingleChildScrollView(child: PlateSolvingSettings()),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final catalog = find.byKey(const ValueKey('plate_solver_catalog_path'));
+    final astap = find.byKey(const ValueKey('plate_solver_astap_path'));
+    expect(
+      find.descendant(of: catalog, matching: find.text('Not set')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: catalog, matching: find.text('Auto-detect')),
+      findsOneWidget,
+    );
+    expect(tester.getTopLeft(catalog).dx, tester.getTopLeft(astap).dx);
+    expect(tester.getSize(catalog).width, tester.getSize(astap).width);
   });
 }

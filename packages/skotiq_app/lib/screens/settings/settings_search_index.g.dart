@@ -107,11 +107,13 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Display',
     'Enlarges status readouts so they read from across the',
     'Glance mode',
+    'Language',
     'Red night is monochrome red, so the accent has',
     'Scales every label and readout.',
     'Start with the navigation rail collapsed',
     'Text size',
     'Theme',
+    'Translates menus, navigation, the status bar, Settings and the',
     'UI scale',
     'Used for the primary action, selection and',
   ],
@@ -270,7 +272,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'files-storage': [
     'Application data',
-    'Automatic backup scheduling is stored and executed on',
     'Automatic backups',
     'Backup interval',
     'Backups',
@@ -281,6 +282,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'File paths',
     'Files & storage',
     'Host-owned setting',
+    'How often the imaging computer backs itself up',
     'How often to create backups (hours)',
     'How often to save pending sequence edits',
     'Last backup',
@@ -301,12 +303,10 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Confirm before closing',
     'Connects the default startup profile on launch, falling back to the',
     'General',
-    'Language',
     'Launch app minimized to system tray',
     'Show confirmation when closing during capture',
     'Start minimized',
     'Startup',
-    'Translates menus, navigation, the status bar, Settings and the',
   ],
   'help': [
     '7-step guided wizard for your first imaging session.',
@@ -380,16 +380,18 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Application token',
     'Base URL',
     'Default / test webhook URL',
+    'Discord, Pushover and Home Assistant',
     'Imaging host',
     'Integrations',
     'Long-lived access token',
     'Managed on the imaging host',
     'Notifications & events',
-    'Open Skotiq on the rig to enable plugins and enter',
     'Plugins',
     'Send run events to Discord, Pushover or email',
+    'Set on the Notifications page, which saves them on',
+    'Turning the bundled plugins on or off is done in',
     'User / group key',
-    'Which events go where is set on the Notifications',
+    'Which events go where is set on the Notifications page.',
   ],
   'location': [
     'Advanced',
@@ -446,6 +448,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Discord',
     'Discovery prefix',
     'Email (SMTP)',
+    'Email, webhook and Telegram, and which events go',
     'End of the night',
     'Equipment disconnected',
     'Errors',
@@ -495,7 +498,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Send a test to your phone.',
     'Send alerts',
     'Send these alerts',
-    'Send these events to phones paired with this',
     'SEND TO',
     'Send to paired phones',
     'Sends a test to paired phones. If it does not',
@@ -503,6 +505,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Sequence failed',
     'Set on the imaging computer',
     'Set up on the imaging computer',
+    'Shared by every phone',
     'Silent notification',
     'Sound',
     'Sound an alarm here when a run hits a critical',
@@ -515,12 +518,12 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Test Pushover',
     'Test Telegram',
     'Test webhook',
-    'The computer that runs the rig sends the alerts,',
     'The Discord channel alerts are posted to.',
     'The end of the night, errors and meridian flips,',
     'The key of your Pushover application.',
     'The phone settings appear once they have',
     'The URL itself authenticates the request, so it is stored securely.',
+    'These settings apply to every phone linked',
     'This broker is separate from notification MQTT on',
     'URL',
     'Use STARTTLS',
@@ -934,8 +937,7 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Without a dark slot in the filter wheel',
   },
   'files-storage': {
-    'Automatic backup scheduling is stored and executed on':
-        'Configure on the host',
+    'How often the imaging computer backs itself up': 'Configure on the host',
     'How often to create backups (hours)': 'Backup interval',
     'How often to save pending sequence edits': 'Sequence save interval',
     'Number of auto-save backups to retain': 'Maximum backups',
@@ -989,9 +991,11 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'XISF checksums',
   },
   'integrations': {
-    'Open Skotiq on the rig to enable plugins and enter':
+    'Set on the Notifications page, which saves them on':
+        'Discord, Pushover and Home Assistant',
+    'Turning the bundled plugins on or off is done in':
         'Managed on the imaging host',
-    'Which events go where is set on the Notifications':
+    'Which events go where is set on the Notifications page.':
         'Send run events to Discord, Pushover or email',
   },
   'location': {
@@ -1010,6 +1014,8 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Publish to Home Assistant',
     'Blank = "Skotiq Observatory <profile>"': 'Device name',
     'Blank = Skotiq Observatory and active profile': 'Device name',
+    'Email, webhook and Telegram, and which events go':
+        'Set up on the imaging computer',
     'Lets HA pause/resume and abort the running sequence.':
         'Allow control from Home Assistant',
     'Off, no alert goes anywhere: not to the app, phones,': 'Send alerts',
@@ -1024,18 +1030,16 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Host configuration unavailable',
     'Send a test email through the configured SMTP server': 'Test email',
     'Send a test to your phone.': 'Test Pushover',
-    'Send these events to phones paired with this': 'Push to phones',
     'Sends a test to paired phones. If it does not': 'Send a test',
     'Sound an alarm here when a run hits a critical': 'Ring on this computer',
     'Stored securely in the OS keyring.': 'Password',
-    'The computer that runs the rig sends the alerts,':
-        'Set up on the imaging computer',
     'The Discord channel alerts are posted to.': 'Webhook URL',
     'The end of the night, errors and meridian flips,': 'Send these alerts',
     'The key of your Pushover application.': 'API key',
     'The phone settings appear once they have': 'Loading',
     'The URL itself authenticates the request, so it is stored securely.':
         'Webhook URL',
+    'These settings apply to every phone linked': 'Shared by every phone',
     'This broker is separate from notification MQTT on':
         'Runs on the imaging host',
     'Uses the imaging host\'s MQTT broker and its password.':

@@ -209,6 +209,15 @@ final Map<String, Map<String, String>> _localizedValues = {
     'navGuidingShort': 'Guiding',
     'navMore': 'More',
     'save': 'Save',
+    'settingsScopeHost':
+        'Saved on the imaging host ({host}). A change here changes the rig for everyone linked to it.',
+    'settingsScopeDevice':
+        'Saved on this device only. The imaging host keeps its own.',
+    'connectionDisconnect': 'Disconnect',
+    'connectionDisconnecting': 'Disconnecting...',
+    'connectionDisconnectTitle': 'Disconnect from Server?',
+    'connectionDisconnectBody':
+        'You will return to the connection screen where you can connect to a different server.',
     'settingsAbout': 'About',
     'settingsAnnotations': 'Annotations',
     'settingsAppearance': 'Appearance',
@@ -1950,12 +1959,21 @@ final Map<String, Map<String, String>> _localizedValues = {
     'navPlan': 'Plan',
     // TODO(l10n): English copy, awaiting a Spanish term for the review room.
     'navDarkroom': 'Darkroom',
-    // Formas cortas para la barra inferior del telefono.
+    // Formas cortas para la barra inferior del tel\u00E9fono.
     'navImagingShort': 'Captura',
     'navSequencerShort': 'Secuencia',
     'navGuidingShort': 'Guiado',
-    'navMore': 'Mas',
+    'navMore': 'M\u00E1s',
     'save': 'Guardar',
+    'settingsScopeHost':
+        'Guardado en el ordenador de captura ({host}). Un cambio aqu\u00ED cambia el equipo para todos los que est\u00E1n vinculados a \u00E9l.',
+    'settingsScopeDevice':
+        'Guardado solo en este dispositivo. El ordenador de captura guarda el suyo.',
+    'connectionDisconnect': 'Desconectar',
+    'connectionDisconnecting': 'Desconectando...',
+    'connectionDisconnectTitle': '\u00BFDesconectar del servidor?',
+    'connectionDisconnectBody':
+        'Volver\u00E1s a la pantalla de conexi\u00F3n, donde puedes conectarte a otro servidor.',
     'settingsAbout': 'Acerca de',
     'settingsAnnotations': 'Anotaciones',
     'settingsAppearance': 'Apariencia',
