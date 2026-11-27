@@ -192,7 +192,6 @@ extension _SkyCanvasPainterSolarBodies on SkyCanvasPainter {
         ..style = PaintingStyle.fill;
       canvas.drawCircle(offset, radius, planetPaint);
 
-      // Add planet-specific details in quality mode
       if (qualityConfig.enablePlanetDetails && radius > 3) {
         _drawPlanetDetails(canvas, offset, radius, planet.name, planetColor);
       }
