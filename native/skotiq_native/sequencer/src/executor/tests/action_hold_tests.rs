@@ -116,3 +116,39 @@ async fn a_hold_alone_is_released_to_resume() {
     wait_for(&executor, ExecutorState::Running).await;
     executor.stop().await.ok();
 }
+
+/// Wait until the run's command handler has taken every command sent before
+/// this one.
+async fn drain_commands(handle: &ExecutorHandle) {
+    let mut events = handle.run_state.subscribe();
+    handle.recovery_try_now().await.expect("try-now is sent");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let event = tokio::time::timeout_at(deadline.into(), events.recv())
+            .await
+            .expect("the command handler answers");
+        if let Ok(ExecutorEvent::RuntimeConfigUpdated { what }) = event {
+            if what == "recovery_try_now" {
+                return;
+            }
+        }
+    }
+}
+
+/// A resume that read the run as not held, and a hold that read the run as
+/// paused before that resume reached it: the run stays paused and held.
+#[tokio::test]
+async fn a_resume_sent_just_before_a_hold_leaves_the_held_run_paused() {
+    let mut executor = running_executor().await;
+    let handle = executor.handle();
+    handle.pause_from(None).await.expect("pause sent");
+    wait_for(&executor, ExecutorState::Paused).await;
+
+    handle.resume().await.expect("not held yet");
+    handle.hold_for_action("host").await.expect("hold taken");
+    drain_commands(&handle).await;
+
+    assert_eq!(executor.get_state().await, ExecutorState::Paused);
+    assert!(handle.held_by_action());
+    executor.stop().await.ok();
+}

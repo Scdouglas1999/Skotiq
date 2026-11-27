@@ -274,12 +274,13 @@ impl ExecutorHandle {
         self.run_state
             .take_action_hold(holder)
             .map_err(|_| RunCommandError::HeldByAction)?;
-        if state != ExecutorState::Paused {
-            if let Some(tx) = self.commands.sender() {
-                tx.send(ExecutorCommand::PauseForAction)
-                    .await
-                    .map_err(|e| RunCommandError::Failed(e.to_string()))?;
-            }
+        // Sent to a paused run too: a resume that read the state before the
+        // hold was taken may have reached the run since, and the run
+        // decides in command order. Pausing a paused run changes nothing.
+        if let Some(tx) = self.commands.sender() {
+            tx.send(ExecutorCommand::PauseForAction)
+                .await
+                .map_err(|e| RunCommandError::Failed(e.to_string()))?;
         }
         self.emit_manual_intervention("action_hold", serde_json::json!({ "holder": holder }));
         Ok(())
