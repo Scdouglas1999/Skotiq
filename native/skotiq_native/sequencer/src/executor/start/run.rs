@@ -724,12 +724,12 @@ impl Run {
         .await;
     }
 
-    /// A stopped run ends the guiding it started. Guiding the run did not
-    /// start (the operator's, from before the run) is not the run's to end.
-    /// A trigger that parked the rig has already stopped the guider. However
-    /// the run ends, the holds it gave the guider as reasons end with it.
-    /// Returns what the operator needs to hear about a guider that is still
-    /// guiding.
+    /// A stopped or failed run ends the guiding it started. Guiding the run
+    /// did not start (the operator's, from before the run) is not the run's
+    /// to end; a stopped run says it is still guiding. A trigger that parked
+    /// the rig has already stopped the guider. However the run ends, the
+    /// holds it gave the guider as reasons end with it. Returns what the
+    /// operator needs to hear about a guider that is still guiding.
     async fn end_the_runs_guiding(&self, result: NodeStatus) -> Option<String> {
         let note = self.stop_the_runs_guiding(result).await;
         self.device_ops.guider_run_ended().await;
@@ -737,7 +737,7 @@ impl Run {
     }
 
     async fn stop_the_runs_guiding(&self, result: NodeStatus) -> Option<String> {
-        if result != NodeStatus::Cancelled {
+        if !matches!(result, NodeStatus::Cancelled | NodeStatus::Failure) {
             return None;
         }
         if self.teardown.parked_by_trigger() {
@@ -747,6 +747,9 @@ impl Run {
         let ours = trigger_state.read().await.guiding.is_enabled();
         let ops = &self.device_ops;
         if !ours {
+            if result != NodeStatus::Cancelled {
+                return None;
+            }
             let guiding = matches!(ops.guider_get_status().await, Ok(status) if status.is_guiding);
             return guiding.then(|| {
                 "The guider is still guiding: it was started outside this run.".to_string()

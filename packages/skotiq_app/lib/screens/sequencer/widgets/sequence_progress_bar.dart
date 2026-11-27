@@ -446,10 +446,13 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
               // wide row needs.
               final compact = constraints.maxWidth <
                   ShellChromeMetrics.shellLayoutBreakpoint;
-              // A phone: one line and a hairline bar. The plan under it is
-              // what the operator came to this screen for, and the step's
-              // row in it already shows the same progress.
-              if (constraints.maxWidth < SkotiqTokens.breakpointMobile) {
+              // A phone, upright or on its side: one line and a hairline
+              // bar. The plan under it is what the operator came to this
+              // screen for, and the step's row in it already shows the same
+              // progress. On its side the wide row's height left the plan a
+              // sliver.
+              if (constraints.maxWidth < SkotiqTokens.breakpointMobile ||
+                  ShellLayout.of(context).isPhone) {
                 final message = progress.message;
                 // The frame count repeats the count beside it; a wait or a
                 // retry says something the count does not.
