@@ -483,7 +483,6 @@ pub(crate) async fn apply_settle_state(
         return Ok(());
     }
 
-    // Check if the overall settle timeout has been exceeded
     if let Some(timeout_deadline) = guard.settle_timeout_deadline {
         if Instant::now() >= timeout_deadline {
             guard.settle_deadline = None;
