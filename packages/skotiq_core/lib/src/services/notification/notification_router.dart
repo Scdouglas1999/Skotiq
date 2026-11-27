@@ -72,6 +72,10 @@ class NotificationRouteOutcome {
   String get dispatchedNames => dispatched.map((k) => k.name).join(', ');
 }
 
+/// The event type the updater gives a found update (`UpdateAvailableEvent`).
+/// The updater cannot import core; a desktop test keeps the two equal.
+const String kUpdateAvailableEventType = 'UpdateAvailable';
+
 /// Public entry point the router uses to fan out a single notification.
 /// Tests can construct a router with an in-memory transport set and
 /// call [route] directly with a synthetic context.
@@ -637,7 +641,7 @@ class NotificationRouter {
     // is available. Routed as `custom` with explicit in-app + systemPush
     // transports so it does not depend on the user's `custom` matrix wiring.
     if (event.category == EventCategory.system &&
-        event.eventType == 'UpdateAvailable') {
+        event.eventType == kUpdateAvailableEventType) {
       final latest =
           (event.data['latestVersion'] as String?) ?? 'a new version';
       final current =
