@@ -1,0 +1,39 @@
+{
+  "cases": [
+    {
+      "base": "/captures/M31/L",
+      "reject_dir": "/captures/M31/L/Reject",
+      "setting": null
+    },
+    {
+      "base": "/captures/M31/L",
+      "reject_dir": "/captures/M31/L/Reject",
+      "setting": ""
+    },
+    {
+      "base": "/captures/M31/L",
+      "reject_dir": "/captures/M31/L/BadFrames",
+      "setting": "BadFrames"
+    },
+    {
+      "base": "/captures/M31/L",
+      "reject_dir": "/captures/M31/L/Graded/Rejected",
+      "setting": "Graded/Rejected"
+    },
+    {
+      "base": "/captures/M31/L",
+      "reject_dir": "/captures/M31/L/BadFrames",
+      "setting": " BadFrames "
+    },
+    {
+      "base": "/captures/IC405/Ha",
+      "reject_dir": "/captures/IC405/Ha/Reject",
+      "setting": "/captures/NGC7380/Reject"
+    },
+    {
+      "base": "/captures/IC405/Ha",
+      "reject_dir": "/captures/IC405/Ha/Bad",
+      "setting": "/captures/IC405/Ha/Bad"
+    }
+  ]
+}

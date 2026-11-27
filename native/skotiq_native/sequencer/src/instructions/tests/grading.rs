@@ -39,6 +39,56 @@ fn reject_dir_absolute_override_inside_the_target_is_kept() {
     assert_eq!(dir, abs);
 }
 
+const REJECT_DIR_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../test_fixtures/reject_folder/cases.json"
+);
+
+/// `test_fixtures/reject_folder/cases.json`: where a graded reject goes for
+/// a frame folder and a reject-folder setting. The app's restore reads the
+/// same cases (`restoredFramePath`). Regenerate with
+/// `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer reject_dir_cases`.
+#[cfg(not(windows))]
+#[test]
+fn reject_dir_cases_fixture() {
+    let inputs: [(&str, Option<&str>); 7] = [
+        ("/captures/M31/L", None),
+        ("/captures/M31/L", Some("")),
+        ("/captures/M31/L", Some("BadFrames")),
+        ("/captures/M31/L", Some("Graded/Rejected")),
+        ("/captures/M31/L", Some(" BadFrames ")),
+        ("/captures/IC405/Ha", Some("/captures/NGC7380/Reject")),
+        ("/captures/IC405/Ha", Some("/captures/IC405/Ha/Bad")),
+    ];
+    let cases: Vec<serde_json::Value> = inputs
+        .iter()
+        .map(|(base, setting)| {
+            let dir = resolve_reject_dir(std::path::Path::new(base), *setting);
+            serde_json::json!({
+                "base": base,
+                "setting": setting,
+                "reject_dir": dir.to_string_lossy(),
+            })
+        })
+        .collect();
+    let value = serde_json::json!({ "cases": cases });
+    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+        let path = std::path::Path::new(REJECT_DIR_FIXTURE);
+        std::fs::create_dir_all(path.parent().expect("dir")).expect("fixture dir");
+        let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+        text.push('\n');
+        std::fs::write(path, text).expect("write fixture");
+        return;
+    }
+    let committed: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(REJECT_DIR_FIXTURE).expect("fixture"))
+            .expect("JSON");
+    assert_eq!(
+        committed, value,
+        "the reject-folder rule changed; regenerate the fixture and update the app's restore"
+    );
+}
+
 /// The forensic history keeps the newest frames, at most
 /// `FORENSIC_HISTORY_LEN` of them, however long the run.
 #[tokio::test]

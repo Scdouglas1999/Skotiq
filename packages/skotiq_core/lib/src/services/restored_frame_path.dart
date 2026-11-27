@@ -9,6 +9,8 @@ import 'package:path/path.dart' as p;
 /// lies inside the frame's folder and `Reject` otherwise; an absolute folder
 /// says nothing of where the frame came from, so only `Reject` is undone
 /// then. Null when the frame is not in the reject folder.
+/// `test_fixtures/reject_folder/cases.json` holds both sides to the same
+/// cases.
 String? restoredFramePath(String filePath, {String? rejectFolder}) {
   final folder = p.normalize(p.dirname(filePath));
   final configured = rejectFolder?.trim() ?? '';
