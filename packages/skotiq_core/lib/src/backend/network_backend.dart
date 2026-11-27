@@ -45,6 +45,7 @@ import '../models/backup/restore_mode.dart';
 import '../models/notification/home_assistant_discovery_config.dart';
 import '../models/notification/home_assistant_host_settings.dart';
 import '../utils/logging_service.dart';
+import '../utils/resilient_poll_stream.dart' show StandingRefusal;
 import 'phd2_probe.dart';
 import '../models/site/horizon_profile.dart';
 import '../models/imaging/fits_keyword_write.dart';
@@ -674,7 +675,7 @@ class NetworkBackend extends NetworkBackendTransport
 }
 
 /// Thrown by every call to the host of a client that is not linked to one.
-class HostNotLinkedException implements Exception {
+class HostNotLinkedException implements StandingRefusal {
   const HostNotLinkedException();
 
   @override

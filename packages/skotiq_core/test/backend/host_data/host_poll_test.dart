@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/backend.dart' show HostNotLinkedException;
 import 'package:skotiq_core/src/backend/network_backend/host_data/host_poll.dart';
 
 void main() {
@@ -144,6 +145,34 @@ void main() {
       expect(fetches, 1);
       poll.dispose();
       sub.cancel();
+    });
+  });
+
+  test('a host that is not linked is asked once: the poll stops on its '
+      'refusal, and a refresh does not ask again', () {
+    fakeAsync((async) {
+      final poll = HostPoll('test');
+      var fetches = 0;
+      final errors = <Object>[];
+      final sub = poll
+          .watch<int>(() async {
+            fetches++;
+            throw const HostNotLinkedException();
+          }, (a, b) => a == b)
+          .listen((_) {}, onError: errors.add);
+
+      async.flushMicrotasks();
+      expect(fetches, 1);
+      expect(errors, hasLength(1));
+
+      async.elapse(HostPoll.defaultInterval * 10);
+      poll.refresh();
+      async.flushMicrotasks();
+      expect(fetches, 1);
+      expect(errors, hasLength(1));
+
+      sub.cancel();
+      poll.dispose();
     });
   });
 }
