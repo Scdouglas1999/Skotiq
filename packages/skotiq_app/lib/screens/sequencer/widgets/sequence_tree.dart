@@ -638,19 +638,39 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
     final isMobile = Responsive.isMobile(context);
     // One empty-state pattern, one button, and that button is `secondary`:
     // the page's single primary is Start, in the header.
+    final addStep = widget.onAddStep;
+    final addTarget = SkotiqButton(
+      onPressed: _addStarterTargetHeader,
+      label: 'Add a target',
+      icon: LucideIcons.target,
+      variant: ButtonVariant.secondary,
+      size: ButtonSize.small,
+    );
     return EmptyState(
       icon: LucideIcons.workflow,
       title: 'Build your sequence',
-      body: isMobile
-          ? 'Tap + to add a node.'
-          : 'Drag a node from the palette, or double-click one.',
-      action: SkotiqButton(
-        onPressed: _addStarterTargetHeader,
-        label: 'Add a target',
-        icon: LucideIcons.target,
-        variant: ButtonVariant.secondary,
-        size: ButtonSize.small,
-      ),
+      body: addStep != null
+          ? 'Start from a target, or add any step.'
+          : isMobile
+              ? 'Tap + to add a node.'
+              : 'Drag a node from the palette, or double-click one.',
+      action: addStep == null
+          ? addTarget
+          : Wrap(
+              spacing: SkotiqTokens.spaceSm,
+              runSpacing: SkotiqTokens.spaceSm,
+              alignment: WrapAlignment.center,
+              children: [
+                addTarget,
+                SkotiqButton(
+                  onPressed: addStep,
+                  label: 'Add a step',
+                  icon: LucideIcons.plus,
+                  variant: ButtonVariant.secondary,
+                  size: ButtonSize.small,
+                ),
+              ],
+            ),
     );
   }
 

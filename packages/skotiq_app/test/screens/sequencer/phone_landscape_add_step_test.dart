@@ -8,6 +8,7 @@ import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
 
@@ -72,5 +73,26 @@ void main() {
     await tester.tap(add);
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.byType(NodePalette), findsOneWidget);
+  });
+
+  testWidgets('with no plan the tree still offers to add a step',
+      (tester) async {
+    var asked = 0;
+    await pumpAppScreen(
+      tester,
+      SequenceTree(
+        colors: SkotiqColors.dark,
+        isMobile: true,
+        onAddStep: () => asked++,
+      ),
+      size: const Size(844, 390),
+      settle: false,
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Build your sequence'), findsOneWidget);
+    await tester.tap(find.text('Add a step'));
+    expect(asked, 1);
+    await tester.pump(const Duration(seconds: 1));
   });
 }
