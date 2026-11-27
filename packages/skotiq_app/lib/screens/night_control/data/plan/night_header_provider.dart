@@ -137,16 +137,16 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
     stepIndex: stepIndex >= 0 ? stepIndex + 1 : null,
     stepCount: tree?.steps.length,
     // A frame held for a meridian flip is a wait too: two minutes with no
-    // exposure and nothing on the header said why. The engine reports it as
-    // the running step's progress, not as the run's message.
-    waitingFor: (activeTarget == null
-            ? null
-            : targetWaitMessage(
-                progress?.nodeProgressDetail[activeTarget.id])) ??
-        flipWaitMessage(switch (progress?.currentNodeId) {
-          final id? => progress!.nodeProgressDetail[id],
-          null => null,
-        }),
+    // exposure and nothing on the header said why.
+    waitingFor: switch ((
+      progress?.nodeLatestReport[activeTarget?.id],
+      progress?.nodeLatestReport[progress.currentNodeId],
+    )) {
+      (TargetWaitingProgressDetail(), _) =>
+        progress!.nodeProgressDetail[activeTarget!.id],
+      (_, FlipHoldProgressDetail()) => kFlipWaitShort,
+      _ => null,
+    },
     // A dark or bias is taken with the cover on, wherever the wheel sits, so
     // it reads as its frame type ("Dark 55 s"), not as the wheel's filter.
     currentFilter: switch (activeNode) {

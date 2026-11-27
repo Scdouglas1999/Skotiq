@@ -78,14 +78,11 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
           for (final e in p.nodeProgressDetail.entries)
             if (running.contains(e.key)) e.key: e.value,
         },
-        'nodeStructuredDetail': {
-          for (final e in p.nodeProgressStructuredDetail.entries)
-            if (running.contains(e.key))
-              e.key: {
-                'kind': e.value.wire.detailKind,
-                'fields': e.value.wire.detailJson,
-              },
-        },
+        'nodeStructuredDetail': _reportsJson(
+          p.nodeProgressStructuredDetail,
+          running,
+        ),
+        'nodeLatestReport': _reportsJson(p.nodeLatestReport, running),
       },
       'tally': {
         for (final e in value.tally.entries)
@@ -132,6 +129,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
       final percent = progress['nodePercent'];
       final detail = progress['nodeDetail'];
       final structured = progress['nodeStructuredDetail'];
+      final latest = progress['nodeLatestReport'];
       final phase = SequenceExecutionState.values
           .where((s) => s.name == progress['state'])
           .firstOrNull;
@@ -176,18 +174,8 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
                     if (e.key is String && e.value is String)
                       e.key as String: e.value as String,
               },
-              nodeProgressStructuredDetail: {
-                if (structured is Map)
-                  for (final e in structured.entries)
-                    if (e.key is String &&
-                        e.value is Map &&
-                        (e.value as Map)['kind'] is String)
-                      e.key as String:
-                          InstructionProgressDetail.fromStructuredData(
-                            detailKind: (e.value as Map)['kind'] as String,
-                            detailJson: (e.value as Map)['fields'],
-                          ),
-              },
+              nodeProgressStructuredDetail: _reportsFromJson(structured),
+              nodeLatestReport: _reportsFromJson(latest),
             ),
           );
     }
@@ -243,3 +231,27 @@ int _countAt(List<dynamic> pair, int index) {
   if (value is num) return value.toInt();
   throw const FormatException('Tally count is not a number');
 }
+
+Map<String, Object?> _reportsJson(
+  Map<String, InstructionProgressDetail> reports,
+  Set<String> running,
+) => {
+  for (final e in reports.entries)
+    if (running.contains(e.key))
+      e.key: {
+        'kind': e.value.wire.detailKind,
+        'fields': e.value.wire.detailJson,
+      },
+};
+
+Map<String, InstructionProgressDetail> _reportsFromJson(Object? reports) => {
+  if (reports is Map)
+    for (final e in reports.entries)
+      if (e.key is String &&
+          e.value is Map &&
+          (e.value as Map)['kind'] is String)
+        e.key as String: InstructionProgressDetail.fromStructuredData(
+          detailKind: (e.value as Map)['kind'] as String,
+          detailJson: (e.value as Map)['fields'],
+        ),
+};

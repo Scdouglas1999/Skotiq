@@ -437,9 +437,16 @@ abstract class SequenceProgress with _$SequenceProgress {
     /// Per-node instruction progress detail message
     @Default(<String, String>{}) Map<String, String> nodeProgressDetail,
 
-    /// Per-node structured instruction progress detail.
+    /// Per-node structured instruction progress detail: the step's last
+    /// reading, which its status reports ([InstructionProgressDetail.isReading]
+    /// false) do not replace.
     @Default(<String, InstructionProgressDetail>{})
     Map<String, InstructionProgressDetail> nodeProgressStructuredDetail,
+
+    /// Per-node latest report, of any kind: what the step says it is doing
+    /// now (a wait, a hold, a reading).
+    @Default(<String, InstructionProgressDetail>{})
+    Map<String, InstructionProgressDetail> nodeLatestReport,
   }) = _SequenceProgress;
 
   double get progressPercent {

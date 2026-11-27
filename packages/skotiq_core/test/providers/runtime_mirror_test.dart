@@ -578,6 +578,32 @@ void main() {
       expect(session.dbSessionId, 12);
     });
 
+    test("a client hears a step's hold as the host does, and keeps the "
+        "step's last reading", () async {
+      const hold = FlipHoldProgressDetail(
+        exposureSecs: 120,
+        firesInSecs: 70,
+        hourAngleHours: 0.06,
+        thresholdMin: 5,
+      );
+      const reading = ExposureInstructionProgressDetail(
+        frame: 2,
+        total: 3,
+        durationSecs: 20,
+      );
+      final client = await roundTrip((host) {
+        host.read(runRecordProvider.notifier)
+          ..setLifecycle(SequenceExecutionState.running)
+          ..updateNodeStatus('exp-l', NodeStatus.running)
+          ..updateNodeStructuredProgress('exp-l', 66, reading)
+          ..updateNodeStructuredProgress('exp-l', 66, hold);
+      }, 'sequenceRun');
+
+      final progress = client.read(sequenceProgressProvider);
+      expect(progress.nodeLatestReport['exp-l'], hold);
+      expect(progress.nodeProgressStructuredDetail['exp-l'], reading);
+    });
+
     test("a client's run progress is the host's, phase and step detail "
         'included', () async {
       final client = await roundTrip((host) {

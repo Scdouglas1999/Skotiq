@@ -1,10 +1,9 @@
 // What the header says about the step under way: why a run holds its next
 // frame, and what kind of frame it is taking.
 //
-// The header says why a run holds its next frame for a meridian flip. The
-// engine reports the hold as the running step's progress detail, not as the
-// run's message (which "Progress: n/N exposures" overwrites after every
-// update), so this is the field the header has to read.
+// The engine reports a hold or a wait as the step's report, by its kind; the
+// run's message is overwritten by "Progress: n/N exposures" after every
+// update, so the step's report is what the header reads.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
@@ -31,6 +30,13 @@ void main() {
     return container.read(nightHeaderProvider).waitingFor;
   }
 
+  const flipHold = FlipHoldProgressDetail(
+    exposureSecs: 120,
+    firesInSecs: 70,
+    hourAngleHours: 0.06,
+    thresholdMin: 5,
+  );
+
   test('a flip hold on the running step shows on the header', () {
     expect(
       waitingFor(const SequenceProgress(
@@ -38,13 +44,51 @@ void main() {
         currentNodeId: 'm74-l',
         message: 'Progress: 3/175 exposures',
         nodeStatuses: {'m74-l': NodeStatus.running},
-        nodeProgressDetail: {
-          'm74-l': 'Waiting for the meridian flip before the next 120s '
-              'exposure: the flip fires in ~70s (hour angle +0.06h, '
-              'threshold 5 min past meridian) and would interrupt the frame',
-        },
+        nodeLatestReport: {'m74-l': flipHold},
       )),
       'Waiting for the flip',
+    );
+  });
+
+  test('a target waiting to start shows its own words', () {
+    const words = 'Waiting for M74 to clear the altitude floor: 12° up, '
+        'floor 25° in that direction';
+    expect(
+      waitingFor(const SequenceProgress(
+        state: SequenceExecutionState.running,
+        currentNodeId: 'm74',
+        nodeStatuses: {'m74': NodeStatus.running},
+        nodeProgressDetail: {'m74': words},
+        nodeLatestReport: {
+          'm74': TargetWaitingProgressDetail(
+            target: 'M74',
+            condition: 'above the site\'s altitude floor',
+            altitudeDeg: 12,
+            floorDeg: 25,
+          ),
+        },
+      )),
+      words,
+    );
+  });
+
+  test('a step that only says "Waiting for" is not a wait', () {
+    expect(
+      waitingFor(const SequenceProgress(
+        state: SequenceExecutionState.running,
+        currentNodeId: 'm74-l',
+        nodeStatuses: {'m74-l': NodeStatus.running},
+        nodeProgressDetail: {
+          'm74-l': 'Waiting for the meridian flip before the next frame',
+        },
+        nodeLatestReport: {
+          'm74-l': UnknownInstructionProgressDetail(
+            kind: kGenericProgressDetailKind,
+            rawJson: {},
+          ),
+        },
+      )),
+      isNull,
     );
   });
 
@@ -55,6 +99,13 @@ void main() {
         currentNodeId: 'm74-l',
         nodeStatuses: {'m74-l': NodeStatus.running},
         nodeProgressDetail: {'m74-l': 'Frame 4/30 (120.0s)'},
+        nodeLatestReport: {
+          'm74-l': ExposureInstructionProgressDetail(
+            frame: 4,
+            total: 30,
+            durationSecs: 120,
+          ),
+        },
       )),
       isNull,
     );
@@ -66,9 +117,7 @@ void main() {
         state: SequenceExecutionState.running,
         currentNodeId: 'm74-l',
         nodeStatuses: {'m74-l': NodeStatus.running},
-        nodeProgressDetail: {
-          'ngc891-ha': 'Waiting for the meridian flip before the next frame',
-        },
+        nodeLatestReport: {'ngc891-ha': flipHold},
       )),
       isNull,
     );

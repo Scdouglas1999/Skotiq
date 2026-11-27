@@ -35,6 +35,10 @@ sealed class InstructionProgressDetail extends Equatable {
   /// [InstructionProgressDetail.fromStructuredData] reads back.
   ({String detailKind, Map<String, Object?> detailJson}) get wire;
 
+  /// Whether this report is a reading of the step (frames, a sweep point, a
+  /// temperature) rather than words about what holds it.
+  bool get isReading => true;
+
   factory InstructionProgressDetail.fromStructuredData({
     required String detailKind,
     required Object? detailJson,
@@ -294,6 +298,9 @@ class TargetWaitingProgressDetail extends InstructionProgressDetail {
   );
 
   @override
+  bool get isReading => false;
+
+  @override
   List<Object?> get props => [target, condition, altitudeDeg, floorDeg];
 }
 
@@ -322,6 +329,9 @@ class FlipHoldProgressDetail extends InstructionProgressDetail {
       'threshold_min': thresholdMin,
     },
   );
+
+  @override
+  bool get isReading => false;
 
   @override
   List<Object?> get props => [
@@ -467,6 +477,9 @@ class UnknownInstructionProgressDetail extends InstructionProgressDetail {
   @override
   ({String detailKind, Map<String, Object?> detailJson}) get wire =>
       (detailKind: kind, detailJson: rawJson);
+
+  @override
+  bool get isReading => kind != kGenericProgressDetailKind;
 
   @override
   List<Object?> get props => [kind, rawJson];

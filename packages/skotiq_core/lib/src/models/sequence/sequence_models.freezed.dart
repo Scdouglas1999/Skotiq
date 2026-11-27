@@ -4782,8 +4782,12 @@ mixin _$SequenceProgress {
 
  SequenceExecutionState get state; String? get currentNodeId; String? get currentNodeName; NodeStatus? get currentNodeStatus; int get totalExposures; int get completedExposures; double get totalIntegrationSecs; double get completedIntegrationSecs; double get elapsedSecs; double? get estimatedRemainingSecs; String? get currentTarget; String? get currentFilter; String? get message; Map<String, NodeStatus> get nodeStatuses;/// Per-node instruction progress (0-100 percent)
  Map<String, double> get nodeProgressPercent;/// Per-node instruction progress detail message
- Map<String, String> get nodeProgressDetail;/// Per-node structured instruction progress detail.
- Map<String, InstructionProgressDetail> get nodeProgressStructuredDetail;
+ Map<String, String> get nodeProgressDetail;/// Per-node structured instruction progress detail: the step's last
+/// reading, which its status reports ([InstructionProgressDetail.isReading]
+/// false) do not replace.
+ Map<String, InstructionProgressDetail> get nodeProgressStructuredDetail;/// Per-node latest report, of any kind: what the step says it is doing
+/// now (a wait, a hold, a reading).
+ Map<String, InstructionProgressDetail> get nodeLatestReport;
 /// Create a copy of SequenceProgress
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -4794,16 +4798,16 @@ $SequenceProgressCopyWith<SequenceProgress> get copyWith => _$SequenceProgressCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequenceProgress&&(identical(other.state, state) || other.state == state)&&(identical(other.currentNodeId, currentNodeId) || other.currentNodeId == currentNodeId)&&(identical(other.currentNodeName, currentNodeName) || other.currentNodeName == currentNodeName)&&(identical(other.currentNodeStatus, currentNodeStatus) || other.currentNodeStatus == currentNodeStatus)&&(identical(other.totalExposures, totalExposures) || other.totalExposures == totalExposures)&&(identical(other.completedExposures, completedExposures) || other.completedExposures == completedExposures)&&(identical(other.totalIntegrationSecs, totalIntegrationSecs) || other.totalIntegrationSecs == totalIntegrationSecs)&&(identical(other.completedIntegrationSecs, completedIntegrationSecs) || other.completedIntegrationSecs == completedIntegrationSecs)&&(identical(other.elapsedSecs, elapsedSecs) || other.elapsedSecs == elapsedSecs)&&(identical(other.estimatedRemainingSecs, estimatedRemainingSecs) || other.estimatedRemainingSecs == estimatedRemainingSecs)&&(identical(other.currentTarget, currentTarget) || other.currentTarget == currentTarget)&&(identical(other.currentFilter, currentFilter) || other.currentFilter == currentFilter)&&(identical(other.message, message) || other.message == message)&&const DeepCollectionEquality().equals(other.nodeStatuses, nodeStatuses)&&const DeepCollectionEquality().equals(other.nodeProgressPercent, nodeProgressPercent)&&const DeepCollectionEquality().equals(other.nodeProgressDetail, nodeProgressDetail)&&const DeepCollectionEquality().equals(other.nodeProgressStructuredDetail, nodeProgressStructuredDetail));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SequenceProgress&&(identical(other.state, state) || other.state == state)&&(identical(other.currentNodeId, currentNodeId) || other.currentNodeId == currentNodeId)&&(identical(other.currentNodeName, currentNodeName) || other.currentNodeName == currentNodeName)&&(identical(other.currentNodeStatus, currentNodeStatus) || other.currentNodeStatus == currentNodeStatus)&&(identical(other.totalExposures, totalExposures) || other.totalExposures == totalExposures)&&(identical(other.completedExposures, completedExposures) || other.completedExposures == completedExposures)&&(identical(other.totalIntegrationSecs, totalIntegrationSecs) || other.totalIntegrationSecs == totalIntegrationSecs)&&(identical(other.completedIntegrationSecs, completedIntegrationSecs) || other.completedIntegrationSecs == completedIntegrationSecs)&&(identical(other.elapsedSecs, elapsedSecs) || other.elapsedSecs == elapsedSecs)&&(identical(other.estimatedRemainingSecs, estimatedRemainingSecs) || other.estimatedRemainingSecs == estimatedRemainingSecs)&&(identical(other.currentTarget, currentTarget) || other.currentTarget == currentTarget)&&(identical(other.currentFilter, currentFilter) || other.currentFilter == currentFilter)&&(identical(other.message, message) || other.message == message)&&const DeepCollectionEquality().equals(other.nodeStatuses, nodeStatuses)&&const DeepCollectionEquality().equals(other.nodeProgressPercent, nodeProgressPercent)&&const DeepCollectionEquality().equals(other.nodeProgressDetail, nodeProgressDetail)&&const DeepCollectionEquality().equals(other.nodeProgressStructuredDetail, nodeProgressStructuredDetail)&&const DeepCollectionEquality().equals(other.nodeLatestReport, nodeLatestReport));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,state,currentNodeId,currentNodeName,currentNodeStatus,totalExposures,completedExposures,totalIntegrationSecs,completedIntegrationSecs,elapsedSecs,estimatedRemainingSecs,currentTarget,currentFilter,message,const DeepCollectionEquality().hash(nodeStatuses),const DeepCollectionEquality().hash(nodeProgressPercent),const DeepCollectionEquality().hash(nodeProgressDetail),const DeepCollectionEquality().hash(nodeProgressStructuredDetail));
+int get hashCode => Object.hash(runtimeType,state,currentNodeId,currentNodeName,currentNodeStatus,totalExposures,completedExposures,totalIntegrationSecs,completedIntegrationSecs,elapsedSecs,estimatedRemainingSecs,currentTarget,currentFilter,message,const DeepCollectionEquality().hash(nodeStatuses),const DeepCollectionEquality().hash(nodeProgressPercent),const DeepCollectionEquality().hash(nodeProgressDetail),const DeepCollectionEquality().hash(nodeProgressStructuredDetail),const DeepCollectionEquality().hash(nodeLatestReport));
 
 @override
 String toString() {
-  return 'SequenceProgress(state: $state, currentNodeId: $currentNodeId, currentNodeName: $currentNodeName, currentNodeStatus: $currentNodeStatus, totalExposures: $totalExposures, completedExposures: $completedExposures, totalIntegrationSecs: $totalIntegrationSecs, completedIntegrationSecs: $completedIntegrationSecs, elapsedSecs: $elapsedSecs, estimatedRemainingSecs: $estimatedRemainingSecs, currentTarget: $currentTarget, currentFilter: $currentFilter, message: $message, nodeStatuses: $nodeStatuses, nodeProgressPercent: $nodeProgressPercent, nodeProgressDetail: $nodeProgressDetail, nodeProgressStructuredDetail: $nodeProgressStructuredDetail)';
+  return 'SequenceProgress(state: $state, currentNodeId: $currentNodeId, currentNodeName: $currentNodeName, currentNodeStatus: $currentNodeStatus, totalExposures: $totalExposures, completedExposures: $completedExposures, totalIntegrationSecs: $totalIntegrationSecs, completedIntegrationSecs: $completedIntegrationSecs, elapsedSecs: $elapsedSecs, estimatedRemainingSecs: $estimatedRemainingSecs, currentTarget: $currentTarget, currentFilter: $currentFilter, message: $message, nodeStatuses: $nodeStatuses, nodeProgressPercent: $nodeProgressPercent, nodeProgressDetail: $nodeProgressDetail, nodeProgressStructuredDetail: $nodeProgressStructuredDetail, nodeLatestReport: $nodeLatestReport)';
 }
 
 
@@ -4814,7 +4818,7 @@ abstract mixin class $SequenceProgressCopyWith<$Res>  {
   factory $SequenceProgressCopyWith(SequenceProgress value, $Res Function(SequenceProgress) _then) = _$SequenceProgressCopyWithImpl;
 @useResult
 $Res call({
- SequenceExecutionState state, String? currentNodeId, String? currentNodeName, NodeStatus? currentNodeStatus, int totalExposures, int completedExposures, double totalIntegrationSecs, double completedIntegrationSecs, double elapsedSecs, double? estimatedRemainingSecs, String? currentTarget, String? currentFilter, String? message, Map<String, NodeStatus> nodeStatuses, Map<String, double> nodeProgressPercent, Map<String, String> nodeProgressDetail, Map<String, InstructionProgressDetail> nodeProgressStructuredDetail
+ SequenceExecutionState state, String? currentNodeId, String? currentNodeName, NodeStatus? currentNodeStatus, int totalExposures, int completedExposures, double totalIntegrationSecs, double completedIntegrationSecs, double elapsedSecs, double? estimatedRemainingSecs, String? currentTarget, String? currentFilter, String? message, Map<String, NodeStatus> nodeStatuses, Map<String, double> nodeProgressPercent, Map<String, String> nodeProgressDetail, Map<String, InstructionProgressDetail> nodeProgressStructuredDetail, Map<String, InstructionProgressDetail> nodeLatestReport
 });
 
 
@@ -4831,7 +4835,7 @@ class _$SequenceProgressCopyWithImpl<$Res>
 
 /// Create a copy of SequenceProgress
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? state = null,Object? currentNodeId = freezed,Object? currentNodeName = freezed,Object? currentNodeStatus = freezed,Object? totalExposures = null,Object? completedExposures = null,Object? totalIntegrationSecs = null,Object? completedIntegrationSecs = null,Object? elapsedSecs = null,Object? estimatedRemainingSecs = freezed,Object? currentTarget = freezed,Object? currentFilter = freezed,Object? message = freezed,Object? nodeStatuses = null,Object? nodeProgressPercent = null,Object? nodeProgressDetail = null,Object? nodeProgressStructuredDetail = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? state = null,Object? currentNodeId = freezed,Object? currentNodeName = freezed,Object? currentNodeStatus = freezed,Object? totalExposures = null,Object? completedExposures = null,Object? totalIntegrationSecs = null,Object? completedIntegrationSecs = null,Object? elapsedSecs = null,Object? estimatedRemainingSecs = freezed,Object? currentTarget = freezed,Object? currentFilter = freezed,Object? message = freezed,Object? nodeStatuses = null,Object? nodeProgressPercent = null,Object? nodeProgressDetail = null,Object? nodeProgressStructuredDetail = null,Object? nodeLatestReport = null,}) {
   return _then(_self.copyWith(
 state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
 as SequenceExecutionState,currentNodeId: freezed == currentNodeId ? _self.currentNodeId : currentNodeId // ignore: cast_nullable_to_non_nullable
@@ -4850,6 +4854,7 @@ as String?,nodeStatuses: null == nodeStatuses ? _self.nodeStatuses : nodeStatuse
 as Map<String, NodeStatus>,nodeProgressPercent: null == nodeProgressPercent ? _self.nodeProgressPercent : nodeProgressPercent // ignore: cast_nullable_to_non_nullable
 as Map<String, double>,nodeProgressDetail: null == nodeProgressDetail ? _self.nodeProgressDetail : nodeProgressDetail // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,nodeProgressStructuredDetail: null == nodeProgressStructuredDetail ? _self.nodeProgressStructuredDetail : nodeProgressStructuredDetail // ignore: cast_nullable_to_non_nullable
+as Map<String, InstructionProgressDetail>,nodeLatestReport: null == nodeLatestReport ? _self.nodeLatestReport : nodeLatestReport // ignore: cast_nullable_to_non_nullable
 as Map<String, InstructionProgressDetail>,
   ));
 }
@@ -4935,10 +4940,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( SequenceExecutionState state,  String? currentNodeId,  String? currentNodeName,  NodeStatus? currentNodeStatus,  int totalExposures,  int completedExposures,  double totalIntegrationSecs,  double completedIntegrationSecs,  double elapsedSecs,  double? estimatedRemainingSecs,  String? currentTarget,  String? currentFilter,  String? message,  Map<String, NodeStatus> nodeStatuses,  Map<String, double> nodeProgressPercent,  Map<String, String> nodeProgressDetail,  Map<String, InstructionProgressDetail> nodeProgressStructuredDetail)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( SequenceExecutionState state,  String? currentNodeId,  String? currentNodeName,  NodeStatus? currentNodeStatus,  int totalExposures,  int completedExposures,  double totalIntegrationSecs,  double completedIntegrationSecs,  double elapsedSecs,  double? estimatedRemainingSecs,  String? currentTarget,  String? currentFilter,  String? message,  Map<String, NodeStatus> nodeStatuses,  Map<String, double> nodeProgressPercent,  Map<String, String> nodeProgressDetail,  Map<String, InstructionProgressDetail> nodeProgressStructuredDetail,  Map<String, InstructionProgressDetail> nodeLatestReport)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SequenceProgress() when $default != null:
-return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.currentNodeStatus,_that.totalExposures,_that.completedExposures,_that.totalIntegrationSecs,_that.completedIntegrationSecs,_that.elapsedSecs,_that.estimatedRemainingSecs,_that.currentTarget,_that.currentFilter,_that.message,_that.nodeStatuses,_that.nodeProgressPercent,_that.nodeProgressDetail,_that.nodeProgressStructuredDetail);case _:
+return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.currentNodeStatus,_that.totalExposures,_that.completedExposures,_that.totalIntegrationSecs,_that.completedIntegrationSecs,_that.elapsedSecs,_that.estimatedRemainingSecs,_that.currentTarget,_that.currentFilter,_that.message,_that.nodeStatuses,_that.nodeProgressPercent,_that.nodeProgressDetail,_that.nodeProgressStructuredDetail,_that.nodeLatestReport);case _:
   return orElse();
 
 }
@@ -4956,10 +4961,10 @@ return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.curr
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( SequenceExecutionState state,  String? currentNodeId,  String? currentNodeName,  NodeStatus? currentNodeStatus,  int totalExposures,  int completedExposures,  double totalIntegrationSecs,  double completedIntegrationSecs,  double elapsedSecs,  double? estimatedRemainingSecs,  String? currentTarget,  String? currentFilter,  String? message,  Map<String, NodeStatus> nodeStatuses,  Map<String, double> nodeProgressPercent,  Map<String, String> nodeProgressDetail,  Map<String, InstructionProgressDetail> nodeProgressStructuredDetail)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( SequenceExecutionState state,  String? currentNodeId,  String? currentNodeName,  NodeStatus? currentNodeStatus,  int totalExposures,  int completedExposures,  double totalIntegrationSecs,  double completedIntegrationSecs,  double elapsedSecs,  double? estimatedRemainingSecs,  String? currentTarget,  String? currentFilter,  String? message,  Map<String, NodeStatus> nodeStatuses,  Map<String, double> nodeProgressPercent,  Map<String, String> nodeProgressDetail,  Map<String, InstructionProgressDetail> nodeProgressStructuredDetail,  Map<String, InstructionProgressDetail> nodeLatestReport)  $default,) {final _that = this;
 switch (_that) {
 case _SequenceProgress():
-return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.currentNodeStatus,_that.totalExposures,_that.completedExposures,_that.totalIntegrationSecs,_that.completedIntegrationSecs,_that.elapsedSecs,_that.estimatedRemainingSecs,_that.currentTarget,_that.currentFilter,_that.message,_that.nodeStatuses,_that.nodeProgressPercent,_that.nodeProgressDetail,_that.nodeProgressStructuredDetail);case _:
+return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.currentNodeStatus,_that.totalExposures,_that.completedExposures,_that.totalIntegrationSecs,_that.completedIntegrationSecs,_that.elapsedSecs,_that.estimatedRemainingSecs,_that.currentTarget,_that.currentFilter,_that.message,_that.nodeStatuses,_that.nodeProgressPercent,_that.nodeProgressDetail,_that.nodeProgressStructuredDetail,_that.nodeLatestReport);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -4976,10 +4981,10 @@ return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.curr
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( SequenceExecutionState state,  String? currentNodeId,  String? currentNodeName,  NodeStatus? currentNodeStatus,  int totalExposures,  int completedExposures,  double totalIntegrationSecs,  double completedIntegrationSecs,  double elapsedSecs,  double? estimatedRemainingSecs,  String? currentTarget,  String? currentFilter,  String? message,  Map<String, NodeStatus> nodeStatuses,  Map<String, double> nodeProgressPercent,  Map<String, String> nodeProgressDetail,  Map<String, InstructionProgressDetail> nodeProgressStructuredDetail)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( SequenceExecutionState state,  String? currentNodeId,  String? currentNodeName,  NodeStatus? currentNodeStatus,  int totalExposures,  int completedExposures,  double totalIntegrationSecs,  double completedIntegrationSecs,  double elapsedSecs,  double? estimatedRemainingSecs,  String? currentTarget,  String? currentFilter,  String? message,  Map<String, NodeStatus> nodeStatuses,  Map<String, double> nodeProgressPercent,  Map<String, String> nodeProgressDetail,  Map<String, InstructionProgressDetail> nodeProgressStructuredDetail,  Map<String, InstructionProgressDetail> nodeLatestReport)?  $default,) {final _that = this;
 switch (_that) {
 case _SequenceProgress() when $default != null:
-return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.currentNodeStatus,_that.totalExposures,_that.completedExposures,_that.totalIntegrationSecs,_that.completedIntegrationSecs,_that.elapsedSecs,_that.estimatedRemainingSecs,_that.currentTarget,_that.currentFilter,_that.message,_that.nodeStatuses,_that.nodeProgressPercent,_that.nodeProgressDetail,_that.nodeProgressStructuredDetail);case _:
+return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.currentNodeStatus,_that.totalExposures,_that.completedExposures,_that.totalIntegrationSecs,_that.completedIntegrationSecs,_that.elapsedSecs,_that.estimatedRemainingSecs,_that.currentTarget,_that.currentFilter,_that.message,_that.nodeStatuses,_that.nodeProgressPercent,_that.nodeProgressDetail,_that.nodeProgressStructuredDetail,_that.nodeLatestReport);case _:
   return null;
 
 }
@@ -4991,7 +4996,7 @@ return $default(_that.state,_that.currentNodeId,_that.currentNodeName,_that.curr
 
 
 class _SequenceProgress extends SequenceProgress {
-  const _SequenceProgress({this.state = SequenceExecutionState.idle, this.currentNodeId, this.currentNodeName, this.currentNodeStatus, this.totalExposures = 0, this.completedExposures = 0, this.totalIntegrationSecs = 0.0, this.completedIntegrationSecs = 0.0, this.elapsedSecs = 0.0, this.estimatedRemainingSecs, this.currentTarget, this.currentFilter, this.message, final  Map<String, NodeStatus> nodeStatuses = const <String, NodeStatus>{}, final  Map<String, double> nodeProgressPercent = const <String, double>{}, final  Map<String, String> nodeProgressDetail = const <String, String>{}, final  Map<String, InstructionProgressDetail> nodeProgressStructuredDetail = const <String, InstructionProgressDetail>{}}): _nodeStatuses = nodeStatuses,_nodeProgressPercent = nodeProgressPercent,_nodeProgressDetail = nodeProgressDetail,_nodeProgressStructuredDetail = nodeProgressStructuredDetail,super._();
+  const _SequenceProgress({this.state = SequenceExecutionState.idle, this.currentNodeId, this.currentNodeName, this.currentNodeStatus, this.totalExposures = 0, this.completedExposures = 0, this.totalIntegrationSecs = 0.0, this.completedIntegrationSecs = 0.0, this.elapsedSecs = 0.0, this.estimatedRemainingSecs, this.currentTarget, this.currentFilter, this.message, final  Map<String, NodeStatus> nodeStatuses = const <String, NodeStatus>{}, final  Map<String, double> nodeProgressPercent = const <String, double>{}, final  Map<String, String> nodeProgressDetail = const <String, String>{}, final  Map<String, InstructionProgressDetail> nodeProgressStructuredDetail = const <String, InstructionProgressDetail>{}, final  Map<String, InstructionProgressDetail> nodeLatestReport = const <String, InstructionProgressDetail>{}}): _nodeStatuses = nodeStatuses,_nodeProgressPercent = nodeProgressPercent,_nodeProgressDetail = nodeProgressDetail,_nodeProgressStructuredDetail = nodeProgressStructuredDetail,_nodeLatestReport = nodeLatestReport,super._();
   
 
 @override@JsonKey() final  SequenceExecutionState state;
@@ -5032,13 +5037,28 @@ class _SequenceProgress extends SequenceProgress {
   return EqualUnmodifiableMapView(_nodeProgressDetail);
 }
 
-/// Per-node structured instruction progress detail.
+/// Per-node structured instruction progress detail: the step's last
+/// reading, which its status reports ([InstructionProgressDetail.isReading]
+/// false) do not replace.
  final  Map<String, InstructionProgressDetail> _nodeProgressStructuredDetail;
-/// Per-node structured instruction progress detail.
+/// Per-node structured instruction progress detail: the step's last
+/// reading, which its status reports ([InstructionProgressDetail.isReading]
+/// false) do not replace.
 @override@JsonKey() Map<String, InstructionProgressDetail> get nodeProgressStructuredDetail {
   if (_nodeProgressStructuredDetail is EqualUnmodifiableMapView) return _nodeProgressStructuredDetail;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableMapView(_nodeProgressStructuredDetail);
+}
+
+/// Per-node latest report, of any kind: what the step says it is doing
+/// now (a wait, a hold, a reading).
+ final  Map<String, InstructionProgressDetail> _nodeLatestReport;
+/// Per-node latest report, of any kind: what the step says it is doing
+/// now (a wait, a hold, a reading).
+@override@JsonKey() Map<String, InstructionProgressDetail> get nodeLatestReport {
+  if (_nodeLatestReport is EqualUnmodifiableMapView) return _nodeLatestReport;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_nodeLatestReport);
 }
 
 
@@ -5052,16 +5072,16 @@ _$SequenceProgressCopyWith<_SequenceProgress> get copyWith => __$SequenceProgres
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SequenceProgress&&(identical(other.state, state) || other.state == state)&&(identical(other.currentNodeId, currentNodeId) || other.currentNodeId == currentNodeId)&&(identical(other.currentNodeName, currentNodeName) || other.currentNodeName == currentNodeName)&&(identical(other.currentNodeStatus, currentNodeStatus) || other.currentNodeStatus == currentNodeStatus)&&(identical(other.totalExposures, totalExposures) || other.totalExposures == totalExposures)&&(identical(other.completedExposures, completedExposures) || other.completedExposures == completedExposures)&&(identical(other.totalIntegrationSecs, totalIntegrationSecs) || other.totalIntegrationSecs == totalIntegrationSecs)&&(identical(other.completedIntegrationSecs, completedIntegrationSecs) || other.completedIntegrationSecs == completedIntegrationSecs)&&(identical(other.elapsedSecs, elapsedSecs) || other.elapsedSecs == elapsedSecs)&&(identical(other.estimatedRemainingSecs, estimatedRemainingSecs) || other.estimatedRemainingSecs == estimatedRemainingSecs)&&(identical(other.currentTarget, currentTarget) || other.currentTarget == currentTarget)&&(identical(other.currentFilter, currentFilter) || other.currentFilter == currentFilter)&&(identical(other.message, message) || other.message == message)&&const DeepCollectionEquality().equals(other._nodeStatuses, _nodeStatuses)&&const DeepCollectionEquality().equals(other._nodeProgressPercent, _nodeProgressPercent)&&const DeepCollectionEquality().equals(other._nodeProgressDetail, _nodeProgressDetail)&&const DeepCollectionEquality().equals(other._nodeProgressStructuredDetail, _nodeProgressStructuredDetail));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SequenceProgress&&(identical(other.state, state) || other.state == state)&&(identical(other.currentNodeId, currentNodeId) || other.currentNodeId == currentNodeId)&&(identical(other.currentNodeName, currentNodeName) || other.currentNodeName == currentNodeName)&&(identical(other.currentNodeStatus, currentNodeStatus) || other.currentNodeStatus == currentNodeStatus)&&(identical(other.totalExposures, totalExposures) || other.totalExposures == totalExposures)&&(identical(other.completedExposures, completedExposures) || other.completedExposures == completedExposures)&&(identical(other.totalIntegrationSecs, totalIntegrationSecs) || other.totalIntegrationSecs == totalIntegrationSecs)&&(identical(other.completedIntegrationSecs, completedIntegrationSecs) || other.completedIntegrationSecs == completedIntegrationSecs)&&(identical(other.elapsedSecs, elapsedSecs) || other.elapsedSecs == elapsedSecs)&&(identical(other.estimatedRemainingSecs, estimatedRemainingSecs) || other.estimatedRemainingSecs == estimatedRemainingSecs)&&(identical(other.currentTarget, currentTarget) || other.currentTarget == currentTarget)&&(identical(other.currentFilter, currentFilter) || other.currentFilter == currentFilter)&&(identical(other.message, message) || other.message == message)&&const DeepCollectionEquality().equals(other._nodeStatuses, _nodeStatuses)&&const DeepCollectionEquality().equals(other._nodeProgressPercent, _nodeProgressPercent)&&const DeepCollectionEquality().equals(other._nodeProgressDetail, _nodeProgressDetail)&&const DeepCollectionEquality().equals(other._nodeProgressStructuredDetail, _nodeProgressStructuredDetail)&&const DeepCollectionEquality().equals(other._nodeLatestReport, _nodeLatestReport));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,state,currentNodeId,currentNodeName,currentNodeStatus,totalExposures,completedExposures,totalIntegrationSecs,completedIntegrationSecs,elapsedSecs,estimatedRemainingSecs,currentTarget,currentFilter,message,const DeepCollectionEquality().hash(_nodeStatuses),const DeepCollectionEquality().hash(_nodeProgressPercent),const DeepCollectionEquality().hash(_nodeProgressDetail),const DeepCollectionEquality().hash(_nodeProgressStructuredDetail));
+int get hashCode => Object.hash(runtimeType,state,currentNodeId,currentNodeName,currentNodeStatus,totalExposures,completedExposures,totalIntegrationSecs,completedIntegrationSecs,elapsedSecs,estimatedRemainingSecs,currentTarget,currentFilter,message,const DeepCollectionEquality().hash(_nodeStatuses),const DeepCollectionEquality().hash(_nodeProgressPercent),const DeepCollectionEquality().hash(_nodeProgressDetail),const DeepCollectionEquality().hash(_nodeProgressStructuredDetail),const DeepCollectionEquality().hash(_nodeLatestReport));
 
 @override
 String toString() {
-  return 'SequenceProgress(state: $state, currentNodeId: $currentNodeId, currentNodeName: $currentNodeName, currentNodeStatus: $currentNodeStatus, totalExposures: $totalExposures, completedExposures: $completedExposures, totalIntegrationSecs: $totalIntegrationSecs, completedIntegrationSecs: $completedIntegrationSecs, elapsedSecs: $elapsedSecs, estimatedRemainingSecs: $estimatedRemainingSecs, currentTarget: $currentTarget, currentFilter: $currentFilter, message: $message, nodeStatuses: $nodeStatuses, nodeProgressPercent: $nodeProgressPercent, nodeProgressDetail: $nodeProgressDetail, nodeProgressStructuredDetail: $nodeProgressStructuredDetail)';
+  return 'SequenceProgress(state: $state, currentNodeId: $currentNodeId, currentNodeName: $currentNodeName, currentNodeStatus: $currentNodeStatus, totalExposures: $totalExposures, completedExposures: $completedExposures, totalIntegrationSecs: $totalIntegrationSecs, completedIntegrationSecs: $completedIntegrationSecs, elapsedSecs: $elapsedSecs, estimatedRemainingSecs: $estimatedRemainingSecs, currentTarget: $currentTarget, currentFilter: $currentFilter, message: $message, nodeStatuses: $nodeStatuses, nodeProgressPercent: $nodeProgressPercent, nodeProgressDetail: $nodeProgressDetail, nodeProgressStructuredDetail: $nodeProgressStructuredDetail, nodeLatestReport: $nodeLatestReport)';
 }
 
 
@@ -5072,7 +5092,7 @@ abstract mixin class _$SequenceProgressCopyWith<$Res> implements $SequenceProgre
   factory _$SequenceProgressCopyWith(_SequenceProgress value, $Res Function(_SequenceProgress) _then) = __$SequenceProgressCopyWithImpl;
 @override @useResult
 $Res call({
- SequenceExecutionState state, String? currentNodeId, String? currentNodeName, NodeStatus? currentNodeStatus, int totalExposures, int completedExposures, double totalIntegrationSecs, double completedIntegrationSecs, double elapsedSecs, double? estimatedRemainingSecs, String? currentTarget, String? currentFilter, String? message, Map<String, NodeStatus> nodeStatuses, Map<String, double> nodeProgressPercent, Map<String, String> nodeProgressDetail, Map<String, InstructionProgressDetail> nodeProgressStructuredDetail
+ SequenceExecutionState state, String? currentNodeId, String? currentNodeName, NodeStatus? currentNodeStatus, int totalExposures, int completedExposures, double totalIntegrationSecs, double completedIntegrationSecs, double elapsedSecs, double? estimatedRemainingSecs, String? currentTarget, String? currentFilter, String? message, Map<String, NodeStatus> nodeStatuses, Map<String, double> nodeProgressPercent, Map<String, String> nodeProgressDetail, Map<String, InstructionProgressDetail> nodeProgressStructuredDetail, Map<String, InstructionProgressDetail> nodeLatestReport
 });
 
 
@@ -5089,7 +5109,7 @@ class __$SequenceProgressCopyWithImpl<$Res>
 
 /// Create a copy of SequenceProgress
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? state = null,Object? currentNodeId = freezed,Object? currentNodeName = freezed,Object? currentNodeStatus = freezed,Object? totalExposures = null,Object? completedExposures = null,Object? totalIntegrationSecs = null,Object? completedIntegrationSecs = null,Object? elapsedSecs = null,Object? estimatedRemainingSecs = freezed,Object? currentTarget = freezed,Object? currentFilter = freezed,Object? message = freezed,Object? nodeStatuses = null,Object? nodeProgressPercent = null,Object? nodeProgressDetail = null,Object? nodeProgressStructuredDetail = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? state = null,Object? currentNodeId = freezed,Object? currentNodeName = freezed,Object? currentNodeStatus = freezed,Object? totalExposures = null,Object? completedExposures = null,Object? totalIntegrationSecs = null,Object? completedIntegrationSecs = null,Object? elapsedSecs = null,Object? estimatedRemainingSecs = freezed,Object? currentTarget = freezed,Object? currentFilter = freezed,Object? message = freezed,Object? nodeStatuses = null,Object? nodeProgressPercent = null,Object? nodeProgressDetail = null,Object? nodeProgressStructuredDetail = null,Object? nodeLatestReport = null,}) {
   return _then(_SequenceProgress(
 state: null == state ? _self.state : state // ignore: cast_nullable_to_non_nullable
 as SequenceExecutionState,currentNodeId: freezed == currentNodeId ? _self.currentNodeId : currentNodeId // ignore: cast_nullable_to_non_nullable
@@ -5108,6 +5128,7 @@ as String?,nodeStatuses: null == nodeStatuses ? _self._nodeStatuses : nodeStatus
 as Map<String, NodeStatus>,nodeProgressPercent: null == nodeProgressPercent ? _self._nodeProgressPercent : nodeProgressPercent // ignore: cast_nullable_to_non_nullable
 as Map<String, double>,nodeProgressDetail: null == nodeProgressDetail ? _self._nodeProgressDetail : nodeProgressDetail // ignore: cast_nullable_to_non_nullable
 as Map<String, String>,nodeProgressStructuredDetail: null == nodeProgressStructuredDetail ? _self._nodeProgressStructuredDetail : nodeProgressStructuredDetail // ignore: cast_nullable_to_non_nullable
+as Map<String, InstructionProgressDetail>,nodeLatestReport: null == nodeLatestReport ? _self._nodeLatestReport : nodeLatestReport // ignore: cast_nullable_to_non_nullable
 as Map<String, InstructionProgressDetail>,
   ));
 }
