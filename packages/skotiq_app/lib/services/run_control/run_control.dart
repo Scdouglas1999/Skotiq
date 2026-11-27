@@ -57,8 +57,9 @@ enum NightRunPhase {
 
   pausedByUser,
 
-  /// The action controller paused the run to perform a manual action, or a
-  /// manual Loop holds it. [ManualActionState.active] says which.
+  /// A manual action holds the run paused, run from this window or any
+  /// other the run's host serves. [ManualActionState.active] says which when
+  /// it is this window's.
   pausedForAction,
 
   /// Stop was requested and the run is finalizing.
@@ -89,12 +90,6 @@ final runActionStateProvider = Provider<ManualActionState>(
   (ref) => ref.watch(nightActionStateProvider),
 );
 
-/// True when [action] is what holds a paused run: the controller paused the
-/// run for it, or a manual Loop keeps it paused.
-bool actionHoldsRun(ManualActionState action) =>
-    action.active != null &&
-    (action.startedRunPause || action.active == ManualActionId.loop);
-
 /// True when the camera is connected, the least a run needs to start.
 final runCameraConnectedProvider = Provider<bool>((ref) {
   return ref.watch(cameraStateProvider.select((s) => s.connectionState)) ==
@@ -110,7 +105,7 @@ final nightRunPhaseProvider = Provider<NightRunPhase>((ref) {
           SequenceExecutionState.recovering:
       return NightRunPhase.running;
     case SequenceExecutionState.paused:
-      return actionHoldsRun(ref.watch(runActionStateProvider))
+      return ref.watch(runHeldByActionProvider)
           ? NightRunPhase.pausedForAction
           : NightRunPhase.pausedByUser;
     case SequenceExecutionState.stopping ||

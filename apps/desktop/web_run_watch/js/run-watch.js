@@ -1156,7 +1156,9 @@ function clearControlRefusals() {
   refusedControls.clear();
 }
 
-function updateRunControls(state) {
+/// [heldByAction]: a manual action holds the run paused, and the host refuses
+/// Resume and Skip until the action releases it.
+function updateRunControls(state, heldByAction) {
   const phase = RUN_STATE.view(state || '').phase;
   const set = (id, enabled) => {
     const el = $(id);
@@ -1176,8 +1178,8 @@ function updateRunControls(state) {
   const recovering = phase === 'recovering';
   const stopRetry = phase === 'stopRetry';
   set('btn-pause', running || recovering);
-  set('btn-resume', paused);
-  set('btn-skip', running || paused || recovering);
+  set('btn-resume', paused && !heldByAction);
+  set('btn-skip', running || recovering || (paused && !heldByAction));
   set('btn-stop', running || paused || recovering || stopRetry);
 }
 
@@ -1282,7 +1284,7 @@ function renderSnapshot(data) {
   badge.textContent = view.label;
   badge.className = 'badge ' + (unknown ? 'badge-error' : view.badge);
   lastKnownState = state;
-  updateRunControls(state);
+  updateRunControls(state, sequencer.heldByAction === true);
 
   // state 'unknown' means the server's read failed. Never fall back to
   // 'Idle' there — the run may well still be going. With nothing named and a

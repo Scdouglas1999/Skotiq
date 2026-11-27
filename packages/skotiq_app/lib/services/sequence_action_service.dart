@@ -6,7 +6,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import 'command_action_result.dart';
-import 'run_control/run_control.dart';
 
 final sequenceActionServiceProvider =
     Provider((ref) => SequenceActionService(ref));
@@ -367,10 +366,12 @@ class SequenceActionService {
             }
           }));
 
+  /// The run's host publishes the hold, whichever window or client runs the
+  /// action, and refuses the command as well.
   bool get _actionHoldsRun =>
       _ref.read(sequenceExecutionStateProvider) ==
           SequenceExecutionState.paused &&
-      actionHoldsRun(_ref.read(runActionStateProvider));
+      _ref.read(runHeldByActionProvider);
 
   static const _heldByAction = CommandActionResult.failure(
     'A manual action holds the run paused; it resumes the run when it '

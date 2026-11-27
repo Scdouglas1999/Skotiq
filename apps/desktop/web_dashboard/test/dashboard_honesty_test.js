@@ -1719,6 +1719,7 @@ function sequencerPanel(sequencerStatus, { stale = false } = {}) {
     'ops-seq-current-target',
   ]);
   const buttons = [];
+  const held = [];
   const render = build(
     ['document', 'state', 'renderBadge', 'updateSequencerButtons',
       'renderOpsSequencerLoadPanel', 'runDataIsStale'],
@@ -1731,13 +1732,35 @@ function sequencerPanel(sequencerStatus, { stale = false } = {}) {
     doc,
     { sequencerStatus },
     (el, label, cls) => { el.textContent = label; el.className = cls; },
-    (s) => { buttons.push(s); },
+    (s, heldByAction) => { buttons.push(s); held.push(heldByAction); },
     () => {},
     () => stale,
   );
   render();
-  return { doc, buttons };
+  return { doc, buttons, held };
 }
+
+test('a run a manual action holds keeps Resume closed and Stop open', () => {
+  const doc = makeDocument([
+    'btn-seq-start', 'btn-seq-pause', 'btn-seq-resume', 'btn-seq-stop',
+  ]);
+  const update = build(
+    ['document', 'refusedControls'],
+    [fn('updateSequencerButtons')],
+    'updateSequencerButtons',
+  )(doc, new Map());
+  update('paused', true);
+  assert.equal(doc.getElementById('btn-seq-resume').disabled, true,
+    'only the action resumes what it holds');
+  assert.equal(doc.getElementById('btn-seq-stop').disabled, false);
+  update('paused', false);
+  assert.equal(doc.getElementById('btn-seq-resume').disabled, false);
+
+  const paused = { state: 'paused', currentNodeName: 'N', progress: 0.3 };
+  assert.deepEqual(
+    sequencerPanel({ ...paused, heldByAction: true }).held, [true]);
+  assert.deepEqual(sequencerPanel(paused).held, [false]);
+});
 
 test('a status that names no state renders unknown, never idle', () => {
   const { doc, buttons } = sequencerPanel({

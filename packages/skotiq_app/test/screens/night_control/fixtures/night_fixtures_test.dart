@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart' show RunRecord;
 
 import '../data/plan/plan_test_support.dart';
 import 'night_fixtures.dart';
@@ -16,6 +17,7 @@ void main() {
       now: NightFixtures.at(23, 52),
       sequence: plan.sequence,
       execution: SequenceExecutionState.paused,
+      run: const RunRecord(heldByAction: true),
       action: const ManualActionState(
         phase: ManualActionPhase.running,
         active: ManualActionId.autofocus,

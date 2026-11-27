@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/services/night_actions/night_action_api.dart';
 import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
 import 'package:skotiq_app/services/night_actions/night_rig_ops.dart';
+import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/services/sequence_action_service.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -39,8 +40,9 @@ const _autofocusHold = ManualActionState(
 );
 
 ({ProviderContainer container, _RecordingExecutor executor}) _harness(
-  ManualActionState action,
-) {
+  ManualActionState action, {
+  bool held = true,
+}) {
   late _RecordingExecutor executor;
   final container = ProviderContainer(overrides: [
     inMemoryDatabaseOverride(),
@@ -51,7 +53,10 @@ const _autofocusHold = ManualActionState(
     runRecordProvider.overrideWith(
       (ref) => RunRecordNotifier(
         ref,
-        const RunRecord(lifecycle: SequenceExecutionState.paused),
+        RunRecord(
+          lifecycle: SequenceExecutionState.paused,
+          heldByAction: held,
+        ),
       ),
     ),
     nightActionStateProvider.overrideWithValue(action),
@@ -95,8 +100,26 @@ void main() {
     expect(result.isSuccess, isTrue);
   });
 
-  test('a run the operator paused resumes from any surface', () async {
+  test("another client's action holds the run here too", () async {
     final h = _harness(ManualActionState.idle);
+    addTearDown(h.container.dispose);
+
+    final service = h.container.read(sequenceActionServiceProvider);
+    final resume = await service.resume();
+    final skip = await service.skip();
+
+    expect(h.executor.resumeCount, 0);
+    expect(h.executor.skipCount, 0);
+    expect(resume.isSuccess, isFalse);
+    expect(skip.isSuccess, isFalse);
+    expect(
+      h.container.read(nightRunPhaseProvider),
+      NightRunPhase.pausedForAction,
+    );
+  });
+
+  test('a run the operator paused resumes from any surface', () async {
+    final h = _harness(ManualActionState.idle, held: false);
     addTearDown(h.container.dispose);
 
     await h.container.read(sequenceActionServiceProvider).resume();

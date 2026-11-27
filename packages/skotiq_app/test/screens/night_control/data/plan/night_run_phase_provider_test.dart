@@ -242,6 +242,7 @@ void main() {
       now: evening,
       sequence: TwoTargetPlan().sequence,
       execution: SequenceExecutionState.paused,
+      run: const RunRecord(heldByAction: true),
       action: const ManualActionState(
         phase: ManualActionPhase.running,
         active: ManualActionId.autofocus,
@@ -305,11 +306,33 @@ void main() {
     expect(container.read(nightRunPhaseProvider), NightRunPhase.pausedByUser);
   });
 
+  test(
+      "another client's action holding the run reads as paused for an "
+      'action, with none named here', () {
+    final container = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+      execution: SequenceExecutionState.paused,
+      run: const RunRecord(heldByAction: true),
+    );
+    addTearDown(container.dispose);
+
+    expect(
+      container.read(nightRunPhaseProvider),
+      NightRunPhase.pausedForAction,
+    );
+    final header = container.read(nightHeaderProvider);
+    expect(header.pausedFor, isNull);
+    expect(header.pauseResume?.enabled, isFalse);
+    expect(header.stop, const RunControl.enabled());
+  });
+
   test('a manual loop holds the run even though the operator started it', () {
     final container = planContainer(
       now: evening,
       sequence: TwoTargetPlan().sequence,
       execution: SequenceExecutionState.paused,
+      run: const RunRecord(heldByAction: true),
       action: const ManualActionState(
         phase: ManualActionPhase.running,
         active: ManualActionId.loop,
