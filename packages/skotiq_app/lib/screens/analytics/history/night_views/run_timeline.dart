@@ -6,6 +6,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart' show LogLevel;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../analytics_providers.dart';
@@ -364,19 +365,13 @@ class _TimelineBar extends StatelessWidget {
   }
 }
 
-Color _severityColor(String severity, SkotiqColors colors) {
-  switch (severity.toLowerCase()) {
-    case 'critical':
-    case 'error':
-      return colors.error;
-    case 'warning':
-      return colors.warning;
-    case 'debug':
-      return colors.textSecondary;
-    default:
-      return colors.info;
-  }
-}
+Color _severityColor(LogLevel severity, SkotiqColors colors) =>
+    switch (severity) {
+      LogLevel.critical || LogLevel.error => colors.error,
+      LogLevel.warning => colors.warning,
+      LogLevel.debug => colors.textSecondary,
+      LogLevel.info => colors.info,
+    };
 
 class _TimelinePainter extends CustomPainter {
   final SessionReplayReady ready;
@@ -638,7 +633,7 @@ class _MarkerRow extends StatelessWidget {
       ReplayEventMarker e => (
           e.message,
           _severityColor(e.severity, colors),
-          e.source ?? e.severity,
+          e.source ?? e.severity.name,
         ),
       ReplayFrameMarker f => (
           [
