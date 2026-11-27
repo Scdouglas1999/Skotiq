@@ -163,8 +163,7 @@ void main() {
         'never',
       );
 
-      // A fresh settings load over the same database — the cold start that
-      // used to resurrect the prompt.
+      // A fresh settings load over the same database: a cold start.
       container.invalidate(appSettingsProvider);
       await settle(container);
       expect(

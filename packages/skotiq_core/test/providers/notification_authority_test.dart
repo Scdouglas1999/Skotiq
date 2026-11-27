@@ -1,4 +1,4 @@
-// v6 "make it real" — notification authority hardening.
+// Notification authority hardening.
 //
 // The phone-push feed and the notification router used to manufacture their
 // own defaults while their persisted authority (push config / routing matrix /

@@ -1256,15 +1256,15 @@ class UpdateService {
   /// The app exits before the updater touches anything, so an install this
   /// user cannot write to (a tarball unpacked into /opt by root, the
   /// appliance unit's `ProtectSystem=strict`, or an installer-made install
-  /// under Program Files on Windows) used to end with the program gone and
+  /// under Program Files on Windows) would end with the program gone and
   /// the reason in a temp file. Each existing directory the update writes
   /// into is probed with a real file.
   ///
-  /// On Windows this replaces elevation. The updater used to demand
-  /// administrator rights in its manifest, which a plain process launch cannot
-  /// grant (the apply never started), and which would have handed the
-  /// relaunched app an administrator token. It now runs as the user, and an
-  /// install that needs elevation is updated with the installer instead.
+  /// On Windows this replaces elevation. Administrator rights in the
+  /// updater's manifest are something a plain process launch cannot grant,
+  /// and they would hand the relaunched app an administrator token. The
+  /// updater runs as the user, and an install that needs elevation is updated
+  /// with the installer instead.
   Future<void> _assertInstallWritable(
     Directory installDir,
     UpdateManifest manifest,

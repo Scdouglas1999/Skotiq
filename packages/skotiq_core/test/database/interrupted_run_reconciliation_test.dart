@@ -10,10 +10,6 @@ import 'package:skotiq_core/src/models/sequence/sequence_run_status.dart';
 /// is driving it, and that state lives in memory. So a row still marked
 /// `running` when the database is opened is residue from a process that died
 /// mid-run — a crash, a force quit, or a power cut.
-///
-/// Nothing used to clear them, which left the app contradicting itself: the run
-/// list reported runs "running" (the oldest 17 hours old) while the sequencer
-/// reported `idle`.
 void main() {
   late Directory tempDir;
   late File dbFile;

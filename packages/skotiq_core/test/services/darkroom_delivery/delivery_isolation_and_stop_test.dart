@@ -4,8 +4,7 @@
 //   1. ONE UNDECODABLE ROW COSTS ONLY ITSELF. `delivery_targets` rows are
 //      decoded one by one; a row this build cannot read is named in the
 //      report and skipped, and every other destination still receives the
-//      night. It used to abort the whole read, so a single bad row meant
-//      NOTHING was delivered anywhere and nothing was journalled.
+//      night.
 //   2. AN UNPARSEABLE CONFIG IS A CONFIGURATION ERROR. `config_json` that is
 //      not JSON is terminal and named, not a retryable `transportFailure`
 //      carrying a raw `FormatException` — a row whose text never changes must

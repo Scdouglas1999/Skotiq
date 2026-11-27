@@ -213,8 +213,7 @@ class CatalogOverlayService {
 
   /// Fractional padding around the image bbox when querying the catalog.
   /// Larger values include partly-off-frame DSOs whose centre is just outside
-  /// the chip but whose extent crosses the edge. Was hardcoded to 0.05
-  /// (5 %); promoted to user-configurable in
+  /// the chip but whose extent crosses the edge.
   final double bboxPaddingFraction;
 
   CatalogOverlayService({

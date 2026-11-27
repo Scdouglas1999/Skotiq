@@ -50,7 +50,7 @@ const Set<String> _retiredSettingKeys = {
   'af_failure_action',
   // Removed 2026-11: the switch for the science pipeline's second frame
   // grader. A frame's verdict is the run's grader's alone, so two graders
-  // can no longer label one frame differently (IC 405, 2026-11-16).
+  // can no longer label one frame differently.
   'science.grading.auto_enabled',
 };
 

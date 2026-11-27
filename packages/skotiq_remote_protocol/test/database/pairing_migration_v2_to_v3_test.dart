@@ -1,4 +1,4 @@
-// Stepped migration test for the pairing DB v2 -> v3 step (Phase D, cellular
+// Stepped migration test for the pairing DB v2 -> v3 step (cellular
 // push): `device_push_tokens` + `device_push_prefs` are added as two NEW
 // tables via `onUpgrade`'s `m.createTable(...)` branch. The bump is purely
 // additive — an existing v2 deployment (paired-device rows already on disk)

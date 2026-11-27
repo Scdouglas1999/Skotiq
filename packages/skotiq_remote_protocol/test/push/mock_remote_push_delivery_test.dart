@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
-/// Phase D — the no-cloud [MockRemotePushDelivery] fan-out: it enumerates the
+/// The no-cloud [MockRemotePushDelivery] fan-out: it enumerates the
 /// [PushTokenStore], applies the per-device preference gate, and records every
 /// (frame, token) it would have sent. This is the recipient-selection logic the
 /// real FCM/APNs deliveries share, exercised with zero network.

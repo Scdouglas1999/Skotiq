@@ -1,4 +1,4 @@
-// Migration round-trip test for the v54 -> v55 step (Living Sky — Wave 3
+// Migration round-trip test for the v54 -> v55 step (Living Sky
 // scale/retention DB layer). v55 is purely additive:
 //   * NEW table `living_sky_retention` (+ its unique `scope` index) — per-pillar
 //     prune high-water markers.

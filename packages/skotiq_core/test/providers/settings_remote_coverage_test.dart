@@ -270,8 +270,7 @@ void main() {
 
   // sidebar_collapsed is a per-device chrome pref (like ui_scale): on a
   // remote client it must persist to the LOCAL store — `POST /api/settings`
-  // is admin-scoped, so a control-token client used to throw before the
-  // state patch and the rail never toggled.
+  // is admin-scoped.
   test('sidebar collapse is device-local on a remote client', () async {
     final h = buildBackend(const models.AppSettings());
     addTearDown(h.events.close);

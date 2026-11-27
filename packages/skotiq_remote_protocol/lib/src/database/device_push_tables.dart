@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-/// Per-device cellular-push token store (Phase D).
+/// Per-device cellular-push token store.
 ///
 /// A paired phone registers its FCM (Android) or APNs (iOS) token here via
 /// `POST /api/push/register-token`. The remote-push delivery reads this table
@@ -32,7 +32,7 @@ class DevicePushTokens extends Table {
   Set<Column> get primaryKey => {deviceId, platform};
 }
 
-/// Per-device push-notification preferences (Phase D).
+/// Per-device push-notification preferences.
 ///
 /// The server-scoped `PushNotificationConfig` is the *master* content gate
 /// (which events ever turn into a push). This table is the *per-recipient*

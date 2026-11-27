@@ -246,9 +246,8 @@ void main() {
 
   group('profileDevices: no vacuous green over an empty profile', () {
     test('an empty profile is caution, not an all-connected pass', () {
-      // A profile with nothing assigned has an empty offline set, which used to
-      // satisfy "every device is connected" and render GREEN on a fresh install
-      // with nothing connected at all.
+      // A profile with nothing assigned has an empty offline set, which must
+      // not satisfy "every device is connected".
       final report = _report(
         assignedProfileDeviceCount: 0,
         otherAssignedProfileDeviceCount: 0,

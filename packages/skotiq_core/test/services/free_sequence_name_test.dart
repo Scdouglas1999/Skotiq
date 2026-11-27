@@ -1,5 +1,4 @@
-// A plan saved for the first time takes a name no saved plan uses: three
-// plans built for one target were all "NGC1313 Plan" in the library.
+// A plan saved for the first time takes a name no saved plan uses.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/sequence_summary.dart';

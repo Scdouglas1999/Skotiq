@@ -1,5 +1,4 @@
-// A linked phone in another timezone read the host's local wall clock as its
-// own: "Scored at 16:40" on a phone where it was 05:40. The decision's time
+// The decision's time
 // goes on the wire as UTC so it names the same moment on both ends.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';

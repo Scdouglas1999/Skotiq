@@ -12,9 +12,7 @@ class _StubFilterWheel extends FilterWheelStateNotifier {
   }
 }
 
-// A profile made on the phone has no slot names; the wheel reports them. Every
-// run of such a profile warned four times that it would use "L", "R", "G" and
-// "B" literally, while the host moved the wheel by those names all night.
+// A profile made on the phone has no slot names; the wheel reports them.
 void main() {
   test('a profile without slot names uses the wheel\'s, and does not warn', () {
     final warnings = <String>[];

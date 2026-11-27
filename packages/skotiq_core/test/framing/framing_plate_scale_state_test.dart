@@ -158,11 +158,9 @@ void main() {
         overrides: [
           inMemoryDatabaseOverride(),
           framingImageCacheServiceProvider.overrideWithValue(cacheService),
-          // Force the network path to fail fast. This used to rely on the test
-          // host having no network, which is not something a test may assume:
-          // the survey fetch allows each endpoint 30s, so a machine that IS
-          // online consumes the entire default test budget and times out. It
-          // passed locally and failed on CI for exactly that reason.
+          // Force the network path to fail fast: the survey fetch allows each
+          // endpoint 30s, so a machine that IS online consumes the entire
+          // default test budget and times out.
           framingSurveyHttpClientFactoryProvider.overrideWithValue(
             () => _OfflineClient(),
           ),

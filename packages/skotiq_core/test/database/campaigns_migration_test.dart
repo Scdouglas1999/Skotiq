@@ -1,4 +1,4 @@
-// Migration round-trip test for the v42 -> v43 step (Phase B — durable
+// Migration round-trip test for the v42 -> v43 step (durable
 // multi-night campaigns).
 //
 // Verifies that upgrading a pre-v43 (v42) database creates the new raw-DDL

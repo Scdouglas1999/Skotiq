@@ -7,10 +7,8 @@ import 'package:skotiq_core/src/database/database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
-// "Image tonight" on a catalog suggestion asked a linked host for the goals of
-// target 0 (a suggestion that was never saved has no row id). The host refuses
-// an id below 1, so the plan failed with "Value must be >= 1.0" for every
-// suggestion on a phone.
+// A catalog suggestion that was never saved has no row id. The host refuses
+// an id below 1.
 SkotiqDatabase _db() => SkotiqDatabase.forTesting(NativeDatabase.memory());
 
 void main() {

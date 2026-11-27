@@ -1,6 +1,5 @@
 // The environment poll runs every 5 seconds all night. Each tick re-reports the
-// same sensor values, and the weather-safety evaluator used to re-run — and
-// re-push its verdict over FFI — on every one of them. A rig whose weather is
+// same sensor values. A rig whose weather is
 // simply not changing must go quiet.
 
 import 'package:flutter_test/flutter_test.dart';

@@ -1,4 +1,4 @@
-// Architecture-unification, Subsystem 3 phase 1 (eager-mount) — provider
+// Eager-mount provider
 // guard.
 //
 // The plan mounts the NotificationRouter eagerly at app start

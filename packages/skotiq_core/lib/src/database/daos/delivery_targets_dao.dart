@@ -20,12 +20,8 @@ class ArtifactDestinationMissingException implements Exception {
 /// A `delivery_targets` row this build cannot turn into an
 /// [ArtifactDestination].
 ///
-/// Carried out of the read instead of thrown, because one such row used to
-/// take the whole table with it: [ArtifactDestination] is built per row, so
-/// the first undecodable row aborted the list, delivery reported its
-/// destination list as unreadable and sent NOTHING — to any destination — and
-/// the settings page rendered its error state instead of the destinations
-/// that decode. The row is its own failure: it is named, its reason is
+/// Carried out of the read instead of thrown, so one such row cannot take the
+/// whole table with it. The row is its own failure: it is named, its reason is
 /// stated, and the destinations either side of it are untouched.
 class UndecodableDeliveryTarget {
   /// The row's `id`, or null when that column itself did not read as an int.

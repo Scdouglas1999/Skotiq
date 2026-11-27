@@ -322,8 +322,7 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
   /// named until now. In a plan that already has a target, the root's other
   /// steps are the night's own (cool, unpark, warm, park, darks), so nothing
   /// is adopted and the new target goes after the last target, before the
-  /// shutdown steps. Adopting there moved the whole shutdown inside the new
-  /// target, ahead of its slew.
+  /// shutdown steps.
   ///
   /// Throws [NoActiveSequenceException] when no sequence is loaded; UI callers
   /// catch and prompt (e.g. "Create a new sequence named

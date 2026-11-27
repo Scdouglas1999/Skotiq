@@ -30,7 +30,7 @@ export 'src/database/daos/observing_lists_dao.dart';
 export 'src/database/daos/sequence_runs_dao.dart';
 export 'src/database/daos/integrated_masters_dao.dart';
 export 'src/database/daos/flat_library_dao.dart';
-// Living Sky (Wave 3): per-pillar retention/prune bookkeeping.
+// Living Sky: per-pillar retention/prune bookkeeping.
 export 'src/database/daos/living_sky_retention_dao.dart';
 export 'src/database/tables/living_sky_retention.dart'
     show LivingSkyRetentionScope;
@@ -47,9 +47,9 @@ export 'src/database/daos/coimaging_sessions_dao.dart';
 export 'src/database/daos/transient_detections_dao.dart';
 // Smart Morning Report (v42): Night Doctor report persistence.
 export 'src/database/daos/night_reports_dao.dart';
-// Durable multi-night campaign counter (Phase B, v43).
+// Durable multi-night campaign counter (v43).
 export 'src/database/daos/campaigns_dao.dart';
-// Narrowband palette composites (Phase C, v44).
+// Narrowband palette composites (v44).
 export 'src/database/daos/narrowband_composites_dao.dart';
 // Durable mosaic projects + panels (Mosaic M2, v45).
 export 'src/database/daos/mosaic_projects_dao.dart';

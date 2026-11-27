@@ -1,5 +1,5 @@
 // The equipment error payload also carries notices: a camera that does not
-// report its pixel size was shown as "Device error" although its frames are
+// report its pixel size is not a "Device error"; its frames are
 // taken and saved.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';

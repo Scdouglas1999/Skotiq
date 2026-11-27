@@ -3,9 +3,7 @@ import 'package:skotiq_core/models.dart';
 
 // A plan built on a phone is sent to the imaging host as a document. The two
 // clocks can be set to different time zones (a phone on local time, a Pi left
-// on UTC), so a time in the document has to name its instant: a bare local
-// wall-clock string was read in the host's zone and moved the start of a
-// target by the difference between the two.
+// on UTC), so a time in the document has to name its instant.
 void main() {
   TargetHeaderNode header(DateTime startAfter) => TargetHeaderNode(
     id: 'th',

@@ -329,10 +329,7 @@ void main() {
       // The power-cut shape: the pass published for a desktop, the desktop
       // pulled one file and acknowledged it, and then open-time recovery
       // re-queued the `running` job so the whole pass runs again over the same
-      // artifacts. The acknowledged row used to be upserted back to `retrying`
-      // with its `delivered_at` left set — a row saying both that the file
-      // arrived and that it has not — and the rig went on offering the desktop
-      // a file it had already pulled.
+      // artifacts.
       final db = open();
       addTearDown(db.close);
       await enqueueJob(db);
@@ -777,11 +774,8 @@ void main() {
     test(
       'a switched-off peer is suspended, not reported as awaiting a pull',
       () async {
-        // The sweep used to take the peer branch before it read the switch, so
-        // a destination the operator had turned off was reported as "12
-        // awaiting pull" — while `PeerManifestService` resolves peers through
-        // `readEnabled` and answered that same peer id with
-        // `unknown_delivery_peer`. Nothing could ever pull those files.
+        // `PeerManifestService` resolves peers through `readEnabled`, so a
+        // switched-off peer can never pull.
         final db = open();
         addTearDown(db.close);
         await enqueueJob(db);
@@ -1177,10 +1171,7 @@ void main() {
     });
 
     // `delivery_journal.last_error` is the sentence the morning report and the
-    // Settings > Delivery status line both print. It used to name the act and
-    // not the cause — "failed: Cannot copy file to '<staged path>'" — for
-    // every refusal the filesystem could make, so a full drive, a read-only
-    // mount and a name the filesystem would not take all read identically.
+    // Settings > Delivery status line both print.
     // The real transport, a real refused copy, and the row the operator reads.
     test('a copy the filesystem refuses journals the reason it gave, not just '
         'that it failed', () async {

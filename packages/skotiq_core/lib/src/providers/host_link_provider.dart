@@ -54,9 +54,8 @@ int? unansweredSecondsFor(HostLink backend) {
 /// every second; null while it answers, while the link is down (then
 /// [hostLinkLostProvider] is set) or when this app is not a remote client.
 ///
-/// The socket can stay open while the host or the link under it stalls: on
-/// 2026-11-03 answers took up to 47 s for two minutes and the socket never
-/// closed. While it is set, every host value this app shows is the last one
+/// The socket can stay open while the host or the link under it stalls.
+/// While it is set, every host value this app shows is the last one
 /// it heard, not a live reading.
 final hostUnansweredSecondsProvider = StreamProvider<int?>((ref) {
   final link = ref.watch(backendProvider).remoteHost?.link;

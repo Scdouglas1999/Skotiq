@@ -119,7 +119,7 @@ export 'src/models/plate_solver.dart';
 export 'src/models/readiness/readiness_models.dart';
 export 'src/models/session_report.dart';
 export 'src/models/campaign_rollup.dart';
-// Durable multi-night campaign record (Phase B, v43).
+// Durable multi-night campaign record (v43).
 export 'src/models/campaign.dart';
 // Scheduler — RoboTarget-class dynamic scheduling.
 export 'src/models/scheduler/integration_goal.dart';

@@ -255,11 +255,6 @@ void main() {
       );
     });
 
-    // Pre-flight used to tell EVERY operator to "Connect to PHD2 in the
-    // Guiding panel", in a build that ships a native guider and whose
-    // Guiding panel only grows a Connect button when the selected guider IS
-    // PHD2. With the built-in guider selected the advice pointed at a panel
-    // with nothing to press.
     test('missing-guider advice names the panel that can connect the '
         'selected backend', () {
       final rule = EquipmentConnectionRule();

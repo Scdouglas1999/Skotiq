@@ -169,11 +169,7 @@ void main() {
     });
 
     test('overlapping writes leave the last one, whole', () async {
-      // The provider fires some writes without awaiting them. Two that
-      // overlapped used to open the same file twice and write at offset 0
-      // from both handles, leaving the shorter JSON followed by the tail of
-      // the longer one (unreadable, so the deferral was lost) or the older
-      // state on top.
+      // The provider fires some writes without awaiting them.
       for (var round = 0; round < 50; round++) {
         unawaited(
           store.write(
@@ -248,8 +244,8 @@ void main() {
 
   test('a slow startup read cannot clobber a check it raced', () async {
     // The store load is async and the startup check fires on a timer. If the
-    // load lands after a check recorded its timestamp, it used to overwrite it
-    // with the stale on-disk value and the next launch would check again.
+    // load lands after a check recorded its timestamp, it must not overwrite it
+    // with the stale on-disk value, or the next launch would check again.
     final slow = _SlowPromptStore(() async => dataDir)
       ..stored = const UpdatePromptState();
 

@@ -297,8 +297,7 @@ class DawnMasterStats {
 /// sentence quotes back to the operator.
 ///
 /// **Cost.** One extra streamed read + SHA-256 per master over the whole pass.
-/// The draft stage's reading is new; the staging reading is handed to delivery,
-/// which used to hash the same bytes itself. Measured with this SHA-256
+/// The staging reading is handed to delivery. Measured with this SHA-256
 /// compiled AOT on the machine this was written on: 0.16 GB/s — 48 ms for an
 /// 8.3 MB master, 770 ms for a 132.7 MB one, about 25 s for a 4 GB one, against
 /// a pass that spends minutes rendering each of them. Staging short-circuits

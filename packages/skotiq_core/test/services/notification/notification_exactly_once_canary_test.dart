@@ -1,8 +1,6 @@
-// EXACTLY-ONCE CANARY (architecture-unification, Subsystem 3).
+// EXACTLY-ONCE CANARY.
 //
-// This is the guard that must be GREEN before the triple mobile-push feed
-// is collapsed onto the single router-authoritative path. It pins, for
-// every critical event the unattended-night operator must not miss, that:
+// It pins, for every critical event the unattended-night operator must not miss, that:
 //
 //   * the event classifies to the expected NotificationCategory (the ONE
 //     shared classifier the router and the mobile-push service both use);

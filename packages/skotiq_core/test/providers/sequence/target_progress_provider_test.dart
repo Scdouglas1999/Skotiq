@@ -138,9 +138,7 @@ void main() {
     });
 
     // A Quick-Start-Wizard sequence is `TargetHeader > Capture Loop xN >
-    // Light`. The rollup used to walk that with NO loop multiplier, so the
-    // live counter on the target card read "1/1 done - 100%" the moment the
-    // FIRST of ten frames landed, and stayed there for the rest of the night.
+    // Light`.
     ({Sequence sequence, String targetId, String expoId}) buildLoopedTarget({
       required int repeatCount,
       LoopConditionType conditionType = LoopConditionType.count,

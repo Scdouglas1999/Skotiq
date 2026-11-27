@@ -173,7 +173,7 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
     double? predictedClearSkyAz,
   });
 
-  /// Full-night audit 2026-06-04 (defense-in-depth) — push the Dart-side
+  /// Push the Dart-side
   /// weather-safety verdict into the Rust executor so the in-sequencer
   /// `WeatherUnsafe` trigger reacts even on rigs without a hardware safety
   /// device. The hardware `safety_is_safe` poll knows nothing about the

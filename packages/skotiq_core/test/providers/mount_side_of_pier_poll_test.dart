@@ -1,7 +1,4 @@
-// The mount poll reads the side of pier on every tick. It used to drop it, so
-// MountState.sideOfPier was null for every mount: Imaging → Mount printed
-// "Pier —" beside a tracking mount, and the meridian-flip countdown never saw
-// the pier side change that marks a completed flip.
+// The mount poll reads the side of pier on every tick.
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

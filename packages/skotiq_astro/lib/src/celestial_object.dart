@@ -80,9 +80,7 @@ enum SolarSystemBodyKind {
 /// point sources (icons, popup layout, framing, slew); subclassing keeps every
 /// one of those paths working while giving the surfaces that state a FACT about
 /// the object — the popup's Type row, the observation log's `object_type`
-/// column, the identifier chip — something true to say. Before this they said
-/// "Star", and the observing log permanently recorded Jupiter as a star with
-/// the internal token `PLANET_Jupiter` as its catalogue id.
+/// column, the identifier chip — something true to say.
 class SolarSystemBody extends Star {
   final SolarSystemBodyKind kind;
 

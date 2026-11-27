@@ -153,9 +153,6 @@ void main() {
     },
   );
 
-  // Night test 2026-11-26: after the phone app reopened, the host's last
-  // frame, a dark, read "L 55 s": with no capture event to go by, the
-  // frame took the phone's own exposure controls and the wheel's filter.
   test('a frame with no capture event takes what the host recorded', () async {
     final (:backend, :container) = _setUp();
     final records = _MockImagingRecords();

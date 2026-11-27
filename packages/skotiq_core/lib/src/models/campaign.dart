@@ -1,4 +1,4 @@
-/// Durable NINA-style multi-night campaign record (Phase B, v43).
+/// Durable NINA-style multi-night campaign record (v43).
 ///
 /// A [Campaign] is the persisted `(target, filter, accepted, desired, last_date)`
 /// counter that mirrors NINA's Target Scheduler campaign table. It is the

@@ -623,7 +623,7 @@ void main() {
 }
 
 /// Rendering this error throws, which is how a step's own failure report
-/// escapes the step and used to fail the ingest chain.
+/// escapes the step.
 class _UnrenderableError implements Exception {
   @override
   String toString() => throw StateError('unrenderable');

@@ -179,8 +179,6 @@ void main() {
       },
     );
 
-    // Night test 2026-11-25: plans built for one target piled up in the
-    // library as "NGC1313 Plan", "NGC1313 Plan", "NGC1313 Plan".
     test('a first save takes a name no saved plan uses', () async {
       final repository = _MockSequenceRepository();
       when(() => repository.loadSequenceSummaries()).thenAnswer(

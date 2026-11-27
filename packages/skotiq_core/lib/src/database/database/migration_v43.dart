@@ -1,7 +1,7 @@
 part of '../database.dart';
 
 extension _SkotiqDatabaseMigrationV43 on SkotiqDatabase {
-  /// Version 43 (Phase B — durable multi-night campaigns): the `campaigns`
+  /// Version 43 (durable multi-night campaigns): the `campaigns`
   /// table, a NINA-style Target Scheduler campaign record.
   ///
   /// `campaigns` persists one row per `(target_id, filter)` carrying the desired

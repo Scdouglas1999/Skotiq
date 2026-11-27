@@ -60,8 +60,7 @@ final phd2ConnectedProvider = Provider<bool>((ref) {
 
 /// Provider for PHD2 state (Guiding, Stopped, etc.)
 ///
-/// Starts over when the app gains or loses its imaging host: a phone that
-/// unlinked mid-run kept "Guiding" on the Guiding tab with nothing linked.
+/// Starts over when the app gains or loses its imaging host.
 /// A reconnect to the same host keeps the value.
 final phd2StateProvider = StateProvider<Phd2State>((ref) {
   ref.watch(

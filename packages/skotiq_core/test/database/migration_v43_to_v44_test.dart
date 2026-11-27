@@ -1,4 +1,4 @@
-// Migration round-trip test for the v43 -> v44 step (Phase C — finishing
+// Migration round-trip test for the v43 -> v44 step (finishing
 // foundation).
 //
 // Verifies that upgrading a pre-v44 (v43) database:

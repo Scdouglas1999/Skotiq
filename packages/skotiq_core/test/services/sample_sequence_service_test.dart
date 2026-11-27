@@ -236,7 +236,7 @@ void main() {
       expect(exposures.first.count, 200);
       expect(exposures.first.durationSecs, 0.005);
       // No dithering for lunar work. Null would mean "the global dither
-      // setting", so the starter dithered whenever dithering was on.
+      // setting".
       expect(exposures.first.ditherEvery, 0);
 
       // No StartGuiding nodes should be present.

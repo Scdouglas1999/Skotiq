@@ -1,9 +1,6 @@
 // Whether the values a connected device's slot shows are still being read.
 //
-// On the reference rig (Nov 8 2026) the mount and camera dropped and every
-// read failed, yet Tonight kept showing "Mount · tracking · pier E · alt 2.5°"
-// as if it were current. The pollers logged each failure and kept the last
-// values; nothing marked them. This records, per device slot, when a read last
+// This records, per device slot, when a read last
 // succeeded and whether reads are failing now, so every surface that shows a
 // device's values can say how old they are and why.
 

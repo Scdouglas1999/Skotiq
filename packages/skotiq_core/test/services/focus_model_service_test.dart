@@ -335,11 +335,6 @@ void main() {
       },
     );
 
-    // `FocusModel.isReliable` was hardcoded to
-    // `rSquared >= 0.7 && dataPointCount >= 5`. The new isReliableWith() takes
-    // user-configurable thresholds.
-    // Filter offsets used to mix temperature drift into the
-    // reported per-filter shift. These tests pin the corrected behaviour.
     group('temperature-corrected filter offsets', () {
       // Helper: seed a service with synthetic samples whose underlying
       // physics is: position = baseAtRefTemp + slope * (T - refTemp) + offset

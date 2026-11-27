@@ -227,9 +227,7 @@ void main() {
   });
 
   // The `watchSessionless*Recent` streams are UI PREVIEW feeds and cap their row
-  // count; the CSV export used to reuse them, which silently dropped 27-62% of
-  // the user's science data while reporting the truncated count as the export
-  // size. The `getAllSessionless*` reads the export uses must return everything.
+  // count. The `getAllSessionless*` reads the export uses must return everything.
   group('sessionless export reads are not capped', () {
     test(
       'getAllSessionlessPhotometry returns rows beyond the preview limit',

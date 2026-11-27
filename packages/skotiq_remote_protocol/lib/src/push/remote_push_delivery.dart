@@ -1,4 +1,4 @@
-// Cellular/remote push delivery for critical notifications (Phase D).
+// Cellular/remote push delivery for critical notifications.
 //
 // The LAN UDP broadcaster in `lan_push_broadcaster.dart` covers the "phone
 // is on the same Wi-Fi as the rig" case. This file covers the OTHER half —

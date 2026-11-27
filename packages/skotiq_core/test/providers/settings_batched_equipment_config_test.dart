@@ -1,12 +1,8 @@
 // Batched mount/focuser equipment-config persistence.
 //
-// The mount and focuser "Configuration" dialogs on the connected-device card
-// used to issue two/three sequential AppSettingsNotifier writes and swallow
-// malformed numeric input via `parse(...) ?? old`, so a mid-write failure (or
-// a bad value) could persist a partial/inconsistent change while still
-// reporting success. `setMeridianFlipConfig` / `setFocuserCompensationConfig`
-// replace those with a single batched `_saveSettings` transaction, patching
-// in-memory state only after the write resolves.
+// `setMeridianFlipConfig` / `setFocuserCompensationConfig` write the mount and
+// focuser "Configuration" dialogs' keys in a single batched `_saveSettings`
+// transaction, patching in-memory state only after the write resolves.
 //
 // These tests assert the two invariants the dialogs depend on:
 //   1. Success writes ALL keys in ONE batched DAO call and updates state.

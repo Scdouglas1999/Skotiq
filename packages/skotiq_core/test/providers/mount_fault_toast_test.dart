@@ -1,5 +1,4 @@
-// Mobile rework P2-14: one mount fault was told five times on the phone,
-// three of them toasts. The notification router tells it ("Mount fault");
+// The notification router tells a mount fault ("Mount fault");
 // the toast bridge leaves it alone.
 import 'dart:async';
 

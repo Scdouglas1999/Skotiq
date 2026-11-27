@@ -377,7 +377,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       avgHfr: newAvgHfr,
     );
 
-    // Update session service (triggers checkpoint if needed)
     _updateSessionServiceStats();
   }
 
@@ -407,7 +406,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   void recordExposureFailed() {
     state = state.copyWith(failedExposures: state.failedExposures + 1);
 
-    // Update session service (triggers checkpoint if needed)
     _updateSessionServiceStats();
   }
 

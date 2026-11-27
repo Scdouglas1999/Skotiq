@@ -753,7 +753,6 @@ Uint8List _gammaStretchIsolate(_StretchParams params) {
   final gamma = settings.gammaValue;
   final invGamma = 1.0 / gamma;
 
-  // Build lookup table for performance
   final lut = Uint8List(65536);
   for (var i = 0; i < 65536; i++) {
     final normalized = i / 65535.0;

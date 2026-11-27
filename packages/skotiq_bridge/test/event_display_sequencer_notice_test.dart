@@ -1,6 +1,4 @@
-// The error payload carries notes, step problems, pauses and faults. The
-// Tonight log titled a preflight advisory "Sequencer error" although the run
-// went on normally, and raised the critical banner for it.
+// The error payload carries notes, step problems, pauses and faults.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';
 

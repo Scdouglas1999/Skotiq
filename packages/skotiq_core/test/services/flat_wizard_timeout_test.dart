@@ -1,9 +1,7 @@
 // Deterministic tests for the fail-safe timeout / abort / settle lifecycle of
 // [FlatWizardService.exposeAndAwait] and the calibration solvers.
 //
-// The bug being fixed: a timed-out (or cancelled) exposure used to abort then
-// immediately continue / `getLastImage`, handing back a STALE prior frame or
-// overlapping the next exposure. The contract pinned here:
+// The contract pinned here:
 //   * A timeout aborts the hardware EXACTLY once and waits (bounded) for the
 //     camera to settle — it NEVER reads `getLastImage` (no stale frame).
 //   * When the abort throws or idle cannot be confirmed, the capture reports

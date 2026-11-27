@@ -1,7 +1,4 @@
-// Owner report 2026-11-08: dusk sky flats converged, then "as the flat
-// exposures are taken it looks like I left my ±5% band of histogram tolerance
-// but the app isn't increasing exposure". The frames were all taken at the
-// calibrated exposure. These tests run the follower against a modeled
+// These tests run the follower against a modeled
 // twilight sky: brightness halving every few minutes, a bias pedestal, and a
 // few seconds between frames for download and save.
 

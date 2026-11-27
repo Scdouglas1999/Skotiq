@@ -104,9 +104,7 @@ void main() {
   });
 
   // A sequencer fault is the notification router's to tell, once per run and
-  // with the reason (run_failure_told_once_test.dart). This bridge used to add
-  // a "Sequence Error" card of its own for every one of them, so a single
-  // failed run raised three notices. The EXACT cancellation match that keeps a
+  // with the reason (run_failure_told_once_test.dart). The EXACT cancellation match that keeps a
   // real fault from being read as a Stop is the classifier's
   // (event_classifier_stop_vs_error_test.dart).
   test('a sequencer fault raises no toast of its own here', () async {

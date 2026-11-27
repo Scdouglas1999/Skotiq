@@ -2,9 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/settings/app_settings.dart';
 import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
-/// Architecture-unification 2026-06-05 (Subsystem 2 step 1 — CROSS-LANGUAGE
-/// FAIL-MODE PARITY).
-///
 /// This is the Dart half of a truth table pinned on BOTH sides of the FFI. The
 /// Rust half is `safety_fail_mode_no_data_resolution_truth_table` in
 /// `native/skotiq_native/sequencer/src/executor/mod.rs`. The two

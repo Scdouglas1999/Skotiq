@@ -28,8 +28,6 @@ void main() {
   });
 
   group('remoteSequenceEditorSyncProvider', () {
-    // Night test 2026-11-25: each plan built from Best tonight was filed as
-    // one more "NGC1313 Plan"; the library held three alike.
     test('a new plan is filed under a free name, and the editor takes it', () {
       fakeAsync((async) {
         final backend = _MockNetworkBackend();

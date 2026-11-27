@@ -381,8 +381,6 @@ void main() {
       );
     });
 
-    // Night test 2026-11-26: a plan with its own 55 s dark step was told
-    // "Missing Dark Frames" for 55 s darks.
     test('darks the plan takes itself cover their lights', () async {
       final container = await _buildContainer(
         settings: _settings(),
