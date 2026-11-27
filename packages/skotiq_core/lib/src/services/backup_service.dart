@@ -30,6 +30,7 @@ Future<Map<String, int>> Function(void Function(double)) _archiveWriter({
   required String outputPath,
   required Map<String, Object?> head,
   required List<String> tables,
+  required Map<String, String> settingsOverlay,
 }) =>
     (report) async => writeBackupArchive(
       databasePath: databasePath,
@@ -37,6 +38,7 @@ Future<Map<String, int>> Function(void Function(double)) _archiveWriter({
       head: head,
       tables: tables,
       omitSettings: const {BackupService.backupDirectorySettingKey},
+      settingsOverlay: settingsOverlay,
       report: report,
     );
 
@@ -57,6 +59,10 @@ class BackupService {
   final SkotiqDatabase database;
   final LoggingService _logger;
   final Future<Directory> Function()? _backupDirectoryProvider;
+
+  /// Settings rows a backup carries in place of the stored ones: copies of a
+  /// store outside the database, read as the backup is made.
+  final Future<Map<String, String>> Function()? _settingsOverlay;
 
   /// 3.x holds every table of the schema in `tables` (see
   /// [backupExcludedTables]); 2.x backups carry a hand-picked set under their
@@ -96,10 +102,12 @@ class BackupService {
     required LoggingService logger,
     String? appVersion,
     Future<Directory> Function()? backupDirectoryProvider,
+    Future<Map<String, String>> Function()? settingsOverlay,
   }) : runtimeAppVersion = appVersion?.trim().isNotEmpty == true
            ? appVersion!.trim()
            : BackupService.appVersion,
        _backupDirectoryProvider = backupDirectoryProvider,
+       _settingsOverlay = settingsOverlay,
        _logger = logger;
 
   /// Create a full backup of the database: the settings and every table the
@@ -150,6 +158,7 @@ class BackupService {
             'schemaVersion': database.schemaVersion,
           },
           tables: _backedUpTableNames.toList(),
+          settingsOverlay: await _settingsOverlay?.call() ?? const {},
         ),
         onProgress,
       );

@@ -314,7 +314,10 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          filterLabel(widget.image.filter),
+                          frameCaption(
+                            filter: widget.image.filter,
+                            frameType: widget.image.frameType,
+                          ),
                           style: SkotiqTypography.caption.copyWith(
                               color: colors.textPrimary,
                               fontWeight: FontWeight.w600),

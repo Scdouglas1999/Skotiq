@@ -38,10 +38,10 @@ final nightActiveStepProvider = Provider<NightPlanEntry?>((ref) {
 String nightStepLabel(SequenceNode node) {
   if (node is ExposureNode) {
     // A dark reads "Dark 10 × 55 s", not as the wheel's filter.
-    final filter = node.frameType.coverOnLabel ?? node.filter;
+    final filter = node.frameType.caption(node.filter);
     final burst =
         '${node.count} × ${QuantityFormat.exposure(node.durationSecs)}';
-    return filter == null || filter.isEmpty ? burst : '$filter $burst';
+    return filter == null ? burst : '$filter $burst';
   }
   return node.name;
 }

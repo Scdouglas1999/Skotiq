@@ -151,26 +151,32 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState>
       }
     } else {
       final local = _local;
-      id = await _saveHere(local, profile, loaded);
-      if (defaultChanged) {
-        await _setDefaultHere(
-          local,
-          profile.isDefault ? id : null,
-          makeActive: true,
-        );
-      }
-      // Making it the default already gave the native store the saved row.
-      // Otherwise an active row goes to the native store as well; the save
-      // has committed, so a native failure is logged, not reported as one.
-      if (!(defaultChanged && profile.isDefault) &&
-          (await local.dao.getProfileById(id))?.isActive == true) {
-        await writeActiveProfileThrough(
-          dao: local.dao,
-          backend: local.settings,
-          logger: local.logger,
-          profileId: id,
-        );
-      }
+      id = await _store(local).save(
+        id: profile.id,
+        newRow: profile.toCompanion,
+        updateRow: (stored) => local.dao.updateProfileColumns(
+          stored.id,
+          _changedColumns(
+            local.dao.equipmentProfiles,
+            loaded ?? stored.toModel(),
+            profile,
+          ),
+        ),
+        // This app's own providers refresh through [ref.invalidateSelf]; the
+        // REST handlers announce their own saves, so none is announced twice.
+        notice: const ProfileSaveNotice(remoteOnly: true, onceWritten: true),
+        beforeWriteThrough: (id) async {
+          if (defaultChanged) {
+            await _setDefaultHere(
+              local,
+              profile.isDefault ? id : null,
+              makeActive: true,
+            );
+          }
+        },
+        // Making it the default already gave the native store the saved row.
+        writeThrough: !(defaultChanged && profile.isDefault),
+      );
     }
     ref.invalidateSelf();
     return id;
@@ -199,39 +205,12 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState>
     return savedId;
   }
 
-  Future<int> _saveHere(
-    _LocalProfiles local,
-    EquipmentProfileModel profile,
-    EquipmentProfileModel? loaded,
-  ) async {
-    final dao = local.dao;
-    final int id;
-    if (profile.id == null) {
-      id = await dao.createProfile(profile.toCompanion());
-    } else {
-      final stored = await dao.getProfileById(profile.id!);
-      if (stored == null) {
-        throw StateError('Profile ${profile.id} was not found.');
-      }
-      id = stored.id;
-      await dao.updateProfileColumns(
-        id,
-        _changedColumns(
-          dao.equipmentProfiles,
-          loaded ?? stored.toModel(),
-          profile,
-        ),
-      );
-    }
-    _announceProfileChange(
-      local.hub,
-      profile.id == null
-          ? HostMutationAction.created
-          : HostMutationAction.updated,
-      id,
-    );
-    return id;
-  }
+  ProfileStore _store(_LocalProfiles local) => ProfileStore(
+    dao: local.dao,
+    native: local.settings,
+    logger: local.logger,
+    hub: local.hub,
+  );
 
   /// The columns [next] writes with a value other than [before]'s, plus the
   /// update time. The columns a save does not own are left out.

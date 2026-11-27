@@ -7,7 +7,6 @@ import 'package:logging/logging.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../rendering/sky_renderer.dart';
 import '../rendering/render_quality.dart';
-import '../util/aligned_ticker.dart';
 import 'catalog_providers.dart';
 import 'element_refresh_providers.dart';
 

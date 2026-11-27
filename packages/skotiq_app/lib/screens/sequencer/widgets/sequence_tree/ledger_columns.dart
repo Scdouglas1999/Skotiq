@@ -101,7 +101,7 @@ LedgerColumns ledgerColumnsFor(
       // A dark or bias is taken with the cover on, wherever the wheel sits,
       // so it reads as its frame type, as the Tonight header does.
       filterExp: _filterExp(
-        node.frameType.coverOnLabel ?? node.filter,
+        node.frameType.caption(node.filter),
         node.durationSecs,
       ),
       count: '${node.count}',

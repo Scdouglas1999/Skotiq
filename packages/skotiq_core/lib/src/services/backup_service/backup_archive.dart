@@ -101,8 +101,9 @@ FutureOr<T> Function() _onIsolate<T>(
 ) =>
     () => body(port.send);
 
-/// Writes the settings (but for [omitSettings]) and the rows of [tables] in
-/// the database file at [databasePath] to [outputPath] as a 3.1 archive, and
+/// Writes the settings (but for [omitSettings], and with [settingsOverlay]
+/// in place of the stored rows of its keys) and the rows of [tables] in the
+/// database file at [databasePath] to [outputPath] as a 3.1 archive, and
 /// returns the rows written per table. [head] holds the head line's fields.
 Map<String, int> writeBackupArchive({
   required String databasePath,
@@ -111,6 +112,7 @@ Map<String, int> writeBackupArchive({
   required List<String> tables,
   required Set<String> omitSettings,
   required void Function(double fraction) report,
+  Map<String, String> settingsOverlay = const {},
 }) {
   final db = sqlite3.open(databasePath, mode: OpenMode.readOnly);
   final out = File(outputPath).openSync(mode: FileMode.write);
@@ -125,6 +127,8 @@ Map<String, int> writeBackupArchive({
       for (final row in db.select('SELECT key, value FROM app_settings'))
         if (!omitSettings.contains(row['key']))
           row['key'] as String: row['value'],
+      for (final MapEntry(:key, :value) in settingsOverlay.entries)
+        if (!omitSettings.contains(key)) key: value,
     };
     final pending = BytesBuilder(copy: false);
     void write(String text) {

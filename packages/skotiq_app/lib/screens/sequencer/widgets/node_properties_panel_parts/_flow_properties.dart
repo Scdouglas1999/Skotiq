@@ -8,6 +8,7 @@ class _LoopProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final stepClock = ref.watch(clockProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -69,17 +70,14 @@ class _LoopProperties extends ConsumerWidget {
               children: [
                 GestureDetector(
                   onTap: () async {
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.fromDateTime(
-                          node.repeatUntil ?? DateTime.now()),
+                    final picked = await pickStepTimeOfDay(
+                      context,
+                      stepClock,
+                      initial: node.repeatUntil,
                     );
-                    if (time != null) {
-                      final now = DateTime.now();
-                      final targetDate =
-                          nextLocalTimeOfDay(now, time.hour, time.minute);
+                    if (picked != null) {
                       ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(repeatUntil: targetDate),
+                            node.copyWith(repeatUntil: picked),
                           );
                     }
                   },
@@ -99,7 +97,7 @@ class _LoopProperties extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Text(
                           node.repeatUntil != null
-                              ? '${node.repeatUntil!.hour.toString().padLeft(2, '0')}:${node.repeatUntil!.minute.toString().padLeft(2, '0')}'
+                              ? stepClock.timeOfDay(node.repeatUntil!)
                               : 'Select time...',
                           style: TextStyle(
                             fontSize: SkotiqTypography.fontSize13,
@@ -277,6 +275,7 @@ class _WaitTimeProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final stepClock = ref.watch(clockProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -337,16 +336,10 @@ class _WaitTimeProperties extends ConsumerWidget {
             label: 'Wait until',
             child: GestureDetector(
               onTap: () async {
-                final time = await showTimePicker(
-                  context: context,
-                  initialTime: TimeOfDay.now(),
-                );
-                if (time != null) {
-                  final now = DateTime.now();
-                  final targetDate =
-                      nextLocalTimeOfDay(now, time.hour, time.minute);
+                final picked = await pickStepTimeOfDay(context, stepClock);
+                if (picked != null) {
                   ref.read(currentSequenceProvider.notifier).updateNode(
-                        node.copyWith(waitUntil: targetDate),
+                        node.copyWith(waitUntil: picked),
                       );
                 }
               },
@@ -365,7 +358,7 @@ class _WaitTimeProperties extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Text(
                       node.waitUntil != null
-                          ? '${node.waitUntil!.hour.toString().padLeft(2, '0')}:${node.waitUntil!.minute.toString().padLeft(2, '0')}'
+                          ? stepClock.timeOfDay(node.waitUntil!)
                           : 'Select time...',
                       style: TextStyle(
                         fontSize: SkotiqTypography.fontSize13,

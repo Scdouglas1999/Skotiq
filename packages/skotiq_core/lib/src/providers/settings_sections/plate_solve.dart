@@ -3,7 +3,6 @@
 // fields the PlateSolveService consults.
 //
 // Owns:
-//   * astapPath, astrometryPath
 //   * plateSolveTimeout, plateSolveSearchRadius, blindSolve
 //   * centeringSyncMount — whether centering syncs the mount to the solved
 //     position between iterations, read by the callers that build a
@@ -14,11 +13,21 @@
 // Does NOT own:
 //   * Framing-assistant defaults — those live in the CenteringService
 //     config, not in app settings.
-//   * WHICH solver runs. That is `PlateSolverPreference` in the native store
-//     (`platesolver.json`) — the only thing the solve dispatcher reads. The
-//     `plate_solver` app-setting is a PROJECTION of it kept for backup export
-//     and the remote wire model; see [setPlateSolver].
+//   * WHICH solver runs, or the solver program paths. Those are
+//     `PlateSolverPreference` in the native store (`platesolver.json`), the
+//     only thing the solve dispatcher reads. The `plate_solver`, `astap_path`
+//     and `astrometry_path` app-settings are copies of it for backups and
+//     the remote wire model: [plateSolverPreferenceRows].
 part of '../settings_provider.dart';
+
+/// The app-setting rows that copy [preference].
+Map<String, String> plateSolverPreferenceRows(
+  PlateSolverPreference preference,
+) => {
+  ...AppSettingDefs.plateSolver.toRows(preference.choice.settingLabel),
+  ...AppSettingDefs.astapPath.toRows(preference.astapPath),
+  ...AppSettingDefs.astrometryPath.toRows(preference.astrometryPath),
+};
 
 extension PlateSolveSettingsSection on AppSettingsNotifier {
   /// Select the solver engine.

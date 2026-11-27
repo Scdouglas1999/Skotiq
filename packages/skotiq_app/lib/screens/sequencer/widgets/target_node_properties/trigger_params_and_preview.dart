@@ -137,7 +137,7 @@ class _ParamsEditor extends StatelessWidget {
 
 /// Small leaf widget so `showTimePicker` has a real BuildContext to
 /// anchor against.
-class _TimeInputButton extends StatelessWidget {
+class _TimeInputButton extends ConsumerWidget {
   final SkotiqColors colors;
   final int unixSecs;
   final ValueChanged<int> onChanged;
@@ -149,20 +149,19 @@ class _TimeInputButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stepClock = ref.watch(clockProvider);
     final dt = DateTime.fromMillisecondsSinceEpoch(unixSecs * 1000);
-    final hhmm =
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final hhmm = stepClock.timeOfDay(dt);
     return GestureDetector(
       onTap: () async {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: TimeOfDay.fromDateTime(dt),
+        final picked = await pickStepTimeOfDay(
+          context,
+          stepClock,
+          initial: dt,
         );
         if (picked != null) {
-          final now = DateTime.now();
-          final target = nextLocalTimeOfDay(now, picked.hour, picked.minute);
-          onChanged(target.millisecondsSinceEpoch ~/ 1000);
+          onChanged(picked.millisecondsSinceEpoch ~/ 1000);
         }
       },
       child: Container(

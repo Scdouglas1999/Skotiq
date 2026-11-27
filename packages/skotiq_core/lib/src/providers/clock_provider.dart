@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart' show ClockFormat;
+import 'package:skotiq_astro/skotiq_astro.dart' show AlignedTicker;
 
-import '../utils/aligned_ticker.dart';
+import '../utils/local_time_of_day.dart';
 import 'settings_provider.dart';
 import 'logging_service_provider.dart';
 
@@ -68,6 +70,38 @@ extension ClockInstant on Clock {
   /// so every "now" on screen comes from one owner a test or replay can fix.
   /// Not the operator's display zone: that is [Clock.now].
   DateTime get instant => nowUtc().toLocal();
+}
+
+/// Times of day for a step (start after, end before, wait until, loop until,
+/// a time trigger), picked and shown on one clock.
+extension ClockTimeOfDay on Clock {
+  /// The next instant, at or after [now] (this clock's now when not given),
+  /// whose wall clock on this clock reads [hour]:[minute].
+  DateTime nextTimeOfDay(int hour, int minute, {DateTime? now}) {
+    final from = (now ?? nowUtc()).toUtc();
+    if (this is SystemClock) {
+      return nextLocalTimeOfDay(from, hour, minute);
+    }
+    final wall = from.add(utcOffset);
+    final today = DateTime.utc(
+      wall.year,
+      wall.month,
+      wall.day,
+      hour,
+      minute,
+    ).subtract(utcOffset);
+    final next = today.isBefore(from)
+        ? today.add(const Duration(days: 1))
+        : today;
+    // Local, like a step time read back from a saved plan.
+    return next.toLocal();
+  }
+
+  /// [instant]'s wall-clock fields on this clock, for a picker to start from.
+  DateTime wallClockOf(DateTime instant) => fromUtc(instant.toUtc());
+
+  /// [instant] as `HH:MM` on this clock.
+  String timeOfDay(DateTime instant) => ClockFormat.hm(wallClockOf(instant));
 }
 
 class SystemClock implements Clock {

@@ -46,6 +46,9 @@ import 'src/audit_scope.dart';
 ///                       takes only records under `skotiq.`. An app's
 ///                       `main` starts with `Log.listen();`, so records
 ///                       logged before the logging service exists are kept.
+///   one-helper          A helper kept once ([_oneHelpers]) is declared or
+///                       called only where it lives: a second copy of it, or
+///                       a hand-rolled use, goes through the one copy.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -399,6 +402,102 @@ const _mainListensInstead =
     'are lost unless the forwarder is already listening. See '
     'docs/architecture/logging.md.';
 
+class _OneHelper {
+  const _OneHelper(
+    this.name,
+    this.identifiers,
+    this.owners,
+    this.instead, {
+    this.callersAnywhere = true,
+  });
+
+  final String name;
+
+  /// The classes and functions it is made of.
+  final List<String> identifiers;
+
+  /// Where it lives, first; the other files may call it but not declare it.
+  final List<String> owners;
+  final String instead;
+
+  /// Any file may call it. When false only [owners] call it, and every other
+  /// file goes through a helper built on it.
+  final bool callersAnywhere;
+}
+
+const _oneHelpers = <_OneHelper>[
+  _OneHelper(
+    'AlignedTicker',
+    ['AlignedTicker', 'delayToNextBoundary'],
+    ['packages/skotiq_astro/lib/src/util/aligned_ticker.dart'],
+    'Use AlignedTicker from skotiq_astro (package:skotiq_astro/skotiq_astro.dart). '
+        'It runs on package:clock, so a test under fake time moves it.',
+  ),
+  _OneHelper(
+    'step time of day',
+    ['nextLocalTimeOfDay'],
+    [
+      'packages/skotiq_core/lib/src/utils/local_time_of_day.dart',
+      'packages/skotiq_core/lib/src/providers/clock_provider.dart',
+    ],
+    'Pick a step time with pickStepTimeOfDay (skotiq_app '
+        'widgets/step_time_picker.dart) and show it with Clock.timeOfDay, or '
+        'use Clock.nextTimeOfDay: a step time is read on the clock the run '
+        'times print on (Settings > Location timezone).',
+    callersAnywhere: false,
+  ),
+  _OneHelper(
+    'temperature clusters',
+    ['temperatureClusters'],
+    [
+      'packages/skotiq_core/lib/src/services/calibration/calibration_frame_groups.dart',
+      'packages/skotiq_core/lib/src/services/darkroom_build_service.dart',
+    ],
+    'Split frames by sensor temperature with temperatureClusters from '
+        'services/calibration/calibration_frame_groups.dart.',
+  ),
+];
+
+/// A statement keyword that can stand before a call where a declaration's
+/// return type would.
+const _notAType =
+    r'(?!(?:return|await|final|var|const|yield|throw|else|if|case|late)\b)';
+
+List<_Violation> _checkOneHelper(List<String> files) {
+  final out = <_Violation>[];
+  for (final helper in _oneHelpers) {
+    final names = helper.identifiers.join('|');
+    final use = RegExp('\\b(?:class\\s+)?_?(?:$names)\\b\\s*[({<]?');
+    final declaration = RegExp(
+      '\\bclass\\s+_?(?:$names)\\b|'
+      '^\\s*$_notAType[\\w<>?,]+(?:\\s+[\\w<>?,]+)*\\s+_?(?:$names)\\s*[(<]',
+    );
+    for (final path in files) {
+      if (!_libraryCode.hasMatch(path)) continue;
+      if (path.endsWith('.g.dart') || path.endsWith('.freezed.dart')) continue;
+      if (path == helper.owners.first) continue;
+      final lines = _readLines(path);
+      for (var i = 0; i < lines.length; i++) {
+        final code = lines[i].split('//').first;
+        final declares = declaration.hasMatch(code);
+        if (!declares) {
+          if (helper.callersAnywhere || helper.owners.contains(path)) continue;
+          if (!(use.hasMatch(code) && code.contains('('))) continue;
+        }
+        out.add(
+          _Violation(
+            _Rule.oneHelper,
+            '$path:${i + 1}',
+            'keeps its own ${helper.name}',
+            helper.instead,
+          ),
+        );
+      }
+    }
+  }
+  return out;
+}
+
 void main(List<String> args) {
   final scope = AuditScope.fromArgs(args);
   final baselinePath = argValue(args, '--baseline') ?? _defaultBaselinePath;
@@ -427,6 +526,7 @@ void main(List<String> args) {
   violations.addAll(_checkHostScreens(dartFiles));
   violations.addAll(_checkAppFeedback(dartFiles));
   violations.addAll(_checkLeafLogger(dartFiles));
+  violations.addAll(_checkOneHelper(dartFiles));
   violations.addAll(_checkMainListens(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);
@@ -611,6 +711,11 @@ enum _Rule {
     'leaf-logger',
     'Leaf package log records reach the app log.',
     _leafLoggerInstead,
+  ),
+  oneHelper(
+    'one-helper',
+    'A helper kept once is used through its one copy.',
+    '',
   );
 
   const _Rule(this.id, this.summary, this.instead);

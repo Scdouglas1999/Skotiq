@@ -6,7 +6,7 @@ use crate::builtin_guider::loop_runner::{
     resolve_unbinned_guide_pixel_scale, run_guiding_loop,
 };
 use crate::builtin_guider::metrics::{
-    choose_lock_star, nearest_star, select_reference_stars, update_snapshot_from_frame, PulseDebt,
+    choose_lock_star, lock_on, nearest_star, update_snapshot_from_frame, PulseDebt,
 };
 use crate::builtin_guider::state::{
     binned_guide_pixel_scale, build_tracked_stars, op_lock, state, BuiltinGuideStatus,
@@ -314,19 +314,8 @@ pub async fn find_star() -> Result<(f64, f64), SkotiqError> {
         guide_frame.stars.len()
     );
 
-    let selected_pos = Vec2 {
-        x: selected.x,
-        y: selected.y,
-    };
-
     let mut guard = state().write().await;
-    guard.manual_lock = Some(selected_pos);
-    guard.reference_stars = select_reference_stars(
-        &guide_frame.stars,
-        guide_frame.image.width,
-        guide_frame.image.height,
-    );
-    update_snapshot_from_frame(&mut guard, &guide_frame, 50);
+    lock_on(&mut guard, &guide_frame, Some(selected));
     get_state().publish_guiding_event(
         GuidingEvent::StarSelected {
             x: selected.x,
@@ -336,7 +325,7 @@ pub async fn find_star() -> Result<(f64, f64), SkotiqError> {
     );
 
     // FRAME coordinates, in both arms — the snapshot's own `star_x/star_y`
-    // live inside the 50 px crop made one line above.
+    // live inside the crop made one line above.
     if let Some(snapshot) = &guard.last_snapshot {
         Ok(snapshot.star_frame_position())
     } else {
@@ -377,19 +366,8 @@ pub async fn set_lock_position(x: f64, y: f64) -> Result<(), SkotiqError> {
         SkotiqError::OperationFailed("No star near requested lock position".to_string())
     })?;
 
-    let selected_pos = Vec2 {
-        x: selected.x,
-        y: selected.y,
-    };
-
     let mut guard = state().write().await;
-    guard.manual_lock = Some(selected_pos);
-    guard.reference_stars = select_reference_stars(
-        &guide_frame.stars,
-        guide_frame.image.width,
-        guide_frame.image.height,
-    );
-    update_snapshot_from_frame(&mut guard, &guide_frame, 50);
+    lock_on(&mut guard, &guide_frame, Some(selected));
     get_state().publish_guiding_event(
         GuidingEvent::StarSelected {
             x: selected.x,

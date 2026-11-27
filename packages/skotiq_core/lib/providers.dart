@@ -58,6 +58,7 @@ export 'src/providers/armed_start_provider.dart';
 export 'src/providers/host_scheduled_start_provider.dart';
 export 'src/providers/host_end_of_night_provider.dart';
 export 'src/providers/profile_activation_writethrough.dart';
+export 'src/providers/profile_store.dart';
 export 'src/providers/focus_model_profile_data_provider.dart';
 export 'src/providers/guiding_provider.dart';
 export 'src/providers/backend_provider.dart';

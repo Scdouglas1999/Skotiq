@@ -457,40 +457,65 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     );
   }
 
-  /// `plate_solver` is a projection of the native `PlateSolverPreference`, not
-  /// a store of its own — the dispatcher only ever reads the preference. A
-  /// projection that is written but never re-read goes stale silently, and
-  /// this one did: profiles seeded before the Plate Solving page existed still
-  /// carried `plate_solver=ASTAP` while the preference said Auto, and that
-  /// stale row is what backup export and the remote wire model served.
+  /// The plate-solver choice and program paths are copies of the native
+  /// `PlateSolverPreference`, the only store the solver reads. Loading lays
+  /// the preference over the stored rows and writes back any row that
+  /// differs, so backups and `/api/settings` do not serve a stale copy even
+  /// if nothing writes a setting this session.
   ///
-  /// A failure here is not a settings failure — an unreachable solver config
-  /// (disconnected backend, bridge not loaded under test) just leaves the
-  /// stored value in place rather than taking the whole settings load down.
+  /// An unreachable preference (disconnected backend, bridge not loaded under
+  /// test) leaves the stored values in place rather than failing the load.
   Future<AppSettingsState> _refreshPlateSolverProjection(
     AppSettingsState stored,
   ) async {
+    final preference = await _solverPreference();
+    if (preference == null) return stored;
+    final storedRows = storedRowsOf(stored);
+    final changed = {
+      for (final MapEntry(:key, :value) in plateSolverPreferenceRows(
+        preference,
+      ).entries)
+        if (storedRows[key] != value) key: value,
+    };
+    if (changed.isEmpty) return stored;
+    // Straight to the DAO, not `_saveSetting`: this runs while `build()` is
+    // still resolving, so the loaded-state guard and the remote write path do
+    // not apply; this is by construction the local store.
+    await ref.read(settingsDaoProvider).setSettings(changed);
+    return _withSolverPreference(stored, preference);
+  }
+
+  /// The native plate-solver preference, or null when it cannot be read.
+  Future<PlateSolverPreference?> _solverPreference() async {
     try {
-      final pref = await ref.read(plateSolveServiceProvider).getConfig();
-      final label = pref.choice.settingLabel;
-      if (label == stored.plateSolver) return stored;
-      // Persist so backups and `/api/settings` stop serving the stale name
-      // even if nothing writes a setting this session. Straight to the DAO,
-      // not `_saveSetting`: this runs while `build()` is still resolving, so
-      // the loaded-state guard and the remote write path do not apply — this
-      // is by construction the local store.
-      await ref
-          .read(settingsDaoProvider)
-          .setSetting(AppSettingDefs.plateSolver.key, label);
-      return stored.copyWith(plateSolver: label);
-    } catch (error) {
+      return await ref.read(plateSolveServiceProvider).getConfig();
+    } on Object catch (error) {
       Log.debug(
-        'Plate-solver preference unavailable; keeping the stored '
-        'plate_solver projection: $error',
+        'Plate-solver preference unavailable; keeping the stored solver '
+        'settings: $error',
         source: 'AppSettingsNotifier',
       );
-      return stored;
+      return null;
     }
+  }
+
+  static AppSettingsState _withSolverPreference(
+    AppSettingsState settings,
+    PlateSolverPreference preference,
+  ) => settings.copyWith(
+    plateSolver: preference.choice.settingLabel,
+    astapPath: preference.astapPath,
+    astrometryPath: preference.astrometryPath,
+  );
+
+  /// The rows of the plate-solver settings as the native preference holds
+  /// them, for a copy of the settings taken from the database (a backup);
+  /// empty when the preference cannot be read.
+  Future<Map<String, String>> solverPreferenceRows() async {
+    final preference = await _solverPreference();
+    return preference == null
+        ? const {}
+        : plateSolverPreferenceRows(preference);
   }
 
   Future<void> _saveSetting(String key, String value) {
@@ -831,6 +856,19 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// [applyRemoteSettings] for the headless `GET /api/settings` handler.
   models.AppSettings exportRemoteSettings() =>
       _toWire(_requireLoadedSettings('exporting a remote settings snapshot'));
+
+  /// The settings document this host serves its linked clients: the
+  /// settings, with the plate-solver choice and program paths read from the
+  /// native preference, which changes through its own route as well.
+  Future<models.AppSettings> exportHostSettings() async {
+    final settings = _requireLoadedSettings('exporting the host settings');
+    final preference = await _solverPreference();
+    return _toWire(
+      preference == null
+          ? settings
+          : _withSolverPreference(settings, preference),
+    );
+  }
 
   // Section setters are defined in `settings_sections/*.dart` (split via
   // Dart `part` files). The class body below keeps only the lifecycle

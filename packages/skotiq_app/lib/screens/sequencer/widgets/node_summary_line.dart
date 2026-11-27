@@ -70,7 +70,8 @@ class NodeSummaryLine extends ConsumerWidget {
             : null;
     final fragments = nodeSummary(localNode,
         globalAutofocusMethod: globalAfMethod,
-        sensitivity: ref.watch(cameraSensitivityProvider));
+        sensitivity: ref.watch(cameraSensitivityProvider),
+        clock: ref.watch(clockProvider));
     if (fragments.isEmpty) return const SizedBox.shrink();
 
     final canEdit = ref.watch(canEditSequenceProvider);

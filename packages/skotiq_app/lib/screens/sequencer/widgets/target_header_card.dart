@@ -414,6 +414,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
   }
 
   Widget _buildConstraintsRow(TargetHeaderNode node) {
+    final stepClock = ref.watch(clockProvider);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
@@ -427,7 +428,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.startAfter != null)
             _ConstraintChip(
               icon: LucideIcons.clock,
-              label: 'Start: ${ClockFormat.hm(node.startAfter!)}',
+              label: 'Start: ${stepClock.timeOfDay(node.startAfter!)}',
               colors: widget.colors,
             ),
           if (node.startAfter != null && node.endBefore != null)
@@ -435,7 +436,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.endBefore != null)
             _ConstraintChip(
               icon: LucideIcons.timer,
-              label: 'End: ${ClockFormat.hm(node.endBefore!)}',
+              label: 'End: ${stepClock.timeOfDay(node.endBefore!)}',
               colors: widget.colors,
             ),
           if (node.hasTimeConstraints && node.hasAltitudeConstraints)

@@ -270,7 +270,7 @@ class DarkroomBuildService {
         camera(f),
         optics(f),
         '${h.string('NAXIS1')}x${h.string('NAXIS2')}',
-        _filterOf(f),
+        darkroomFilterOf(f),
         f.exposureDuration,
         f.gain,
         f.offset,
@@ -281,7 +281,10 @@ class DarkroomBuildService {
     final result = <DarkroomBuildGroup>[];
     final keys = setups.keys.toList()..sort();
     for (final key in keys) {
-      for (final cluster in _temperatureClusters(setups[key]!)) {
+      // Groups of one setup in the order they were shot.
+      final clusters = temperatureClusters(setups[key]!)
+        ..sort((a, b) => a.first.capturedAt.compareTo(b.first.capturedAt));
+      for (final cluster in clusters) {
         final f = cluster.first;
         final temps = [
           for (final c in cluster)
@@ -291,7 +294,7 @@ class DarkroomBuildService {
         final night = observingNight(f.capturedAt);
         final label = [
           'Night of $night',
-          _filterOf(f),
+          darkroomFilterOf(f),
           '${_seconds(f.exposureDuration)} s',
           if (f.gainText != null) f.gainText!,
           if (f.offset != null) 'offset ${f.offset}',
@@ -331,7 +334,7 @@ class DarkroomBuildService {
         result.add(
           DarkroomBuildGroup(
             label: label,
-            filter: _filterOf(f),
+            filter: darkroomFilterOf(f),
             night: night,
             equipment: '${camera(f)} · ${optics(f)}',
             frames: cluster,
@@ -354,41 +357,8 @@ class DarkroomBuildService {
     return result;
   }
 
-  static String _filterOf(DbCapturedImage f) =>
-      f.filter?.trim().isNotEmpty == true ? f.filter!.trim() : 'NoFilter';
-
   static String _seconds(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
-
-  /// Split frames where consecutive sensor temperatures differ by more than
-  /// [darkroomTemperatureGapC]. Frames without a temperature join the
-  /// largest cluster.
-  static List<List<DbCapturedImage>> _temperatureClusters(
-    List<DbCapturedImage> frames,
-  ) {
-    final known = frames.where((f) => f.sensorTemp != null).toList()
-      ..sort((a, b) => a.sensorTemp!.compareTo(b.sensorTemp!));
-    final unknown = frames.where((f) => f.sensorTemp == null).toList();
-    if (known.isEmpty) return [frames];
-    final clusters = <List<DbCapturedImage>>[
-      [known.first],
-    ];
-    for (final f in known.skip(1)) {
-      if (f.sensorTemp! - clusters.last.last.sensorTemp! >
-          darkroomTemperatureGapC) {
-        clusters.add([f]);
-      } else {
-        clusters.last.add(f);
-      }
-    }
-    clusters.sort((a, b) => b.length.compareTo(a.length));
-    clusters.first.addAll(unknown);
-    for (final c in clusters) {
-      c.sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-    }
-    clusters.sort((a, b) => a.first.capturedAt.compareTo(b.first.capturedAt));
-    return clusters;
-  }
 
   /// Groups of a filter without a flat take the flat most of that filter's
   /// frames use.
