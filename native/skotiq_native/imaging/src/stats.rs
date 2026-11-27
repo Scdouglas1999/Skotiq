@@ -1570,11 +1570,7 @@ mod tests {
         // The self-blinding bug, one level up: a caller may hand in its own
         // eccentricity ceiling, and if the shape statistic is measured from a
         // population already filtered at that ceiling it can never report a
-        // value above it. Widening only the DETECTION default fixed the
-        // sequencer's grading path and left this one exactly as broken —
-        // `StarDetectionConfigApi::default()` still says 0.7, so the FITS
-        // analysis screen reported a 2.5:1 smear as e <= 0.70 (or, once every
-        // star was culled, as no stars at all).
+        // value above it.
         let config = fits_analysis_screen_default_config();
         let image = render_trailed_field_u16(280, 160, &trailed_field_centers(), 6.0_f64, 2.4_f64);
         let summary = detect_stars_with_stats(&image, &config);

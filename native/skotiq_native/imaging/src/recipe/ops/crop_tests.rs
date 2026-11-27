@@ -366,10 +366,6 @@ fn an_origin_outside_the_frame_is_reported_rather_than_clamped() {
 
 #[test]
 fn an_out_of_bounds_report_stays_in_one_coordinate_space() {
-    // The rectangle is scaled to the render level before it is applied, but the
-    // refusal used to print the recipe's full-resolution origin against the
-    // level's dimensions: at level 3 that read as a 5000 px offset checked
-    // against a 240 px frame — a 20x overshoot where the real one is 2.6x.
     // The level-3 image the renderer hands the op: the 1920x1080 master
     // downsampled by 8.
     let base = synthetic_star_field(240, 135, 1, 51);

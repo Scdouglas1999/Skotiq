@@ -718,7 +718,7 @@ impl LiveStacker {
 
         self.stats.stacked_frame_count += 1;
         self.provenance.fold(provenance);
-        // Why (audit IMG-): `avg_matched_pairs` and
+        // `avg_matched_pairs` and
         // `avg_alignment_residual` are *per-aligned-frame* metrics. The
         // reference frame contributes neither — it is not matched against
         // itself and has zero residual by construction. Dividing by
