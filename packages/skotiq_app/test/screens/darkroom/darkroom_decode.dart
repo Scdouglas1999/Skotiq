@@ -28,6 +28,8 @@ Future<void> awaitDecodedFrames(WidgetTester tester) async {
     );
     await tester.pump();
   }
+  expect(decoding(), isFalse,
+      reason: 'a preview decode did not finish in 10 s');
   await tester.pump();
   await tester.pump();
 }
