@@ -1724,10 +1724,13 @@ class SequenceExecutor {
   /// End this app's manual-action hold at the end of its action. The run's
   /// host resumes the run when the hold is what paused it; returns whether
   /// it did. The hold ends whether or not the resume can be made. While
-  /// another pause or resume of this app is in flight the hold only ends.
+  /// another pause or resume of this app is in flight, or while this app
+  /// does not see the run paused, the hold only ends.
   Future<bool> endActionHold() async {
     _ensureBackendAuthority();
-    if (_lifecycle.pauseResume.isHeld) {
+    if (_lifecycle.pauseResume.isHeld ||
+        _ref.read(sequenceExecutionStateProvider) !=
+            SequenceExecutionState.paused) {
       await _backend.sequencerReleaseActionHold();
       return false;
     }
