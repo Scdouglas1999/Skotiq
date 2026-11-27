@@ -13,6 +13,7 @@ export 'src/tokens/shell_chrome_metrics.dart';
 export 'src/layout/adaptive_layout.dart';
 export 'src/layout/adaptive_panel_layout.dart';
 export 'src/layout/adaptive_modal.dart';
+export 'src/layout/shell_layout.dart';
 export 'src/layout/two_pane.dart';
 export 'src/layout/adaptive_columns.dart';
 export 'src/utils/responsive_utils.dart';

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -38,12 +37,17 @@ Future<void> _pumpAt(
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
-  if (platform != null) debugDefaultTargetPlatformOverride = platform;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(child);
+  final touch =
+      platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+  await tester.pumpWidget(
+    ShellLayoutScope(
+      touchDevice: touch,
+      drawsWindowFrame: !touch,
+      child: child,
+    ),
+  );
   await tester.pumpAndSettle();
-  // Build has consumed the platform; clear before the end-of-body invariant.
-  debugDefaultTargetPlatformOverride = null;
 }
 
 Finder get _resizeHandle => find.byWidgetPredicate(

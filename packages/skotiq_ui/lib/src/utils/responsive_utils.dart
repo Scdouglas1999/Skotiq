@@ -1,8 +1,7 @@
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/widgets.dart';
 import 'package:skotiq_design/skotiq_design.dart';
+import '../layout/shell_layout.dart';
 import '../tokens/breakpoint_tokens.dart';
 import 'adaptive_dialog_constraints.dart';
 
@@ -33,65 +32,22 @@ abstract final class Responsive {
   /// — e.g. a stat strip should 2-column or stack rather than stay in one row.
   static const double compactPhoneMaxWidth = SkotiqTokens.breakpointMobile;
 
-  /// Returns true on a true **phone**.
+  /// Returns true on a **phone**, in either orientation: [ShellLayout.isPhone].
   ///
-  /// This is the first-class phone tier and it is **orientation-independent on
-  /// mobile**: a phone is a phone whether held in portrait or landscape.
-  ///
-  /// - On a mobile OS (Android/iOS) phone-ness is a *device-class* fact, keyed
-  ///   off the **shortest side** (`shortestSide < 600`). A phone's short edge is
-  ///   under 600 logical px in both orientations, so this correctly stays true
-  ///   when the device rotates — whereas a width-based check would flip to
-  ///   `false` in landscape (long edge ≥ 600) and wrongly send the phone down
-  ///   the tablet/desktop layout path. Tablets (`shortestSide >= 600`) are not
-  ///   phones.
-  /// - On desktop the phone tier is a *window-size* fact, keyed off the live
-  ///   **width**, so narrowing a desktop window still reflows to the single
-  ///   column exactly as before.
-  ///
-  /// Prefer this — or a [LayoutBuilder] reading the region's own width — when
+  /// Prefer this, or a [LayoutBuilder] reading the region's own width, when
   /// building phone layouts. [isMobile] (`< 768`) lumps small tablets in with
   /// phones. Pair with [isPhoneLandscape] / [isPhonePortrait] to choose the
   /// per-orientation reflow.
-  static bool isPhone(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    if (_isMobilePlatform) {
-      // Device class: the short edge is orientation-stable.
-      return math.min(size.width, size.height) < phoneMaxWidth;
-    }
-    // Desktop: the available window width drives the reflow.
-    return size.width < phoneMaxWidth;
-  }
+  static bool isPhone(BuildContext context) => ShellLayout.of(context).isPhone;
 
-  /// True when running on a phone/tablet operating system (Android or iOS),
-  /// where "is this a phone?" is a device-class question answered by the
-  /// shortest side rather than the current window width.
-  static bool get _isMobilePlatform =>
-      defaultTargetPlatform == TargetPlatform.android ||
-      defaultTargetPlatform == TargetPlatform.iOS;
-
-  /// The width that picks a **device-class tier** ([isMobile] / [isTablet] /
-  /// [isDesktop] / [isDesktopLarge] / [isUltraWide]).
+  /// The width that picks a device-class tier ([isMobile] / [isTablet] /
+  /// [isDesktop] / [isDesktopLarge] / [isUltraWide]): [ShellLayout.tierWidth].
   ///
-  /// - On a mobile OS this is the **shortest side**, so the tier is
-  ///   orientation-stable: a landscape phone (long edge ≥ 768, e.g. the Galaxy
-  ///   Z Fold 6 cover screen at 905×369) is still classified by its short edge
-  ///   and stays in the mobile tier rather than flipping to the desktop layout.
-  ///   This matches the device-class logic in [isPhone].
-  /// - On desktop this is the live window **width**, so narrowing or splitting a
-  ///   desktop window still reflows tiers exactly as before.
-  ///
-  /// NOTE: this is for *tier classification* only. Helpers that physically size
-  /// to the viewport ([panelWidth], [gridColumns], [panelDimensions],
-  /// [scaleFactor], dialog/preview constraints) intentionally keep using the
-  /// real width/height.
-  static double _classWidth(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    if (_isMobilePlatform) {
-      return math.min(size.width, size.height);
-    }
-    return size.width;
-  }
+  /// For tier classification only. Helpers that size to the viewport
+  /// ([panelWidth], [gridColumns], [panelDimensions], [scaleFactor], dialog and
+  /// preview constraints) use the real width and height.
+  static double _classWidth(BuildContext context) =>
+      ShellLayout.of(context).tierWidth;
 
   /// Returns true on a **compact phone** (`width < 480`).
   ///
@@ -332,12 +288,10 @@ abstract final class Responsive {
     );
   }
 
-  static bool isPortrait(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return size.height > size.width;
-  }
+  static bool isPortrait(BuildContext context) => !isLandscape(context);
 
-  static bool isLandscape(BuildContext context) => !isPortrait(context);
+  static bool isLandscape(BuildContext context) =>
+      ShellLayout.of(context).isLandscape;
 
   /// True on a **phone held in landscape** (see [isPhone] — device-class on
   /// mobile, so this fires correctly when a phone is rotated).

@@ -23,6 +23,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_app/screens/framing/framing_screen.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_canvas.dart';
 import 'package:skotiq_core/models.dart';
@@ -69,6 +70,9 @@ Future<ui.Image> _decodeSurveyImage() async {
 }
 
 void main() {
+  // Phones: the layout reads the device class.
+  setUp(() => DeviceTraits.debugOverride = DeviceTraits.phone);
+  tearDown(() => DeviceTraits.debugOverride = null);
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late ui.Image surveyImage;

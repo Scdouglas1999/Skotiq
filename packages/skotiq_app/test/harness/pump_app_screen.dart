@@ -27,6 +27,7 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
+import 'package:skotiq_app/screens/shell/shell_chrome.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'mock_backend.dart';
@@ -163,22 +164,25 @@ Future<HarnessHandle> pumpAppScreen(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(
-        // Default to SkotiqTheme.dark to match production GUI. Tests
-        // doing golden-image diffs against the light theme can override.
-        theme: theme ?? SkotiqTheme.dark,
-        // Only wired when a test asks for a locale: installing the delegates
-        // unconditionally would change what every existing test's tree
-        // resolves for Material/Cupertino strings. With [locale] null,
-        // `SkotiqLocalizations.of` falls back to `en`, which is what the
-        // whole suite has always asserted against.
-        locale: locale,
-        localizationsDelegates:
-            locale == null ? null : SkotiqLocalizations.localizationsDelegates,
-        supportedLocales: locale == null
-            ? const [Locale('en', 'US')]
-            : SkotiqLocalizations.supportedLocales,
-        home: Scaffold(body: screen),
+      child: DeviceShellLayoutScope(
+        child: MaterialApp(
+          // Default to SkotiqTheme.dark to match production GUI. Tests
+          // doing golden-image diffs against the light theme can override.
+          theme: theme ?? SkotiqTheme.dark,
+          // Only wired when a test asks for a locale: installing the delegates
+          // unconditionally would change what every existing test's tree
+          // resolves for Material/Cupertino strings. With [locale] null,
+          // `SkotiqLocalizations.of` falls back to `en`, which is what the
+          // whole suite has always asserted against.
+          locale: locale,
+          localizationsDelegates: locale == null
+              ? null
+              : SkotiqLocalizations.localizationsDelegates,
+          supportedLocales: locale == null
+              ? const [Locale('en', 'US')]
+              : SkotiqLocalizations.supportedLocales,
+          home: Scaffold(body: screen),
+        ),
       ),
     ),
   );

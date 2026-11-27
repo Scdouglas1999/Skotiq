@@ -515,10 +515,10 @@ class _AppShellState extends ConsumerState<AppShell> {
     final isSideNavExpanded =
         sidebarCollapsed != null ? !sidebarCollapsed : _fallbackSideNavExpanded;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final useBottomNav =
-            ShellChrome.useBottomNavigation(constraints.maxWidth);
+    return Builder(
+      builder: (context) {
+        final layout = ShellLayout.of(context);
+        final useBottomNav = layout.usesBottomNavigation;
         // The shell Scaffold owns IME resizing. If its fixed gear strip,
         // status bar, mini-player and bottom navigation remain mounted while a
         // landscape keyboard is open, they can consume the entire shrunken
@@ -530,11 +530,10 @@ class _AppShellState extends ConsumerState<AppShell> {
         // screen's own header is the top bar and carries the shell's link
         // status and settings at its end (ShellHeaderTrailing). A narrow
         // desktop window keeps its strip, which holds the window controls.
-        final phoneChrome = useBottomNav && !ShellChrome.isDesktopWindow;
+        final phoneChrome = layout.phoneChrome;
         // A phone on its side moves the bar to a rail down the left edge:
         // width it has to spare, height it does not.
-        final phoneRail =
-            phoneChrome && constraints.maxWidth > constraints.maxHeight;
+        final phoneRail = layout.navigation == ShellNavKind.phoneRail;
         void goToRoute(AppRoute route) {
           try {
             context.go(route.path);

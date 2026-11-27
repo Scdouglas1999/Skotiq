@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_preview_area.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_hud.dart';
@@ -180,7 +181,7 @@ void main() {
     ]) {
       testWidgets('${size.width.toInt()}x${size.height.toInt()}',
           (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        DeviceTraits.debugOverride = DeviceTraits.phone;
         try {
           await pumpAppScreen(
             tester,
@@ -222,7 +223,7 @@ void main() {
           }
           expect(tester.takeException(), isNull);
         } finally {
-          debugDefaultTargetPlatformOverride = null;
+          DeviceTraits.debugOverride = null;
         }
       });
     }

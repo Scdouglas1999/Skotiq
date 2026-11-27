@@ -12,6 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
 import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/models.dart';
@@ -82,6 +83,9 @@ const _phoneSizes = <(String, Size)>[
 ];
 
 void main() {
+  // Phones: the layout reads the device class.
+  setUp(() => DeviceTraits.debugOverride = DeviceTraits.phone);
+  tearDown(() => DeviceTraits.debugOverride = null);
   TestWidgetsFlutterBinding.ensureInitialized();
 
   for (final (name, size) in _phoneSizes) {

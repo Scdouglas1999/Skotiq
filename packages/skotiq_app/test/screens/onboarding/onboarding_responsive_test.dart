@@ -64,9 +64,14 @@ Future<ProviderContainer> _pumpWizard(
       ],
       child: Consumer(builder: (ctx, ref, _) {
         container = ProviderScope.containerOf(ctx);
-        return MaterialApp.router(
-          theme: SkotiqTheme.dark,
-          routerConfig: router,
+        // A phone: the wizard tiers on the device class.
+        return ShellLayoutScope(
+          touchDevice: true,
+          drawsWindowFrame: false,
+          child: MaterialApp.router(
+            theme: SkotiqTheme.dark,
+            routerConfig: router,
+          ),
         );
       }),
     ),
@@ -90,7 +95,7 @@ void main() {
 
       // The wizard now tiers on DEVICE CLASS, not raw width: a phone is a phone
       // in either orientation (Responsive.isPhone uses the orientation-stable
-      // short edge on a mobile platform — the test binding defaults to Android).
+      // short edge on a touch device, which _pumpWizard declares).
       // So a reference phone rotated to landscape (e.g. 844x390 / 932x430) still
       // gets the single-column phone wizard, NOT the desktop step-sidebar that
       // would clip the ~410 px height. Both orientations must lay out cleanly.

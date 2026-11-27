@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_app/screens/shell/shell_chrome.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -68,7 +67,7 @@ class _PolarAlignmentRunOverlayState
 
     final colors = SkotiqColors.of(context);
     final screen = MediaQuery.sizeOf(context);
-    final useBottomNav = ShellChrome.useBottomNavigation(screen.width);
+    final useBottomNav = ShellLayout.of(context).usesBottomNavigation;
     final bottom = ShellChromeMetrics.floatingOverlayBottomInset(
       context,
       useBottomNav: useBottomNav,

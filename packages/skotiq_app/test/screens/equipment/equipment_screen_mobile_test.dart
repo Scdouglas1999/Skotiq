@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_app/screens/equipment/equipment_screen.dart';
 import 'package:skotiq_app/screens/equipment/widgets/discovery_panel.dart';
 import 'package:skotiq_app/screens/equipment/widgets/equipment_health_panel.dart';
@@ -24,6 +25,9 @@ const _phoneSizes = <(String, Size)>[
 ];
 
 void main() {
+  // Phones: the layout reads the device class.
+  setUp(() => DeviceTraits.debugOverride = DeviceTraits.phone);
+  tearDown(() => DeviceTraits.debugOverride = null);
   testWidgets('mobile layout hides inline profile sidebar', (tester) async {
     final handle = await pumpAppScreen(
       tester,
