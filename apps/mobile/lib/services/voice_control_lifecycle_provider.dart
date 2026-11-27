@@ -3,16 +3,13 @@
 // Wires the running sequence state into [VoiceControlService] and
 // dispatches inbound assistant actions back into the executor.
 //
-//   * Publish: throttled to 1 Hz (the AppIntents / shortcuts cache only
-//     needs to be roughly current; the executor produces 5-10 events per
-//     second during exposures, which is overkill for a Siri response).
+//   * Publish: at most once a second, and only when what the assistant would
+//     say changes (on Android each write is a ShortcutService save).
 //   * Inbound: pause/resume route to `sequenceExecutorProvider`,
 //     openLastImage / refreshStatus surface as forwarded actions other
 //     parts of the app can listen to.
 //
-// Failures are not swallowed: a publish failure is logged via LoggingService
-// and its PlatformException rethrown on the throttled tick, so a voice cache
-// that has stopped updating is visible rather than silently stale.
+// A publish failure is logged as a warning, and the next change tries again.
 
 import 'dart:async';
 import 'dart:io';
@@ -40,7 +37,15 @@ class VoiceControlLifecycleController {
   /// (UserDefaults sync is cheap but not free).
   static const Duration _minPublishInterval = Duration(seconds: 1);
 
+  /// The cache is written again after this long even when it would say the
+  /// same: iOS reads a snapshot older than two hours as out of date.
+  static const Duration _rewriteAfter = Duration(minutes: 30);
+
   DateTime? _lastPublishedAt;
+
+  /// What the last write told the assistant; empty after a clear, null before
+  /// the first write.
+  String? _publishedWords;
   Timer? _pendingTimer;
   StreamSubscription<VoiceControlAction>? _actionSubscription;
   bool _disposed = false;
@@ -159,10 +164,18 @@ class VoiceControlLifecycleController {
       _publish(snapshot);
 
   Future<void> _publish(SequenceStatusSnapshot? snapshot) async {
+    final words = snapshot == null ? '' : _cachedWords(snapshot);
+    final last = _lastPublishedAt;
+    if (words == _publishedWords &&
+        last != null &&
+        DateTime.now().difference(last) < _rewriteAfter) {
+      return;
+    }
     if (snapshot == null) {
       try {
         await _service.clearStatus();
         _lastPublishedAt = DateTime.now();
+        _publishedWords = '';
       } catch (e, st) {
         Log.warning(
           '[VoiceControlLifecycle] clearStatus failed: $e',
@@ -177,6 +190,7 @@ class VoiceControlLifecycleController {
     try {
       await _service.publishSequenceStatus(snapshot);
       _lastPublishedAt = DateTime.now();
+      _publishedWords = words;
     } catch (e, st) {
       Log.warning(
         '[VoiceControlLifecycle] publish failed: $e',
@@ -338,3 +352,15 @@ final voiceControlLifecycleProvider = Provider<VoiceControlLifecycleController>(
     return controller;
   },
 );
+
+/// The parts of [snapshot] an assistant answers from: its state, target and
+/// step, and the spoken summary (frames and the ETA in minutes). The seconds
+/// counters change every tick and are not among them.
+String _cachedWords(SequenceStatusSnapshot snapshot) => [
+  snapshot.sequenceId,
+  snapshot.executionState,
+  snapshot.targetName,
+  snapshot.currentFilter,
+  snapshot.currentNodeName,
+  snapshot.toSpokenSummary(),
+].join('\n');
