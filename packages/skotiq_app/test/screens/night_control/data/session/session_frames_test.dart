@@ -16,6 +16,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
 import 'session_test_support.dart';
+import 'package:skotiq_app/services/night_session/night_now.dart';
+import 'package:skotiq_app/services/night_session/night_session_frames.dart';
 
 CapturedImageData _current({required String path, required ImageStats stats}) =>
     CapturedImageData(

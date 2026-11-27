@@ -77,13 +77,11 @@ void main() {
         exposure,
         sequence,
         rollup: const Duration(hours: 1, minutes: 4),
-        eta: DateTime(2026, 9, 13, 23, 12),
       );
 
       expect(columns.filterExp, 'Ha 300s');
       expect(columns.count, '12');
       expect(columns.duration, '~1h 4m');
-      expect(columns.eta, '23:12');
     });
 
     test('exposure without a filter prints the seconds alone', () {
@@ -273,14 +271,12 @@ void main() {
         loopPlaced,
         sequence,
         rollup: const Duration(hours: 2, minutes: 30),
-        eta: DateTime(2026, 9, 13, 22, 5),
       );
 
       expect(columns.filterExp, isEmpty);
       // (4 + 6) frames per pass × 3 passes.
       expect(columns.count, '30');
       expect(columns.duration, '~2h 30m');
-      expect(columns.eta, '22:05');
     });
 
     test('unbounded loop marks the frame total as a floor', () {
@@ -326,13 +322,11 @@ void main() {
         delay,
         sequence,
         rollup: const Duration(seconds: 30),
-        eta: DateTime(2026, 9, 13, 21, 0),
       );
 
       expect(columns.filterExp, isEmpty);
       expect(columns.count, isEmpty);
       expect(columns.duration, '~30s');
-      expect(columns.eta, '21:00');
     });
 
     test('a node with no duration leaves the column blank rather than "<1s"',
@@ -348,22 +342,6 @@ void main() {
 
       expect(columns.duration, isEmpty);
       expect(columns.values, everyElement(isEmpty));
-    });
-
-    test('ETA stays blank when the simulation has no entry', () {
-      final delay = DelayNode(seconds: 30);
-      final sequence = Sequence.create(
-        name: 'T',
-        nodes: {delay.id: delay},
-        rootNodeId: delay.id,
-      );
-
-      expect(
-        ledgerColumnsFor(delay, sequence,
-                rollup: const Duration(seconds: 30), eta: null)
-            .eta,
-        isEmpty,
-      );
     });
   });
 

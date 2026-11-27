@@ -4,8 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../../services/night_session/night_session_frames.dart';
 
 /// Compact per-sub quality badge for the live preview.
 ///

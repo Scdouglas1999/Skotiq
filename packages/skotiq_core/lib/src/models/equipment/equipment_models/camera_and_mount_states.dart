@@ -1,5 +1,24 @@
 part of '../equipment_models.dart';
 
+/// How close to the setpoint the sensor reads "at setpoint", in °C.
+const double kCoolerAtSetpointTolerance = 0.5;
+
+/// Cooler power, in percent, above which a cooler counts as active even when
+/// the camera says it is off: the TEC is still drawing current.
+const double kCoolerActivePowerFloor = 2;
+
+/// What a camera's cooler is doing, as the camera reports it.
+enum CoolerState {
+  notConnected,
+
+  /// Connected, and the camera does not say whether its cooler is on.
+  notReported,
+  off,
+  cooling,
+  atSetpoint,
+  warming,
+}
+
 class CameraStateSnapshot extends Equatable
     implements DeviceSlotState<CameraStateSnapshot> {
   @override
@@ -55,6 +74,42 @@ class CameraStateSnapshot extends Equatable
 
   /// The cooler is known to be on.
   bool get isCooling => coolerOn == true;
+
+  /// How far the sensor reads from the setpoint, in °C; null without a
+  /// reading.
+  double? get setpointDistance {
+    final temp = temperature;
+    return temp == null ? null : (temp - targetTemp).abs();
+  }
+
+  /// The sensor reads within [kCoolerAtSetpointTolerance] of the setpoint.
+  /// False without a reading.
+  bool get sensorAtSetpoint {
+    final distance = setpointDistance;
+    return distance != null && distance <= kCoolerAtSetpointTolerance;
+  }
+
+  /// What the cooler is doing.
+  CoolerState get coolerState {
+    if (connectionState != DeviceConnectionState.connected) {
+      return CoolerState.notConnected;
+    }
+    if (isWarming) return CoolerState.warming;
+    if (coolerOn == null) return CoolerState.notReported;
+    if (!isCooling) return CoolerState.off;
+    return sensorAtSetpoint ? CoolerState.atSetpoint : CoolerState.cooling;
+  }
+
+  /// The cooler is cooling or warming up.
+  bool get coolerRunning => isCooling || isWarming;
+
+  /// The cooler is running, or still draws more than
+  /// [kCoolerActivePowerFloor] percent power.
+  bool get coolerActive {
+    if (coolerRunning) return true;
+    final power = coolerPower;
+    return power != null && power > kCoolerActivePowerFloor;
+  }
 
   /// Whether the device is healthy (communicated within last 30 seconds)
   bool get isHealthy {

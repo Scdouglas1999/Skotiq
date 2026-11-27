@@ -11,7 +11,6 @@ import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_strip.dart';
 import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_timeline_provider.dart';
@@ -46,6 +45,7 @@ import '../../screens/night_control/panel/scope_panel_test_support.dart'
     as scope;
 import 'shot_night.dart';
 import 'shot_rig.dart';
+import 'package:skotiq_app/services/night_session/night_now.dart';
 
 NightText _t(String text) => NightText.literal(text);
 
@@ -616,7 +616,7 @@ NightCameraPanelVm _camera() {
     runLive: true,
     connected: true,
     deviceName: 'ASI1600MM-Cool',
-    coolerState: NightCoolerState.atSetpoint,
+    coolerState: CoolerState.atSetpoint,
     sensorTemp: -10,
     setpoint: -10,
     coolerPower: lastFrame.coolerPower.roundToDouble(),

@@ -3,8 +3,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_app/services/night_session/night_now.dart';
 
 class _StoppedClock implements Clock {
   const _StoppedClock(this.at);

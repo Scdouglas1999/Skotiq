@@ -15,6 +15,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/bridge_events.dart' as sk;
 
 import '../../../../harness/harness.dart';
+import 'package:skotiq_app/services/night_session/night_now.dart';
 
 /// Boston, the site the boards are drawn for.
 const LocationSettings boston = LocationSettings(

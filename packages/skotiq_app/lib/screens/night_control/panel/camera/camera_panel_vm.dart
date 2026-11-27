@@ -18,22 +18,8 @@ import '../../data/plan/plan_steps_provider.dart';
 import '../../data/session/before_you_start_provider.dart';
 import '../../data/session/session_stats_provider.dart';
 
-/// How close to the setpoint the sensor reads "At setpoint", in °C.
-const double kNightAtSetpointTolerance = 0.5;
-
 /// The camera's own warm-up rate (`CameraWarmupController.start`), °C/min.
 const double kNightWarmUpRatePerMin = 2;
-
-enum NightCoolerState {
-  notConnected,
-
-  /// Connected, and the camera does not say whether its cooler is on.
-  notReported,
-  off,
-  cooling,
-  atSetpoint,
-  warming,
-}
 
 /// Exposure values, from the manual settings or the run's step.
 @immutable
@@ -146,7 +132,7 @@ class NightCameraPanelVm {
 
   final bool connected;
   final String? deviceName;
-  final NightCoolerState coolerState;
+  final CoolerState coolerState;
   final double? sensorTemp;
 
   /// The cooler's setpoint while it is on.
@@ -182,21 +168,6 @@ class NightCameraPanelVm {
   final int? nightsOfSpace;
 }
 
-NightCoolerState nightCoolerState(CameraStateSnapshot camera) {
-  if (camera.connectionState != DeviceConnectionState.connected) {
-    return NightCoolerState.notConnected;
-  }
-  if (camera.isWarming) return NightCoolerState.warming;
-  if (camera.coolerOn == null) return NightCoolerState.notReported;
-  if (!camera.isCooling) return NightCoolerState.off;
-  final temp = camera.temperature;
-  if (temp != null &&
-      (temp - camera.targetTemp).abs() <= kNightAtSetpointTolerance) {
-    return NightCoolerState.atSetpoint;
-  }
-  return NightCoolerState.cooling;
-}
-
 String? _sensorSpecs(ResolvedCameraSensorSpecs? specs) {
   if (specs == null) return null;
   final width = specs.sensorWidthPx?.value;
@@ -215,7 +186,7 @@ final nightCameraPanelProvider = Provider<NightCameraPanelVm>((ref) {
   final offsets = ref.watch(filterOffsetProvider);
   final runLive = ref.watch(nightRunPhaseProvider).isRunLive;
   final connected = camera.connectionState == DeviceConnectionState.connected;
-  final coolerState = nightCoolerState(camera);
+  final coolerState = camera.coolerState;
 
   final activeStep = runLive ? ref.watch(nightActiveStepProvider) : null;
   final stepNode = activeStep?.node;

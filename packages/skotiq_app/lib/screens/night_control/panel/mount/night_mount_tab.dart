@@ -20,7 +20,6 @@ import '../../../../services/mount_command_service.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../../../services/night_actions/manual_action_gating.dart';
 import '../../../../services/night_actions/night_action_controller.dart';
-import '../../data/plan/night_plan_inputs.dart';
 import 'mount_actions_section.dart';
 import 'mount_go_to.dart';
 import 'mount_move_pad.dart';
@@ -29,6 +28,7 @@ import '../stale_readings_note.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 import '../../../../utils/watch_while_shown.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../../../../services/night_session/night_now.dart';
 
 /// What every Mount-tab control gates on, read once per build.
 @immutable

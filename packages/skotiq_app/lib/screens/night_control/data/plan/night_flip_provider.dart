@@ -17,6 +17,7 @@ import '../../night_control_contracts.dart';
 import '../../../../services/night_session/night_flip.dart';
 import 'night_plan_inputs.dart';
 import '../../../../services/run_control/run_control.dart';
+import '../../../../services/night_session/night_now.dart';
 
 /// The Steps list's row for the run's meridian flip, or null when no flip is
 /// under way and none just failed.

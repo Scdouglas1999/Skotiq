@@ -111,6 +111,7 @@ Future<HarnessHandle> _pumpTree(
   ThemeData? theme,
   RunRecordNotifier? progressNotifier,
   PreSessionSimulationResult? simulation,
+  Clock? clock,
 }) async {
   final notifier = CurrentSequenceNotifier();
   // ignore: invalid_use_of_protected_member
@@ -141,6 +142,7 @@ Future<HarnessHandle> _pumpTree(
         runRecordProvider.overrideWith((_) => progressNotifier),
       if (simulation != null)
         sequenceTimelineProvider.overrideWithValue(simulation),
+      if (clock != null) clockProvider.overrideWithValue(clock),
       sequencerDensityProvider
           .overrideWith((ref) => ref.watch(_testDensityProvider)),
     ],
@@ -895,6 +897,98 @@ void main() {
     progress.updateNodeStatus(built.exposureIds.first, NodeStatus.running);
     await tester.pump();
     expect(tester.widget<Text>(etaCell).style!.color, colors.textMuted);
+    await _drainValidationDebounce(tester);
+  });
+
+  testWidgets(
+      'the run\'s ETA reads on the site clock its steps print on, '
+      'not the device zone', (tester) async {
+    final built = _runInAlpha();
+    final t0 = DateTime.now();
+    // Seven hours off the device's own zone, so the two clocks cannot agree.
+    final site = FixedOffsetClock(
+      utcOffset: t0.timeZoneOffset + const Duration(hours: 7),
+      label: 'Site',
+    );
+    final simulation = PreSessionSimulationResult(
+      start: t0,
+      end: t0.add(const Duration(hours: 3)),
+      duration: const Duration(hours: 3),
+      segments: [
+        for (var i = 0; i < built.exposureIds.length; i++)
+          PreSessionSimulationSegment(
+            nodeId: built.exposureIds[i],
+            nodeName: 'sub $i',
+            nodeType: 'ExposureNode',
+            start: t0.add(Duration(hours: i)),
+            end: t0.add(Duration(hours: i + 1)),
+            duration: const Duration(hours: 1),
+          ),
+      ],
+      targetWindows: const {},
+      issues: const [],
+    );
+    await _pumpTree(
+      tester,
+      built.sequence,
+      simulation: simulation,
+      clock: site,
+    );
+
+    final foldRow = _rowShellOf(find.text('Ha · OIII · SII')).first;
+    expect(
+      find.descendant(of: foldRow, matching: find.text(site.timeOfDay(t0))),
+      findsOneWidget,
+      reason: 'the folded run starts when its first step does, and that '
+          'step prints its ETA on the site clock',
+    );
+    expect(
+      find.descendant(
+        of: foldRow,
+        matching: find.text(ClockFormat.hm(t0.toLocal())),
+      ),
+      findsNothing,
+    );
+    await _drainValidationDebounce(tester);
+  });
+
+  testWidgets(
+      'a running run marks itself in the warm "now" color its running '
+      'steps use', (tester) async {
+    final built = _runInAlpha();
+    final progress = RunRecordNotifier();
+    await _pumpTree(tester, built.sequence, progressNotifier: progress);
+    final colors = SkotiqTheme.dark.extension<SkotiqColors>()!;
+    expect(colors.primary, isNot(colors.brandWarm));
+
+    progress.updateNodeStatus(built.exposureIds[1], NodeStatus.running);
+    progress.updateNodeProgress(built.exposureIds[1], 50, '');
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final foldRow = _rowShellOf(find.text('Ha · OIII · SII')).first;
+    expect(
+      find.descendant(
+        of: foldRow,
+        matching: find.byWidgetPredicate(
+          (w) => w is ColoredBox && w.color == colors.brandWarm,
+        ),
+      ),
+      findsOneWidget,
+      reason: 'the left running marker',
+    );
+    expect(
+      find.descendant(
+        of: foldRow,
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is AnimatedContainer &&
+              (w.decoration as BoxDecoration?)?.color == colors.brandWarm,
+        ),
+      ),
+      findsOneWidget,
+      reason: 'the progress bar',
+    );
     await _drainValidationDebounce(tester);
   });
 

@@ -22,6 +22,7 @@ import 'night_target_provider.dart';
 import 'night_timeline_provider.dart';
 import 'plan_progress_provider.dart';
 import 'plan_steps_provider.dart';
+import '../../../../services/night_session/night_now.dart';
 
 final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
   final phase = ref.watch(nightRunPhaseProvider);

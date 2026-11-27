@@ -19,7 +19,8 @@ import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 import '../../night_control_contracts.dart';
 import 'session_format.dart';
 import 'run_grading_provider.dart';
-import 'session_frames_provider.dart';
+import '../../../../services/night_session/night_now.dart';
+import '../../../../services/night_session/night_session_frames.dart';
 
 /// Free space on the capture volume, in bytes; null until a sample lands.
 /// Its own provider so a test pins it without the polling stream.

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_app/screens/night_control/panel/camera/camera_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/camera/camera_tab.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -295,65 +294,5 @@ void main() {
       ),
     );
     expect(tester.takeException(), isNull);
-  });
-
-  group('nightCoolerState', () {
-    const connected = DeviceConnectionState.connected;
-
-    test('reads the camera snapshot', () {
-      expect(
-        nightCoolerState(const CameraStateSnapshot()),
-        NightCoolerState.notConnected,
-      );
-      // A camera that does not report its cooler is not shown as off.
-      expect(
-        nightCoolerState(const CameraStateSnapshot(connectionState: connected)),
-        NightCoolerState.notReported,
-      );
-      expect(
-        nightCoolerState(
-          const CameraStateSnapshot(
-              connectionState: connected, coolerOn: false),
-        ),
-        NightCoolerState.off,
-      );
-      expect(
-        nightCoolerState(
-          const CameraStateSnapshot(
-            connectionState: connected,
-            coolerOn: true,
-            temperature: -9.7,
-          ),
-        ),
-        NightCoolerState.atSetpoint,
-      );
-      expect(
-        nightCoolerState(
-          const CameraStateSnapshot(
-            connectionState: connected,
-            coolerOn: true,
-            temperature: -7.4,
-          ),
-        ),
-        NightCoolerState.cooling,
-      );
-      // Cooling with no temperature reading is not "at setpoint".
-      expect(
-        nightCoolerState(
-          const CameraStateSnapshot(connectionState: connected, coolerOn: true),
-        ),
-        NightCoolerState.cooling,
-      );
-      expect(
-        nightCoolerState(
-          const CameraStateSnapshot(
-            connectionState: connected,
-            coolerOn: true,
-            isWarming: true,
-          ),
-        ),
-        NightCoolerState.warming,
-      );
-    });
   });
 }

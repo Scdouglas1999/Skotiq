@@ -10,6 +10,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../data/plan/night_plan_inputs.dart';
+import '../../../services/night_session/night_now.dart';
 
 /// Marks a time or a length the estimator produced rather than one recorded.
 const String kNightEstimatePrefix = '≈';

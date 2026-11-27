@@ -2,9 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../screens/imaging/widgets/depthlock/depthlock_hint.dart';
-import '../screens/night_control/data/plan/scheduler_provider.dart';
 import '../services/run_dashboard_providers.dart';
 import 'location_sync_service.dart';
+import '../services/night_session/night_scheduler_picks.dart';
 
 const _everyRole = {
   LaunchRole.hostGui,

@@ -21,7 +21,6 @@ import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_strip.dart';
 import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_timeline_provider.dart';
@@ -62,6 +61,7 @@ import 'center/center_test_support.dart' show FakeNightActionApi;
 import 'fixtures/night_fixtures.dart';
 import 'panel/panel_test_support.dart' show FakePanelOps, PanelFixtures;
 import 'panel/scope_panel_test_support.dart' as scope;
+import 'package:skotiq_app/services/night_session/night_now.dart';
 
 /// The board states the owner window test and the capture goldens show.
 enum NightScreenState {

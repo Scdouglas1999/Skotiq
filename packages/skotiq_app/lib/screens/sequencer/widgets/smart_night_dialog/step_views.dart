@@ -122,6 +122,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     _ensureWindowInitialised();
     final start = _windowStart;
     final end = _windowEnd;
+    final clock = ref.watch(clockProvider);
     final draftOffer = _buildDraftOffer(colors);
     return SingleChildScrollView(
       child: Column(
@@ -171,7 +172,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                       Icon(LucideIcons.sunset, size: 16, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'Start: ${ClockFormat.dateHm(start.toLocal())}',
+                        'Start: ${ClockFormat.dateHm(clock.wallClockOf(start))}',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: SkotiqTypography.fontSize13,
@@ -194,7 +195,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                           size: 16, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'End: ${ClockFormat.dateHm(end.toLocal())}',
+                        'End: ${ClockFormat.dateHm(clock.wallClockOf(end))}',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: SkotiqTypography.fontSize13,

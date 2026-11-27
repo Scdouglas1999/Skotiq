@@ -29,6 +29,7 @@ import 'session_stats_provider.dart';
 import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 import '../../../../utils/guider_state_label.dart';
+import '../../../../services/night_session/night_now.dart';
 
 final String _siteRoute = AppRoutes.settings(SettingsSectionId.location);
 final String _folderRoute = AppRoutes.settings(SettingsSectionId.filesStorage);
@@ -97,7 +98,7 @@ final nightPlanUnparksMountProvider = Provider<bool?>((ref) {
 NightText _cameraCheckDetail(CameraStateSnapshot camera) {
   final temp = camera.temperature;
   if (temp == null) return const NightText('nightSessionCheckConnected');
-  if (camera.isCooling && (temp - camera.targetTemp).abs() >= 0.5) {
+  if (camera.isCooling && !camera.sensorAtSetpoint) {
     return NightText(
       'nightSessionCheckCameraCooling',
       params: <String, String>{

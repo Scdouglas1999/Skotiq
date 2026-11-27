@@ -1,8 +1,8 @@
 part of '../sequence_tree.dart';
 
 // The folded row: one 28 px line standing in for a whole run of sibling steps
-// (spec §6). Same anatomy as [_LedgerRow] — the columns have to line up
-// through it — but everything it shows is an aggregate of its members.
+// (spec §6). It draws the same [_LedgerLine] as [_LedgerRow], so the columns
+// line up through it; everything it shows is an aggregate of its members.
 //
 // It exists only while the run is folded. Unfolding removes this row and
 // renders the members as ordinary [_LedgerRow]s, which is why the chevron here
@@ -183,114 +183,46 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
   }) {
     final colors = widget.colors;
     final group = widget.group;
-
-    final nameColor = state.hasFailure
-        ? colors.error
-        : state.isDone
-            ? colors.textMuted
-            : colors.textPrimary;
-    final columnColor = state.isDone ? colors.textMuted : colors.textSecondary;
-
-    return Row(
-      children: [
-        SizedBox(
-          width: _ledgerRunningMarkerWidth,
-          height: _ledgerRowHeight,
-          child: state.isRunning
-              ? (widget.isDragging
-                  ? ColoredBox(color: colors.primary)
-                  : _RunningMarkerBreath(
-                      child: ColoredBox(color: colors.primary),
-                    ))
-              : null,
-        ),
-        ..._ledgerDepthGuides(widget.depth - 1, colors),
-        _LedgerChevron(
-          colors: colors,
-          isCollapsed: true,
-          expandLabel: 'Expand run',
-          onToggle: () =>
-              ref.read(unfoldedGroupIdsProvider.notifier).toggle(group.id),
-        ),
-        ExcludeSemantics(
-          child: Icon(
-            // A filter run is a stack of exposures, so it keeps the exposure
-            // glyph; the acquire quartet is four different instructions and
-            // gets the "several things in one" glyph instead.
-            group.kind == FoldKind.filterRun
-                ? nodeIcon(NodeKinds.exposure.icon)
-                : LucideIcons.layers,
-            size: _ledgerIconSize,
-            // Every node a run can hold — the four acquire leaves and the
-            // exposure — is an instruction, so the run's glyph takes the
-            // instruction tint its members' rows would have taken.
-            color: state.isDone
-                ? colors.textMuted
-                : nodeCategoryTint(NodeCategory.instruction, colors),
-          ),
-        ),
-        const SizedBox(width: SkotiqTokens.spaceSm),
-        Expanded(
-          child: ExcludeSemantics(
-            child: LayoutBuilder(builder: (context, slot) {
-              // As a ledger row: on a narrow canvas the label keeps the slot.
-              final roomy = slot.maxWidth >= _ledgerRoomyNameSlot;
-              return Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      group.label,
-                      style: SkotiqTypography.bodySm.copyWith(
-                        // A folded row stands for several steps, so it carries
-                        // the container weight even though its members are
-                        // leaves.
-                        fontWeight: FontWeight.w600,
-                        color: nameColor,
-                      ),
-                      softWrap: false,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (state.isRunning && roomy) ...[
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    _LedgerChip(
-                      colors: colors,
-                      label: 'Running',
-                      tone: colors.primary,
-                    ),
-                  ],
-                  if (roomy) ...[
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    _LedgerChip(colors: colors, label: group.chipText),
-                  ],
-                  if (summary.isNotEmpty && roomy) ...[
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    Flexible(
-                      child: Text(
-                        summary,
-                        style: SkotiqTypography.labelQuiet.copyWith(
-                          color: colors.textMuted,
-                        ),
-                        softWrap: false,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            }),
-          ),
-        ),
-        _buildActions(context),
-        _LedgerColumnCells(
-          values: columns.values,
-          color: columnColor,
-          etaColor: etaMuted ? colors.textMuted : null,
-        ),
-        const SizedBox(width: _ledgerBadgeGutter),
+    return _LedgerLine(
+      colors: colors,
+      depth: widget.depth,
+      steadyMarker: widget.isDragging,
+      chevron: _LedgerChevron(
+        colors: colors,
+        isCollapsed: true,
+        expandLabel: 'Expand run',
+        onToggle: () =>
+            ref.read(unfoldedGroupIdsProvider.notifier).toggle(group.id),
+      ),
+      // A filter run is a stack of exposures, so it keeps the exposure glyph;
+      // the acquire quartet is four different instructions and gets the
+      // "several things in one" glyph instead.
+      icon: group.kind == FoldKind.filterRun
+          ? nodeIcon(NodeKinds.exposure.icon)
+          : LucideIcons.layers,
+      // Every node a run can hold (the four acquire leaves and the exposure)
+      // is an instruction, so the run's glyph takes the instruction tint its
+      // members' rows would have taken.
+      category: NodeCategory.instruction,
+      name: group.label,
+      // A folded row stands for several steps, so it carries the container
+      // weight even though its members are leaves.
+      nameWeight: FontWeight.w600,
+      isRunning: state.isRunning,
+      isFailed: state.hasFailure,
+      isMuted: state.isDone,
+      isStruckThrough: false,
+      flexibleRunningChip: false,
+      chips: (roomy) => [
+        if (roomy) ...[
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          _LedgerChip(colors: colors, label: group.chipText),
+        ],
       ],
+      summary: summary,
+      actions: _buildActions(context),
+      columns: columns,
+      etaMuted: etaMuted,
     );
   }
 
@@ -324,7 +256,7 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
     final colors = widget.colors;
     final Color fill;
     if (state.isRunning) {
-      fill = colors.primary;
+      fill = colors.brandWarm;
     } else if (state.hasFailure) {
       fill = colors.error;
     } else {
@@ -428,7 +360,7 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
             : total.inSeconds <= 0
                 ? ''
                 : formatRollupDuration(total),
-        eta: earliest == null ? '' : ClockFormat.hm(earliest.start.toLocal()),
+        eta: ledgerEtaText(ref.watch(clockProvider), earliest),
       ),
       etaMuted: earliest != null && !earliest.isActual && state.hasBar,
     );

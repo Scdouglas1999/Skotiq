@@ -21,9 +21,9 @@ import '../../../../services/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
 import '../../night_control_contracts.dart';
 import 'session_format.dart';
-import 'session_frames_provider.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
+import '../../../../services/night_session/night_session_frames.dart';
 
 /// Which way is better for a metric.
 enum _Better { lower, higher, neither }

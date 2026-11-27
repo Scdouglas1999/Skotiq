@@ -119,10 +119,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       sequenceOwnsHardware: sequenceState.ownsHardware,
       sessionBusy: sessionState.isCapturing || sessionState.isAutofocusing,
       guider: ref.read(phd2StateProvider),
-      cameraBusy: cameraState.isExposing ||
-          cameraState.isCooling ||
-          cameraState.isWarming ||
-          (cameraState.coolerPower ?? 0) > 2,
+      cameraBusy: cameraState.isExposing || cameraState.coolerActive,
       mountBusy: mountState.isSlewing || mountState.isTracking,
       flatWizardBusy: flatWizardState.isCapturing,
       autofocusBusy: autofocusState.isRunning,
