@@ -56,13 +56,9 @@ class ShellLayout {
     );
   }
 
-  /// A phone in either orientation.
-  ///
-  /// On a touch device it is the short side, which a rotation does not change.
-  /// A desktop window is a phone by its width.
-  bool get isPhone => touchDevice
-      ? size.shortestSide < BreakpointTokens.breakpointPhone
-      : size.width < BreakpointTokens.breakpointPhone;
+  /// A phone in either orientation: the short side is under 600. A desktop
+  /// window that small is laid out as a phone too.
+  bool get isPhone => size.shortestSide < BreakpointTokens.breakpointPhone;
 
   /// Wider than tall (a square window counts as landscape).
   bool get isLandscape => !(size.height > size.width);
@@ -80,7 +76,9 @@ class ShellLayout {
 
   ShellNavKind get navigation {
     final bottom =
-        touchDevice || size.width < BreakpointTokens.breakpointTablet;
+        touchDevice ||
+        isPhone ||
+        size.width < BreakpointTokens.breakpointTablet;
     if (!bottom) return ShellNavKind.sideBar;
     if (!drawsWindowFrame && size.width > size.height) {
       return ShellNavKind.phoneRail;

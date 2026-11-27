@@ -123,7 +123,7 @@ void main() {
     });
   });
 
-  group('desktop window-size detection (width-driven reflow preserved)', () {
+  group('desktop window-size detection', () {
     testWidgets('590-wide desktop window is a phone (narrow reflow)', (
       tester,
     ) async {
@@ -135,15 +135,25 @@ void main() {
       expect(r.isPhone, isTrue);
     });
 
-    testWidgets('844-wide desktop window is NOT a phone', (tester) async {
+    testWidgets('844x700 desktop window is NOT a phone', (tester) async {
+      final r = await _probe(
+        tester,
+        const Size(844, 700),
+        platform: TargetPlatform.windows,
+      );
+      expect(r.isPhone, isFalse);
+    });
+
+    testWidgets('a desktop window shorter than 600 is a phone on its side', (
+      tester,
+    ) async {
       final r = await _probe(
         tester,
         const Size(844, 390),
         platform: TargetPlatform.windows,
       );
-      // On desktop, width drives the tier — a wide window is not a phone even
-      // when short. (Contrast the mobile 844x390 case above.)
-      expect(r.isPhone, isFalse);
+      expect(r.isPhone, isTrue);
+      expect(r.isPhoneLandscape, isTrue);
     });
 
     testWidgets('maximized desktop is not a phone', (tester) async {

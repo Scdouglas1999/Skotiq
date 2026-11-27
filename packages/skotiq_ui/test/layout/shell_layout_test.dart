@@ -72,10 +72,14 @@ void main() {
       expect(_desktop(600, 900).isPhone, isFalse);
     });
 
-    test('a window shorter than a phone is not a phone by its height', () {
+    test('a window shorter than a phone is a phone on its side', () {
       final layout = _desktop(844, 390);
-      expect(layout.isPhone, isFalse);
-      expect(layout.navigation, ShellNavKind.sideBar);
+      expect(layout.isPhone, isTrue);
+      expect(layout.deviceClass, DeviceClass.phone);
+      expect(layout.navigation, ShellNavKind.bottomBar);
+      expect(layout.hasInstrumentBar, isFalse);
+      expect(_desktop(1200, 599).navigation, ShellNavKind.bottomBar);
+      expect(_desktop(1200, 600).navigation, ShellNavKind.sideBar);
     });
   });
 
