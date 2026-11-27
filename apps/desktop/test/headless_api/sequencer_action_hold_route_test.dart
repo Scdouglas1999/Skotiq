@@ -156,6 +156,19 @@ void main() {
     },
   );
 
+  test('a jump to another step of a held run answers 409', () async {
+    when(() => backend.sequencerSkipToNode('wait')).thenThrow(_held);
+
+    final response = await translateHandlerErrors(
+      handlers.handleSequencerSkipToNode(
+        _post('skip-to-node', body: {'nodeId': 'wait'}),
+      ),
+    );
+
+    expect(response.statusCode, HttpStatus.conflict);
+    expect((await _bodyOf(response))['error'], ApiErrorCodes.runHeldByAction);
+  });
+
   test("the action's release resumes the run in the caller's name", () async {
     hostReports(held: true);
 

@@ -398,15 +398,21 @@ impl ExecutorHandle {
     /// completion first.
     ///
     /// Errors when the executor is not running, because the request would
-    /// otherwise be dropped without the caller knowing.
-    pub async fn skip_to_node(&self, node_id: NodeId) -> Result<(), String> {
+    /// otherwise be dropped without the caller knowing. Refused while a
+    /// manual action holds the run.
+    pub async fn skip_to_node(&self, node_id: NodeId) -> Result<(), RunCommandError> {
+        if self.run_state.held_by_action() {
+            return Err(RunCommandError::HeldByAction);
+        }
         let node_id_for_decision = node_id.clone();
         if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::SkipToNode(node_id))
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| RunCommandError::Failed(e.to_string()))?;
         } else {
-            return Err("Executor is not running".to_string());
+            return Err(RunCommandError::Failed(
+                "Executor is not running".to_string(),
+            ));
         }
         self.emit_manual_intervention(
             "skip_to_node",

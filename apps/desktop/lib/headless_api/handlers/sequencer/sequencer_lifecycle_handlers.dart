@@ -708,7 +708,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     final nodeId = requireString(payload, 'nodeId');
 
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSkipToNode(nodeId);
+    await _unlessHeld('skip', () => backend.sequencerSkipToNode(nodeId));
     return jsonOk({'status': 'skipped', 'nodeId': nodeId});
   }
 

@@ -255,10 +255,12 @@ pub async fn api_sequencer_skip_to_node(node_id: String) -> Result<(), SkotiqErr
     tracing::info!("Skipping execution to node: {}", node_id);
 
     let executor = skotiq_sequencer::executor_handle();
-    executor
-        .skip_to_node(node_id)
-        .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to skip to node: {}", e)))?;
+    executor.skip_to_node(node_id).await.map_err(|e| match e {
+        skotiq_sequencer::RunCommandError::Failed(reason) => {
+            SkotiqError::OperationFailed(format!("Failed to skip to node: {reason}"))
+        }
+        held => run_command_refused(held),
+    })?;
 
     Ok(())
 }

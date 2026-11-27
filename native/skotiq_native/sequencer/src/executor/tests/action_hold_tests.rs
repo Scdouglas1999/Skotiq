@@ -1,6 +1,6 @@
 //! A manual action holds the run it paused: only the action's own release
-//! lets the run go on. A resume or skip from anywhere else is refused, and a
-//! stop is never held back.
+//! lets the run go on. A resume, a skip or a jump to another step from
+//! anywhere else is refused, and a stop is never held back.
 
 use super::*;
 use crate::device_ops::NullDeviceOps;
@@ -43,6 +43,10 @@ async fn only_the_holders_release_lets_a_held_run_go_on() {
 
     assert_eq!(handle.resume().await, Err(RunCommandError::HeldByAction));
     assert_eq!(handle.skip().await, Err(RunCommandError::HeldByAction));
+    assert_eq!(
+        handle.skip_to_node("wait".to_string()).await,
+        Err(RunCommandError::HeldByAction)
+    );
     assert_eq!(
         handle.hold_for_action("phone").await,
         Err(RunCommandError::HeldByAction)
