@@ -234,7 +234,7 @@ List<Map<String, Object?>> _treeUnits(
   String area, {
   // Server code has no Flutter widgets, so the control filter silently
   // dropped EVERY hub file and the tree contributed zero units while the
-  // ledger claimed it was counted (hub-sweep finding H2). A server unit's
+  // ledger claimed it was counted. A server unit's
   // exercise is API-driven; it earns its ledger row with zero widget
   // controls.
   bool includeControlless = false,

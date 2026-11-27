@@ -4,7 +4,7 @@
 # the row is re-queued with attempts+1 at database open.
 #
 # NOTE: completing the re-queued job after relaunch requires the startup
-# drainQueue() wiring (Phase C). Until that lands this script asserts the
+# drainQueue() wiring. Until that lands this script asserts the
 # re-queue half and reports the drain half honestly as PENDING; once the
 # wiring exists, set D1_EXPECT_DRAIN=1 to require completion.
 set -u

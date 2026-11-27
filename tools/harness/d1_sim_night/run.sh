@@ -183,10 +183,7 @@ BADEXP=$(Q "SELECT count(*) FROM integrated_masters WHERE total_integration_seco
 [ "${BADEXP:-1}" -eq 0 ] && ok "no zero-integration masters" || bad "$BADEXP masters have <=0 integration seconds"
 
 # A master can exist, carry the right frame count and a positive integration
-# time, and still be scientifically worthless. A normalization defect once
-# shipped LRGB masters that had erased over 99.9% of their star flux — every
-# master was a near-flat field at the sky pedestal — and this harness passed
-# 37/37 over them, because nothing here had ever looked at a master's PIXELS.
+# time, and still be scientifically worthless.
 #
 # The signal that separates the two is contrast: p99.9 minus the median. A real
 # star field puts hundreds of ADU between the sky and the bright tail (the D1
@@ -407,10 +404,7 @@ sqlite3 "$DBDIR/skotiq.db" "DELETE FROM app_settings WHERE key IN ('image_gradin
 say "=== phase 7c: a crash-resumed pass can still deliver its night report ==="
 # The window a rig loses power in: the pass has already delivered, and the row
 # has not been closed yet. Open-time recovery re-queues the `running` row and
-# drainQueue re-runs the whole pass — which used to meet the FIRST pass's night
-# report sitting at the destination under the same name with different bytes.
-# `destinationConflict` is terminal, so the report could never land and the
-# morning report said a file had not arrived that never could.
+# drainQueue re-runs the whole pass.
 stopapp
 sqlite3 "$DBDIR/skotiq.db" "UPDATE darkroom_jobs SET state='running', finished_at=NULL WHERE id=$JOB;" \
   && ok "job $JOB left running, the way a power cut leaves it" || bad "could not stage the crash"
