@@ -388,6 +388,20 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
     );
   }
 
+  /// The meridian flip is over: no step waits for it any more.
+  void endFlipHolds() {
+    final reports = state.progress.nodeLatestReport;
+    if (!reports.values.any((r) => r is FlipHoldProgressDetail)) return;
+    _setProgress(
+      state.progress.copyWith(
+        nodeLatestReport: {
+          for (final e in reports.entries)
+            if (e.value is! FlipHoldProgressDetail) e.key: e.value,
+        },
+      ),
+    );
+  }
+
   /// Set the run's denominators. [totalIntegrationSecs] is passed only when a
   /// real value is known: the native `Progress` event carries a frame count
   /// and no integration total, and its absent value must not replace the total
