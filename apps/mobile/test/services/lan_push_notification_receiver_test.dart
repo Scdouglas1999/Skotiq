@@ -25,6 +25,36 @@ void main() {
     );
   }
 
+  var sentinels = 0;
+
+  /// What [receiver] emits for [datagrams], fed through [injector].
+  ///
+  /// A valid sentinel frame follows them: the receiver handles datagrams in
+  /// order, so once the sentinel arrives every earlier datagram has been
+  /// accepted or dropped, with no fixed wait to outlast. Each sentinel has its
+  /// own id, or the receiver's de-duplication would drop the second.
+  Future<List<PushNotificationFrame>> emittedFor(
+    LanPushNotificationReceiver receiver,
+    StreamController<Uint8List> injector,
+    List<Uint8List> datagrams,
+  ) async {
+    final received = <PushNotificationFrame>[];
+    final sentinel = 'sentinel-${sentinels++}';
+    final sentinelSeen = Completer<void>();
+    final sub = receiver.incoming.listen((frame) {
+      if (frame.id == sentinel) {
+        sentinelSeen.complete();
+      } else {
+        received.add(frame);
+      }
+    });
+    datagrams.forEach(injector.add);
+    injector.add(encodePushFrame(buildFrame(id: sentinel), hmacKey: hmacKey));
+    await sentinelSeen.future.timeout(const Duration(seconds: 10));
+    await sub.cancel();
+    return received;
+  }
+
   test('receiver decodes a valid frame and emits it on incoming', () async {
     final injectorController = StreamController<Uint8List>();
     final receiver = LanPushNotificationReceiver(
@@ -63,17 +93,11 @@ void main() {
       });
 
       await receiver.start();
-      final received = <PushNotificationFrame>[];
-      final sub = receiver.incoming.listen(received.add);
 
       final wrongKey = derivePushHmacKey('00' * 32);
       final bytes = encodePushFrame(buildFrame(), hmacKey: wrongKey);
-      injectorController.add(bytes);
 
-      // Give the listener a chance to run.
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(received, isEmpty);
-      await sub.cancel();
+      expect(await emittedFor(receiver, injectorController, [bytes]), isEmpty);
     },
   );
 
@@ -89,8 +113,6 @@ void main() {
     });
 
     await receiver.start();
-    final received = <PushNotificationFrame>[];
-    final sub = receiver.incoming.listen(received.add);
 
     // The HMAC is computed with a key derived from the OTHER fingerprint;
     // both sender and receiver must agree on the key. Build a frame
@@ -101,11 +123,11 @@ void main() {
       buildFrame(fp: attackerFingerprint),
       hmacKey: attackerKey,
     );
-    injectorController.add(spoofedBytes);
 
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(received, isEmpty);
-    await sub.cancel();
+    expect(
+      await emittedFor(receiver, injectorController, [spoofedBytes]),
+      isEmpty,
+    );
   });
 
   test('receiver deduplicates against an id seen via the WebSocket', () async {
@@ -120,8 +142,6 @@ void main() {
     });
 
     await receiver.start();
-    final received = <PushNotificationFrame>[];
-    final sub = receiver.incoming.listen(received.add);
 
     // Pretend the WS delivered this frame first.
     receiver.recordSeenFrameId('frame-dedup');
@@ -129,26 +149,22 @@ void main() {
       buildFrame(id: 'frame-dedup'),
       hmacKey: hmacKey,
     );
-    injectorController.add(bytes);
 
     // Second injection of the same id (e.g. multicast + broadcast copies):
     // must also be deduped.
-    injectorController.add(bytes);
-
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(received, isEmpty);
+    expect(
+      await emittedFor(receiver, injectorController, [bytes, bytes]),
+      isEmpty,
+    );
 
     // A different id from the same server, however, passes through.
     final freshBytes = encodePushFrame(
       buildFrame(id: 'frame-fresh'),
       hmacKey: hmacKey,
     );
-    injectorController.add(freshBytes);
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(received, hasLength(1));
-    expect(received.single.id, 'frame-fresh');
-
-    await sub.cancel();
+    final fresh = await emittedFor(receiver, injectorController, [freshBytes]);
+    expect(fresh, hasLength(1));
+    expect(fresh.single.id, 'frame-fresh');
   });
 
   test('receiver drops a truncated datagram silently', () async {
@@ -163,12 +179,12 @@ void main() {
     });
 
     await receiver.start();
-    final received = <PushNotificationFrame>[];
-    final sub = receiver.incoming.listen(received.add);
 
-    injectorController.add(Uint8List.fromList([1, 2, 3]));
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(received, isEmpty);
-    await sub.cancel();
+    expect(
+      await emittedFor(receiver, injectorController, [
+        Uint8List.fromList([1, 2, 3]),
+      ]),
+      isEmpty,
+    );
   });
 }
