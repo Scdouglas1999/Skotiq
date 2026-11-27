@@ -8,7 +8,7 @@ import '../../frb_generated.dart';
 import '../sequencer.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `acquire_run_start_guard`, `restore_from_checkpoint`, `seed_executor_site_from_settings`, `start_refused`
+// These functions are ignored because they are not marked as `pub`: `acquire_run_start_guard`, `restore_from_checkpoint`, `run_command_refused`, `seed_executor_site_from_settings`, `start_refused`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Load a sequence from JSON
@@ -21,13 +21,37 @@ Future<void> apiSequencerLoadJson({required String json}) => RustLib
 Future<void> apiSequencerStart() =>
     RustLib.instance.api.crateApiSequencerLifecycleApiSequencerStart();
 
-/// Pause the sequence executor
-Future<void> apiSequencerPause() =>
-    RustLib.instance.api.crateApiSequencerLifecycleApiSequencerPause();
+/// Pause the sequence executor. `origin` names who asked (weather, a safety
+/// pause, the operator); a pause that reaches a run a manual action holds
+/// keeps it paused after the action releases it, and the release names it.
+Future<void> apiSequencerPause({String? origin}) => RustLib.instance.api
+    .crateApiSequencerLifecycleApiSequencerPause(origin: origin);
 
-/// Resume the sequence executor
-Future<void> apiSequencerResume() =>
-    RustLib.instance.api.crateApiSequencerLifecycleApiSequencerResume();
+/// Resume the sequence executor. `releases_hold_of` names the holder of a
+/// manual action's hold this resume ends ([`api_sequencer_hold_for_action`]);
+/// the hold ends even when the resume then fails, and the run stays paused.
+/// When another pause took the run over while the hold lasted, the run stays
+/// paused under it and the resume is refused with
+/// [`Refusal::RunStillPaused`], naming that pause.
+Future<void> apiSequencerResume({String? releasesHoldOf}) =>
+    RustLib.instance.api.crateApiSequencerLifecycleApiSequencerResume(
+      releasesHoldOf: releasesHoldOf,
+    );
+
+/// Hold the run for a manual action of `holder`: a running run is paused, a
+/// paused one stays paused, and until the holder releases it nothing else
+/// resumes or skips it. Stop is never held back.
+Future<void> apiSequencerHoldForAction({required String holder}) => RustLib
+    .instance
+    .api
+    .crateApiSequencerLifecycleApiSequencerHoldForAction(holder: holder);
+
+/// End `holder`'s hold on the run without resuming it. Returns whether
+/// `holder` held it.
+Future<bool> apiSequencerReleaseActionHold({required String holder}) => RustLib
+    .instance
+    .api
+    .crateApiSequencerLifecycleApiSequencerReleaseActionHold(holder: holder);
 
 /// Stop the sequence executor. `origin` names the CALLER — `None` /
 /// `"operator"` for a human, `"scheduler"` for the autopilot — so the

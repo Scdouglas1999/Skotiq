@@ -426,6 +426,8 @@ String _sequencerTitle(SequencerEvent v) {
     SequencerEvent_Started() => 'Sequence started',
     SequencerEvent_Paused() => 'Sequence paused',
     SequencerEvent_Resumed() => 'Sequence resumed',
+    SequencerEvent_ActionHold(held: final held) =>
+      held ? 'Run held by a manual action' : 'Manual action released the run',
     SequencerEvent_Stopped() => 'Sequence stopped',
     SequencerEvent_Completed() => 'Sequence complete',
     SequencerEvent_Failed() => 'Sequence failed',
@@ -493,6 +495,7 @@ String _sequencerDetail(SequencerEvent v) {
     SequencerEvent_Started(sequenceName: final n) => n,
     SequencerEvent_Paused() => '',
     SequencerEvent_Resumed() => '',
+    SequencerEvent_ActionHold() => '',
     SequencerEvent_Stopped() => '',
     SequencerEvent_Completed() => '',
     SequencerEvent_Failed(error: final e) => e,

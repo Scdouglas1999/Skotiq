@@ -47,6 +47,7 @@ class RunRecord {
     this.terminalFromHost = false,
     this.completedImagingRun,
     this.calibrationOnly = false,
+    this.heldByAction = false,
   });
 
   /// Where the run stands. The only lifecycle value; [progress] carries a copy
@@ -103,6 +104,11 @@ class RunRecord {
   /// host's sequencer judged it when the run started.
   final bool calibrationOnly;
 
+  /// A manual action holds the run paused, as the run's host publishes it:
+  /// only the action's own release resumes or skips it, whichever window or
+  /// client runs the action.
+  final bool heldByAction;
+
   RunRecord copyWith({
     SequenceExecutionState? lifecycle,
     bool? launching,
@@ -119,6 +125,7 @@ class RunRecord {
     bool? terminalFromHost,
     Object? completedImagingRun = _keep,
     bool? calibrationOnly,
+    bool? heldByAction,
   }) {
     T? pick<T>(Object? value, T? current) =>
         identical(value, _keep) ? current : value as T?;
@@ -138,6 +145,7 @@ class RunRecord {
       terminalFromHost: terminalFromHost ?? this.terminalFromHost,
       completedImagingRun: pick(completedImagingRun, this.completedImagingRun),
       calibrationOnly: calibrationOnly ?? this.calibrationOnly,
+      heldByAction: heldByAction ?? this.heldByAction,
     );
   }
 }
@@ -482,6 +490,14 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
   void mirrorHostProgress(SequenceProgress hostProgress) {
     setLifecycle(hostProgress.state);
     _setProgress(hostProgress);
+  }
+
+  /// Whether a manual action holds the run: from the host's own sequencer
+  /// events on a host, from the host's record on a linked client.
+  void setHeldByAction(bool held) {
+    if (state.heldByAction != held) {
+      state = state.copyWith(heldByAction: held);
+    }
   }
 
   void mirrorHostTally(Map<String, NodeExposureTally> hostTally) =>

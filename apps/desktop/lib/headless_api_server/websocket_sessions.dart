@@ -140,7 +140,8 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
     if (viewerId != null) {
       _collaborationManager.removeViewer(viewerId);
     }
-    _socketAuthIdentities.remove(socket);
+    final linked = _socketAuthIdentities.containsKey(socket);
+    final authIdentity = _socketAuthIdentities.remove(socket);
     _adminSockets.remove(socket);
     _socketLastSeenAt.remove(socket);
     final subscription = _socketSubscriptions.remove(socket);
@@ -152,6 +153,30 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
     if (_sockets.isEmpty) {
       _webSocketHeartbeatTimer?.cancel();
       _webSocketHeartbeatTimer = null;
+    }
+    if (linked && !_socketAuthIdentities.containsValue(authIdentity)) {
+      unawaited(_endLinkedActionHold(authIdentity));
+    }
+  }
+
+  /// The client that authenticated as [authIdentity] has no link left, so a
+  /// manual action it was running can no longer release the run it holds.
+  /// The hold ends and the run stays paused; it is never resumed here.
+  Future<void> _endLinkedActionHold(String? authIdentity) async {
+    try {
+      final released = await container
+          .read(sequencerBackendProvider)
+          .sequencerReleaseActionHold(
+            holder: ctx.actionHolderFor(authIdentity),
+          );
+      if (released) {
+        _logInfo(
+          'A linked client left while its manual action held the run; '
+          'the run stays paused.',
+        );
+      }
+    } catch (e) {
+      _logWarning("Could not end a departed client's action hold: $e");
     }
   }
 

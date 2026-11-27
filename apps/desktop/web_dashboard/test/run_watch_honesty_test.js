@@ -713,6 +713,20 @@ test('the run controls open only for the state the rig reports', () => {
   }, 'an idle rig offers nothing but reset');
 });
 
+test('a run a manual action holds offers no resume or skip', () => {
+  const { doc, api } = loadRunWatch();
+  api.noteLinkOk();
+  api.applySnapshot(runningSnapshot({
+    sequencer: {
+      state: 'paused', currentNodeName: 'Exposure L', heldByAction: true,
+      progress: { state: 'paused', currentTarget: 'D1 Simulated Field' },
+    },
+  }));
+  assert.deepEqual(controlState(doc), {
+    pause: true, resume: true, skip: true, stop: false, reset: false,
+  }, 'only the action resumes what it holds; stop stays');
+});
+
 test('a link nobody can vouch for offers no run controls', () => {
   const { doc, api } = loadRunWatch();
   api.noteLinkOk();

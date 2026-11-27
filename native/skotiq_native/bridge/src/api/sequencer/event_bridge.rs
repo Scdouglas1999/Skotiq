@@ -195,6 +195,11 @@ pub(crate) async fn run_sequencer_event_loop(
                         _ => continue,
                     }),
                 )),
+                ExecutorEvent::ActionHoldChanged { held } => Some(create_event_auto_id(
+                    EventSeverity::Info,
+                    EventCategory::Sequencer,
+                    EventPayload::Sequencer(SequencerEvent::ActionHold { held: *held }),
+                )),
                 ExecutorEvent::DepthGoalCompleted {
                     node_id,
                     filter_name,

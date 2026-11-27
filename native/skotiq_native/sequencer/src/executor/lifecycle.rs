@@ -21,8 +21,36 @@
 //!     `recovery_try_now` / `recovery_abort` *commands* live here because
 //!     they are lifecycle gestures (drive the loop), not state reads.
 
-use super::{ExecutorCommand, ExecutorHandle, SequenceExecutor};
+use super::run_state::HoldReleased;
+use super::{ExecutorCommand, ExecutorHandle, ExecutorState, SequenceExecutor};
 use crate::decision::{DecisionCategory, DecisionEvent, RunStop};
+
+/// Why a command to the run was not carried out.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RunCommandError {
+    /// A manual action holds the run paused, and the command was not its
+    /// release.
+    HeldByAction,
+    /// The hold was released, and another pause that took the run over
+    /// while it lasted keeps it paused; the text names that pause.
+    StillPaused(String),
+    /// The command could not be made; the text says why.
+    Failed(String),
+}
+
+impl std::fmt::Display for RunCommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::HeldByAction => f.write_str(
+                "A manual action holds the run paused; it resumes the run when it finishes.",
+            ),
+            Self::StillPaused(origin) => write!(f, "The run is still paused: {origin}."),
+            Self::Failed(reason) => f.write_str(reason),
+        }
+    }
+}
+
+impl std::error::Error for RunCommandError {}
 
 /// Who asked a run to stop.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -223,13 +251,75 @@ impl ExecutorHandle {
     /// sequence is a no-op (the channel send is dropped silently by the
     /// command loop's `Pause` arm).
     pub async fn pause(&self) -> Result<(), String> {
+        self.pause_from(None).await
+    }
+
+    /// Pause the run; `origin` names who asked (weather, a safety pause, the
+    /// operator). A pause that reaches a run a manual action holds outlives
+    /// the hold.
+    pub async fn pause_from(&self, origin: Option<String>) -> Result<(), String> {
         if let Some(tx) = self.commands.sender() {
-            tx.send(ExecutorCommand::Pause)
+            tx.send(ExecutorCommand::Pause { origin })
                 .await
                 .map_err(|e| e.to_string())?;
         }
         self.emit_manual_intervention("pause", serde_json::json!({}));
         Ok(())
+    }
+
+    /// Hold the run for a manual action of `holder`: a running run is paused,
+    /// an already paused one stays paused, and until `holder` releases it
+    /// ([`Self::release_action_hold`]) nothing else resumes or skips it. Stop
+    /// is never held back, and the hold ends with the run.
+    ///
+    /// Refused when the run is not under way or another holder has it.
+    pub async fn hold_for_action(&self, holder: &str) -> Result<(), RunCommandError> {
+        let state = self.run_state.get();
+        if !matches!(
+            state,
+            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
+        ) {
+            return Err(RunCommandError::Failed(format!(
+                "No run to hold: the run is {}",
+                state.as_wire()
+            )));
+        }
+        self.run_state
+            .take_action_hold(holder)
+            .map_err(|_| RunCommandError::HeldByAction)?;
+        if state != ExecutorState::Paused {
+            if let Some(tx) = self.commands.sender() {
+                tx.send(ExecutorCommand::PauseForAction)
+                    .await
+                    .map_err(|e| RunCommandError::Failed(e.to_string()))?;
+            }
+        }
+        self.emit_manual_intervention("action_hold", serde_json::json!({ "holder": holder }));
+        Ok(())
+    }
+
+    /// End `holder`'s hold on the run. The run stays paused; resuming it is a
+    /// separate command. Returns whether `holder` held it.
+    pub fn release_action_hold(&self, holder: &str) -> bool {
+        self.run_state.release_action_hold(holder).is_some()
+    }
+
+    /// End `holder`'s hold ahead of the action's own resume. Refused with
+    /// [`RunCommandError::StillPaused`] when another pause took the run over
+    /// while the hold lasted: the run stays paused under that pause and is
+    /// not resumed. A holder that holds nothing has nothing to release.
+    pub fn release_action_hold_to_resume(&self, holder: &str) -> Result<(), RunCommandError> {
+        match self.run_state.release_action_hold(holder) {
+            Some(HoldReleased {
+                still_paused: Some(origin),
+            }) => Err(RunCommandError::StillPaused(origin)),
+            _ => Ok(()),
+        }
+    }
+
+    /// Whether a manual action holds the run.
+    pub fn held_by_action(&self) -> bool {
+        self.run_state.held_by_action()
     }
 
     /// Dart side reports the verdict of a plugin node
@@ -271,11 +361,15 @@ impl ExecutorHandle {
 
     /// Skip the running step: the instruction in progress (an exposure is
     /// aborted) ends as Skipped and the run continues with the next step.
-    pub async fn skip(&self) -> Result<(), String> {
+    /// Refused while a manual action holds the run.
+    pub async fn skip(&self) -> Result<(), RunCommandError> {
+        if self.run_state.held_by_action() {
+            return Err(RunCommandError::HeldByAction);
+        }
         if let Some(tx) = self.commands.sender() {
             tx.send(ExecutorCommand::Skip)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| RunCommandError::Failed(e.to_string()))?;
         }
         self.emit_manual_intervention("skip", serde_json::json!({}));
         Ok(())

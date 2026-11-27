@@ -76,6 +76,10 @@ class SequencerStatus {
   /// (`tracking_limit_hold`, `meridian_flip`, ...); null while guiding runs.
   final String? guidingStopReason;
 
+  /// A manual action holds the run paused: only its own release resumes or
+  /// skips it.
+  final bool heldByAction;
+
   const SequencerStatus({
     required this.state,
     this.currentNodeId,
@@ -84,6 +88,7 @@ class SequencerStatus {
     this.message,
     this.runVitals,
     this.guidingStopReason,
+    this.heldByAction = false,
   });
 
   factory SequencerStatus.fromJson(Map<String, dynamic> json) {
@@ -99,6 +104,7 @@ class SequencerStatus {
             )
           : null,
       guidingStopReason: json['guidingStopReason'] as String?,
+      heldByAction: json['heldByAction'] == true,
     );
   }
 
@@ -110,6 +116,7 @@ class SequencerStatus {
     'message': message,
     if (runVitals != null) 'runVitals': runVitals!.toJson(),
     'guidingStopReason': guidingStopReason,
+    'heldByAction': heldByAction,
   };
 
   NativeRunState get runState => NativeRunState.parse(state);

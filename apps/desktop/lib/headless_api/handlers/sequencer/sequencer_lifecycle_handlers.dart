@@ -91,6 +91,9 @@ extension _SequencerLifecycle on SequencerHandlers {
       // While paused: whether the step the run was in has finished, so a
       // client knows when the rig is free to act on. Null when not paused.
       'pausedIdle': container.read(pausedRunIdleProvider),
+      // A manual action holds the run paused: Resume and Skip are refused
+      // until the action releases it.
+      'heldByAction': status.heldByAction,
       if (runVitals != null) 'runVitals': runVitals,
     });
   }
@@ -520,13 +523,21 @@ extension _SequencerLifecycle on SequencerHandlers {
   /// is still worth running, a pause is not. An unreadable state is answered
   /// as an unreadable state — 503 with the reason, and no `wasRunning`
   /// verdict, because this host has not earned one.
-  Future<void> _requireRunInFlight(String verb) async {
+  ///
+  /// With [refusedWhileHeld] a run a manual action holds is refused too
+  /// ([_runHeldByAction]), before a command is registered for it.
+  Future<void> _requireRunInFlight(
+    String verb, {
+    bool refusedWhileHeld = false,
+  }) async {
     final String state;
+    final bool held;
     try {
       final status = await container
           .read(sequencerBackendProvider)
           .sequencerGetStatus();
       state = status.state.toLowerCase();
+      held = status.heldByAction;
     } catch (error, stackTrace) {
       throw HandlerFailure(
         code: 'sequencer_state_unreadable',
@@ -538,7 +549,10 @@ extension _SequencerLifecycle on SequencerHandlers {
         stackTrace: stackTrace,
       );
     }
-    if (!_kNoRunInFlightStates.contains(state)) return;
+    if (!_kNoRunInFlightStates.contains(state)) {
+      if (refusedWhileHeld && held) throw _runHeldByAction(verb);
+      return;
+    }
     throw HandlerFailure(
       code: ApiErrorCodes.sequencerNotRunning,
       message: 'No sequence is running; nothing to $verb.',
@@ -549,14 +563,68 @@ extension _SequencerLifecycle on SequencerHandlers {
     );
   }
 
+  /// A manual action holds the run paused, and this [verb] is not its
+  /// release: the run stays as it is.
+  HandlerFailure _runHeldByAction(String verb, [Object? cause]) =>
+      HandlerFailure(
+        code: ApiErrorCodes.runHeldByAction,
+        message:
+            'Cannot $verb: a manual action holds the run paused; it resumes '
+            'the run when it finishes.',
+        statusCode: 409,
+        cause: cause,
+        details: {kWasRunningField: true},
+      );
+
+  /// A manual action's release found another pause holding the run: the
+  /// hold is released and the run stays paused under [pausedBy].
+  HandlerFailure _runStillPaused(RunStillPaused stillPaused) => HandlerFailure(
+    code: ApiErrorCodes.runStillPaused,
+    message:
+        'The hold was released, and the run is still paused: '
+        '${stillPaused.pausedBy}.',
+    statusCode: 409,
+    cause: stillPaused,
+    details: {'pausedBy': stillPaused.pausedBy, kWasRunningField: true},
+  );
+
+  /// Run [command], answering the executor's refusal of a held run as
+  /// [_runHeldByAction] and a release whose run stays paused as
+  /// [_runStillPaused].
+  Future<void> _unlessHeld(String verb, Future<void> Function() command) async {
+    try {
+      await command();
+    } on bridge_api.SkotiqError_Refused catch (error) {
+      if (error.kind != bridge_api.Refusal.runHeldByAction) rethrow;
+      throw _runHeldByAction(verb, error);
+    } on RunStillPaused catch (stillPaused) {
+      throw _runStillPaused(stillPaused);
+    }
+  }
+
+  /// A body of `{"forAction": true}` is a manual action's hold
+  /// ([SequencerBackend.sequencerHoldForAction]), taken in the caller's name:
+  /// it pauses a running run or holds a paused one.
   Future<Response> _handleSequencerPause(Request request) async {
     _logInfo('[API] POST /api/sequencer/pause');
+    final body = await readJsonObjectOrEmpty(request);
+    final forAction = optionalBool(body, 'forAction');
+    final origin = optionalString(body, 'origin', maxLength: 200);
     await _requireRunInFlight('pause');
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerPause,
     );
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerPause();
+    if (forAction == true) {
+      await _unlessHeld(
+        'pause',
+        () => backend.sequencerHoldForAction(
+          holder: actionHolderFor(authIdentityFrom(request)),
+        ),
+      );
+    } else {
+      await backend.sequencerPause(origin: origin);
+    }
     publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.sequencer,
@@ -569,14 +637,27 @@ extension _SequencerLifecycle on SequencerHandlers {
     });
   }
 
+  /// A body of `{"releasesHold": true}` is a manual action's own release:
+  /// it ends the caller's hold, then resumes.
   Future<Response> _handleSequencerResume(Request request) async {
     _logInfo('[API] POST /api/sequencer/resume');
-    await _requireRunInFlight('resume');
+    final releasesHold = optionalBool(
+      await readJsonObjectOrEmpty(request),
+      'releasesHold',
+    );
+    await _requireRunInFlight('resume', refusedWhileHeld: releasesHold != true);
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerResume,
     );
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerResume();
+    await _unlessHeld(
+      'resume',
+      () => backend.sequencerResume(
+        releasingHoldOf: releasesHold == true
+            ? actionHolderFor(authIdentityFrom(request))
+            : null,
+      ),
+    );
     publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.sequencer,
@@ -591,17 +672,28 @@ extension _SequencerLifecycle on SequencerHandlers {
 
   Future<Response> _handleSequencerSkip(Request request) async {
     _logInfo('[API] POST /api/sequencer/skip');
-    await _requireRunInFlight('skip');
+    await _requireRunInFlight('skip', refusedWhileHeld: true);
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerSkip,
     );
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSkip();
+    await _unlessHeld('skip', backend.sequencerSkip);
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
       'status': 'skipped',
       kWasRunningField: true,
     });
+  }
+
+  /// End the caller's manual-action hold without resuming the run.
+  Future<Response> _handleSequencerReleaseActionHold(Request request) async {
+    _logInfo('[API] POST /api/sequencer/action-hold/release');
+    final released = await container
+        .read(sequencerBackendProvider)
+        .sequencerReleaseActionHold(
+          holder: actionHolderFor(authIdentityFrom(request)),
+        );
+    return jsonOk({'released': released});
   }
 
   /// Jump the executor forward to a specific node by id.

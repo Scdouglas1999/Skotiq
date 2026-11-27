@@ -286,7 +286,7 @@ native/skotiq_native/bridge/src/api/polar_alignment/run_loop.rs	api_start_polar_
 native/skotiq_native/bridge/src/api/secondary_rig.rs	new_secondary_session_id	unwrap_or_literal	1	V0121	.unwrap_or(0);
 native/skotiq_native/bridge/src/api/sequencer/event_translation.rs	instruction_progress_event	unwrap_or_default	1	O10-03	.unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	starting_a_run_announces_the_plan_by_name	rust_drop_result	1	U2-21	.ok();
-native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	pause_command_does_not_announce_a_pause_itself	rust_let_underscore	1	U2-12	let _ = crate::api::sequencer::lifecycle::api_sequencer_pause().await;
+native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	pause_command_does_not_announce_a_pause_itself	rust_let_underscore	1	U2-12	let _ = crate::api::sequencer::lifecycle::api_sequencer_pause(None).await;
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	restoring_a_checkpoint_seeds_the_site_from_app_settings	simulated_runtime_path	1	V0779	skotiq_sequencer::device_ops::NullDeviceOps,
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	starting_a_run_announces_the_plan_by_name	simulated_runtime_path	1	U2-21	skotiq_sequencer::device_ops::NullDeviceOps,
 native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	stopping_a_run_announces_stopped_once	simulated_runtime_path	1	U2-24	skotiq_sequencer::device_ops::NullDeviceOps,

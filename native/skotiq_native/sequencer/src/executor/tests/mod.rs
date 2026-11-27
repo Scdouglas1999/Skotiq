@@ -2,6 +2,7 @@ use super::*;
 use crate::device_ops::{GuiderOps, MountOps};
 use crate::SequenceDefinition;
 
+mod action_hold_tests;
 mod carry_over_tests;
 mod center_contention_tests;
 mod checkpoint_writer_tests;

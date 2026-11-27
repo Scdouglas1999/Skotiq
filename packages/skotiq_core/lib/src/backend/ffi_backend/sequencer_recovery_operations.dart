@@ -15,13 +15,44 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> sequencerPause() async {
-    await _native('sequencerPause', () => bridge.apiSequencerPause());
+  Future<void> sequencerPause({String? origin}) async {
+    await _native(
+      'sequencerPause',
+      () => bridge.apiSequencerPause(origin: origin),
+    );
   }
 
   @override
-  Future<void> sequencerResume() async {
-    await _native('sequencerResume', () => bridge.apiSequencerResume());
+  Future<void> sequencerHoldForAction({
+    String holder = hostActionHolder,
+  }) async {
+    await _native(
+      'sequencerHoldForAction',
+      () => bridge.apiSequencerHoldForAction(holder: holder),
+    );
+  }
+
+  @override
+  Future<void> sequencerResume({String? releasingHoldOf}) async {
+    try {
+      await _native(
+        'sequencerResume',
+        () => bridge.apiSequencerResume(releasesHoldOf: releasingHoldOf),
+      );
+    } on bridge.SkotiqError_Refused catch (e) {
+      if (e.kind != bridge.Refusal.runStillPaused) rethrow;
+      throw RunStillPaused(e.message);
+    }
+  }
+
+  @override
+  Future<bool> sequencerReleaseActionHold({
+    String holder = hostActionHolder,
+  }) async {
+    return _native(
+      'sequencerReleaseActionHold',
+      () => bridge.apiSequencerReleaseActionHold(holder: holder),
+    );
   }
 
   @override
@@ -281,6 +312,7 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
         totalExposures: status.totalExposures,
       ),
       message: status.message,
+      heldByAction: status.heldByAction,
     );
   }
 

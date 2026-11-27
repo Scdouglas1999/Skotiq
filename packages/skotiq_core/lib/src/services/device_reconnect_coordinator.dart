@@ -31,7 +31,7 @@ class DeviceReconnectCoordinator {
     required SkotiqBackend backend,
     required bool hostOwnsRecovery,
     required Future<void> Function() resumeSequence,
-    required Future<void> Function() pauseSequence,
+    required Future<void> Function({String? origin}) pauseSequence,
     required void Function(String deviceId) surfaceReconnecting,
     NotificationRouter Function()? notices,
   }) : _ref = ref,
@@ -64,7 +64,7 @@ class DeviceReconnectCoordinator {
   /// the companion must never send its own checkpoint or pause.
   final bool _hostOwnsRecovery;
   final Future<void> Function() _resumeSequence;
-  final Future<void> Function() _pauseSequence;
+  final Future<void> Function({String? origin}) _pauseSequence;
 
   /// The run is paused because this coordinator paused it for a lost camera
   /// or mount. Only such a pause is lifted when the devices come back; a pause
@@ -196,12 +196,15 @@ class DeviceReconnectCoordinator {
       }
     }
 
-    if (sequenceState == SequenceExecutionState.paused) {
+    // A run a manual action holds is paused too, but this pause must outlive
+    // the hold: the action's release would otherwise resume the run.
+    if (sequenceState == SequenceExecutionState.paused &&
+        !_ref.read(runHeldByActionProvider)) {
       return;
     }
 
     try {
-      await _pauseSequence();
+      await _pauseSequence(origin: '$deviceType disconnected');
       _pausedForDeviceLoss = true;
     } catch (e) {
       logSafely(

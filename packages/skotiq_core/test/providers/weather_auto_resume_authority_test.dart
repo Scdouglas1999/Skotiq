@@ -115,7 +115,9 @@ void main() {
         return GuiderForMove.idle;
       });
       when(() => backend.sequencerResume()).thenAnswer((_) async {});
-      when(() => backend.sequencerPause()).thenAnswer((_) async {});
+      when(
+        () => backend.sequencerPause(origin: any(named: 'origin')),
+      ).thenAnswer((_) async {});
 
       _GatedRepeatSafeRigService? safeRig;
       final testSafetyProvider =

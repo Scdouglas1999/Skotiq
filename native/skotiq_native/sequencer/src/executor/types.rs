@@ -152,7 +152,13 @@ impl Default for ParkPolicy {
 /// [`RunConfigStore`]).
 #[derive(Debug, Clone)]
 pub enum ExecutorCommand {
-    Pause,
+    /// Pause the run; `origin` names who asked (weather, a safety pause, the
+    /// operator) when the caller says.
+    Pause {
+        origin: Option<String>,
+    },
+    /// The pause a manual action's hold makes for itself.
+    PauseForAction,
     Resume,
     Stop,
     Skip,
@@ -450,6 +456,11 @@ pub enum ExecutorEvent {
     /// is announced by the state turning `Paused`.
     RunHeld {
         message: String,
+    },
+    /// A manual action started or stopped holding the run. While one holds
+    /// it, a resume or skip that is not the action's own release is refused.
+    ActionHoldChanged {
+        held: bool,
     },
     /// Detailed flip telemetry, shared by sequenced and standalone flips.
     /// This is not a verdict and must not be counted as another flip.

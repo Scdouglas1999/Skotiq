@@ -100,7 +100,7 @@ mod types;
 
 use crate::instructions::RunRig;
 use checkpoint_writer::{CheckpointSources, CheckpointWriter};
-pub use lifecycle::{RunStopping, StopOrigin};
+pub use lifecycle::{RunCommandError, RunStopping, StopOrigin};
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;

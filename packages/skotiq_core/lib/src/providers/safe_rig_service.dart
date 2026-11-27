@@ -318,9 +318,15 @@ class SafeRigService {
     //    treating the rejection as a safing failure obscures whether the
     //    hardware protection steps actually succeeded.
     final executionState = _ref.read(sequenceExecutionStateProvider);
-    if (executionState.canPause) {
+    // A run a manual action holds is paused already, but the action's
+    // release would resume it: this pause has to reach the run so it
+    // outlives the hold.
+    final heldByAction =
+        executionState == SequenceExecutionState.paused &&
+        _ref.read(runHeldByActionProvider);
+    if (executionState.canPause || heldByAction) {
       try {
-        await _host.value.sequencerPause();
+        await _host.value.sequencerPause(origin: reason);
         _ensureSameHost(reason, result, failures);
         result = result.copyWith(sequencePaused: true);
       } catch (e) {

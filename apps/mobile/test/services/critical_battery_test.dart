@@ -42,7 +42,7 @@ class _PauseRecordingBackend extends DisconnectedBackend {
   int pauses = 0;
 
   @override
-  Future<void> sequencerPause() async {
+  Future<void> sequencerPause({String? origin}) async {
     pauses++;
   }
 }

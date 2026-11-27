@@ -613,6 +613,8 @@ class NightActionController extends Notifier<ManualActionState>
       ref: ref,
       pause: _ops.pauseRun,
       resume: _ops.resumeRun,
+      release: _ops.releaseRun,
+      holdsPausedRun: id == ManualActionId.loop,
     );
     var hold = RunHold.notOwed;
     NightText? error;
@@ -685,9 +687,25 @@ class NightActionController extends Notifier<ManualActionState>
               '${release.error}',
               source: _logSource,
             );
+          case RunReleaseOutcome.stillPaused:
+            // Another pause took the run over during the action; it stays
+            // paused under that pause.
+            runLeftPaused = true;
+            if (error != null) {
+              _log.error('${id.name} also failed: ${error.key}',
+                  source: _logSource);
+            }
+            error = NightText('nightActStillPaused',
+                params: {'reason': release.error ?? _noReason});
+            _log.info(
+              'Run stays paused after ${id.name}: ${release.error}',
+              source: _logSource,
+            );
           case RunReleaseOutcome.notOwed:
             break;
         }
+      } else if (hold.held) {
+        await guard.release(hold);
       }
       state = ManualActionState(
         phase: ManualActionPhase.idle,

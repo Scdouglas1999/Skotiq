@@ -6,7 +6,8 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `from`
+// These functions are ignored because they are not marked as `pub`: `new`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Sequencer state for Flutter
 class SequencerState {
@@ -22,6 +23,10 @@ class SequencerState {
   final String? currentFilter;
   final String? message;
 
+  /// A manual action holds the run paused: only its own release resumes or
+  /// skips it.
+  final bool heldByAction;
+
   const SequencerState({
     required this.state,
     this.currentNodeId,
@@ -34,6 +39,7 @@ class SequencerState {
     this.currentTarget,
     this.currentFilter,
     this.message,
+    required this.heldByAction,
   });
 
   @override
@@ -48,7 +54,8 @@ class SequencerState {
       estimatedRemainingSecs.hashCode ^
       currentTarget.hashCode ^
       currentFilter.hashCode ^
-      message.hashCode;
+      message.hashCode ^
+      heldByAction.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -65,5 +72,6 @@ class SequencerState {
           estimatedRemainingSecs == other.estimatedRemainingSecs &&
           currentTarget == other.currentTarget &&
           currentFilter == other.currentFilter &&
-          message == other.message;
+          message == other.message &&
+          heldByAction == other.heldByAction;
 }

@@ -145,7 +145,9 @@ void main() {
     () {
       fakeAsync((async) {
         when(() => backend.saveCheckpoint()).thenAnswer((_) async {});
-        when(() => backend.sequencerPause()).thenAnswer((_) async {});
+        when(
+          () => backend.sequencerPause(origin: any(named: 'origin')),
+        ).thenAnswer((_) async {});
         final container = containerFor();
         container.read(deviceServiceProvider);
         container
@@ -170,7 +172,7 @@ void main() {
 
         expectNoHostCommands();
         verifyNever(() => backend.saveCheckpoint());
-        verifyNever(() => backend.sequencerPause());
+        verifyNever(() => backend.sequencerPause(origin: any(named: 'origin')));
         container.dispose();
       });
     },

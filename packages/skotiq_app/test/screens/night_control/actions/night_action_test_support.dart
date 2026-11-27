@@ -142,6 +142,12 @@ class FakeRigOps implements NightRigOps {
   }
 
   @override
+  Future<CommandActionResult> releaseRun() async {
+    calls.add('release');
+    return CommandActionResult.ok;
+  }
+
+  @override
   Future<CommandActionResult> startRun() async {
     calls.add('start');
     return startResult;

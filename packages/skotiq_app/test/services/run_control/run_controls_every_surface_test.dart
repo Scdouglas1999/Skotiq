@@ -64,6 +64,7 @@ class _State {
     this.canCommand = true,
     this.noHost = false,
     this.camera = true,
+    this.held = false,
   });
 
   final String name;
@@ -73,6 +74,9 @@ class _State {
   final bool canCommand;
   final bool noHost;
   final bool camera;
+
+  /// The run's host publishes a manual action's hold.
+  final bool held;
 }
 
 const _states = <_State>[
@@ -84,7 +88,7 @@ const _states = <_State>[
   _State('running', SequenceExecutionState.running),
   _State('paused by operator', SequenceExecutionState.paused),
   _State('paused by action hold', SequenceExecutionState.paused,
-      action: _autofocusHold),
+      action: _autofocusHold, held: true),
   _State('recovering', SequenceExecutionState.recovering),
   _State('stopping', SequenceExecutionState.stopping),
   _State('finalizing', SequenceExecutionState.finalizing),
@@ -275,7 +279,10 @@ String _tonight(NightHeaderVm header) {
 
 List<Override> _overrides(_State state) => [
       runRecordProvider.overrideWith(
-        (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state.lifecycle)),
+        (ref) => RunRecordNotifier(
+          ref,
+          RunRecord(lifecycle: state.lifecycle, heldByAction: state.held),
+        ),
       ),
       ledgerClockProvider.overrideWith(
         (ref) => const Stream<DateTime>.empty(),

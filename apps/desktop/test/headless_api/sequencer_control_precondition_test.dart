@@ -64,7 +64,9 @@ void main() {
 
   setUp(() {
     backend = _MockSequencerBackend();
-    when(() => backend.sequencerPause()).thenAnswer((_) async {});
+    when(
+      () => backend.sequencerPause(origin: any(named: 'origin')),
+    ).thenAnswer((_) async {});
     when(() => backend.sequencerResume()).thenAnswer((_) async {});
     when(() => backend.sequencerSkip()).thenAnswer((_) async {});
     container = createHeadlessTestContainer(
@@ -110,7 +112,7 @@ void main() {
 
         // And the command never reached the executor, so nothing could have
         // overwritten the state of a run that had already ended.
-        verifyNever(() => backend.sequencerPause());
+        verifyNever(() => backend.sequencerPause(origin: any(named: 'origin')));
         verifyNever(() => backend.sequencerResume());
         verifyNever(() => backend.sequencerSkip());
       });
@@ -178,7 +180,9 @@ void main() {
         expect(skip.statusCode, HttpStatus.ok);
         expect((await _bodyOf(skip))['wasRunning'], isTrue);
 
-        verify(() => backend.sequencerPause()).called(1);
+        verify(
+          () => backend.sequencerPause(origin: any(named: 'origin')),
+        ).called(1);
         verify(() => backend.sequencerResume()).called(1);
         verify(() => backend.sequencerSkip()).called(1);
       });
@@ -200,7 +204,7 @@ void main() {
     // No verdict is offered, because this host has not earned one: stating
     // wasRunning either way would be a claim about a rig nobody can see.
     expect(body.containsKey('wasRunning'), isFalse);
-    verifyNever(() => backend.sequencerPause());
+    verifyNever(() => backend.sequencerPause(origin: any(named: 'origin')));
   });
 
   group('GET /api/sequencer/status carries the run\'s target', () {

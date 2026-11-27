@@ -680,7 +680,8 @@ class DeviceService {
   Future<void> stopGuiding() => _stopGuiding();
   Future<void> startSequence() => _startSequence();
   Future<void> stopSequence() => _stopSequence();
-  Future<void> pauseSequence() => _pauseSequence();
+  Future<void> pauseSequence({String? origin}) =>
+      _pauseSequence(origin: origin);
   Future<void> resumeSequence() => _resumeSequence();
 
   /// Ask the running sequence to flip at its next safe point. See

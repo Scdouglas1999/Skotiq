@@ -797,6 +797,10 @@ WireEvent _encodeSequencerEvent(SequencerEvent event) => switch (event) {
   ),
   SequencerEvent_Paused() => ('Paused', <String, Object?>{}),
   SequencerEvent_Resumed() => ('Resumed', <String, Object?>{}),
+  SequencerEvent_ActionHold() => (
+    'ActionHold',
+    <String, Object?>{'held': event.held},
+  ),
   SequencerEvent_Stopped() => (
     'Stopped',
     <String, Object?>{
@@ -1129,6 +1133,8 @@ SequencerEvent? _decodeSequencerEvent(
       return const SequencerEvent.paused();
     case 'Resumed':
       return const SequencerEvent.resumed();
+    case 'ActionHold':
+      return SequencerEvent.actionHold(held: wireBool(d, 'held'));
     case 'Stopped':
       return SequencerEvent.stopped(
         sequenceRunId: wireOptInt(d, 'sequence_run_id'),
@@ -1956,6 +1962,7 @@ const Map<EventCategory, List<String>> eventWireTypes = {
     'Started',
     'Paused',
     'Resumed',
+    'ActionHold',
     'Stopped',
     'Completed',
     'SequenceFailed',

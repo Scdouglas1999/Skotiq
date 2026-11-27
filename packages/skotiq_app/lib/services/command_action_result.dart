@@ -14,11 +14,16 @@ class CommandActionResult {
   /// notification toasts, so a caller must not show it a second time.
   final bool alreadyShown;
 
+  /// A manual action's release left the run paused under another pause:
+  /// who paused it ([RunStillPaused.pausedBy]).
+  final String? stillPausedBy;
+
   const CommandActionResult._({
     required this.isSuccess,
     required this.message,
     required this.feedbackType,
     this.alreadyShown = false,
+    this.stillPausedBy,
   });
 
   const CommandActionResult.success({
@@ -39,6 +44,16 @@ class CommandActionResult {
           message: message,
           feedbackType: feedbackType,
           alreadyShown: alreadyShown,
+        );
+
+  /// A manual action's release ended its hold, and the run stays paused
+  /// because [pausedBy] paused it while the hold lasted.
+  const CommandActionResult.stillPaused(String pausedBy)
+      : this._(
+          isSuccess: false,
+          message: 'The run is still paused: $pausedBy.',
+          feedbackType: CommandFeedbackType.info,
+          stillPausedBy: pausedBy,
         );
 
   /// The operator answered no to a question the command asked; there is

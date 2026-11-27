@@ -20,7 +20,12 @@ pub(crate) async fn resume() -> Result<(), SkotiqError> {
     skotiq_sequencer::executor_handle()
         .resume()
         .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to resume sequence: {}", e)))?;
+        .map_err(|e| match e {
+            skotiq_sequencer::RunCommandError::Failed(reason) => {
+                SkotiqError::OperationFailed(format!("Failed to resume sequence: {reason}"))
+            }
+            refused => crate::api::sequencer::lifecycle::run_command_refused(refused),
+        })?;
 
     get_state().publish_event(create_event_auto_id(
         EventSeverity::Info,

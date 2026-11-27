@@ -1881,7 +1881,9 @@ void main() {
     Future<SequenceExecutor> startRunning(ProviderContainer container) async {
       _stubBackendForStart(backend);
       when(() => backend.sequencerStart()).thenAnswer((_) async {});
-      when(() => backend.sequencerPause()).thenAnswer((_) async {
+      when(
+        () => backend.sequencerPause(origin: any(named: 'origin')),
+      ).thenAnswer((_) async {
         eventController.add(_sequencerEvent('Paused'));
       });
       when(() => backend.sequencerResume()).thenAnswer((_) async {
@@ -1953,7 +1955,7 @@ void main() {
         isA<RunLive>().having((phase) => phase.paused, 'paused', isTrue),
         reason: 'the elapsed ticker reads this flag and skips while it is set',
       );
-      verifyNever(() => backend.sequencerPause());
+      verifyNever(() => backend.sequencerPause(origin: any(named: 'origin')));
 
       executor.handleSequencerEventForTest(_sequencerEvent('Resumed'));
       await untilStatus(container, 'running');

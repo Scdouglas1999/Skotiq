@@ -363,6 +363,9 @@ class NotificationEventClassifier {
         return (NotificationCategory.sequencePaused, _none);
       case typed.SequencerEvent_Resumed():
         return (NotificationCategory.sequenceResumed, _none);
+      // The pause it holds is told by Paused.
+      case typed.SequencerEvent_ActionHold():
+        return null;
       case typed.SequencerEvent_TargetCompleted(:final targetName):
         return (
           NotificationCategory.targetCompleted,

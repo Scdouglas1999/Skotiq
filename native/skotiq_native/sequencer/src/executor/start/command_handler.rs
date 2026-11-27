@@ -13,7 +13,8 @@ pub(super) async fn run_command_handler(run: Arc<Run>, mut rx: mpsc::Receiver<Ex
     let run = &run.control;
     while let Some(cmd) = rx.recv().await {
         match cmd {
-            ExecutorCommand::Pause => run.pause(None),
+            ExecutorCommand::Pause { origin } => run.pause_from(origin.as_deref()),
+            ExecutorCommand::PauseForAction => run.pause_for_action(),
             ExecutorCommand::Resume if current_recovery.read().is_some() => {
                 // The node tree is frozen by a recovery ladder, not by a
                 // pause, and unfreezing it would expose through the fault the
@@ -246,7 +247,7 @@ mod tests {
     #[tokio::test]
     async fn pause_and_resume_are_each_reported_and_announced_once() {
         let mut handler = running_handler();
-        handler.send(ExecutorCommand::Pause).await;
+        handler.send(ExecutorCommand::Pause { origin: None }).await;
         assert_eq!(handler.run.state.progress().state, ExecutorState::Paused);
         assert!(handler.run.is_paused.load(Ordering::Relaxed));
 

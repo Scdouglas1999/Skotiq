@@ -20,10 +20,13 @@ pub struct SequencerState {
     pub current_target: Option<String>,
     pub current_filter: Option<String>,
     pub message: Option<String>,
+    /// A manual action holds the run paused: only its own release resumes or
+    /// skips it.
+    pub held_by_action: bool,
 }
 
-impl From<SequenceProgress> for SequencerState {
-    fn from(p: SequenceProgress) -> Self {
+impl SequencerState {
+    fn new(p: SequenceProgress, held_by_action: bool) -> Self {
         let state_str = p.state.as_wire();
         Self {
             state: state_str.to_string(),
@@ -37,6 +40,7 @@ impl From<SequenceProgress> for SequencerState {
             current_target: p.current_target,
             current_filter: p.current_filter,
             message: p.message,
+            held_by_action,
         }
     }
 }

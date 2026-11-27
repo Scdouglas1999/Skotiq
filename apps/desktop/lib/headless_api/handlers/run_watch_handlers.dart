@@ -144,6 +144,9 @@ class RunWatchHandlers implements RouteSource {
         'currentNodeName': status.currentNodeName,
         'progress': status.progress,
         'message': status.message,
+        // A manual action holds the run paused: Resume and Skip are refused
+        // until the action releases it.
+        'heldByAction': status.heldByAction,
       };
     } catch (e) {
       _logWarning('snapshot: sequencer status fetch failed: $e');

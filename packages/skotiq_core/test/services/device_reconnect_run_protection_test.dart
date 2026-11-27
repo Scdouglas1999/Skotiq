@@ -45,8 +45,8 @@ void main() {
           ref: ref,
           backend: backend,
           hostOwnsRecovery: false,
-          pauseSequence: () async {
-            calls.add('pause');
+          pauseSequence: ({origin}) async {
+            calls.add(origin == null ? 'pause' : 'pause: $origin');
             run.setLifecycle(SequenceExecutionState.paused);
           },
           resumeSequence: () async {
@@ -80,13 +80,24 @@ void main() {
       'is back', () async {
     runIs(SequenceExecutionState.running);
     await cameraDropsAndComesBack();
-    expect(calls, ['checkpoint', 'pause', 'resume']);
+    expect(calls, ['checkpoint', 'pause: camera disconnected', 'resume']);
   });
 
   test('a run inside a recovery is checkpointed and paused too', () async {
     runIs(SequenceExecutionState.recovering);
     await cameraDropsAndComesBack();
-    expect(calls, ['checkpoint', 'pause', 'resume']);
+    expect(calls, ['checkpoint', 'pause: camera disconnected', 'resume']);
+  });
+
+  test('a run a manual action holds is paused under the device loss too, so '
+      'that pause outlives the hold', () async {
+    runIs(SequenceExecutionState.running);
+    runIs(SequenceExecutionState.paused);
+    container.read(runRecordProvider.notifier).setHeldByAction(true);
+    final camera = container.read(cameraStateProvider.notifier);
+    camera.setDisconnected();
+    await coordinator.handleCriticalDeviceDisconnect('camera', cameraId);
+    expect(calls, ['checkpoint', 'pause: camera disconnected']);
   });
 
   test('a run the operator paused is checkpointed and stays paused', () async {
@@ -114,7 +125,7 @@ void main() {
       DeviceType.camera,
       cameraId,
     );
-    expect(calls, ['checkpoint', 'pause']);
+    expect(calls, ['checkpoint', 'pause: camera disconnected']);
   });
 
   test(

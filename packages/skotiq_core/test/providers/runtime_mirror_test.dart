@@ -605,6 +605,19 @@ void main() {
       expect(progress.nodeProgressStructuredDetail['exp-l'], reading);
     });
 
+    test(
+      "a manual action's hold on the host's run shows on the client",
+      () async {
+        final client = await roundTrip((host) {
+          host.read(runRecordProvider.notifier)
+            ..setLifecycle(SequenceExecutionState.paused)
+            ..setHeldByAction(true);
+        }, 'sequenceRun');
+
+        expect(client.read(runHeldByActionProvider), isTrue);
+      },
+    );
+
     test("a client's run progress is the host's, phase and step detail "
         'included', () async {
       final client = await roundTrip((host) {

@@ -65,7 +65,9 @@ void main() {
       when(
         () => backend.polarAlignmentEvents,
       ).thenAnswer((_) => const Stream.empty());
-      when(() => backend.sequencerPause()).thenAnswer((_) async {});
+      when(
+        () => backend.sequencerPause(origin: any(named: 'origin')),
+      ).thenAnswer((_) async {});
       when(
         () => backend.mountPark(any(), forSafety: true),
       ).thenAnswer((_) async => GuiderForMove.idle);
@@ -88,6 +90,7 @@ void main() {
 
     ProviderContainer makeContainer({
       SequenceExecutionState executionState = SequenceExecutionState.running,
+      bool heldByAction = false,
       bool mountConnected = true,
       bool mountParked = false,
       bool domeConnected = false,
@@ -110,8 +113,10 @@ void main() {
             return notifier;
           }),
           runRecordProvider.overrideWith(
-            (ref) =>
-                RunRecordNotifier(ref, RunRecord(lifecycle: executionState)),
+            (ref) => RunRecordNotifier(
+              ref,
+              RunRecord(lifecycle: executionState, heldByAction: heldByAction),
+            ),
           ),
           cameraStateProvider.overrideWith((ref) {
             final n = CameraStateNotifier(ref);
@@ -166,6 +171,23 @@ void main() {
       );
     }
 
+    test('a run a manual action holds is paused too, so the pause outlives '
+        'the hold', () async {
+      final container = makeContainer(
+        executionState: SequenceExecutionState.paused,
+        heldByAction: true,
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(safeRigServiceProvider)
+          .safeTheRig(reason: 'Weather turned unsafe', park: false);
+
+      verify(
+        () => backend.sequencerPause(origin: 'Weather turned unsafe'),
+      ).called(1);
+    });
+
     test('pauses sequence and parks an unparked connected mount', () async {
       final container = makeContainer();
       addTearDown(container.dispose);
@@ -174,7 +196,9 @@ void main() {
           .read(safeRigServiceProvider)
           .safeTheRig(reason: 'test', park: true);
 
-      verify(() => backend.sequencerPause()).called(1);
+      verify(
+        () => backend.sequencerPause(origin: any(named: 'origin')),
+      ).called(1);
       verify(
         () => backend.mountPark('simulator:test-mount-1', forSafety: true),
       ).called(1);
@@ -246,9 +270,9 @@ void main() {
           ),
         ),
       );
-      verifyNever(() => backend.sequencerPause());
+      verifyNever(() => backend.sequencerPause(origin: any(named: 'origin')));
       verifyNever(() => backend.mountPark(any(), forSafety: true));
-      verifyNever(() => backendB.sequencerPause());
+      verifyNever(() => backendB.sequencerPause(origin: any(named: 'origin')));
       verifyNever(() => backendB.mountPark(any(), forSafety: true));
     });
 
@@ -286,7 +310,9 @@ void main() {
             .read(safeRigServiceProvider)
             .safeTheRig(reason: 'test', park: true);
 
-        verify(() => backend.sequencerPause()).called(1);
+        verify(
+          () => backend.sequencerPause(origin: any(named: 'origin')),
+        ).called(1);
         verifyNever(() => backend.mountPark(any(), forSafety: true));
         expect(result.mountParked, isFalse);
         expect(result.mountAlreadySafe, isTrue);
@@ -318,7 +344,9 @@ void main() {
           .read(safeRigServiceProvider)
           .safeTheRig(reason: 'test', park: false);
 
-      verify(() => backend.sequencerPause()).called(1);
+      verify(
+        () => backend.sequencerPause(origin: any(named: 'origin')),
+      ).called(1);
       verifyNever(() => backend.mountPark(any(), forSafety: true));
       expect(result.sequencePaused, isTrue);
       expect(result.mountParked, isFalse);
@@ -326,7 +354,7 @@ void main() {
 
     test('does not pause or park when no sequence is running', () async {
       when(
-        () => backend.sequencerPause(),
+        () => backend.sequencerPause(origin: any(named: 'origin')),
       ).thenThrow(Exception('no sequence running'));
       final container = makeContainer(
         executionState: SequenceExecutionState.idle,
@@ -337,7 +365,7 @@ void main() {
           .read(safeRigServiceProvider)
           .safeTheRig(reason: 'test', park: true);
 
-      verifyNever(() => backend.sequencerPause());
+      verifyNever(() => backend.sequencerPause(origin: any(named: 'origin')));
       verifyNever(() => backend.mountPark(any(), forSafety: true));
       verifyNever(() => backend.mountSetTracking(any(), any()));
       expect(result.sequencePaused, isFalse);
@@ -407,7 +435,7 @@ void main() {
           .read(safeRigServiceProvider)
           .safeTheRig(reason: 'test', park: true);
 
-      verifyNever(() => backend.sequencerPause());
+      verifyNever(() => backend.sequencerPause(origin: any(named: 'origin')));
       verify(
         () => backend.mountPark('simulator:test-mount-1', forSafety: true),
       ).called(1);
@@ -479,7 +507,7 @@ void main() {
 
       verifyInOrder([
         () => backend.cameraAbortExposure('simulator:test-camera-1'),
-        () => backend.sequencerPause(),
+        () => backend.sequencerPause(origin: any(named: 'origin')),
         () => backend.mountPark('simulator:test-mount-1', forSafety: true),
         () => backend.cameraSetCooling(
           deviceId: 'simulator:test-camera-1',
@@ -605,13 +633,15 @@ void main() {
 
       // Pause still happened, and the dome was STILL closed despite the park
       // failure — safing must not short-circuit.
-      verify(() => backend.sequencerPause()).called(1);
+      verify(
+        () => backend.sequencerPause(origin: any(named: 'origin')),
+      ).called(1);
       expect(recording.domeClosedFor, ['simulator:test-dome-1']);
     });
 
     test('aggregates multiple failures into the thrown exception', () async {
       when(
-        () => backend.sequencerPause(),
+        () => backend.sequencerPause(origin: any(named: 'origin')),
       ).thenThrow(Exception('no sequence running'));
       when(
         () => backend.mountPark(any(), forSafety: true),

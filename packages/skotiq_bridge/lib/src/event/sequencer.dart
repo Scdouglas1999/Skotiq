@@ -213,6 +213,11 @@ sealed class SequencerEvent with _$SequencerEvent {
   }) = SequencerEvent_Started;
   const factory SequencerEvent.paused() = SequencerEvent_Paused;
   const factory SequencerEvent.resumed() = SequencerEvent_Resumed;
+
+  /// A manual action started or stopped holding the paused run. While one
+  /// holds it, only the action's own release resumes or skips it.
+  const factory SequencerEvent.actionHold({required bool held}) =
+      SequencerEvent_ActionHold;
   const factory SequencerEvent.stopped({
     /// The run this terminal belongs to, when the publisher knows it.
     /// Episode identity for the dashboard's stop fold: without it a
