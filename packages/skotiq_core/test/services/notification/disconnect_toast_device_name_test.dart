@@ -170,17 +170,21 @@ void main() {
     expect(body, 'Mount: $_heartbeatMessage');
   });
 
-  test('a disconnect that carries no message says the device disconnected',
-      () async {
-    expect(
-      await _renderedBody(_disconnected('sim_camera_1', 'Camera')),
-      'Simulated Camera disconnected.',
-    );
-    expect(await _renderedBody(_disconnected('', 'Mount')), 'Mount disconnected.');
-  });
+  test(
+    'a disconnect that carries no message says the device disconnected',
+    () async {
+      expect(
+        await _renderedBody(_disconnected('sim_camera_1', 'Camera')),
+        'Simulated Camera disconnected.',
+      );
+      expect(
+        await _renderedBody(_disconnected('', 'Mount')),
+        'Mount disconnected.',
+      );
+    },
+  );
 
-  test('an error with an empty message says the device disconnected',
-      () async {
+  test('an error with an empty message says the device disconnected', () async {
     final event = _disconnect('sim_focuser_1', 'Focuser');
     event.data['message'] = '  ';
     expect(await _renderedBody(event), 'Simulated Focuser disconnected.');

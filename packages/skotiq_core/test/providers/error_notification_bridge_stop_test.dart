@@ -304,32 +304,29 @@ void main() {
     },
   );
 
-  test(
-    'an error-severity equipment Error is told once, by the notification '
-    'router',
-    () async {
-      final (container, controller) = await _bridge();
-      addTearDown(container.dispose);
-      addTearDown(controller.close);
-      container.read(notificationRouterProvider);
-      container.read(deviceServiceProvider);
+  test('an error-severity equipment Error is told once, by the notification '
+      'router', () async {
+    final (container, controller) = await _bridge();
+    addTearDown(container.dispose);
+    addTearDown(controller.close);
+    container.read(notificationRouterProvider);
+    container.read(deviceServiceProvider);
 
-      controller.add(
-        equipment('Error', 'Device not responding', EventSeverity.error),
-      );
-      controller.add(
-        equipment('Error', 'Device vanished', EventSeverity.critical),
-      );
-      await pumpEventQueue();
+    controller.add(
+      equipment('Error', 'Device not responding', EventSeverity.error),
+    );
+    controller.add(
+      equipment('Error', 'Device vanished', EventSeverity.critical),
+    );
+    await pumpEventQueue();
 
-      final shown = container.read(uiNotificationProvider);
-      for (final said in ['Device not responding', 'Device vanished']) {
-        final told = shown.where((n) => n.message.contains(said)).toList();
-        expect(told, hasLength(1), reason: said);
-        expect(told.single.title, 'Equipment disconnected');
-      }
-    },
-  );
+    final shown = container.read(uiNotificationProvider);
+    for (final said in ['Device not responding', 'Device vanished']) {
+      final told = shown.where((n) => n.message.contains(said)).toList();
+      expect(told, hasLength(1), reason: said);
+      expect(told.single.title, 'Equipment disconnected');
+    }
+  });
 
   // DeviceService is created lazily, by the first thing that reads it, so a
   // phone that only watches a remote host may never have one, and a backend
