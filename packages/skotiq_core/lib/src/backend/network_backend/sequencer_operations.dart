@@ -133,7 +133,7 @@ mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
   Future<void> sequencerPause({String? origin}) async {
     await _post(
       SequencerApi.pause,
-      body: origin == null ? null : {'origin': origin},
+      body: origin == null ? null : {RunHoldFields.origin: origin},
     );
   }
 
@@ -142,7 +142,7 @@ mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
   Future<void> sequencerHoldForAction({
     String holder = hostActionHolder,
   }) async {
-    await _post(SequencerApi.pause, body: {'forAction': true});
+    await _post(SequencerApi.pause, body: {RunHoldFields.forAction: true});
   }
 
   @override
@@ -158,12 +158,12 @@ mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
     try {
       final response = await _post(
         SequencerApi.resume,
-        body: {'releasesHold': true},
+        body: {RunHoldFields.releasesHold: true},
       );
-      return response['status'] == 'resumed';
+      return response[RunHoldFields.status] == RunHoldFields.resumed;
     } on ServerError catch (e) {
       if (e.code != ApiErrorCodes.runStillPaused) rethrow;
-      final pausedBy = e.details?['pausedBy'];
+      final pausedBy = e.details?[RunHoldFields.pausedBy];
       throw RunStillPaused(pausedBy is String ? pausedBy : e.message);
     }
   }
@@ -173,7 +173,7 @@ mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
     String holder = hostActionHolder,
   }) async {
     final response = await _post(SequencerApi.releaseActionHold);
-    return response['released'] == true;
+    return response[RunHoldFields.releasedHold] == true;
   }
 
   @override

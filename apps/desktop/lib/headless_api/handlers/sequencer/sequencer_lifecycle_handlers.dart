@@ -585,7 +585,10 @@ extension _SequencerLifecycle on SequencerHandlers {
         '${stillPaused.pausedBy}.',
     statusCode: 409,
     cause: stillPaused,
-    details: {'pausedBy': stillPaused.pausedBy, kWasRunningField: true},
+    details: {
+      RunHoldFields.pausedBy: stillPaused.pausedBy,
+      kWasRunningField: true,
+    },
   );
 
   /// Run [command], answering the executor's refusal of a held run as
@@ -608,8 +611,8 @@ extension _SequencerLifecycle on SequencerHandlers {
   Future<Response> _handleSequencerPause(Request request) async {
     _logInfo('[API] POST /api/sequencer/pause');
     final body = await readJsonObjectOrEmpty(request);
-    final forAction = optionalBool(body, 'forAction');
-    final origin = optionalString(body, 'origin', maxLength: 200);
+    final forAction = optionalBool(body, RunHoldFields.forAction);
+    final origin = optionalString(body, RunHoldFields.origin, maxLength: 200);
     await _requireRunInFlight('pause');
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerPause,
@@ -645,7 +648,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     _logInfo('[API] POST /api/sequencer/resume');
     final releasesHold = optionalBool(
       await readJsonObjectOrEmpty(request),
-      'releasesHold',
+      RunHoldFields.releasesHold,
     );
     await _requireRunInFlight('resume', refusedWhileHeld: releasesHold != true);
     final commandId = commandCorrelator?.beginCommand(
@@ -669,7 +672,9 @@ extension _SequencerLifecycle on SequencerHandlers {
     }
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
-      'status': resumed ? 'resumed' : 'released',
+      RunHoldFields.status: resumed
+          ? RunHoldFields.resumed
+          : RunHoldFields.released,
       kWasRunningField: true,
     });
   }
@@ -697,7 +702,7 @@ extension _SequencerLifecycle on SequencerHandlers {
         .sequencerReleaseActionHold(
           holder: actionHolderFor(authIdentityFrom(request)),
         );
-    return jsonOk({'released': released});
+    return jsonOk({RunHoldFields.releasedHold: released});
   }
 
   /// Jump the executor forward to a specific node by id.

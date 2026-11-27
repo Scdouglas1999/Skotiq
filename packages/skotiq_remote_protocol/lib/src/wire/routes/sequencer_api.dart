@@ -312,3 +312,32 @@ enum SequencerApi implements ApiEndpoint {
   @override
   final ApiRoute route;
 }
+
+/// The body fields of a manual action's hold on the run, sent on
+/// [SequencerApi.pause], [SequencerApi.resume] and
+/// [SequencerApi.releaseActionHold] and their replies.
+abstract final class RunHoldFields {
+  /// Pause body: `true` takes the caller's hold instead of a plain pause.
+  static const forAction = 'forAction';
+
+  /// Pause body: who asked for a plain pause, in a plain phrase.
+  static const origin = 'origin';
+
+  /// Resume body: `true` ends the caller's hold at the end of its action.
+  static const releasesHold = 'releasesHold';
+
+  /// Resume reply: [resumed] or [released].
+  static const status = 'status';
+
+  /// The run was resumed.
+  static const resumed = 'resumed';
+
+  /// The hold ended and the run was left as it was.
+  static const released = 'released';
+
+  /// Release reply: whether the caller held the run.
+  static const releasedHold = 'released';
+
+  /// Still-paused refusal: the pause that keeps the run paused.
+  static const pausedBy = 'pausedBy';
+}

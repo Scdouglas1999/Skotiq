@@ -196,10 +196,11 @@ class DeviceReconnectCoordinator {
       }
     }
 
-    // A run a manual action holds is paused too, but this pause must outlive
-    // the hold: the action's release would otherwise resume the run.
     if (sequenceState == SequenceExecutionState.paused &&
-        !_ref.read(runHeldByActionProvider)) {
+        !pauseReachesHeldRun(
+          sequenceState,
+          held: _ref.read(runHeldByActionProvider),
+        )) {
       return;
     }
 
