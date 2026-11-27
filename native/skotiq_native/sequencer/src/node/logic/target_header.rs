@@ -491,13 +491,10 @@ fn needs_observer_site(trigger: &TargetTrigger) -> bool {
 fn no_observer_site_reason(trigger: &TargetTrigger, role: TriggerRole) -> String {
     let clause = match role {
         TriggerRole::StartWhen => {
-            format!(
-                "This target waits for {} before it starts",
-                operator_trigger_label(trigger)
-            )
+            format!("This target waits for {} before it starts", trigger.label())
         }
         TriggerRole::EndWhen => {
-            format!("This target stops when {}", operator_trigger_label(trigger))
+            format!("This target stops when {}", trigger.label())
         }
     };
     format!(
@@ -733,7 +730,7 @@ async fn wait_for_trigger(
     }
 
     // Shown to the operator: times as a date, not as Unix seconds.
-    let label = operator_trigger_label(trigger);
+    let label = trigger.label();
     let mut emitted_initial = false;
     let poll = std::time::Duration::from_secs(u64::from(poll_secs));
 
@@ -840,7 +837,7 @@ fn emit_end_when_skipped_at_entry(
     let trigger_name = format!(
         "The end condition on \"{}\" ({})",
         display_name,
-        operator_trigger_label(end_when)
+        end_when.label()
     );
     tracing::warn!(
         "{} was already satisfied at entry; skipping the target without imaging",
@@ -864,45 +861,6 @@ fn emit_end_when_skipped_at_entry(
     ));
 }
 
-/// [`TargetTrigger::label`], with the time-bearing leaves rendered as a UTC
-/// instant instead of a raw Unix timestamp.
-///
-/// `label()` is the engine's own vocabulary and prints `time ≥ 1786970284`,
-/// which is exact and unreadable. Every consumer that only logs it keeps that
-/// form; the operator-facing copy composed here does not, because "the end
-/// condition was already met" is useless without knowing WHEN it was met.
-fn operator_trigger_label(trigger: &TargetTrigger) -> String {
-    fn instant(ts: i64) -> String {
-        match chrono::DateTime::<chrono::Utc>::from_timestamp(ts, 0) {
-            Some(dt) => dt.format("%Y-%m-%d %H:%M UTC").to_string(),
-            // The timestamp is outside the representable range; the raw value
-            // is the only true thing left to say about it.
-            None => ts.to_string(),
-        }
-    }
-    match trigger {
-        TargetTrigger::TimeAfter(ts) => format!("time ≥ {}", instant(*ts)),
-        TargetTrigger::TimeBefore(ts) => format!("time < {}", instant(*ts)),
-        TargetTrigger::And(terms) => format!(
-            "({})",
-            terms
-                .iter()
-                .map(operator_trigger_label)
-                .collect::<Vec<_>>()
-                .join(" AND ")
-        ),
-        TargetTrigger::Or(terms) => format!(
-            "({})",
-            terms
-                .iter()
-                .map(operator_trigger_label)
-                .collect::<Vec<_>>()
-                .join(" OR ")
-        ),
-        other => other.label(),
-    }
-}
-
 /// Lifecycle event emitted when `end_when` fires.
 fn emit_end_when_met(
     context: &ExecutionContext,
@@ -913,7 +871,7 @@ fn emit_end_when_met(
     let msg = format!(
         "Target {} end_when satisfied ({}); stopping",
         display_name,
-        operator_trigger_label(end_when)
+        end_when.label()
     );
     tracing::info!("{}", msg);
     let upd = ProgressUpdate::lifecycle(node_id.clone(), NodeStatus::Running, msg);
@@ -1830,33 +1788,6 @@ mod tests {
         );
     }
 
-    /// The operator-facing rendering keeps the engine's vocabulary for
-    /// everything except the time leaves, which `label()` prints as raw epoch
-    /// seconds.
-    #[test]
-    fn operator_trigger_label_renders_instants() {
-        let ts = chrono::DateTime::parse_from_rfc3339("2026-01-15T21:00:00Z")
-            .unwrap()
-            .timestamp();
-        assert_eq!(
-            operator_trigger_label(&TargetTrigger::TimeAfter(ts)),
-            "time ≥ 2026-01-15 21:00 UTC"
-        );
-        assert_eq!(
-            operator_trigger_label(&TargetTrigger::AltitudeAbove(35.0)),
-            TargetTrigger::AltitudeAbove(35.0).label(),
-            "non-time leaves keep the engine's own label"
-        );
-        assert_eq!(
-            operator_trigger_label(&TargetTrigger::And(vec![
-                TargetTrigger::TimeAfter(ts),
-                TargetTrigger::AltitudeBelow(20.0),
-            ])),
-            "(time ≥ 2026-01-15 21:00 UTC AND altitude ≤ 20.0°)",
-            "a compound renders its time leaves too"
-        );
-    }
-
     /// An `end_when` that needs the observer site and no site set refuses,
     /// exactly as the same trigger type on `start_when` refuses.
     #[tokio::test]
@@ -2275,7 +2206,7 @@ mod site_floor_tests {
         );
         let timed = TargetTrigger::TimeAfter(0);
         assert_eq!(
-            waiting_detail("East", &timed, &timed.label(), &observer).detail_text(),
+            waiting_detail("East", &timed, "time ≥ 0", &observer).detail_text(),
             "Waiting for East: time ≥ 0"
         );
     }
