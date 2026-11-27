@@ -167,17 +167,12 @@ class SmartNightService {
   }) {
     final reference = now ?? DateTime.now();
 
-    final window = AstronomyCalculations.darkWindow(
+    final night = planningNight(
       now: reference,
       latitudeDeg: latitudeDeg,
       longitudeDeg: longitudeDeg,
     );
-    final night = window.twilight;
-    if (window case NightDarkWindow(:final start, :final end)) {
-      return (start: start, end: end, twilight: night);
-    }
-
-    if (window case NoDarkWindow(polarNight: false)) {
+    if (night == null) {
       _logging.warning(
         'No twilight bounds and the Sun does not remain below the horizon at '
         'lat=$latitudeDeg lon=$longitudeDeg. Smart Night cannot derive a dark '
@@ -190,16 +185,14 @@ class SmartNightService {
         'build a manual sequence for intentional daylight/twilight imaging.',
       );
     }
-
-    // With no crossings and the Sun below the horizon all day, this is polar
-    // night. Use a conservative clock window rather than claiming all 24 hours.
-    _logging.warning(
-      'The Sun remains below the horizon at lat=$latitudeDeg lon=$longitudeDeg; '
-      'using a conservative 21:00 → 05:00 local polar-night window.',
-      source: _source,
-    );
-    final clock = polarNightClockWindow(reference);
-    return (start: clock.start, end: clock.end, twilight: night);
+    if (night.polarNight) {
+      _logging.warning(
+        'The Sun remains below the horizon at lat=$latitudeDeg lon=$longitudeDeg; '
+        'using a conservative 21:00 → 05:00 local polar-night window.',
+        source: _source,
+      );
+    }
+    return (start: night.start, end: night.end, twilight: night.twilight);
   }
 
   /// Tonight's dark window as far as it is still ahead: once the night is

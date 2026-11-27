@@ -436,21 +436,16 @@ class _TonightSuggestionScorer {
     double latitude,
     double longitude,
   ) {
-    final window = AstronomyCalculations.darkWindow(
+    final night = planningNight(
       now: now,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
-    switch (window) {
-      case NightDarkWindow(:final start, :final end):
-        return _NightWindow(start: start, end: end);
-      case NoDarkWindow(polarNight: true):
-        final clock = polarNightClockWindow(now);
-        return _NightWindow(start: clock.start, end: clock.end);
-      case NoDarkWindow(polarNight: false):
-        warnings.add(midnightSunNotice);
-        return null;
+    if (night == null) {
+      warnings.add(midnightSunNotice);
+      return null;
     }
+    return _NightWindow(start: night.start, end: night.end);
   }
 
   /// Extract the best available night bounds from twilight times.
