@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/connection/connection_stale_banner.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/startup/quick_start_checker.dart';
 import 'package:skotiq_app/utils/startup_surface_queue.dart';
@@ -212,6 +213,59 @@ void main() {
       await tester.pump(const Duration(milliseconds: 20));
     });
   }
+
+  Future<ProviderContainer> mountOnHost(WidgetTester tester, _Host host) async {
+    await _setUpView(tester);
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+          backendProvider.overrideWith((ref) => _Swappable(ref, host)),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const AppShell(child: SizedBox.shrink()),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    return ProviderScope.containerOf(tester.element(find.byType(AppShell)));
+  }
+
+  testWidgets('a phone that opens on its host asks about the host run',
+      (tester) async {
+    await mountOnHost(tester, _hostWithCheckpoint());
+    expect(find.text('Host NGC 891'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 20));
+  });
+
+  testWidgets(
+      'a phone back on the same link after a drop asks about a run the host '
+      'left meanwhile', (tester) async {
+    final host = _hostWithCheckpoint();
+    when(() => host.hasCheckpoint()).thenAnswer((_) async => false);
+    final container = await mountOnHost(tester, host);
+    expect(find.text('Host NGC 891'), findsNothing);
+
+    container.read(connectionStaleProvider.notifier).state = true;
+    await tester.pump();
+    when(() => host.hasCheckpoint()).thenAnswer((_) async => true);
+    container.read(connectionStaleProvider.notifier).state = false;
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Host NGC 891'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 20));
+  });
 
   testWidgets(
       'the session check does not hold later prompts while it waits for '
