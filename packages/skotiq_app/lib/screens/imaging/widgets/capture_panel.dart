@@ -17,8 +17,6 @@ import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
 import '../../../tours/tour_target.dart';
 import '../../../widgets/sensitivity_field.dart';
-import '../../night_control/panel/camera/camera_panel_vm.dart'
-    show NightCoolerState, nightCoolerState;
 import 'panel_widgets.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/analytics_route.dart';
@@ -131,8 +129,7 @@ class CapturePanel extends ConsumerWidget {
                     // Green only when the cooler holds the set point (the
                     // rule Tonight uses); an uncooled sensor is a reading,
                     // not a good state.
-                    tone: nightCoolerState(cameraState) ==
-                            NightCoolerState.atSetpoint
+                    tone: cameraState.coolerState == CoolerState.atSetpoint
                         ? ChipTone.success
                         : ChipTone.neutral,
                     dot: cameraState.isCooling || cameraState.isWarming,

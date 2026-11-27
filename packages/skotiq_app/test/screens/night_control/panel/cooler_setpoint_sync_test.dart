@@ -5,6 +5,7 @@ import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/camera/camera_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/camera/camera_tab.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
@@ -27,13 +28,13 @@ void main() {
 
     key.currentState!.set(
       connected: true,
-      coolerState: NightCoolerState.off,
+      coolerState: CoolerState.off,
       defaultSetpoint: -10,
     );
     await tester.pump();
     expect(_field(tester), '−10');
 
-    key.currentState!.set(setpoint: -15, coolerState: NightCoolerState.cooling);
+    key.currentState!.set(setpoint: -15, coolerState: CoolerState.cooling);
     await tester.pump();
     expect(_field(tester), '−15');
 
@@ -63,13 +64,13 @@ class _Host extends StatefulWidget {
 
 class _HostState extends State<_Host> {
   var connected = false;
-  var coolerState = NightCoolerState.notConnected;
+  var coolerState = CoolerState.notConnected;
   double? setpoint;
   double? defaultSetpoint;
 
   void set({
     bool? connected,
-    NightCoolerState? coolerState,
+    CoolerState? coolerState,
     double? setpoint,
     double? defaultSetpoint,
     bool clearSetpoint = false,

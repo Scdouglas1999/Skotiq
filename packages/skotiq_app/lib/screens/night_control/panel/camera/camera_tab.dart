@@ -145,18 +145,18 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
     final vm = widget.vm;
     final blocked = nightCameraBlockedReason(vm, l10n);
     final (String stateKey, MetricGridTone? tone) = switch (vm.coolerState) {
-      NightCoolerState.notConnected => (
+      CoolerState.notConnected => (
           'nightPanelCoolerNotConnected',
           MetricGridTone.warning,
         ),
-      NightCoolerState.notReported => ('nightPanelCoolerNotReported', null),
-      NightCoolerState.off => ('nightPanelCoolerOff', null),
-      NightCoolerState.cooling => ('nightPanelCoolerCooling', null),
-      NightCoolerState.atSetpoint => (
+      CoolerState.notReported => ('nightPanelCoolerNotReported', null),
+      CoolerState.off => ('nightPanelCoolerOff', null),
+      CoolerState.cooling => ('nightPanelCoolerCooling', null),
+      CoolerState.atSetpoint => (
           'nightPanelCoolerAtSetpoint',
           MetricGridTone.good,
         ),
-      NightCoolerState.warming => ('nightPanelCoolerWarming', null),
+      CoolerState.warming => ('nightPanelCoolerWarming', null),
     };
     final title = vm.deviceName == null
         ? l10n.text('nightPanelCooler')
@@ -166,8 +166,8 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
           );
     final warmReason = blocked ??
         switch (vm.coolerState) {
-          NightCoolerState.warming => l10n.text('nightPanelCoolerWarming'),
-          NightCoolerState.off => l10n.text('nightPanelWhyCoolerOff'),
+          CoolerState.warming => l10n.text('nightPanelCoolerWarming'),
+          CoolerState.off => l10n.text('nightPanelWhyCoolerOff'),
           _ => null,
         };
 

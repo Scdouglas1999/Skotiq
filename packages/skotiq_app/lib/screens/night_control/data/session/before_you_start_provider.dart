@@ -98,7 +98,8 @@ final nightPlanUnparksMountProvider = Provider<bool?>((ref) {
 NightText _cameraCheckDetail(CameraStateSnapshot camera) {
   final temp = camera.temperature;
   if (temp == null) return const NightText('nightSessionCheckConnected');
-  if (camera.isCooling && (temp - camera.targetTemp).abs() >= 0.5) {
+  if (camera.isCooling &&
+      (camera.setpointDistance ?? 0) >= kCoolerAtSetpointTolerance) {
     return NightText(
       'nightSessionCheckCameraCooling',
       params: <String, String>{

@@ -25,7 +25,7 @@ Future<bool> confirmDisconnectCooledCamera(
 ) async {
   final cam = ref.read(cameraStateProvider);
   final connected = cam.connectionState == DeviceConnectionState.connected;
-  if (!connected || (!cam.isCooling && !cam.isWarming)) return true;
+  if (!connected || !cam.coolerRunning) return true;
 
   final temp = cam.temperature;
   final tempNote = temp != null ? ' (sensor at ${formatCelsius(temp)})' : '';

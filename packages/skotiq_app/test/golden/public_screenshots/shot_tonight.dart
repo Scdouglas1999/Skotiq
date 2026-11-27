@@ -616,7 +616,7 @@ NightCameraPanelVm _camera() {
     runLive: true,
     connected: true,
     deviceName: 'ASI1600MM-Cool',
-    coolerState: NightCoolerState.atSetpoint,
+    coolerState: CoolerState.atSetpoint,
     sensorTemp: -10,
     setpoint: -10,
     coolerPower: lastFrame.coolerPower.roundToDouble(),

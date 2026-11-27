@@ -1,5 +1,24 @@
 part of '../equipment_models.dart';
 
+/// How close to the setpoint the sensor reads "at setpoint", in °C.
+const double kCoolerAtSetpointTolerance = 0.5;
+
+/// Cooler power, in percent, above which a cooler counts as active even when
+/// the camera says it is off: the TEC is still drawing current.
+const double kCoolerActivePowerFloor = 2;
+
+/// What a camera's cooler is doing, as the camera reports it.
+enum CoolerState {
+  notConnected,
+
+  /// Connected, and the camera does not say whether its cooler is on.
+  notReported,
+  off,
+  cooling,
+  atSetpoint,
+  warming,
+}
+
 class CameraStateSnapshot extends Equatable
     implements DeviceSlotState<CameraStateSnapshot> {
   @override
@@ -55,6 +74,36 @@ class CameraStateSnapshot extends Equatable
 
   /// The cooler is known to be on.
   bool get isCooling => coolerOn == true;
+
+  /// How far the sensor reads from the setpoint, in °C; null without a
+  /// reading.
+  double? get setpointDistance {
+    final temp = temperature;
+    return temp == null ? null : (temp - targetTemp).abs();
+  }
+
+  /// What the cooler is doing.
+  CoolerState get coolerState {
+    if (connectionState != DeviceConnectionState.connected) {
+      return CoolerState.notConnected;
+    }
+    if (isWarming) return CoolerState.warming;
+    if (coolerOn == null) return CoolerState.notReported;
+    if (!isCooling) return CoolerState.off;
+    final distance = setpointDistance;
+    if (distance != null && distance <= kCoolerAtSetpointTolerance) {
+      return CoolerState.atSetpoint;
+    }
+    return CoolerState.cooling;
+  }
+
+  /// The cooler is cooling or warming up.
+  bool get coolerRunning => isCooling || isWarming;
+
+  /// The cooler is running, or still draws more than
+  /// [kCoolerActivePowerFloor] percent power.
+  bool get coolerActive =>
+      coolerRunning || (coolerPower ?? 0) > kCoolerActivePowerFloor;
 
   /// Whether the device is healthy (communicated within last 30 seconds)
   bool get isHealthy {

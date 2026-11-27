@@ -102,8 +102,7 @@ Future<void> defaultUpdateApplySafetyCheckWithReader(
         'Cannot apply an update while the camera is exposing.',
       );
     }
-    final coolerPower = cameraState.coolerPower ?? 0;
-    if (cameraState.isCooling || cameraState.isWarming || coolerPower > 2) {
+    if (cameraState.coolerActive) {
       throw UpdateException(
         'Cannot apply an update while the camera cooler is active. '
         'Warm the camera and wait for cooler power to reach 0% first.',
