@@ -10,6 +10,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart' show AppScreen;
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 
 import '../localization/skotiq_localizations.dart';
 import 'analytics_route.dart';
@@ -144,6 +145,7 @@ enum AppRoute {
     icon: LucideIcons.aperture,
     group: ShellNavGroup.review,
     screen: AppScreen.darkroom,
+    needsNativeLibrary: true,
   ),
 
   settings(
@@ -291,6 +293,7 @@ enum AppRoute {
     this.screen = AppScreen.unknown,
     this.showsItself = const {},
     this.inShell = true,
+    this.needsNativeLibrary = false,
   });
 
   /// The full path, with `:name` for a path parameter.
@@ -321,6 +324,14 @@ enum AppRoute {
   /// False only for screens that bring their own scaffold and must not sit
   /// inside the app shell.
   final bool inShell;
+
+  /// The screen works only where the native library is loaded (it edits on
+  /// the imaging computer); menus leave it out on a phone.
+  final bool needsNativeLibrary;
+
+  /// Whether a menu on this device lists the screen.
+  bool get listedOnThisDevice =>
+      !needsNativeLibrary || DeviceTraits.current.nativeLibrary;
 
   /// The route this one is nested under in the router, so going back from it
   /// lands on the parent.

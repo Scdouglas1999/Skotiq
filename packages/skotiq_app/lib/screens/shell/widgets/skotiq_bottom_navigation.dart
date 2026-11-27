@@ -4,7 +4,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../tours/tour_target.dart';
-import '../shell_chrome.dart';
 import '../shell_navigation.dart';
 
 /// The narrow shell's navigation (04-shell §3.3).
@@ -121,8 +120,7 @@ class SkotiqBottomNavigation extends StatelessWidget {
                   // A phone is always a client of the imaging computer, and
                   // the Darkroom edits only there: on a phone its entry led
                   // to a page saying so.
-                  if (!(ShellChrome.isNativeMobile &&
-                      dest == AppRoute.darkroom))
+                  if (dest.listedOnThisDevice)
                     Builder(
                       builder: (context) {
                         final isCurrent =

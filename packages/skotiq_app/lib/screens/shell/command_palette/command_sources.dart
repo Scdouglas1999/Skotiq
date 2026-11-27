@@ -38,14 +38,15 @@ List<CommandEntry> buildScreenEntries(BuildContext context) {
       for (final route in AppRoute.values)
         if (route.palette && route.group == null) route,
     ])
-      CommandEntry(
-        id: 'screen:${route.path}',
-        group: CommandGroup.screens,
-        icon: route.icon!,
-        label: route.label!.of(l10n),
-        keywords: route.keywords,
-        invoke: (context, ref) => context.go(route.path),
-      ),
+      if (route.listedOnThisDevice)
+        CommandEntry(
+          id: 'screen:${route.path}',
+          group: CommandGroup.screens,
+          icon: route.icon!,
+          label: route.label!.of(l10n),
+          keywords: route.keywords,
+          invoke: (context, ref) => context.go(route.path),
+        ),
   ];
 
   // Settings sections are screens too: they are where you GO, as opposed to
