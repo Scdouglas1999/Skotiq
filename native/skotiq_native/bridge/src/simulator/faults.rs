@@ -177,20 +177,27 @@ struct Armed {
     remaining: u32,
 }
 
+/// What a fired effect left set on its key until the key is re-armed or
+/// cleared. A key holds one spec, so it holds at most one latch.
+#[derive(Debug, Clone)]
+enum Latch {
+    /// [`Effect::Stall`]: the device stops moving.
+    Stall,
+    /// [`Effect::Backlash`]: steps lost on a reversal.
+    Backlash(i32),
+    /// [`Effect::Unplug`]: whether to reorder, and whether the gate has
+    /// applied it yet.
+    Unplug { reorder: bool, applied: bool },
+    /// [`Effect::Unsafe`]: the monitor reads unsafe.
+    Unsafe,
+    /// [`Effect::Runaway`] or [`Effect::ExternalSlew`], with when it latched.
+    Motion(std::time::Instant, Effect),
+}
+
 #[derive(Debug, Default)]
 struct Registry {
     faults: HashMap<String, Armed>,
-    /// Keys currently latched into a stall by [`Effect::Stall`].
-    stalled: HashMap<String, bool>,
-    /// Backlash, in steps, currently latched on a key by [`Effect::Backlash`].
-    backlash: HashMap<String, i32>,
-    /// Keys an [`Effect::Unplug`] fired on: whether to reorder, and whether
-    /// the gate has applied it yet.
-    unplugged: HashMap<String, (bool, bool)>,
-    /// Keys latched unsafe by [`Effect::Unsafe`].
-    unsafe_keys: std::collections::HashSet<String>,
-    /// Runaways latched by [`Effect::Runaway`], with when they were latched.
-    runaway: HashMap<String, (std::time::Instant, Effect)>,
+    latches: HashMap<String, Latch>,
 }
 
 fn registry() -> &'static StdMutex<Registry> {
@@ -233,16 +240,6 @@ pub fn arm(key: &str, spec: FaultSpec) {
         _ => 0,
     };
     let mut reg = registry().lock().expect("sim fault registry poisoned");
-    // Every simulator connect re-arms from the environment, and the mount
-    // reconnects after the runaway's blackout. Re-arming the same runaway
-    // must not start it over.
-    if matches!(
-        spec.effect,
-        Effect::Runaway { .. } | Effect::ExternalSlew { .. }
-    ) && reg.faults.get(key).is_some_and(|armed| armed.spec == spec)
-    {
-        return;
-    }
     reg.faults.insert(
         key.to_string(),
         Armed {
@@ -251,13 +248,9 @@ pub fn arm(key: &str, spec: FaultSpec) {
             remaining,
         },
     );
-    // Re-arming a key clears the latches left by a previous spec, so tests do
+    // Re-arming a key clears the latch left by a previous spec, so tests do
     // not inherit a stuck or backlashed device from an earlier case.
-    reg.stalled.remove(key);
-    reg.backlash.remove(key);
-    reg.unplugged.remove(key);
-    reg.unsafe_keys.remove(key);
-    reg.runaway.remove(key);
+    reg.latches.remove(key);
 }
 
 /// Part of the fault-injection CONTROL SURFACE: driven from tests today, and
@@ -270,11 +263,7 @@ pub fn arm(key: &str, spec: FaultSpec) {
 pub fn clear(key: &str) {
     let mut reg = registry().lock().expect("sim fault registry poisoned");
     reg.faults.remove(key);
-    reg.stalled.remove(key);
-    reg.backlash.remove(key);
-    reg.unplugged.remove(key);
-    reg.unsafe_keys.remove(key);
-    reg.runaway.remove(key);
+    reg.latches.remove(key);
 }
 
 /// Disarm everything. Call this between tests: the registry is process-global
@@ -284,27 +273,21 @@ pub fn clear(key: &str) {
 pub fn clear_all() {
     let mut reg = registry().lock().expect("sim fault registry poisoned");
     reg.faults.clear();
-    reg.stalled.clear();
-    reg.backlash.clear();
-    reg.runaway.clear();
-    reg.unplugged.clear();
-    reg.unsafe_keys.clear();
+    reg.latches.clear();
 }
 
 /// Whether an [`Effect::Unsafe`] has fired on `key` since it was armed.
 pub fn is_unsafe(key: &str) -> bool {
-    registry()
-        .lock()
-        .expect("sim fault registry poisoned")
-        .unsafe_keys
-        .contains(key)
+    matches!(latch_of(key), Some(Latch::Unsafe))
 }
 
 /// The unplug an [`Effect::Unplug`] on `key` asked for and the gate has not
 /// applied yet: `Some(reorder)` once, then `None`.
 pub fn take_unplug(key: &str) -> Option<bool> {
     let mut reg = registry().lock().expect("sim fault registry poisoned");
-    let (reorder, applied) = reg.unplugged.get_mut(key)?;
+    let Some(Latch::Unplug { reorder, applied }) = reg.latches.get_mut(key) else {
+        return None;
+    };
     if *applied {
         return None;
     }
@@ -332,36 +315,35 @@ pub fn armed_keys() -> Vec<(String, FaultSpec)> {
 /// device at all, which is how a stall stays invisible to the command that
 /// caused it and only shows up as "it never got there".
 pub fn is_stalled(key: &str) -> bool {
-    matches!(
-        registry()
-            .lock()
-            .expect("sim fault registry poisoned")
-            .stalled
-            .get(key),
-        Some(true)
-    )
+    matches!(latch_of(key), Some(Latch::Stall))
 }
 
 /// Release a stall latch without touching the armed spec, so a test can prove
 /// the app recovers once the hardware starts moving again.
 #[allow(dead_code)]
 pub fn release_stall(key: &str) {
-    registry()
-        .lock()
-        .expect("sim fault registry poisoned")
-        .stalled
-        .remove(key);
+    release(key, |latch| matches!(latch, Latch::Stall));
 }
 
 /// Release a backlash latch, so a test can prove the app converges once the
 /// mechanism behaves.
 #[allow(dead_code)]
 pub fn release_backlash(key: &str) {
-    registry()
-        .lock()
-        .expect("sim fault registry poisoned")
-        .backlash
-        .remove(key);
+    release(key, |latch| matches!(latch, Latch::Backlash(_)));
+}
+
+/// Drop the latch on `key` when it is the kind `is_kind` names.
+fn release(key: &str, is_kind: fn(&Latch) -> bool) {
+    let mut reg = registry().lock().expect("sim fault registry poisoned");
+    if reg.latches.get(key).is_some_and(is_kind) {
+        reg.latches.remove(key);
+    }
+}
+
+/// The latch on `key`, copied out from under the registry lock.
+fn latch_of(key: &str) -> Option<Latch> {
+    let reg = registry().lock().expect("sim fault registry poisoned");
+    reg.latches.get(key).cloned()
 }
 
 /// The decision reached under the registry lock, so no lock is held across an
@@ -414,21 +396,22 @@ fn decide(key: &str) -> Decision {
             Decision::SleepThenFail(ms, DeviceOpError::Message(message))
         }
         Effect::Stall => {
-            reg.stalled.insert(key.to_string(), true);
+            reg.latches.insert(key.to_string(), Latch::Stall);
             Decision::Proceed
         }
         Effect::Backlash(steps) => {
-            reg.backlash.insert(key.to_string(), steps);
+            reg.latches.insert(key.to_string(), Latch::Backlash(steps));
             Decision::Proceed
         }
         Effect::Unsafe => {
-            reg.unsafe_keys.insert(key.to_string());
+            reg.latches.insert(key.to_string(), Latch::Unsafe);
             Decision::Proceed
         }
         Effect::Unplug { reorder } => {
-            reg.unplugged
-                .entry(key.to_string())
-                .or_insert((reorder, false));
+            reg.latches.entry(key.to_string()).or_insert(Latch::Unplug {
+                reorder,
+                applied: false,
+            });
             Decision::Fail(DeviceOpError::not_connected(
                 None,
                 format!("Injected simulator fault: the device dropped off the bus ({key})"),
@@ -437,9 +420,9 @@ fn decide(key: &str) -> Decision {
         effect @ (Effect::Runaway { .. } | Effect::ExternalSlew { .. }) => {
             // One runaway per arming: a trigger that keeps firing must not
             // restart it.
-            reg.runaway
+            reg.latches
                 .entry(key.to_string())
-                .or_insert((std::time::Instant::now(), effect));
+                .or_insert(Latch::Motion(std::time::Instant::now(), effect));
             Decision::Proceed
         }
     }
@@ -449,8 +432,8 @@ fn decide(key: &str) -> Decision {
 /// `(ra_hours, dec_deg, delay_secs)`.
 pub fn external_slew_latch(key: &str) -> Option<(std::time::Instant, f64, f64, f64)> {
     let reg = registry().lock().expect("sim fault registry poisoned");
-    match reg.runaway.get(key)? {
-        (
+    match reg.latches.get(key)? {
+        Latch::Motion(
             at,
             Effect::ExternalSlew {
                 ra_hours,
@@ -466,8 +449,8 @@ pub fn external_slew_latch(key: &str) -> Option<(std::time::Instant, f64, f64, f
 /// `(deg_per_sec, run_secs, blackout_secs, delay_secs)`.
 pub fn runaway_latch(key: &str) -> Option<(std::time::Instant, f64, f64, f64, f64)> {
     let reg = registry().lock().expect("sim fault registry poisoned");
-    match reg.runaway.get(key)? {
-        (
+    match reg.latches.get(key)? {
+        Latch::Motion(
             at,
             Effect::Runaway {
                 deg_per_sec,
@@ -485,12 +468,10 @@ pub fn runaway_latch(key: &str) -> Option<(std::time::Instant, f64, f64, f64, f6
 /// The simulated mechanism consults this when deciding where it actually landed
 /// versus where it was told to go.
 pub fn backlash_steps(key: &str) -> Option<i32> {
-    registry()
-        .lock()
-        .expect("sim fault registry poisoned")
-        .backlash
-        .get(key)
-        .copied()
+    match latch_of(key)? {
+        Latch::Backlash(steps) => Some(steps),
+        _ => None,
+    }
 }
 
 /// Consult the registry for `key`.
@@ -524,25 +505,19 @@ pub async fn check(key: &str) -> Result<(), DeviceOpError> {
 
 // Environment-variable arming
 
-/// Parse `SKOTIQ_SIM_FAULTS` and arm everything it names.
-///
-/// Called once during simulator setup so a live drive can inject faults into a
-/// release build without a rebuild or a code change.
+/// Parse `SKOTIQ_SIM_FAULTS` and arm everything it names, once per host
+/// start, so a live drive can inject faults into a release build without a
+/// rebuild. A later call does nothing: arming again would restart every
+/// fault's count and any latched runaway.
 pub fn arm_from_env() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(arm_from_env_now);
+}
+
+fn arm_from_env_now() {
     let Ok(raw) = std::env::var("SKOTIQ_SIM_FAULTS") else {
         return;
     };
-    // Every simulated device connect calls this. Re-arming the same spec
-    // reset each fault's count, so `after(N)` restarted with every connect
-    // (eight times per host start); arm again only when the spec changes.
-    static ARMED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
-    {
-        let mut armed = ARMED.lock().unwrap_or_else(|e| e.into_inner());
-        if armed.as_deref() == Some(raw.as_str()) {
-            return;
-        }
-        *armed = Some(raw.clone());
-    }
     match parse_spec_list(&raw) {
         Ok(specs) => {
             if let Ok(seed) = std::env::var("SKOTIQ_SIM_FAULT_SEED") {
@@ -963,6 +938,20 @@ mod tests {
             !is_stalled("test.rearm"),
             "a test inherited a stuck device from the previous case"
         );
+    }
+
+    #[tokio::test]
+    async fn releasing_one_latch_kind_leaves_another() {
+        let _g = Guard::new(&["test.release"]).await;
+        arm(
+            "test.release",
+            FaultSpec::new(Trigger::Always, Effect::Backlash(12)),
+        );
+        assert!(check("test.release").await.is_ok());
+        release_stall("test.release");
+        assert_eq!(backlash_steps("test.release"), Some(12));
+        release_backlash("test.release");
+        assert_eq!(backlash_steps("test.release"), None);
     }
 
     #[tokio::test]

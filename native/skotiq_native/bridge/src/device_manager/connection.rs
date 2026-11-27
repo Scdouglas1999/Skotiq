@@ -967,10 +967,9 @@ impl DeviceManager {
         })
     }
 
-    /// Connects a simulated device: arms the faults `SKOTIQ_SIM_FAULTS` names,
-    /// lets a `<device>.connect` fault refuse or delay the open, and holds the
-    /// handle the simulator hands back. Connecting a connected simulator is
-    /// `Ok`; an id without the `sim_` prefix and a device type with no
+    /// Connects a simulated device: lets a `<device>.connect` fault refuse or
+    /// delay the open, and holds the handle the simulator hands back.
+    /// Connecting a connected simulator is `Ok`; an id without the `sim_` prefix and a device type with no
     /// simulator are errors, so neither ever reads as connected.
     pub(crate) async fn connect_simulator(&self, info: &DeviceInfo) -> Result<(), String> {
         if !info.id.starts_with("sim_") {
@@ -980,7 +979,6 @@ impl DeviceManager {
             ));
         }
 
-        crate::simulator::faults::arm_from_env();
         if let Some(prefix) = Self::sim_fault_prefix(info) {
             crate::simulator::faults::check(&format!("{prefix}.connect")).await?;
         }

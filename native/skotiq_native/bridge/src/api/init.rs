@@ -14,6 +14,7 @@ pub fn api_init_with_logging(log_directory: Option<String>) -> Result<(), Skotiq
     crate::init_native_with_logging(log_directory)?;
 
     tracing::info!("Skotiq Native API initialized");
+    crate::simulator::faults::arm_from_env();
 
     let _ = get_state();
     crate::api::post_session::publish_pass_reports();
