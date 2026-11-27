@@ -27,22 +27,20 @@ class WebDavSyncTarget implements SyncTarget {
 
   /// [client] is injectable for tests (e.g. `package:http/testing.dart`
   /// MockClient). When omitted a real client is created and owned by this
-  /// instance ([close] disposes it).
+  /// instance ([close] disposes it). A request fails when no bytes move for
+  /// [timeout].
   WebDavSyncTarget({
     required this.baseUrl,
     required this.username,
     required this.password,
     http.Client? client,
+    Duration timeout = const Duration(minutes: 5),
   }) : _client = client ?? http.Client(),
        _ownsClient = client == null {
-    // Generous enough to cover a large backup-bundle PUT on a moderate
-    // connection.
-    const requestTimeout = Duration(minutes: 5);
     _exchange = HttpExchange(
       _client,
       networkFailure: SyncTargetException.network,
-      headerDeadline: requestTimeout,
-      bodyDeadline: requestTimeout,
+      idleLimit: timeout,
     );
   }
 

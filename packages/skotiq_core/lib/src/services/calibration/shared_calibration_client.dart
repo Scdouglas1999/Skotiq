@@ -56,6 +56,7 @@ class SharedCalibrationClient {
   final bool _ownsClient;
 
   /// [client] is injectable for tests (`package:http/testing.dart` MockClient).
+  /// A request fails when no bytes move for [timeout].
   SharedCalibrationClient({
     required this.hubBaseUrl,
     required this.bearerToken,
@@ -66,8 +67,7 @@ class SharedCalibrationClient {
     _exchange = HttpExchange(
       _client,
       networkFailure: ConstellationException.network,
-      headerDeadline: timeout,
-      bodyDeadline: timeout,
+      idleLimit: timeout,
     );
   }
 

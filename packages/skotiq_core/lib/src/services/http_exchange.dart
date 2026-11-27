@@ -8,23 +8,21 @@ import 'package:http/http.dart' as http;
 /// comes back, and a failure before an HTTP status arrived is handed to
 /// [networkFailure] with a sentence naming the host.
 ///
-/// [headerDeadline] bounds the wait from sending the request to the reply's
-/// headers, which includes sending the request body; [bodyDeadline] bounds
-/// collecting the reply's body. Null leaves that wait unbounded.
+/// The exchange gives up when no bytes move for [idleLimit]: not while the
+/// request body goes out, not while the server works on its reply, not
+/// between chunks of the reply's body. A slow link that keeps moving is never
+/// cut off, however long the whole transfer takes.
 class HttpExchange {
   HttpExchange(
     this._client, {
     required Exception Function(String message) networkFailure,
-    Duration? headerDeadline,
-    Duration? bodyDeadline,
+    required Duration idleLimit,
   }) : _networkFailure = networkFailure,
-       _headerDeadline = headerDeadline,
-       _bodyDeadline = bodyDeadline;
+       _idleLimit = idleLimit;
 
   final http.Client _client;
   final Exception Function(String message) _networkFailure;
-  final Duration? _headerDeadline;
-  final Duration? _bodyDeadline;
+  final Duration _idleLimit;
 
   /// The request body goes to the socket in slices of this size, so a slow
   /// link moves it piece by piece.
@@ -38,55 +36,14 @@ class HttpExchange {
     Map<String, String>? headers,
     List<int>? body,
     File? file,
-  }) async {
-    try {
-      final streamed = await _start(
-        method,
-        uri,
-        headers: headers,
-        body: body,
-        file: file,
-      );
-      return await _within(http.Response.fromStream(streamed), _bodyDeadline);
-    } on Object catch (error) {
-      final mapped = _mapped(error, uri);
-      if (mapped == null) rethrow;
-      throw mapped;
-    }
-  }
+  }) async => http.Response.fromStream(
+    await open(method, uri, headers: headers, body: body, file: file),
+  );
 
-  /// Send a bodyless [method] [uri] and return the reply as soon as its
-  /// headers arrive. A network failure while its body streams reaches the
-  /// stream's listener as the same [networkFailure].
+  /// Send the request as [send] does and return the reply as soon as its
+  /// headers arrive. A network failure or an idle body reaches the stream's
+  /// listener as the same [networkFailure].
   Future<http.StreamedResponse> open(
-    String method,
-    Uri uri, {
-    Map<String, String>? headers,
-  }) async {
-    final http.StreamedResponse streamed;
-    try {
-      streamed = await _start(method, uri, headers: headers);
-    } on Object catch (error) {
-      final mapped = _mapped(error, uri);
-      if (mapped == null) rethrow;
-      throw mapped;
-    }
-    return http.StreamedResponse(
-      streamed.stream.handleError(
-        (Object error) => throw _mapped(error, uri)!,
-        test: (error) => _mapped(error, uri) != null,
-      ),
-      streamed.statusCode,
-      contentLength: streamed.contentLength,
-      request: streamed.request,
-      headers: streamed.headers,
-      isRedirect: streamed.isRedirect,
-      persistentConnection: streamed.persistentConnection,
-      reasonPhrase: streamed.reasonPhrase,
-    );
-  }
-
-  Future<http.StreamedResponse> _start(
     String method,
     Uri uri, {
     Map<String, String>? headers,
@@ -94,7 +51,12 @@ class HttpExchange {
     File? file,
   }) async {
     assert(body == null || file == null, 'one request body at most');
-    final request = http.StreamedRequest(method, uri);
+    final watch = _IdleWatch(_idleLimit);
+    final request = http.AbortableStreamedRequest(
+      method,
+      uri,
+      abortTrigger: watch.expired,
+    );
     if (headers != null) request.headers.addAll(headers);
     final Stream<List<int>> content;
     if (file != null) {
@@ -107,11 +69,94 @@ class HttpExchange {
     }
     unawaited(
       request.sink
-          .addStream(content)
+          .addStream(
+            content.map((chunk) {
+              watch.touch();
+              return chunk;
+            }),
+          )
           .then((_) {}, onError: request.sink.addError)
           .whenComplete(request.sink.close),
     );
-    return _within(_client.send(request), _headerDeadline);
+
+    final http.StreamedResponse streamed;
+    try {
+      streamed = await Future.any([
+        _client.send(request),
+        watch.expired.then<http.StreamedResponse>(
+          (_) => throw TimeoutException(null, _idleLimit),
+        ),
+      ]);
+    } on Object catch (error) {
+      watch.stop();
+      final mapped = _mapped(error, uri, watch);
+      if (mapped == null) rethrow;
+      throw mapped;
+    }
+    watch.touch();
+    return http.StreamedResponse(
+      _watched(streamed.stream, uri, watch),
+      streamed.statusCode,
+      contentLength: streamed.contentLength,
+      request: streamed.request,
+      headers: streamed.headers,
+      isRedirect: streamed.isRedirect,
+      persistentConnection: streamed.persistentConnection,
+      reasonPhrase: streamed.reasonPhrase,
+    );
+  }
+
+  /// [source] with every chunk keeping [watch] awake, its network failures
+  /// mapped, and an idle gap ending it with the timeout failure. A paused
+  /// listener holds the watch: its own slowness is not the link's.
+  Stream<List<int>> _watched(
+    Stream<List<int>> source,
+    Uri uri,
+    _IdleWatch watch,
+  ) {
+    late final StreamController<List<int>> out;
+    StreamSubscription<List<int>>? sub;
+    void finish() {
+      watch.stop();
+      if (!out.isClosed) unawaited(out.close());
+    }
+
+    out = StreamController<List<int>>(
+      onListen: () {
+        sub = source.listen(
+          (chunk) {
+            watch.touch();
+            out.add(chunk);
+          },
+          onError: (Object error, StackTrace stack) {
+            if (out.isClosed) return;
+            out.addError(_mapped(error, uri, watch) ?? error, stack);
+          },
+          onDone: finish,
+        );
+        unawaited(
+          watch.expired.then((_) {
+            if (out.isClosed) return;
+            out.addError(_mapped(TimeoutException(null), uri, watch)!);
+            finish();
+            unawaited(sub?.cancel());
+          }),
+        );
+      },
+      onPause: () {
+        sub?.pause();
+        watch.hold();
+      },
+      onResume: () {
+        sub?.resume();
+        watch.touch();
+      },
+      onCancel: () {
+        watch.stop();
+        return sub?.cancel();
+      },
+    );
+    return out.stream;
   }
 
   static Stream<List<int>> _slices(List<int> bytes) async* {
@@ -123,17 +168,50 @@ class HttpExchange {
     }
   }
 
-  static Future<T> _within<T>(Future<T> future, Duration? deadline) =>
-      deadline == null ? future : future.timeout(deadline);
+  /// The network failure [error] stands for, or null when it is not one. An
+  /// abort the idle watch caused reads as the timeout it is.
+  Exception? _mapped(Object error, Uri uri, _IdleWatch watch) {
+    if (watch.hasExpired &&
+        (error is TimeoutException || error is http.ClientException)) {
+      return _networkFailure('Request to ${uri.host} timed out');
+    }
+    return switch (error) {
+      SocketException(:final message) => _networkFailure(
+        'Cannot reach ${uri.host}: $message',
+      ),
+      http.ClientException(:final message) => _networkFailure(
+        'Request to ${uri.host} failed: $message',
+      ),
+      TimeoutException() => _networkFailure('Request to ${uri.host} timed out'),
+      _ => null,
+    };
+  }
+}
 
-  Exception? _mapped(Object error, Uri uri) => switch (error) {
-    SocketException(:final message) => _networkFailure(
-      'Cannot reach ${uri.host}: $message',
-    ),
-    http.ClientException(:final message) => _networkFailure(
-      'Request to ${uri.host} failed: $message',
-    ),
-    TimeoutException() => _networkFailure('Request to ${uri.host} timed out'),
-    _ => null,
-  };
+/// Completes [expired] once [touch] has not been called for the limit.
+class _IdleWatch {
+  _IdleWatch(this._limit) {
+    touch();
+  }
+
+  final Duration _limit;
+  final Completer<void> _expired = Completer<void>();
+  Timer? _timer;
+
+  Future<void> get expired => _expired.future;
+
+  bool get hasExpired => _expired.isCompleted;
+
+  /// Bytes moved: the idle gap starts again.
+  void touch() {
+    if (hasExpired) return;
+    _timer?.cancel();
+    _timer = Timer(_limit, _expired.complete);
+  }
+
+  /// Nothing is owed by the link until the next [touch].
+  void hold() => _timer?.cancel();
+
+  /// The exchange is over.
+  void stop() => _timer?.cancel();
 }

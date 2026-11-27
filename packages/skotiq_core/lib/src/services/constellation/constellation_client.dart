@@ -41,23 +41,21 @@ class ConstellationClient {
 
   final http.Client _client;
   final bool _ownsClient;
-  final Duration _timeout;
 
   /// [client] is injectable for tests (`package:http/testing.dart` MockClient).
   /// When omitted a real client is created and owned here ([close] disposes it).
+  /// A request fails when no bytes move for [timeout].
   ConstellationClient({
     required this.hubBaseUrl,
     required this.bearerToken,
     http.Client? client,
     Duration timeout = const Duration(seconds: 60),
   }) : _client = client ?? http.Client(),
-       _ownsClient = client == null,
-       _timeout = timeout {
+       _ownsClient = client == null {
     _exchange = HttpExchange(
       _client,
       networkFailure: ConstellationException.network,
-      headerDeadline: timeout,
-      bodyDeadline: timeout,
+      idleLimit: timeout,
     );
   }
 

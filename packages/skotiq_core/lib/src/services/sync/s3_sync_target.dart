@@ -95,8 +95,8 @@ class S3SyncTarget implements SyncTarget {
 
   /// [client] is injectable for tests (e.g. `package:http/testing.dart`
   /// MockClient). When omitted a real client is created and owned by this
-  /// instance ([close] disposes it). [timeout] bounds each request the way
-  /// [WebDavSyncTarget]'s does.
+  /// instance ([close] disposes it). A request fails when no bytes move for
+  /// [timeout].
   S3SyncTarget({
     required this.endpoint,
     required this.region,
@@ -111,8 +111,7 @@ class S3SyncTarget implements SyncTarget {
     _exchange = HttpExchange(
       _client,
       networkFailure: SyncTargetException.network,
-      headerDeadline: timeout,
-      bodyDeadline: timeout,
+      idleLimit: timeout,
     );
   }
 

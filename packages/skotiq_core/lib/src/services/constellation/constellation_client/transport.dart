@@ -61,21 +61,13 @@ extension _ConstellationClientTransport on ConstellationClient {
     await out.parent.create(recursive: true);
     final sink = out.openWrite();
     try {
-      // These artifacts run to gigabytes, so the bound is on the idle gap
-      // between chunks: a deadline on the whole transfer would abort healthy
-      // slow links.
-      await sink.addStream(streamed.stream.timeout(_timeout));
+      await sink.addStream(streamed.stream);
       await sink.close();
-    } on Object catch (error) {
+    } on Object {
       await _closeQuietly(sink);
       // Never leave a truncated artifact behind: neither a retry nor the
       // reader that opens it can tell a partial file from a complete one.
       await _deleteQuietly(out);
-      if (error is TimeoutException) {
-        throw ConstellationException.network(
-          'Request to ${uri.host} timed out',
-        );
-      }
       rethrow;
     }
     return outPath;
