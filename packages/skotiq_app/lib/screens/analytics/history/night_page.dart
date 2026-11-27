@@ -299,12 +299,7 @@ class _NightHeader extends ConsumerWidget {
     final reviewing = view == NightView.report || view == NightView.workbench;
 
     final actions = <Widget>[
-      if (run != null)
-        ContinueRunButton(
-          sequenceName: run.sequenceName,
-          startedAt: run.startedAt,
-          endedAt: run.endedAt,
-        ),
+      if (run != null) ContinueRunButton(runId: run.id),
       if (reviewing && session != null)
         NightReviewActions(
           sessionId: session.id,

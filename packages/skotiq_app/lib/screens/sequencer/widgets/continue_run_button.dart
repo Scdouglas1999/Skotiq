@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/database.dart'
+    show SequenceRun, SequenceRunStatusOfRow;
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -24,49 +26,49 @@ final continuableCheckpointProvider =
   }
 });
 
-/// Whether [info] is the checkpoint of the run that started at [startedAt] and
-/// ended at [endedAt] (or has not recorded an end).
+/// The id of the run [info] was saved from, or null when that run is not one
+/// that can be continued.
+///
+/// The host keeps one checkpoint and every run overwrites it, so it belongs
+/// to the newest run started before it was saved, whatever that run's plan;
+/// a run that ended earlier than another started never owns it. A completed
+/// run has nothing left to continue.
 @visibleForTesting
-bool checkpointBelongsToRun(
-  CheckpointInfo info, {
-  required String sequenceName,
-  required DateTime startedAt,
-  DateTime? endedAt,
-}) {
-  if (info.sequenceName != sequenceName) return false;
+int? checkpointOwner(CheckpointInfo info, Iterable<SequenceRun> runs) {
   final saved = info.timestamp.toUtc();
-  if (saved.isBefore(startedAt.toUtc())) return false;
-  // The run's end is recorded a moment after its checkpoint's last write.
-  return endedAt == null ||
-      !saved.isAfter(endedAt.toUtc().add(const Duration(minutes: 2)));
+  SequenceRun? owner;
+  for (final run in runs) {
+    final started = run.startedAt.toUtc();
+    if (started.isAfter(saved)) continue;
+    if (owner == null || started.isAfter(owner.startedAt.toUtc())) {
+      owner = run;
+    }
+  }
+  if (owner == null ||
+      owner.sequenceName != info.sequenceName ||
+      owner.runStatus == SequenceRunStatus.completed) {
+    return null;
+  }
+  return owner.id;
 }
 
 /// "Continue" on a History row whose run can be picked up from its
 /// checkpoint. Restoring loads the plan and its progress; nothing moves until
 /// the operator presses Start.
 class ContinueRunButton extends ConsumerWidget {
-  const ContinueRunButton({
-    super.key,
-    required this.sequenceName,
-    required this.startedAt,
-    this.endedAt,
-  });
+  const ContinueRunButton({super.key, required this.runId});
 
-  final String sequenceName;
-  final DateTime startedAt;
-  final DateTime? endedAt;
+  /// The History row's `sequence_runs.id`.
+  final int runId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final info = ref.watch(continuableCheckpointProvider).valueOrNull;
+    final runs = ref.watch(sequenceRunsProvider).valueOrNull;
     if (info == null ||
+        runs == null ||
         !ref.watch(sequenceExecutionStateProvider).canStart ||
-        !checkpointBelongsToRun(
-          info,
-          sequenceName: sequenceName,
-          startedAt: startedAt,
-          endedAt: endedAt,
-        )) {
+        checkpointOwner(info, runs) != runId) {
       return const SizedBox.shrink();
     }
     final frames = info.completedExposures;
