@@ -13,11 +13,9 @@ import '../../../utils/transient_bottom_inset.dart';
 /// One rendered toast: the newest notification of its kind, plus every id
 /// collapsed into it.
 ///
-/// A single failed connect of the built-in guider raises the SAME refusal twice
-/// — once from the Dart connect path via `ErrorService.log`, once from the
-/// backend's error event via `event_provider`. Two producers for one condition
-/// is a fact of this architecture (the backend is allowed to report what it
-/// refused); stacking their identical words for the operator is not.
+/// One condition can be told by more than one producer (the backend is allowed
+/// to report what it refused, and the app what it saw fail); stacking their
+/// identical words for the operator is not.
 class _ToastGroup {
   /// The de-duplication key every member shares — see
   /// [notificationContentSignature]. Also the widget identity and the timer

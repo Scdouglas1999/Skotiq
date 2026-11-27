@@ -664,33 +664,19 @@ extension _DeviceServiceEventHandling on DeviceService {
       ).setError(Exception(fullMessage));
     }
 
-    try {
-      _ref
-          .read(errorServiceProvider)
-          .logDeviceError(
-            operation: 'driver_error',
-            message: toldMessage,
-            deviceType: deviceType ?? 'Device',
-            deviceId: deviceId,
-            severity: switch (severity) {
-              EventSeverity.info => ErrorSeverity.info,
-              EventSeverity.warning => ErrorSeverity.warning,
-              EventSeverity.error => ErrorSeverity.error,
-              EventSeverity.critical => ErrorSeverity.critical,
-            },
-            context: errorCode == null ? null : {'error_code': errorCode},
-            showNotice: false,
-          );
-    } on Object catch (errSvcErr) {
-      logSafely(
-        _ref,
-        (logger) => logger.warning(
-          'errorService record for driver error failed: $errSvcErr '
-          '(original: $fullMessage)',
-          source: 'DeviceService',
-        ),
-      );
-    }
+    logSafely(
+      _ref,
+      (logger) => logger.log(
+        switch (severity) {
+          EventSeverity.info => LogLevel.info,
+          EventSeverity.warning => LogLevel.warning,
+          EventSeverity.error => LogLevel.error,
+          EventSeverity.critical => LogLevel.critical,
+        },
+        toldMessage,
+        source: 'device:driver_error',
+      ),
+    );
 
     if (!failedConnect || severity.index < EventSeverity.error.index) return;
 

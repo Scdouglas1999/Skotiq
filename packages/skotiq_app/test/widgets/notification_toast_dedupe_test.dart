@@ -1,6 +1,6 @@
 // One failed connect of the built-in guider raises FOUR statements of one
 // refusal — the same "Guider Error … requires an active profile with a guide
-// focal length" toast TWICE (Dart connect path via ErrorService, plus the
+// focal length" toast TWICE (the Dart connect path, plus the
 // backend's error event via event_provider), an "Equipment disconnected" toast
 // for a device that never connected, and the Connection help dialog behind all
 // three.
@@ -108,8 +108,8 @@ void main() {
 
   // Neither of the two obvious places collapses this pair. The
   // NotificationRouter's normalized-key dedupe never sees these toasts (the
-  // Dart connect path calls `ErrorService.log`, the backend event path calls
-  // `errorNotificationBridgeProvider`, and BOTH call
+  // Dart connect path and the backend event path
+  // (`errorNotificationBridgeProvider`) BOTH call
   // `UiNotificationNotifier.showError` directly), and a collapse keyed on the
   // EXACT rendered strings is defeated by one character — a trailing full stop.
   //

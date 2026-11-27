@@ -15,7 +15,7 @@ extension _DeviceServiceSwitchConnections on DeviceService {
   /// Refresh the cached channel snapshot for the currently-connected
   /// switch device. Delegates to [SwitchChannelService.refreshChannels];
   /// see that class for the full contract (per-channel fallbacks,
-  /// backend gating, ErrorService surfacing).
+  /// backend gating, failure notices).
   Future<void> _refreshSwitchChannels() => _switchChannels.refreshChannels();
 
   /// Toggle a single switch channel on or off. Delegates to

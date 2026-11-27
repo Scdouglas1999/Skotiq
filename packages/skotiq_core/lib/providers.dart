@@ -232,7 +232,6 @@ export 'src/providers/darkroom_state_store_provider.dart';
 export 'src/providers/device_commands_provider.dart';
 export 'src/providers/transients/difference_image_seam_provider.dart';
 export 'src/providers/end_of_night_calibration/eon_trigger_provider.dart';
-export 'src/providers/error_service_provider.dart';
 export 'src/providers/flat_library_service_provider.dart';
 export 'src/providers/flat_wizard_service_provider.dart';
 export 'src/providers/focus_model_service_providers.dart';

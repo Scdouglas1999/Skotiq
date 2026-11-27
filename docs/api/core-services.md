@@ -222,11 +222,6 @@ Automatic state persistence.
 
 Application logging and diagnostics.
 
-### ErrorService
-**Location:** `packages/skotiq_core/lib/src/services/error_service.dart`
-
-Error reporting and handling.
-
 ### SessionExportService
 **Location:** `packages/skotiq_core/lib/src/services/session_export_service.dart`
 
