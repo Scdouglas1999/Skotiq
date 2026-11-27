@@ -10,15 +10,12 @@ mixin _GuidingStateFields on ConsumerState<GuidingScreen> {
 
   /// True when the viewport cannot hold the three columns.
   ///
-  /// Two ways in. [Responsive.isPhone] is width-only (`< 600`), which
-  /// misclassifies a phone held in landscape (a large phone is ~932 px wide),
-  /// so a phone in EITHER orientation is caught on its shortest side. A narrow
-  /// desktop WINDOW is caught on width alone: 224 + 300 of fixed columns plus
-  /// the gutters leaves the graph a sliver below the shell's own layout
-  /// breakpoint, and a sliver of a plot is worse than a reflow.
+  /// Two ways in: a phone in either orientation, and a window narrower than
+  /// the three columns, where 224 + 300 of fixed columns plus the gutters
+  /// leave the graph a sliver and a sliver of a plot is worse than a reflow.
   bool _isNarrowViewport(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return size.shortestSide < BreakpointTokens.breakpointPhone ||
-        size.width < _GuidingDesktopSections._threeColumnMinWidth;
+    return ShellLayout.of(context).isPhone ||
+        MediaQuery.sizeOf(context).width <
+            _GuidingDesktopSections._threeColumnMinWidth;
   }
 }

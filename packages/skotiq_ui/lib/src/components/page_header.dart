@@ -62,7 +62,7 @@ class PageHeader extends StatelessWidget {
     // Below the breakpoint the header is 48 and the tabs move to their own
     // scrollable row, because a title, a tab strip and an action will not
     // share 700 px without one of them being cut.
-    final narrow = ShellLayout.of(buildContext).narrowHeader;
+    final narrow = ShellLayout.of(buildContext).narrowWindow;
 
     // The hairline is chrome, not content: a 48 px header with a 1 px bottom
     // border leaves its row 47, one pixel short of the Android touch minimum,

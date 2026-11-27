@@ -106,8 +106,7 @@ class _CandidateList extends ConsumerWidget {
     required CandidateColumns? columns,
   }) {
     final leading = banners.length + 1;
-    final gutter = MediaQuery.sizeOf(context).width <
-            ShellChromeMetrics.shellLayoutBreakpoint
+    final gutter = ShellLayout.of(context).narrowWindow
         ? SkotiqTokens.spaceLg
         : SkotiqTokens.space2xl;
     return ListView.separated(

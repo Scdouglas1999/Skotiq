@@ -78,8 +78,7 @@ class MobileViewControls extends ConsumerWidget {
             isActive: showFOV,
             onTap: onToggleFOV,
           ),
-          if (defaultTargetPlatform == TargetPlatform.iOS ||
-              defaultTargetPlatform == TargetPlatform.android) ...[
+          if (ShellLayout.of(context).touchDevice) ...[
             Container(
               height: 1,
               width: dividerWidth,

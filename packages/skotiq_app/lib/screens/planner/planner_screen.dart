@@ -255,8 +255,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                     const _PlanNightChips(),
                   // A phone's header is one row: the action is an icon
                   // there, where a labeled button overflows the header.
-                  if (MediaQuery.sizeOf(context).width <
-                      ShellChromeMetrics.shellLayoutBreakpoint)
+                  if (ShellLayout.of(context).narrowWindow)
                     SkotiqIconButton(
                       icon: SkotiqIcons.frost,
                       tooltip: 'Camera / cooling',

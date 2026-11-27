@@ -488,21 +488,12 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
       // instead of out of it.
       child: FocusScope(
         autofocus: true,
-        // Derive ONE form-factor decision at the screen level and thread it
-        // to the tab strip so the header and the body agree.
-        // We branch on the *short* side (same rule _BuilderContent uses)
-        // so a phone held in landscape is treated as a phone in both the
-        // strip and the content, instead of the strip (MediaQuery width)
-        // and the body (short-side) disagreeing.
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // The device's short side, the same measure the builder picks
-            // its layout by: the header's run controls and the phone's
-            // playback bar must never both show (one tour key, two widgets)
-            // or both hide.
-            final isPhone = BreakpointTokens.isPhone(
-              MediaQuery.sizeOf(context).shortestSide,
-            );
+            // The device class the builder picks its layout by: the header's
+            // run controls and the phone's toolbar transport must never both
+            // show (one tour key, two widgets) or both hide.
+            final isPhone = ShellLayout.of(context).isPhone;
             return Column(
               children: [
                 // The screen's one 56 px page header (06 §Sequencer).

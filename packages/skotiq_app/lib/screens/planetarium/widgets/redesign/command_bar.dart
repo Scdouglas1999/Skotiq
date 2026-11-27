@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -318,8 +317,7 @@ class _ToolsMenu extends ConsumerWidget {
     final gyroMountSync = ref.watch(gyroscopeMountSyncProvider);
     final mountConnected = ref.watch(mountStateProvider).connectionState ==
         DeviceConnectionState.connected;
-    final isMobilePlatform = defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.android;
+    final isMobilePlatform = ShellLayout.of(context).touchDevice;
 
     PopupMenuItem<String> item(
       String value,

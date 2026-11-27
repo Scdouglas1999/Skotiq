@@ -879,8 +879,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                                       height: SkotiqTokens.spaceXs,
                                     ),
                                   ],
-                                  if (MediaQuery.sizeOf(context).width >=
-                                      ShellChromeMetrics.shellLayoutBreakpoint)
+                                  if (!ShellLayout.of(context).narrowWindow)
                                     const GuidingActiveChip(),
                                 ],
                               ),

@@ -41,10 +41,10 @@ void main() {
     });
 
     test('the header is narrow by window width', () {
-      expect(_touch(390, 844).narrowHeader, isTrue);
-      expect(_touch(844, 390).narrowHeader, isFalse);
-      expect(_touch(767, 1024).narrowHeader, isTrue);
-      expect(_touch(768, 1024).narrowHeader, isFalse);
+      expect(_touch(390, 844).narrowWindow, isTrue);
+      expect(_touch(844, 390).narrowWindow, isFalse);
+      expect(_touch(767, 1024).narrowWindow, isTrue);
+      expect(_touch(768, 1024).narrowWindow, isFalse);
     });
   });
 
@@ -55,7 +55,7 @@ void main() {
       expect(layout.deviceClass, DeviceClass.desktop);
       expect(layout.navigation, ShellNavKind.sideBar);
       expect(layout.hasInstrumentBar, isTrue);
-      expect(layout.narrowHeader, isFalse);
+      expect(layout.narrowWindow, isFalse);
       expect(_desktop(1024, 768).navigation, ShellNavKind.sideBar);
       expect(_desktop(1024, 768).deviceClass, DeviceClass.desktop);
       expect(_desktop(1023, 768).deviceClass, DeviceClass.tablet);

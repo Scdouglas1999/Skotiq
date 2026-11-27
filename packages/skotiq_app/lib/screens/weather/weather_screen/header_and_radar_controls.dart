@@ -41,8 +41,7 @@ class _WeatherHeader extends StatelessWidget {
     // overflows is worse than a label that shortens. On a wide header a
     // Flexible chip splits the free space with the title's Expanded, so the
     // chip and both buttons sat mid-header instead of at its right edge.
-    final narrow = MediaQuery.sizeOf(context).width <
-        ShellChromeMetrics.shellLayoutBreakpoint;
+    final narrow = ShellLayout.of(context).narrowWindow;
     return SafeArea(
       bottom: false,
       child: PageHeader(
@@ -393,8 +392,7 @@ class _WeatherEmptyBody extends ConsumerWidget {
             DeviceConnectionState.connected ||
         ref.watch(safetyMonitorStateProvider).connectionState ==
             DeviceConnectionState.connected;
-    final compact =
-        MediaQuery.sizeOf(context).width < SkotiqTokens.breakpointTablet;
+    final compact = ShellLayout.of(context).narrowWindow;
 
     return SingleChildScrollView(
       padding: compact

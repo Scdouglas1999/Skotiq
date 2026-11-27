@@ -15,7 +15,6 @@
 
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -219,10 +218,6 @@ class _CatalogOverlayLayerState extends ConsumerState<_CatalogOverlayLayer> {
   CatalogOverlayObject? _hovered;
   Offset _hoverScreenPoint = Offset.zero;
 
-  static bool get _isTouchPlatform =>
-      defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.android;
-
   CatalogOverlayObject? _hitTest(Offset localPosition) {
     final imagePoint = viewportToImage(
       viewportPoint: localPosition,
@@ -308,7 +303,7 @@ class _CatalogOverlayLayerState extends ConsumerState<_CatalogOverlayLayer> {
 
         final children = <Widget>[];
 
-        if (_isTouchPlatform) {
+        if (SkotiqTouchTarget.isTouch(context)) {
           children.add(
             GestureDetector(
               onTapUp: _onTapUp,

@@ -147,8 +147,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
     final liveStackFrames = ref.watch(
       liveStackingProvider.select((s) => s.totalFramesAcrossFilters),
     );
-    final narrow = MediaQuery.sizeOf(context).width <
-        ShellChromeMetrics.shellLayoutBreakpoint;
+    final narrow = ShellLayout.of(context).narrowWindow;
 
     // Snapshot / Loop / Exposure live in a bar pinned near the bottom of this
     // screen, and floating snackbars anchor to the same edge — so an error

@@ -51,8 +51,7 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen> {
     final mode = ref.watch(flatWizardProvider.select((s) => s.mode));
     final isCapturing =
         ref.watch(flatWizardProvider.select((s) => s.isCapturing));
-    final width = MediaQuery.sizeOf(context).width;
-    final narrow = width < ShellChromeMetrics.shellLayoutBreakpoint;
+    final narrow = ShellLayout.of(context).narrowWindow;
 
     return Column(
       children: [
@@ -85,7 +84,9 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen> {
                 tone: ChipTone.success,
                 dot: true,
               ),
-            _SaveFolderButton(compact: width < _folderLabelMinWidth),
+            _SaveFolderButton(
+              compact: MediaQuery.sizeOf(context).width < _folderLabelMinWidth,
+            ),
             const _RunButton(),
           ],
         ),

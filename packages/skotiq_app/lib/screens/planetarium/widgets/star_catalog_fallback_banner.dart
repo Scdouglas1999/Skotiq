@@ -28,10 +28,8 @@ class StarCatalogFallbackBanner extends ConsumerWidget {
     // host it is linked to has the full sky.
     final host = ref.watch(linkedHostLinkProvider)?.serverHost;
     // A phone or tablet is not "this computer".
-    final here = switch (Theme.of(context).platform) {
-      TargetPlatform.android || TargetPlatform.iOS => 'this device',
-      _ => 'this computer',
-    };
+    final here =
+        ShellLayout.of(context).touchDevice ? 'this device' : 'this computer';
 
     // Glass under the banner: its fill is a hairline tint, unreadable over
     // the bright parts of the sky.

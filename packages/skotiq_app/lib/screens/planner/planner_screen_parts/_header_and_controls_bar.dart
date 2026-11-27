@@ -16,8 +16,7 @@ class _PlanNightChips extends ConsumerWidget {
     // Below the shell's layout breakpoint the header is 48px of title and tab
     // strip with nothing to spare; two chips of prose there push the row into
     // overflow. The same two facts are one tap away in the tab body.
-    if (MediaQuery.sizeOf(context).width <
-        ShellChromeMetrics.shellLayoutBreakpoint) {
+    if (ShellLayout.of(context).narrowWindow) {
       return const SizedBox.shrink();
     }
 

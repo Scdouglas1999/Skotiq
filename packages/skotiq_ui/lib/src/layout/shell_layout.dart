@@ -97,8 +97,9 @@ class ShellLayout {
   /// the top bar.
   bool get phoneChrome => usesBottomNavigation && !drawsWindowFrame;
 
-  /// Page headers are one 48 px row and their tabs move to a row of their own.
-  bool get narrowHeader => size.width < BreakpointTokens.breakpointTablet;
+  /// Narrower than the tablet breakpoint: page headers are one 48 px row with
+  /// their tabs on a row of their own, and screens take the compact gutters.
+  bool get narrowWindow => size.width < BreakpointTokens.breakpointTablet;
 
   @override
   bool operator ==(Object other) =>
