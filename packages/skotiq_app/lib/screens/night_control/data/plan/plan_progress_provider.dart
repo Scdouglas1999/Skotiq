@@ -63,6 +63,10 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   // Frames count only once a run has taken them; before a run starts the
   // session list may still hold the previous one, and the true count is none.
   final done = <String, int>{for (final key in planned.keys) key: 0};
+  // The run's rows are those taken since it started; null counts every row
+  // of the session.
+  DateTime? rowsSince;
+  var continuesCheckpoint = false;
   if (phase.isRunLive || phase == NightRunPhase.finished) {
     final terminal = ref.watch(shownTerminalRunResultProvider);
     // A calibration run counts the session's light rows. A light run counts
@@ -72,14 +76,13 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     // continued in the interrupted night's session has them as rows too. A
     // linked client that did not continue a checkpoint itself counts every
     // row of the session: it may have joined after the run started.
-    final continuesCheckpoint =
-        ref.watch(framesDoneBeforeRunProvider).isNotEmpty ||
-            ref.watch(filterFramesDoneBeforeRunProvider).isNotEmpty;
+    continuesCheckpoint = ref.watch(framesDoneBeforeRunProvider).isNotEmpty ||
+        ref.watch(filterFramesDoneBeforeRunProvider).isNotEmpty;
     final sessionRows = terminal?.isCalibration == true ||
         (ref.watch(isRemoteModeProvider) && !continuesCheckpoint);
-    final startedAt = sessionRows ? null : ref.watch(runStartedAtProvider);
+    rowsSince = sessionRows ? null : ref.watch(runStartedAtProvider);
     for (final row in ref.watch(nightRunLightRowsProvider)) {
-      if (startedAt != null && row.capturedAt.isBefore(startedAt)) continue;
+      if (rowsSince != null && row.capturedAt.isBefore(rowsSince)) continue;
       final key = _filterKey(row.filter);
       done.update(key, (count) => count + 1, ifAbsent: () => 1);
     }
@@ -121,19 +124,21 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
 
   Duration secs(double s) => Duration(milliseconds: (s * 1000).round());
 
-  final acceptedSecs = <String, double>{};
+  // A run continued from its checkpoint counts what the checkpoint's frames
+  // integrated and its own rows on top, as its frame counts do; restored and
+  // not started, only the checkpoint's.
+  final acceptedSecs = <String, double>{...secsBefore};
   if (phase.isRunLive || phase == NightRunPhase.finished) {
+    final since = continuesCheckpoint ? rowsSince : null;
     for (final row in ref.watch(nightRunLightRowsProvider)) {
       if (!row.isAccepted) continue;
+      if (since != null && row.capturedAt.isBefore(since)) continue;
       acceptedSecs.update(
         _filterKey(row.filter),
         (sum) => sum + row.exposureDuration,
         ifAbsent: () => row.exposureDuration,
       );
     }
-  } else {
-    // Restored and not started: what its checkpoint's frames integrated.
-    acceptedSecs.addAll(secsBefore);
   }
 
   // A filter with no accepted frame yet has integrated nothing.

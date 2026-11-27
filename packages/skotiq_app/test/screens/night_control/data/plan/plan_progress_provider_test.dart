@@ -38,6 +38,45 @@ DbCapturedImage _row(
   );
 }
 
+/// The M74 plan, one Smart Exposure of L and R at 90 s, and the checkpoint
+/// of a run stopped with 4 L and 3 R taken.
+(Sequence, CheckpointInfo) _restoredM74() {
+  final smart = SmartExposureNode(
+    id: 'smart',
+    parentId: 't',
+    plans: const [
+      FilterPlan(filterName: 'L', count: 24, durationSecs: 90),
+      FilterPlan(filterName: 'R', count: 17, durationSecs: 90),
+    ],
+  );
+  final target = TargetHeaderNode(
+    id: 't',
+    parentId: 'root',
+    targetName: 'M74',
+    raHours: 1.6,
+    decDegrees: 15.8,
+    childIds: const ['smart'],
+  );
+  final root = InstructionSetNode(id: 'root', childIds: const ['t']);
+  final sequence = Sequence.create(
+    name: 'M74 Plan',
+    rootNodeId: 'root',
+    nodes: {root.id: root, target.id: target, smart.id: smart},
+  );
+  final restored = CheckpointInfo(
+    sequenceName: sequence.name,
+    timestamp: bostonTime(2026, 10, 19, 19),
+    completedExposures: 7,
+    completedIntegrationSecs: 630,
+    canResume: true,
+    ageSeconds: 60,
+    filterFramesDoneByStep: const {
+      'smart': {'L': 4, 'R': 3},
+    },
+  );
+  return (sequence, restored);
+}
+
 void main() {
   final evening = bostonTime(2026, 10, 19, 20, 10);
 
@@ -165,39 +204,7 @@ void main() {
 
   // Restored at 7 frames, a Smart Exposure plan read "L 0/24" on Tonight.
   test('a restored Smart Exposure counts the frames each filter has', () {
-    final smart = SmartExposureNode(
-      id: 'smart',
-      parentId: 't',
-      plans: const [
-        FilterPlan(filterName: 'L', count: 24, durationSecs: 90),
-        FilterPlan(filterName: 'R', count: 17, durationSecs: 90),
-      ],
-    );
-    final target = TargetHeaderNode(
-      id: 't',
-      parentId: 'root',
-      targetName: 'M74',
-      raHours: 1.6,
-      decDegrees: 15.8,
-      childIds: const ['smart'],
-    );
-    final root = InstructionSetNode(id: 'root', childIds: const ['t']);
-    final sequence = Sequence.create(
-      name: 'M74 Plan',
-      rootNodeId: 'root',
-      nodes: {root.id: root, target.id: target, smart.id: smart},
-    );
-    final restored = CheckpointInfo(
-      sequenceName: sequence.name,
-      timestamp: bostonTime(2026, 10, 19, 19),
-      completedExposures: 7,
-      completedIntegrationSecs: 630,
-      canResume: true,
-      ageSeconds: 60,
-      filterFramesDoneByStep: const {
-        'smart': {'L': 4, 'R': 3},
-      },
-    );
+    final (sequence, restored) = _restoredM74();
     final container = planContainer(
       now: evening,
       sequence: sequence,
@@ -218,6 +225,42 @@ void main() {
     );
     expect(plan.integrated, const Duration(seconds: 630));
   });
+
+  test(
+    'a continued run adds its own frames to what its checkpoint integrated',
+    () {
+      final (sequence, restored) = _restoredM74();
+      final startedAt = bostonTime(2026, 10, 19, 20);
+      final container = planContainer(
+        now: evening,
+        sequence: sequence,
+        execution: SequenceExecutionState.running,
+        progress: const SequenceProgress(
+          state: SequenceExecutionState.running,
+        ),
+        run: RunRecord(
+          startedAt: startedAt,
+          filterFramesDoneBeforeRun: restored.filterFramesDoneByStep,
+        ),
+        extra: [
+          nightRunLightRowsProvider.overrideWithValue([
+            // A frame of the interrupted run, already in the checkpoint.
+            _row(1, 'L', 90, at: startedAt.subtract(const Duration(hours: 1))),
+            _row(2, 'L', 90, at: startedAt.add(const Duration(minutes: 5))),
+          ]),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final plan = container.read(nightPlanProgressProvider)!;
+      expect(plan.rows.map((r) => r.framesDone), [5, 3]);
+      // Started in a session without the interrupted run's rows, it read 0h00.
+      expect(
+        plan.rows.map((r) => r.integrated),
+        [const Duration(seconds: 450), const Duration(seconds: 270)],
+      );
+    },
+  );
 
   test(
     'running: frames from the session, accepted integration, current row',
