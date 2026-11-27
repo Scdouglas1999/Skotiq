@@ -977,6 +977,30 @@ void main() {
       }
     });
 
+    test('a guiding pause does not hide a stop beside it', () async {
+      final h = await sessionHarness();
+      final keep = h.container.listen(nightLogProvider, (_, __) {});
+      addTearDown(keep.close);
+      sk_events.SkotiqEvent guiding(int id, sk_events.GuidingEvent event) =>
+          sk_events.SkotiqEvent(
+            eventId: BigInt.from(id),
+            timestamp: kNight.millisecondsSinceEpoch + id * 100,
+            severity: sk_events.EventSeverity.info,
+            category: sk_events.EventCategory.guiding,
+            payload: sk_events.EventPayload.guiding(event),
+          );
+      final history = h.container.read(eventHistoryProvider.notifier);
+      history.addEvent(guiding(
+          1, const sk_events.GuidingEvent.stopReason(reason: 'autofocus')));
+      history
+          .addEvent(guiding(2, const sk_events.GuidingEvent.guidingStopped()));
+      await Future<void>.delayed(Duration.zero);
+      final lines = [
+        for (final entry in h.read(nightLogProvider)) entry.message.literal,
+      ];
+      expect(lines, contains('Guiding stopped'), reason: '$lines');
+    });
+
     // The log read "Property changed · Filter Wheel · FilterNames" after
     // every connect.
     test('a device property change is not a line of the log', () async {

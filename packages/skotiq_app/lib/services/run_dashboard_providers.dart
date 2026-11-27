@@ -780,9 +780,23 @@ RunDashboardRowKind _rowKind(sk_events.SkotiqEvent event) =>
       sk_events.EventPayload_Guiding(
         field0: sk_events.GuidingEvent_StopReason(:final reason?)
       )
-          when reason.isNotEmpty =>
+          when _saysWhyGuidingStopped(reason) =>
         RunDashboardRowKind.guidingStopReason,
       _ => RunDashboardRowKind.other,
+    };
+
+/// Whether a guider stop reason says why guiding stopped (not why it is
+/// paused or settling). A reason this build does not know is printed as it
+/// came, which says why too.
+bool _saysWhyGuidingStopped(String reason) =>
+    switch (GuidingStopReason.fromWire(reason)) {
+      GuidingStopReason.sequenceStep ||
+      GuidingStopReason.runStopped ||
+      GuidingStopReason.operator ||
+      GuidingStopReason.mountFault =>
+        true,
+      null => reason.isNotEmpty,
+      _ => false,
     };
 
 /// The banner key of a meridian flip outcome. One flip is one thing to know
