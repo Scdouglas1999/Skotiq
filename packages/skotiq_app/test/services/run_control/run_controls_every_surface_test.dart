@@ -153,8 +153,8 @@ const _expected = <String, List<String>>{
     'Pause-(ncPlanStopping) Skip step-(ncPlanStopping) Stop+'
   ],
   'finalizing': [
-    'Fix 1 error+',
-    'Start-',
+    'Pause- Stop-',
+    'Pause- Stop- Skip-',
     'Pause- Stop- Skip-',
     'Pause-(ncPlanStopping) Skip step-(ncPlanStopping) Stop-(ncPlanFinalizing)'
   ],

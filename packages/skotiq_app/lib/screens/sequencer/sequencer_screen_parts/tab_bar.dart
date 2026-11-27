@@ -159,9 +159,8 @@ class _SequencerPageHeader extends ConsumerWidget {
     );
   }
 
-  /// A run is on that Stop can end.
-  static bool _runToStop(RunTransport transport) =>
-      transport.stop?.enabled == true;
+  /// A run owns the rig, from its start until it has finished stopping.
+  static bool _runToStop(RunTransport transport) => transport.phase.isRunLive;
 
   /// The header's transport: `start` "Start" while idle, `destructive` "Stop"
   /// plus `secondary` "Pause"/"Resume" once the executor owns the tree.
@@ -227,6 +226,7 @@ class _SequencerPageHeader extends ConsumerWidget {
       Builder(
         builder: (context) => HoldToConfirmButton(
           key: TourTarget.sequencerTransport.key,
+          enabled: transport.stop?.enabled == true,
           holdColor: context.skotiqColors.error,
           confirmText: 'Hold to stop',
           semanticsLabel: 'Stop the sequence',
@@ -237,7 +237,7 @@ class _SequencerPageHeader extends ConsumerWidget {
                 label: 'Stop',
                 icon: LucideIcons.square,
                 variant: ButtonVariant.destructive,
-                onPressed: () {},
+                onPressed: transport.stop?.enabled == true ? () {} : null,
               ),
             ),
           ),
