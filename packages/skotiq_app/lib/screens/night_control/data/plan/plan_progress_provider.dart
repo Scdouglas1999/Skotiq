@@ -86,29 +86,33 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   }
 
   // A run continued from its checkpoint, ready or under way, already has the
-  // frames its steps took before it.
+  // frames its steps took before it, each as long as its step takes them.
+  final secsBefore = <String, double>{};
   if (phase.isRunLive ||
       phase == NightRunPhase.finished ||
       ref.watch(restoredCheckpointProvider) != null) {
     final before = ref.watch(framesDoneBeforeRunProvider);
     final beforeByFilter = ref.watch(filterFramesDoneBeforeRunProvider);
-    void add(String? filter, int frames) => done.update(
-          _filterKey(filter),
-          (count) => count + frames,
-          ifAbsent: () => frames,
-        );
+    void add(String? filter, int frames, double exposureSecs) {
+      final key = _filterKey(filter);
+      done.update(key, (count) => count + frames, ifAbsent: () => frames);
+      final secs = frames * exposureSecs;
+      secsBefore.update(key, (sum) => sum + secs, ifAbsent: () => secs);
+    }
+
     for (final entry in tree.entries) {
       final node = entry.node;
       if (node is SmartExposureNode) {
         for (final MapEntry(key: filter, value: frames)
             in (beforeByFilter[node.id] ?? const <String, int>{}).entries) {
-          add(filter, frames);
+          final plan = node.plans.where((p) => p.filterName == filter);
+          add(filter, frames, plan.firstOrNull?.durationSecs ?? 0);
         }
         continue;
       }
       if (node is! ExposureNode || node.frameType != FrameType.light) continue;
       final frames = before[node.id];
-      if (frames != null) add(node.filter, frames);
+      if (frames != null) add(node.filter, frames, node.durationSecs);
     }
   }
 
@@ -124,6 +128,9 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
         ifAbsent: () => row.exposureDuration,
       );
     }
+  } else {
+    // Restored and not started: what its checkpoint's frames integrated.
+    acceptedSecs.addAll(secsBefore);
   }
 
   // A filter with no accepted frame yet has integrated nothing.

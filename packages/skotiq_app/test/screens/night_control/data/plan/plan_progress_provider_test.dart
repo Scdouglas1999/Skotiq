@@ -210,6 +210,13 @@ void main() {
 
     final plan = container.read(nightPlanProgressProvider)!;
     expect(plan.rows.map((r) => r.framesDone), [4, 3]);
+    // The frames it has, at the length each filter takes them: a row with
+    // frames and no integration read "0h00".
+    expect(
+      plan.rows.map((r) => r.integrated),
+      [const Duration(seconds: 360), const Duration(seconds: 270)],
+    );
+    expect(plan.integrated, const Duration(seconds: 630));
   });
 
   test(
