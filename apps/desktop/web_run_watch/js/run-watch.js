@@ -1155,10 +1155,10 @@ function clearControlRefusals() {
   refusedControls.clear();
 }
 
-/// [heldByAction]: a manual action holds the run paused, and the host refuses
-/// Resume and Skip until the action releases it.
+/// Enable exactly the run controls the host allows this page for [state].
+/// [heldByAction]: a manual action holds the run paused.
 function updateRunControls(state, heldByAction) {
-  const phase = RUN_STATE.view(state || '').phase;
+  const allowed = RUN_STATE.controls('runWatch', state || '', heldByAction);
   const set = (id, enabled) => {
     const el = $(id);
     if (!el) return;
@@ -1172,14 +1172,10 @@ function updateRunControls(state, heldByAction) {
     }
     el.disabled = !enabled;
   };
-  const running = phase === 'running';
-  const paused = phase === 'paused';
-  const recovering = phase === 'recovering';
-  const stopRetry = phase === 'stopRetry';
-  set('btn-pause', running || recovering);
-  set('btn-resume', paused && !heldByAction);
-  set('btn-skip', running || recovering || (paused && !heldByAction));
-  set('btn-stop', running || paused || recovering || stopRetry);
+  set('btn-pause', allowed.pause);
+  set('btn-resume', allowed.resume);
+  set('btn-skip', allowed.skip);
+  set('btn-stop', allowed.stop);
 }
 
 /// Paint the progress readout as UNKNOWN — no figure, no announcement, and a

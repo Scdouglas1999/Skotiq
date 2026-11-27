@@ -3295,6 +3295,7 @@ function dashboardRunState(c) {
   ]);
   const status = { state: c.state, currentNodeName: 'Exposure L', progress: 0.5 };
   if ('pausedIdle' in c) status.pausedIdle = c.pausedIdle;
+  if ('heldByAction' in c) status.heldByAction = c.heldByAction;
   build(
     ['document', 'state', 'refusedControls', 'renderOpsSequencerLoadPanel',
       'runDataIsStale', 'clearElement'],
@@ -3337,12 +3338,34 @@ const DASHBOARD_RUN_STATE = {
   'cancelled over an idle executor': ['cancelled', 'badge-idle', 'start'],
   'completed over a running executor': ['completed', 'badge-completed', 'start'],
   'recovering executor over a running status': ['running', 'badge-running', 'pause', 'stop'],
+  'paused, held by an action': ['paused', 'badge-paused', 'stop'],
+  'running, held by an action': ['running', 'badge-running', 'pause', 'stop'],
+  'recovering, held by an action': ['recovering', 'badge-recovering', 'stop'],
 };
 
 test('the dashboard shows each run state with its badge and controls', () => {
   const seen = {};
   for (const c of RUN_STATE_CASES) seen[c.name] = dashboardRunState(c);
   assert.deepEqual(seen, DASHBOARD_RUN_STATE);
+});
+
+// The controls come from the host's rows (RunStateScript.pageControls), which
+// run_state_script_test.dart checks against the app's rule.
+test('the dashboard enables the run controls the host allows it', () => {
+  const doc = makeDocument(Object.values(SEQ_BUTTONS));
+  const update = build(
+    ['document', 'refusedControls'],
+    [fn('updateSequencerButtons')],
+    'updateSequencerButtons',
+  )(doc, new Map());
+  for (const c of RUN_STATE_CASES) {
+    const held = c.heldByAction === true;
+    update(c.state, held);
+    const allowed = RUN_STATE.controls('dashboard', c.state || 'idle', held);
+    for (const [key, id] of Object.entries(SEQ_BUTTONS)) {
+      assert.equal(!doc.getElementById(id).disabled, allowed[key], `${c.name}: ${key}`);
+    }
+  }
 });
 
 // ---------------------------------------------------------------------------

@@ -2526,6 +2526,7 @@ function runWatchRunState(c) {
     }),
   });
   if ('pausedIdle' in c) snap.sequencer.pausedIdle = c.pausedIdle;
+  if ('heldByAction' in c) snap.sequencer.heldByAction = c.heldByAction;
   api.applySnapshot(snap);
   const badge = doc.getElementById('state-badge');
   const enabled = {};
@@ -2557,12 +2558,30 @@ const RUN_WATCH_RUN_STATE = {
   'cancelled over an idle executor': ['cancelled', 'badge-idle'],
   'completed over a running executor': ['completed', 'badge-completed'],
   'recovering executor over a running status': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
+  'paused, held by an action': ['paused', 'badge-paused', 'stop'],
+  'running, held by an action': ['running', 'badge-running', 'pause', 'stop'],
+  'recovering, held by an action': ['recovering', 'badge-recovering', 'pause', 'stop'],
 };
 
 test('run-watch shows each run state with its badge and controls', () => {
   const seen = {};
   for (const c of RUN_STATE_CASES) seen[c.name] = runWatchRunState(c);
   assert.deepEqual(seen, RUN_WATCH_RUN_STATE);
+});
+
+// The controls come from the host's rows (RunStateScript.pageControls), which
+// run_state_script_test.dart checks against the app's rule.
+test('run-watch enables the run controls the host allows it', () => {
+  const { doc, api } = loadRunWatch();
+  for (const c of RUN_STATE_CASES) {
+    const word = 'executor' in c ? c.executor : c.state;
+    const held = c.heldByAction === true;
+    api.updateRunControls(word, held);
+    const allowed = RUN_STATE.controls('runWatch', word || '', held);
+    for (const key of ['pause', 'resume', 'skip', 'stop']) {
+      assert.equal(!doc.getElementById('btn-' + key).disabled, allowed[key], `${c.name}: ${key}`);
+    }
+  }
 });
 
 // The two pages badge a finished run alike: a completed run is not an idle

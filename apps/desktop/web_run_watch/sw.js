@@ -19,7 +19,7 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'skotiq-run-watch-v4';
+const CACHE_VERSION = 'skotiq-run-watch-v5';
 const SHELL_FILES = [
   '/run-watch/',
   '/run-watch/index.html',

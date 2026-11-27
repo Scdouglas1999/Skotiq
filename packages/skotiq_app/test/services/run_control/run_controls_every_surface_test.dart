@@ -89,6 +89,8 @@ const _states = <_State>[
   _State('paused by operator', SequenceExecutionState.paused),
   _State('paused by action hold', SequenceExecutionState.paused,
       action: _autofocusHold, held: true),
+  _State('running, held by an action', SequenceExecutionState.running,
+      held: true),
   _State('recovering', SequenceExecutionState.recovering),
   _State('stopping', SequenceExecutionState.stopping),
   _State('finalizing', SequenceExecutionState.finalizing),
@@ -143,6 +145,12 @@ const _expected = <String, List<String>>{
     'Resume- Stop+ Skip-',
     'Resume- Stop+ Skip-',
     'Resume-(ncPlanActionOwnsResume) Skip step-(ncPlanActionInProgress) Stop+'
+  ],
+  'running, held by an action': [
+    'Pause+ Stop+',
+    'Pause+ Stop+ Skip-',
+    'Pause+ Stop+ Skip-',
+    'Pause+ Skip step-(ncPlanActionInProgress) Stop+'
   ],
   'recovering': [
     'Pause- Stop+',
