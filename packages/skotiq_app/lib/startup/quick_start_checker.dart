@@ -10,6 +10,7 @@ import 'package:skotiq_core/services.dart';
 
 import '../utils/authority_bound_dialog.dart';
 import '../utils/startup_surface_queue.dart';
+import 'host_startup_question.dart';
 import 'startup_ui_context.dart';
 import 'quick_start_dialog.dart';
 import 'session_recovery_dialog.dart';
@@ -39,13 +40,21 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   bool _hasChecked = false;
   bool _recheckScheduled = false;
   late final StartupSurfaceQueue _queue;
+  late final HostStartupQuestion _question;
 
   @override
   void initState() {
     super.initState();
-    _queue = ref.read(startupSurfaceQueueProvider)
-      ..expect(StartupSurface.interruptedSession)
-      ..expect(StartupSurface.quickStart);
+    _queue = ref.read(startupSurfaceQueueProvider);
+    _question = HostStartupQuestion(
+      ref: ref,
+      queue: _queue,
+      surfaces: const [
+        StartupSurface.interruptedSession,
+        StartupSurface.quickStart,
+      ],
+      mounted: () => mounted,
+    )..expectTurns();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkForStartupOptions();
     });
@@ -57,28 +66,17 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
     super.dispose();
   }
 
-  /// A companion that has not reached its host must not be offered this
-  /// machine's sessions. The check waits for the link; both turns are passed
-  /// meanwhile so later prompts are not held, and the link asks for them
-  /// again.
-  bool _waitsForHost() =>
-      ref.read(isRemoteClientProvider) &&
-      !ref.read(backendProvider).hostPlace.isLinked;
-
-  void _passBoth() {
-    _queue
-      ..pass(StartupSurface.interruptedSession)
-      ..pass(StartupSurface.quickStart);
-  }
+  void _passBoth() => _question.passTurns();
 
   /// Runs one pass of the check. Whatever it found, both surfaces have had
   /// their turn when it returns, so the prompts after them never wait on a
   /// check that ended early.
+  ///
+  /// A companion that has not reached its host must not be offered this
+  /// machine's sessions; the check waits for the link
+  /// ([HostStartupQuestion]). It asks once per launch.
   Future<void> _checkForStartupOptions() async {
-    if (_waitsForHost()) {
-      _passBoth();
-      return;
-    }
+    if (!_question.readyToAsk()) return;
     try {
       await _checkSessions();
     } finally {
@@ -610,17 +608,10 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
-      if (_hasChecked) return;
-      if (!ref.read(isRemoteClientProvider) || !next.hostPlace.isLinked) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _hasChecked || _waitsForHost()) return;
-        _queue
-          ..expect(StartupSurface.interruptedSession)
-          ..expect(StartupSurface.quickStart);
-        unawaited(_checkForStartupOptions());
-      });
-    });
+    _question.listen(
+      asked: () => _hasChecked,
+      ask: () => unawaited(_checkForStartupOptions()),
+    );
     return widget.child;
   }
 }
