@@ -1064,10 +1064,7 @@ pub struct SmartExposureCheckpoint {
     /// `rotate_filters` is false).
     pub current_plan_index: usize,
     /// Accumulated integration seconds attributed to this SmartExposure
-    /// node, used for the per-node `integration_budget_secs` cap. The
-    /// global `completed_integration_secs` on ExecutionContext is shared
-    /// across the whole sequence, so SmartExposure tracks its own slice
-    /// here for the budget comparison.
+    /// node, used for the per-node `integration_budget_secs` cap.
     pub completed_integration_secs: f64,
     /// DepthLock goals this node has already retired, keyed by goal id with
     /// the revision the verdict was for. Recorded so a resumed run neither

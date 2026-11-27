@@ -221,3 +221,54 @@ async fn an_inner_loop_counts_each_outer_pass_from_zero() {
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(frames, 2 * 2);
 }
+
+/// A Smart Exposure step's frames count toward the loop it runs inside.
+#[tokio::test]
+async fn smart_exposure_frames_count_toward_the_loop() {
+    let dir = scratch("smart");
+    let mut executor = executor_for(&dir);
+    executor.set_devices(
+        Some("cam-1".to_string()),
+        None,
+        None,
+        Some("wheel-1".to_string()),
+        None,
+    );
+    executor
+        .load_sequence(plan(vec![
+            group(
+                "until",
+                LoopCondition::IntegrationTime,
+                Some(0.6),
+                &["smart"],
+            ),
+            NodeDefinition {
+                id: "smart".to_string(),
+                name: "smart".to_string(),
+                node_type: NodeType::SmartExposure(crate::SmartExposureConfig {
+                    plans: vec![crate::FilterPlan {
+                        filter_name: "L".to_string(),
+                        filter_index: None,
+                        count: 1,
+                        duration_secs: SUB_SECS,
+                        ..crate::FilterPlan::default()
+                    }],
+                    rotate_filters: true,
+                    dither_on_filter_change: false,
+                    integration_budget_secs: 0.0,
+                    batch_size: 1,
+                    loop_until_stopped: false,
+                }),
+                enabled: true,
+                children: vec![],
+            },
+        ]))
+        .expect("sequence loads");
+    run_counting_frames(&mut executor, None).await;
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(
+        executor.get_progress().completed_exposures,
+        2,
+        "two one-frame passes reach 0.6 s"
+    );
+}
