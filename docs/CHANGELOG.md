@@ -9,6 +9,10 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [9.4.0] — 2026-11-27
+
+Mostly internal cleanup so a fix lands in one place, plus fixes found along the way: a manual action holds the run against every other Resume or Skip, a stopped guider is no longer read as a lost star, times on the Sequencer and Plan screens use the site's clock, and the phone's remote control was checked end to end on an emulator (ongoing notification, battery use, settings it can reach, language per device). Upgrade the host and linked clients together. See the [release notes](release/v9.4.0.md).
+
 ## [9.3.5] — 2026-11-26
 
 A small fix: tapping a switch's name or description flips it, not only the switch itself. Upgrade the host and linked clients together. See the [release notes](release/v9.3.5.md).
