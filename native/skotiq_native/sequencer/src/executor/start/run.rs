@@ -758,9 +758,9 @@ impl Run {
                 "The guider is still guiding: it was started outside this run.".to_string()
             });
         }
-        ops.guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
+        let stopped = ops
+            .guider_stop_for(crate::GuidingStopReason::RunStopped)
             .await;
-        let stopped = ops.guider_stop().await;
         {
             let mut state = trigger_state.write().await;
             state.set_guiding_enabled(false);

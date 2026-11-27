@@ -959,11 +959,12 @@ pub async fn execute_stop_guiding(
         cb(50.0, "Sending stop command".to_string());
     }
 
-    ctx.run
+    match ctx
+        .run
         .device_ops
-        .guider_note_stop_reason(Some(crate::GuidingStopReason::SequenceStep))
-        .await;
-    match ctx.run.device_ops.guider_stop().await {
+        .guider_stop_for(crate::GuidingStopReason::SequenceStep)
+        .await
+    {
         Ok(_) => {
             // Disarm the GuideStarLost trigger on an intentional stop, so the
             // subsequent is_guiding==false does not get misread as a lost star

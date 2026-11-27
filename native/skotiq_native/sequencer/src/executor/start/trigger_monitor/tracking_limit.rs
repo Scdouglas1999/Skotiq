@@ -172,12 +172,13 @@ impl Dispatcher {
         // Stop corrections against the limit. The flip's normal guider resume
         // restores the run's guiding after its slew and recenter.
         if state.guiding.is_enabled() {
-            self.rig
-                .device_ops()
-                .guider_note_stop_reason(Some(crate::GuidingStopReason::TrackingLimitHold))
-                .await;
-            if let Err(error) =
-                bounded_poll("guider_stop", self.rig.device_ops().guider_stop()).await
+            if let Err(error) = bounded_poll(
+                "guider_stop",
+                self.rig
+                    .device_ops()
+                    .guider_stop_for(crate::GuidingStopReason::TrackingLimitHold),
+            )
+            .await
             {
                 let message =
                     format!("Could not stop guiding for tracking-limit recovery: {error}");

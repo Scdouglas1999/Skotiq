@@ -169,10 +169,20 @@ pub trait GuiderOps: Send + Sync {
         Ok(None)
     }
 
+    /// Stop guiding without saying why: the reason the guider has recorded
+    /// stays. For undoing a start the run made; a step that stops guiding
+    /// for its own reason uses [`Self::guider_stop_for`].
     async fn guider_stop(&self) -> DeviceResult<()>;
 
-    /// Record why the run holds the guider stopped, before it stops it, so
-    /// the guider's status can say so; `None` withdraws the run's reason.
-    /// A successful start of guiding clears it as well.
+    /// Stop guiding for `reason`, recorded first so the guider's status can
+    /// say why it stopped and the stop never reads as lost guiding.
+    async fn guider_stop_for(&self, reason: crate::GuidingStopReason) -> DeviceResult<()> {
+        self.guider_note_stop_reason(Some(reason)).await;
+        self.guider_stop().await
+    }
+
+    /// Record why the run holds the guider without stopping it (a dither
+    /// settling, a flip that has already stopped it); `None` withdraws the
+    /// run's reason. A successful start of guiding clears it as well.
     async fn guider_note_stop_reason(&self, _reason: Option<crate::GuidingStopReason>) {}
 }

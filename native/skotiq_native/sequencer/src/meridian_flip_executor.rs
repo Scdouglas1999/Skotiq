@@ -1081,11 +1081,12 @@ impl MeridianFlipExecutor {
         if matches!(self.run.device_ops.guider_is_active().await, Ok(false)) {
             return Ok(());
         }
-        self.run
+        match self
+            .run
             .device_ops
-            .guider_note_stop_reason(Some(crate::GuidingStopReason::MeridianFlip))
-            .await;
-        match self.run.device_ops.guider_stop().await {
+            .guider_stop_for(crate::GuidingStopReason::MeridianFlip)
+            .await
+        {
             Ok(()) => Ok(()),
             Err(crate::device_ops::DeviceError::NO_GUIDER) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to pause");

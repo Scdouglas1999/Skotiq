@@ -1,9 +1,9 @@
 //! Why the guider is stopped, so a planned stop never reads as lost guiding.
 //!
-//! The run states a reason through [`crate::DeviceOps::guider_note_stop_reason`]
-//! before it stops the guider for one of its own steps, and the device layer
-//! publishes it beside the guider's state. A reason stays until guiding starts
-//! again.
+//! The run stops the guider for one of its own steps through
+//! [`crate::DeviceOps::guider_stop_for`], which records the reason first, and
+//! the device layer publishes it beside the guider's state. A reason stays
+//! until guiding starts again.
 
 use serde::{Deserialize, Serialize};
 
@@ -183,8 +183,7 @@ async fn stop_guider_within(
             "[GUIDING] Stopping the guider for the {move_name}: it cannot guide while the \
              mount moves"
         );
-        ops.guider_note_stop_reason(Some(reason)).await;
-        match ops.guider_stop().await {
+        match ops.guider_stop_for(reason).await {
             Ok(()) => GuiderForMove::Stopped,
             Err(error) if no_guider(&error) => GuiderForMove::Idle,
             Err(error) => GuiderForMove::NotAnswering(error.to_string()),
