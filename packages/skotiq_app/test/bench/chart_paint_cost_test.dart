@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -18,6 +19,11 @@ Widget _host(Widget child, Size size) => MaterialApp(
     );
 
 void main() {
+  // A measurement run by hand, not a check: it prints a cost and asserts
+  // nothing about it, and the charts' painting is covered by their own tests.
+  // Set SKOTIQ_PAINT_BENCH=1 to measure.
+  final skip = Platform.environment['SKOTIQ_PAINT_BENCH'] == null;
+
   testWidgets('guiding graph paint cost', (tester) async {
     final random = math.Random(7);
     final now = DateTime.now();
@@ -46,7 +52,7 @@ void main() {
     // ignore: avoid_print
     print(
         'PAINT guiding_graph 300pts 800x320: ${micros.toStringAsFixed(0)} us');
-  });
+  }, skip: skip);
 
   testWidgets('analytics session chart paint cost', (tester) async {
     final random = math.Random(11);
@@ -75,5 +81,5 @@ void main() {
     final micros = medianPaintMicros(tester, find.byType(SessionChart));
     // ignore: avoid_print
     print('PAINT session_chart 192pts 600w: ${micros.toStringAsFixed(0)} us');
-  });
+  }, skip: skip);
 }
