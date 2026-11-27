@@ -193,7 +193,7 @@ impl DeviceManager {
         self.app_state
             .publish_event(crate::event::correlation::create_event_auto_id(
                 EventSeverity::Warning,
-                crate::event::equipment::EventCategory::Equipment,
+                crate::event::equipment::EventCategory::System,
                 crate::event::bus::EventPayload::System(
                     crate::event::system::SystemEvent::Notification {
                         title: title.to_string(),
