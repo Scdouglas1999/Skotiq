@@ -42,4 +42,33 @@ void main() {
     }, (error, _) => uncaught.add(error));
     expect(uncaught, isEmpty);
   });
+
+  test('re-reading the session list after the science default session was '
+      'read leaves no refusal uncaught', () {
+    final uncaught = <Object>[];
+    runZonedGuarded(() {
+      fakeAsync((async) {
+        final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+        final container = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+            backendProvider.overrideWith((ref) => _Offline(ref)),
+          ],
+        );
+        container.listen(scienceDefaultSessionProvider, (_, __) {}).close();
+        async.flushMicrotasks();
+        // A host mutation, or a Retry on a screen, re-reads the list.
+        for (var i = 0; i < 3; i++) {
+          container.invalidate(allSessionsProvider);
+          container.read(allSessionsProvider);
+          async.elapse(const Duration(seconds: 1));
+        }
+        container.dispose();
+        unawaited(db.close());
+        async.flushMicrotasks();
+      });
+    }, (error, _) => uncaught.add(error));
+    expect(uncaught, isEmpty);
+  });
 }
