@@ -10,11 +10,6 @@
 use serde::Serialize;
 use serde_json::Value;
 
-const DIR: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../test_fixtures/ffi_replies"
-);
-
 /// Write `value` as the fixture `name` (with `SKOTIQ_WRITE_FIXTURES`), or
 /// check that the committed fixture is what `value` serializes to.
 pub(crate) fn check_or_write(name: &str, value: &impl Serialize) {
@@ -25,38 +20,15 @@ pub(crate) fn check_or_write(name: &str, value: &impl Serialize) {
 /// the last bits between machines: the committed fixture must have the same
 /// keys, nesting and value kinds, not the same numbers.
 pub(crate) fn check_or_write_shape(name: &str, value: &impl Serialize) {
-    check(name, value, shape);
-}
-
-fn shape(value: &Value) -> Value {
-    match value {
-        Value::Object(map) => Value::Object(
-            map.iter()
-                .map(|(key, value)| (key.clone(), shape(value)))
-                .collect(),
-        ),
-        Value::Array(items) => Value::Array(items.iter().map(shape).collect()),
-        Value::Number(_) => Value::String("number".to_string()),
-        Value::String(_) => Value::String("string".to_string()),
-        other => other.clone(),
-    }
+    check(name, value, skotiq_wire_fixtures::json_shape);
 }
 
 fn check(name: &str, value: &impl Serialize, compare: fn(&Value) -> Value) {
     let value = serde_json::to_value(value).expect("serialize sample reply");
-    let path = format!("{DIR}/{name}.json");
-    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-        std::fs::create_dir_all(DIR).expect("fixture dir");
-        let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-        text.push('\n');
-        std::fs::write(&path, text).expect("write fixture");
-        return;
-    }
-    let committed = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
-    let committed: Value = serde_json::from_str(&committed).expect("fixture JSON");
-    assert_eq!(
-        compare(&committed),
-        compare(&value),
-        "the {name} reply changed; regenerate the fixture and update the app's decoder"
+    skotiq_wire_fixtures::pin_json_by(
+        &format!("ffi_replies/{name}.json"),
+        &value,
+        compare,
+        &format!("the {name} reply changed; regenerate the fixture and update the app's decoder"),
     );
 }

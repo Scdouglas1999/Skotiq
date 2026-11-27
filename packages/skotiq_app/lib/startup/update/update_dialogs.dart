@@ -88,7 +88,7 @@ class UpdateAvailableDialog extends StatelessWidget {
         SkotiqButton(
           label: 'Later',
           onPressed: onLater,
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           size: ButtonSize.medium,
         ),
         if (!requiresManualUpgrade)
@@ -404,7 +404,7 @@ class UpdateReadyDialog extends StatelessWidget {
         SkotiqButton(
           label: installsViaSystemInstaller ? 'Not Now' : 'Restart Later',
           onPressed: onRestartLater,
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           size: ButtonSize.medium,
         ),
         SkotiqButton(
@@ -414,7 +414,7 @@ class UpdateReadyDialog extends StatelessWidget {
           icon: LucideIcons.refreshCw,
           onPressed: onRestartNow,
           variant:
-              isSessionActive ? ButtonVariant.outline : ButtonVariant.primary,
+              isSessionActive ? ButtonVariant.secondary : ButtonVariant.primary,
           size: ButtonSize.medium,
         ),
       ],

@@ -85,7 +85,7 @@ Widget _annotationAuthorityState({
             SkotiqButton(
               label: 'Retry annotation settings',
               icon: SkotiqIcons.refresh,
-              variant: ButtonVariant.outline,
+              variant: ButtonVariant.secondary,
               size: ButtonSize.small,
               onPressed: onRetry,
             ),

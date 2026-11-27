@@ -453,10 +453,7 @@ fn an_unknown_slot_is_not_recorded() {
     assert_eq!(positions.last("wheel"), Some(Reading::Filter(3)));
 }
 
-const WIRE_WORDS_FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../test_fixtures/wire_words/connect_check.json"
-);
+const WIRE_WORDS_FIXTURE: &str = "wire_words/connect_check.json";
 
 /// `test_fixtures/wire_words/connect_check.json`: the property the connect
 /// check reports under and the field words its value lists, which the app
@@ -466,21 +463,11 @@ const WIRE_WORDS_FIXTURE: &str = concat!(
 fn connect_check_wire_words_fixture() {
     let value = serde_json::json!({
         "property": property::UNVERIFIED,
-        "fields": super::field::ALL,
+        "fields": super::field::ALL.iter().map(|(_, word)| *word).collect::<Vec<_>>(),
     });
-    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-        let path = std::path::Path::new(WIRE_WORDS_FIXTURE);
-        std::fs::create_dir_all(path.parent().expect("dir")).expect("fixture dir");
-        let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-        text.push('\n');
-        std::fs::write(path, text).expect("write fixture");
-        return;
-    }
-    let committed: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(WIRE_WORDS_FIXTURE).expect("fixture"))
-            .expect("JSON");
-    assert_eq!(
-        committed, value,
-        "the connect check's words changed; regenerate the fixture and update the app"
+    skotiq_wire_fixtures::pin_json(
+        WIRE_WORDS_FIXTURE,
+        &value,
+        "the connect check's words changed; regenerate the fixture and update the app",
     );
 }

@@ -38,6 +38,11 @@ use crate::{AutofocusConfig, FlipFailureAction, MeridianFlipConfig};
 /// progress on this string, so it must stay stable.
 pub const MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID: &str = "trigger:meridian_flip";
 
+/// The instruction a flip's progress is published under, whichever started
+/// it (a Meridian Flip step, the trigger, the run's flip telemetry): the
+/// Meridian Flip node's wire name. The app reads a flip in progress by it.
+pub const MERIDIAN_FLIP_INSTRUCTION: &str = "MeridianFlip";
+
 /// What a `MeridianFlipOutcome` event reports.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -2371,7 +2376,7 @@ impl MeridianFlipExecutor {
                 };
                 let _ = tx.send(ExecutorEvent::NodeProgress {
                     node_id: MERIDIAN_FLIP_RUN_PROGRESS_NODE_ID.to_string(),
-                    instruction: "MeridianFlip".to_string(),
+                    instruction: MERIDIAN_FLIP_INSTRUCTION.to_string(),
                     // Attempts made out of attempts allowed. The flip is not
                     // "N% done"; this is the only percentage that is true.
                     progress_percent: if *max_attempts > 0 {
@@ -3211,8 +3216,7 @@ mod tests {
     }
 
     /// A mount that stopped tracking at its axis limit takes the flip slew and
-    /// does not move (the NYX-101 on 2026-11-03 failed four flips this way and
-    /// paused the run). The flip moves the axis off the limit and slews again.
+    /// does not move. The flip moves the axis off the limit and slews again.
     #[tokio::test(start_paused = true)]
     async fn a_flip_frees_a_mount_stuck_at_its_limit_and_slews_again() {
         let state = Arc::new(MockDeviceOpsState::default());

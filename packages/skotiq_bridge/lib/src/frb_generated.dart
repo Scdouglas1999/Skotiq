@@ -14365,7 +14365,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
       case 0:
-        return SequencerEvent_Started(sequenceName: dco_decode_String(raw[1]));
+        return SequencerEvent_Started(
+          sequenceName: dco_decode_String(raw[1]),
+          calibrationOnly: dco_decode_bool(raw[2]),
+        );
       case 1:
         return SequencerEvent_Paused();
       case 2:
@@ -19999,7 +20002,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     switch (tag_) {
       case 0:
         var var_sequenceName = sse_decode_String(deserializer);
-        return SequencerEvent_Started(sequenceName: var_sequenceName);
+        var var_calibrationOnly = sse_decode_bool(deserializer);
+        return SequencerEvent_Started(
+          sequenceName: var_sequenceName,
+          calibrationOnly: var_calibrationOnly,
+        );
       case 1:
         return SequencerEvent_Paused();
       case 2:
@@ -25272,9 +25279,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     switch (self) {
-      case SequencerEvent_Started(sequenceName: final sequenceName):
+      case SequencerEvent_Started(
+        sequenceName: final sequenceName,
+        calibrationOnly: final calibrationOnly,
+      ):
         sse_encode_i_32(0, serializer);
         sse_encode_String(sequenceName, serializer);
+        sse_encode_bool(calibrationOnly, serializer);
       case SequencerEvent_Paused():
         sse_encode_i_32(1, serializer);
       case SequencerEvent_Resumed():

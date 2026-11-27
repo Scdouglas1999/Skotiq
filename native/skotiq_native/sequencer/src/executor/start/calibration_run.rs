@@ -9,7 +9,7 @@ use crate::{NodeType, SequenceDefinition};
 /// parks) all serve light frames, and acting on any of them moves hardware a
 /// dark run needs to stay still, or ends a run that daylight cannot spoil.
 /// Triggers the sequence declares itself through Recovery nodes still apply.
-pub(super) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
+pub(crate) fn is_calibration_only(sequence: &SequenceDefinition) -> bool {
     let mut calibration_frames = false;
     for node in sequence.enabled_nodes() {
         match &node.node_type {
@@ -87,6 +87,22 @@ mod tests {
         root.children = children.iter().map(|n| n.id.clone()).collect();
         sequence.nodes = std::iter::once(root).chain(children).collect();
         sequence
+    }
+
+    /// The executor answers for the plan it has loaded, which is what the
+    /// bridge publishes on the run's start.
+    #[test]
+    fn the_executor_judges_the_loaded_plan() {
+        let mut executor = crate::SequenceExecutor::new();
+        assert!(!executor.runs_calibration_only());
+        executor
+            .load_sequence(plan(vec![node("dark", exposure("Dark"))]))
+            .expect("loads");
+        assert!(executor.runs_calibration_only());
+        executor
+            .load_sequence(plan(vec![node("light", exposure("Light"))]))
+            .expect("loads");
+        assert!(!executor.runs_calibration_only());
     }
 
     #[test]

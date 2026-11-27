@@ -11,27 +11,29 @@
 //   * inline restatement of what the next line of code obviously does
 //     ("// Create a controller", "// Get the source profile", ...)
 //
-// It is intentionally a *lint with a human in the loop*, not a hard gate: most
-// hits are judgement calls. Lines whose history genuinely encodes an external
-// wire contract or a deliberate non-obvious decision are kept by adding them to
-// the allowlist (path:line[:exact_text]) so the signal stays honest.
+// Scope: Dart library code (`apps/*/lib`, `packages/*/lib`, tests excluded)
+// and every Rust file under `native/skotiq_native` except `target/` and the
+// generated bridge (tests included: Rust keeps them beside the code).
+//
+// It is a counted gate: the Dart and the Rust finding counts may not exceed
+// the two numbers in $_defaultBaselinePath (first line Dart, second Rust).
+// Lower a number when findings go away, never raise it to pass. Most hits are
+// judgement calls; a line whose history is the contract (an external wire
+// format) can be kept with an `--allowlist` file of path:line[:exact_text].
 //
 // Usage:
 //   dart run tools/production/narrative_comment_audit.dart
 //   dart run tools/production/narrative_comment_audit.dart --out-hits .narrative_hits.txt
-//   dart run tools/production/narrative_comment_audit.dart --max <N>   # exit 1 if > N
-//   (without --max the count may not exceed the one in $_defaultBaselinePath;
-//   lower that number when findings go away, never raise it to pass)
+//   dart run tools/production/narrative_comment_audit.dart --max <N> --max-rust <N>
 //   dart run tools/production/narrative_comment_audit.dart --self-test <dir>
 
 import 'dart:convert';
 import 'dart:io';
 
 const _scanRoots = <String>['apps', 'packages'];
+const _rustRoot = 'native/skotiq_native';
 const _defaultHitsPath = '.narrative_hits.txt';
 const _defaultBaselinePath = 'tools/production/narrative_comment_baseline.txt';
-const _defaultAllowlistPath =
-    'docs/production-readiness/narrative-comment-allowlist.txt';
 
 const _excludedSubstrings = <String>[
   '/frb_generated.',
@@ -58,9 +60,9 @@ final _libPathPatterns = <RegExp>[
   RegExp(r'^packages/[^/]+/lib/'),
 ];
 
-// A comment line is any line whose first non-space content is `//` or `///`.
-// Group 1 = the slashes (`//` or `///`), group 2 = the comment body.
-final _commentLine = RegExp(r'^\s*(///?)\s?(.*)$');
+// A comment line is any line whose first non-space content is `//`, `///` or
+// (Rust) `//!`. Group 1 = the slashes, group 2 = the comment body.
+final _commentLine = RegExp(r'^\s*(//[/!]?)\s?(.*)$');
 
 // ---------------------------------------------------------------------------
 // Category 1 — change-history / refactor narrative.
@@ -95,6 +97,10 @@ final _selfNarrationPattern = RegExp(
   r'(^|[.;]\s*)(just )?to be clear,|\bjust to be safe\b|'
   r'\bmatches the established\b.*\bprecedent\b|'
   r'\bper the (review|audit|pr|spec) (request|comment|note)\b|'
+  // A rule's source is the rule, stated; not the task that asked for it.
+  r"\bthe brief's\b|\b(from|follows?|match(es)?|in|per) the brief\b(?! window)|"
+  r'\bthe brief (asks|says|calls|notes|explicitly|default|promises|singles|is)\b|'
+  r'\(the brief\)|\bthe brief(?=[.,;:])|'
   r'\bde-?slop\b|\banti-?slop\b',
   caseSensitive: false,
 );
@@ -137,10 +143,14 @@ void main(List<String> args) {
   }
 
   final hitsPath = _argValue(args, '--out-hits') ?? _defaultHitsPath;
-  final allowlistPath = _argValue(args, '--allowlist') ?? _defaultAllowlistPath;
-  final maxArg = _argValue(args, '--max') ?? _readBaseline();
+  final allowlistPath = _argValue(args, '--allowlist');
+  final baseline = _readBaseline();
+  final maxArg = _argValue(args, '--max') ?? baseline?.dart;
+  final maxRustArg = _argValue(args, '--max-rust') ?? baseline?.rust;
 
-  final allowlist = _loadAllowlist(allowlistPath);
+  final allowlist = allowlistPath == null
+      ? const <_AllowlistEntry>[]
+      : _loadAllowlist(allowlistPath);
   final workspaceRoot = _normalize(Directory.current.absolute.path);
   final findings = <_Finding>[];
   var filesScanned = 0;
@@ -165,9 +175,27 @@ void main(List<String> args) {
       _scanFile(entity, rel, findings);
     }
   }
+  final rustFindings = <_Finding>[];
+  var rustFilesScanned = 0;
+  final rustDir = Directory(_rustRoot);
+  if (rustDir.existsSync()) {
+    for (final entity in rustDir.listSync(
+      recursive: true,
+      followLinks: false,
+    )) {
+      if (entity is! File || !entity.path.endsWith('.rs')) continue;
+      final rel = _toWorkspaceRelative(entity.path, workspaceRoot);
+      if (_isSkippedRust(rel)) continue;
+      rustFilesScanned++;
+      _scanFile(entity, rel, rustFindings, rust: true);
+    }
+  }
 
   final kept =
       findings.where((f) => !_isAllowlisted(f.entry, allowlist)).toList()
+        ..sort((a, b) => a.entry.compareTo(b.entry));
+  final keptRust =
+      rustFindings.where((f) => !_isAllowlisted(f.entry, allowlist)).toList()
         ..sort((a, b) => a.entry.compareTo(b.entry));
 
   final byCat = <String, int>{};
@@ -175,41 +203,68 @@ void main(List<String> args) {
     byCat[f.category] = (byCat[f.category] ?? 0) + 1;
   }
 
+  final rustByCat = <String, int>{};
+  for (final f in keptRust) {
+    rustByCat[f.category] = (rustByCat[f.category] ?? 0) + 1;
+  }
+
   _writeTextFile(
     hitsPath,
-    '${kept.map((f) => '${f.category}\t${f.entry}').join('\n')}\n',
+    '${[...kept, ...keptRust].map((f) => '${f.category}\t${f.entry}').join('\n')}\n',
   );
 
   stdout.writeln('Narrative-comment audit complete.');
-  stdout.writeln('Scanned $filesScanned files');
-  stdout.writeln('Findings: ${kept.length} -> $hitsPath');
+  stdout.writeln(
+    'Scanned $filesScanned Dart files, $rustFilesScanned Rust files',
+  );
+  stdout.writeln('Dart findings: ${kept.length} -> $hitsPath');
   byCat.forEach((cat, n) => stdout.writeln('  $cat: $n'));
+  stdout.writeln('Rust findings: ${keptRust.length} -> $hitsPath');
+  rustByCat.forEach((cat, n) => stdout.writeln('  $cat: $n'));
 
-  if (maxArg != null) {
-    final max = int.tryParse(maxArg);
-    if (max == null) {
-      stderr.writeln('Invalid --max value: $maxArg');
-      exit(2);
-    }
-    if (kept.length > max) {
-      stderr.writeln(
-        'Narrative findings ${kept.length} exceed $max: remove the new ones '
-        '(see the hits file) rather than raising the baseline.',
-      );
-      exit(1);
-    }
-  }
+  final overDart = _over('Dart', kept.length, maxArg, '--max');
+  final overRust = _over('Rust', keptRust.length, maxRustArg, '--max-rust');
+  if (overDart || overRust) exit(1);
 }
 
-/// The finding count the tree may not exceed, from [_defaultBaselinePath].
-/// Null when the file is absent (a self-test tree or another checkout).
-String? _readBaseline() {
+/// Whether [count] exceeds the limit [maxArg] (none when null), saying so.
+bool _over(String language, int count, String? maxArg, String flag) {
+  if (maxArg == null) return false;
+  final max = int.tryParse(maxArg);
+  if (max == null) {
+    stderr.writeln('Invalid $flag value: $maxArg');
+    exit(2);
+  }
+  if (count <= max) return false;
+  stderr.writeln(
+    '$language narrative findings $count exceed $max: remove the new ones '
+    '(see the hits file) rather than raising the baseline.',
+  );
+  return true;
+}
+
+/// The finding counts the tree may not exceed, from [_defaultBaselinePath]:
+/// the first line is Dart's, the second Rust's. Null when the file is absent
+/// (a self-test tree or another checkout).
+({String? dart, String? rust})? _readBaseline() {
   final file = File(_defaultBaselinePath);
   if (!file.existsSync()) return null;
-  return file.readAsStringSync().trim();
+  final lines = file
+      .readAsLinesSync()
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList();
+  return (
+    dart: lines.isNotEmpty ? lines[0] : null,
+    rust: lines.length > 1 ? lines[1] : null,
+  );
 }
 
-void _scanFile(File file, String rel, List<_Finding> out) {
+/// Rust files the audit leaves out: build output and the generated bridge.
+bool _isSkippedRust(String path) =>
+    path.split('/').contains('target') || path.contains('frb_generated');
+
+void _scanFile(File file, String rel, List<_Finding> out, {bool rust = false}) {
   final lines = _readLinesSafe(file);
   for (var i = 0; i < lines.length; i++) {
     final raw = lines[i];
@@ -217,7 +272,7 @@ void _scanFile(File file, String rel, List<_Finding> out) {
     if (m == null) {
       continue;
     }
-    final isDoc = (m.group(1) ?? '') == '///';
+    final isDoc = (m.group(1) ?? '') != '//';
     final body = (m.group(2) ?? '').trim();
     if (body.isEmpty) {
       continue;
@@ -228,7 +283,7 @@ void _scanFile(File file, String rel, List<_Finding> out) {
     }
     out.add(_Finding(rel, i + 1, raw.trimRight(), cat));
   }
-  _scanImportJustifications(lines, rel, out);
+  if (!rust) _scanImportJustifications(lines, rel, out);
 }
 
 // Category 4 — over-written "why this import" block. A contiguous run of plain
@@ -344,7 +399,7 @@ bool _looksLikeStatement(String line) {
       line.contains('=>') ||
       line.startsWith('await ') ||
       line.startsWith('return ') ||
-      RegExp(r'^(final|var|const)\b').hasMatch(line) ||
+      RegExp(r'^(final|var|const|let)\b').hasMatch(line) ||
       RegExp(r'\b\w+\s*\(').hasMatch(line);
 }
 
@@ -366,6 +421,8 @@ void _runSelfTest(String dir) {
     'Matches the established // ignore precedent in stacking_panel.dart.':
         'self-narration',
     'Added as part of the audit sweep.': 'self-narration',
+    'Defaults follow the brief: 30 s.': 'self-narration',
+    'The record keeps the brief the builder was given.': null,
     // restates-obvious
     'Create a controller for the stream': 'restates-obvious',
     'Get the source profile to derive a name for the copy': 'restates-obvious',
@@ -451,6 +508,28 @@ import 'package:x/ok.dart';
       'FAIL import-justification: expected 1 hit at L1, got '
       '${justifications.map((f) => 'L${f.line}').toList()}',
     );
+  }
+
+  // A Rust file: `//!` and `///` are doc comments, `use` blocks are not
+  // checked for import justifications.
+  File('${tmp.path}/sample.rs').writeAsStringSync('''
+//! Previously the module lived in two crates.
+// Set the framing target
+let target = frame();
+''');
+  final rustHits = <_Finding>[];
+  _scanFile(
+    File('${tmp.path}/sample.rs'),
+    'native/x/sample.rs',
+    rustHits,
+    rust: true,
+  );
+  final rustCategories = rustHits
+      .map((f) => '${f.category}@${f.line}')
+      .toList();
+  if (rustCategories.join(',') != 'change-history@1,restates-obvious@2') {
+    failures++;
+    stderr.writeln('FAIL rust walk: got $rustCategories');
   }
 
   tmp.deleteSync(recursive: true);

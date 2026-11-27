@@ -23,8 +23,8 @@
 /// sentence — the same division of labour the meridian-flip outcome uses.
 library;
 
-/// Trigger id the native `end_when`-at-entry skip publishes under. Must stay
-/// byte-identical to `TARGET_END_WHEN_TRIGGER_ID` in `target_header.rs`.
+/// Trigger id the native `end_when`-at-entry skip publishes under
+/// (`test_fixtures/wire_words/run_ids.json`).
 const String kTargetEndWhenTriggerId = 'target_end_when';
 
 /// True when this `TriggerFired` event is a target dropped by its `end_when`.
@@ -51,8 +51,8 @@ const kNothingImagedRunError =
     'end condition, so no frames were captured.';
 
 /// Trigger id the native run publishes under when it skips a target that
-/// stays below the site's altitude floor until dawn. Must stay byte-identical
-/// to `TARGET_BELOW_FLOOR_TRIGGER_ID` in `target_header.rs`.
+/// stays below the site's altitude floor until dawn
+/// (`test_fixtures/wire_words/run_ids.json`).
 const String kTargetBelowFloorTriggerId = 'target_below_floor';
 
 /// True when this `TriggerFired` event is a target skipped for staying below

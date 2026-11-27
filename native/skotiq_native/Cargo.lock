@@ -2115,6 +2115,7 @@ dependencies = [
  "skotiq_platesolve",
  "skotiq_processing",
  "skotiq_sequencer",
+ "skotiq_wire_fixtures",
  "tempfile",
  "thiserror",
  "tokio",
@@ -2133,6 +2134,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skotiq_frame",
+ "skotiq_wire_fixtures",
  "thiserror",
  "tokio",
  "tracing",
@@ -2144,6 +2146,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "skotiq_wire_fixtures",
 ]
 
 [[package]]
@@ -2167,6 +2170,7 @@ dependencies = [
  "sha2",
  "sha3",
  "skotiq_frame",
+ "skotiq_wire_fixtures",
  "tempfile",
  "thiserror",
  "tracing",
@@ -2206,6 +2210,7 @@ dependencies = [
  "skotiq_device",
  "skotiq_frame",
  "skotiq_imaging",
+ "skotiq_wire_fixtures",
  "thiserror",
  "tokio",
  "tracing",
@@ -2244,6 +2249,7 @@ dependencies = [
  "sha2",
  "skotiq_imaging",
  "skotiq_platesolve",
+ "skotiq_wire_fixtures",
  "tempfile",
  "tracing",
 ]
@@ -2267,6 +2273,7 @@ dependencies = [
  "skotiq_frame",
  "skotiq_imaging",
  "skotiq_platesolve",
+ "skotiq_wire_fixtures",
  "thiserror",
  "tokio",
  "tracing",
@@ -2287,6 +2294,13 @@ dependencies = [
  "walkdir",
  "windows",
  "winres",
+]
+
+[[package]]
+name = "skotiq_wire_fixtures"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

@@ -14,11 +14,11 @@
 //
 //   1. `SavedServersService` is a pure data store; it does not
 //      drive backend connections directly.
-//   2. The screen calls `EnhancedSkotiqDiscovery.saveLastServer`
-//      after connect succeeds, then `SavedServersService.upsert` to
-//      mirror the same record into the roaming list. Existing callers
-//      that read `loadLastServer()` (auto-reconnect on startup, LAN push
-//      receiver) keep working without changes.
+//   2. After a connect succeeds the rig connection service saves the
+//      server as the last one (`EnhancedSkotiqDiscovery.saveLastServer`)
+//      and the phone mirrors it into this list (`upsert`). Readers of
+//      `loadLastServer()` (auto-reconnect on startup, LAN push receiver)
+//      read that slot.
 //   3. Migration is one-way: on first read of `SavedServersService` we
 //      look at `loadLastServer()` and ensure its record exists in the
 //      list. Removing a saved server only removes it from the list — the
@@ -454,9 +454,7 @@ class SavedServersStorageKeys {
 /// Persists and mutates the multi-server roaming list.
 ///
 /// The service is *not* a Notifier; the screen treats the on-disk state
-/// as the source of truth and re-loads after every mutation. This keeps
-/// the contract simple and matches how
-/// `EnhancedSkotiqDiscovery.saveLastServer` is used elsewhere.
+/// as the source of truth and re-loads after every mutation.
 ///
 /// All methods are `Future`-returning; the few that have to hit secure
 /// storage are documented per-method.

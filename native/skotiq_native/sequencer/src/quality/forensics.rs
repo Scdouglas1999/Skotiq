@@ -597,6 +597,53 @@ fn monotonic_hfr_rise(recent: &[RecentFrameSample], current_hfr: Option<f64>) ->
 mod tests {
     use super::*;
 
+    /// `test_fixtures/wire_words/likely_causes.json`: every cause's stored
+    /// label, which the app reads back from `frame_forensics.likely_cause`.
+    /// Regenerate with
+    /// `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer likely_causes_fixture`.
+    #[test]
+    fn likely_causes_fixture() {
+        let causes = [
+            LikelyCause::CloudPassage,
+            LikelyCause::SeeingSpike,
+            LikelyCause::GuidingFailure,
+            LikelyCause::WindGust,
+            LikelyCause::SatellitePass,
+            LikelyCause::HotPixelOrCosmic,
+            LikelyCause::FocusDrift,
+            LikelyCause::Unknown,
+        ];
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            causes,
+            [
+                LikelyCause::CloudPassage,
+                LikelyCause::SeeingSpike,
+                LikelyCause::GuidingFailure,
+                LikelyCause::WindGust,
+                LikelyCause::SatellitePass,
+                LikelyCause::HotPixelOrCosmic,
+                LikelyCause::FocusDrift,
+                LikelyCause::Unknown,
+            ]
+        );
+        let labels: Vec<&str> = causes
+            .iter()
+            .map(|cause| {
+                assert_eq!(
+                    serde_json::to_value(cause).unwrap(),
+                    serde_json::json!(cause.label()),
+                    "the serde form is the label"
+                );
+                cause.label()
+            })
+            .collect();
+        skotiq_wire_fixtures::pin_json(
+            "wire_words/likely_causes.json",
+            &serde_json::json!(labels),
+            "a likely cause's label changed; regenerate the fixture and update the app",
+        );
+    }
+
     fn sample(unix: f64, accepted: bool) -> RecentFrameSample {
         RecentFrameSample {
             unix_secs: unix,
@@ -610,7 +657,7 @@ mod tests {
         s
     }
 
-    // Cloud passage — the "production-finished" scenario from the brief:
+    // Cloud passage:
     // 9 rejects between 02:30 and 02:42, sky brightness drop of 0.7 mag
     // in 30s, cloud cover spike from 12% to 78%, 8 other frames in the
     // same window also rejected.

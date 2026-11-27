@@ -10,4 +10,5 @@ publish.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
+skotiq_wire_fixtures = { path = "../wire_fixtures" }
 serde_json.workspace = true

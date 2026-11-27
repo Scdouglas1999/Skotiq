@@ -388,9 +388,8 @@ fn emit_adaptive_exposure_event(
         adjusted_pct =
             ((decision.adapted_secs - decision.nominal_secs).abs() / decision.nominal_secs) * 100.0;
     }
-    // Significant-adjustment threshold for trigger-feed surfacing: 50 %
-    // matches the brief ("Trigger feed entries when an exposure is
-    // adapted by more than 50 % from nominal"). Lower than that and the
+    // Significant-adjustment threshold for trigger-feed surfacing: an exposure
+    // adapted by more than 50 % from nominal gets a feed entry. Lower than that and the
     // dashboard's main panel suffices.
     if adjusted_pct > 50.0 {
         tracing::info!(

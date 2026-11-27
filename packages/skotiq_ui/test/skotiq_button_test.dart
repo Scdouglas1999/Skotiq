@@ -180,14 +180,14 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('outline variant renders a non-transparent border on hover', (
+  testWidgets('secondary variant renders a non-transparent border on hover', (
     tester,
   ) async {
     await tester.pumpWidget(
       _wrap(
         SkotiqButton(
           label: 'Outline',
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           onPressed: () {},
         ),
       ),

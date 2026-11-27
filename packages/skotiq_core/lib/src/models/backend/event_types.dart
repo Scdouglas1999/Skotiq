@@ -78,6 +78,11 @@ enum EventCategory {
   catalog,
 }
 
+/// The [SkotiqEvent.eventType] a network backend emits when its event stream
+/// came back after a gap (a reconnect, a server restart, a reset cursor):
+/// frames may have been missed, so readers fetch their state again.
+const String kBackendReconnectedEventType = 'BackendReconnected';
+
 /// Skotiq event for backend-to-frontend communication
 class SkotiqEvent {
   final int timestamp;

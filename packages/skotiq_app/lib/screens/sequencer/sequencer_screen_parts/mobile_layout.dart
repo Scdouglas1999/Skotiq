@@ -109,9 +109,6 @@ class _MobileBuilderLayout extends ConsumerWidget {
               // height a two-row stat grid took.
               if (isRunning) const ImagingStatusStrip(),
 
-              // The run's progress bar is the screen's own, under the tabs, so
-              // it shows on every tab; a second one here shared its key.
-
               // Tree (portrait: full width; landscape: split with properties).
               Expanded(
                 child: LayoutBuilder(
@@ -119,11 +116,10 @@ class _MobileBuilderLayout extends ConsumerWidget {
                     final wideLandscape =
                         constraints.maxWidth > constraints.maxHeight &&
                             constraints.maxWidth >= _kSequencerSplitMinWidth;
-                    // The split only while a step is selected: an empty
-                    // "Select a node to edit" pane took 40% of a phone on
-                    // its side and left the plan too narrow for the ledger.
-                    // Its close button (or tapping the step again) gives the
-                    // width back.
+                    // The split only while a step is selected, so the plan
+                    // keeps the width for the ledger otherwise. Its close
+                    // button (or tapping the step again) gives the width
+                    // back.
                     if (wideLandscape && selectedNodeId != null) {
                       return TwoPane(
                         startFlex: 3,

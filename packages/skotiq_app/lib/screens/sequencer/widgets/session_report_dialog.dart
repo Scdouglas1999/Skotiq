@@ -87,7 +87,7 @@ class SessionReportDialog extends ConsumerWidget {
           action: SkotiqButton(
             label: 'Retry',
             icon: LucideIcons.refreshCw,
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             size: ButtonSize.small,
             onPressed: () => ref.invalidate(sessionReportProvider(sessionId)),
           ),
@@ -137,7 +137,7 @@ class _ReportBody extends ConsumerWidget {
           SkotiqButton(
             label: 'Open in History',
             icon: LucideIcons.history,
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             size: ButtonSize.small,
             onPressed: () {
               Navigator.of(context).pop();

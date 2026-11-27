@@ -228,7 +228,7 @@ class _AlternateBucketChip extends ConsumerWidget {
             label: 'Use ${alternateBucket.label} map',
             icon: SkotiqIcons.check,
             size: ButtonSize.small,
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             onPressed: () async {
               final notifier = ref.read(defectMapNotifierProvider.notifier);
               // Enable the existing alternate-bucket map for capture-time

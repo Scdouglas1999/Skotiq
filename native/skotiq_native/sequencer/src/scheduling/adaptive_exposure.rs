@@ -109,8 +109,8 @@ pub struct AdaptiveExposureConfig {
     pub max_exposure_secs: f64,
 
     /// Per-filter enable map. Filter name -> bool. When a filter name is
-    /// absent, the global `enabled_by_default` applies. The brief
-    /// calls out the typical use case: enable on Lum/clear, leave RGB at
+    /// absent, the global `enabled_by_default` applies. The typical
+    /// use case: enable on Lum/clear, leave RGB at
     /// fixed exposures because chromatic noise behaves differently.
     #[serde(default)]
     pub per_filter_enabled: HashMap<String, bool>,
@@ -570,12 +570,10 @@ mod tests {
         assert!(cfg.is_enabled_for_filter(None));
     }
 
-    /// Worked example from the brief: L:60s nominal, ref=21.5 mag/arcsec²,
-    /// site 19.2 (Bortle 6). The brief promises "each L sub is actually
-    /// ~142s". Note that exact value depends on the brief author's mental
-    /// math; our straight Pogson formula yields ≈ 499s (a 2.3 mag flux
-    /// ratio is huge). We document the actual physics here and let the
-    /// per-filter max ceiling do the practical clamping.
+    /// Worked example: L:60s nominal, ref=21.5 mag/arcsec², site 19.2
+    /// (Bortle 6). The straight Pogson formula yields ≈ 499s (a 2.3 mag flux
+    /// ratio is large); the per-filter max ceiling does the practical
+    /// clamping.
     #[test]
     fn worked_example_from_brief() {
         let cfg = AdaptiveExposureConfig::default();
@@ -616,10 +614,7 @@ mod tests {
         assert_eq!(r.reason, AdaptiveExposureReason::Disabled);
     }
 
-    const REASONS_FIXTURE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../test_fixtures/wire_words/adaptive_exposure_reasons.json"
-    );
+    const REASONS_FIXTURE: &str = "wire_words/adaptive_exposure_reasons.json";
 
     /// `test_fixtures/wire_words/adaptive_exposure_reasons.json`: every
     /// reason's wire word, which the app's `AdaptiveExposureReason.fromWire`
@@ -639,18 +634,28 @@ mod tests {
             })
             .collect();
         let value = serde_json::json!(words);
-        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-            text.push('\n');
-            std::fs::write(REASONS_FIXTURE, text).expect("write fixture");
-            return;
-        }
-        let committed: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(REASONS_FIXTURE).expect("fixture"))
-                .expect("JSON");
-        assert_eq!(
-            committed, value,
-            "an adaptive exposure reason changed; regenerate the fixture and update the app"
+        skotiq_wire_fixtures::pin_json(
+            REASONS_FIXTURE,
+            &value,
+            "an adaptive exposure reason changed; regenerate the fixture and update the app",
+        );
+    }
+}
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::AdaptiveExposureReason::ALL,
+            [
+                super::AdaptiveExposureReason::Adapted,
+                super::AdaptiveExposureReason::ClampedMin,
+                super::AdaptiveExposureReason::ClampedMax,
+                super::AdaptiveExposureReason::Unavailable,
+                super::AdaptiveExposureReason::Disabled,
+                super::AdaptiveExposureReason::OutOfNominalBounds
+            ]
         );
     }
 }

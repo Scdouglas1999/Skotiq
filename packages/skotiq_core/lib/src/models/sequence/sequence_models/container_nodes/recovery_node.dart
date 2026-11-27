@@ -116,9 +116,8 @@ class RecoveryNode extends SequenceNode {
     this.cloudOpeningMinDurationSecs = 300.0,
     this.cloudCoverMaxPercent = 80.0,
     this.cloudCoverDurationSecs = 60.0,
-    // Science — transparency-adaptive trigger defaults. 0.7 +
-    // 60s matches the brief's recommended "swap when transparency
-    // drops below 70% for a minute" workflow.
+    // Transparency-adaptive trigger: swap when transparency stays below
+    // 70% for a minute.
     this.transparencyBelowThreshold = 0.7,
     this.transparencyDurationSecs = 60.0,
   });

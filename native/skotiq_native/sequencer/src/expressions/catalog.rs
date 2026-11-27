@@ -365,10 +365,7 @@ mod tests {
         }
     }
 
-    const FIXTURE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../test_fixtures/interpolation_catalog/catalog.json"
-    );
+    const FIXTURE: &str = "interpolation_catalog/catalog.json";
 
     fn catalog_contract() -> serde_json::Value {
         let entries: Vec<serde_json::Value> = variable_catalog()
@@ -390,20 +387,10 @@ mod tests {
     /// words, groups, examples and format support, in the same order.
     #[test]
     fn the_catalog_fixture_matches_the_catalog() {
-        let mut text = serde_json::to_string_pretty(&catalog_contract()).expect("serialize");
-        text.push('\n');
-        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-            std::fs::create_dir_all(std::path::Path::new(FIXTURE).parent().expect("dir"))
-                .expect("fixture dir");
-            std::fs::write(FIXTURE, &text).expect("write fixture");
-            return;
-        }
-        let committed = std::fs::read_to_string(FIXTURE).expect("fixture");
-        let committed: serde_json::Value = serde_json::from_str(&committed).expect("fixture JSON");
-        assert_eq!(
-            committed,
-            catalog_contract(),
-            "the catalog changed; regenerate the fixture and update the app's catalog"
+        skotiq_wire_fixtures::pin_json(
+            FIXTURE,
+            &catalog_contract(),
+            "the catalog changed; regenerate the fixture and update the app's catalog",
         );
     }
 }

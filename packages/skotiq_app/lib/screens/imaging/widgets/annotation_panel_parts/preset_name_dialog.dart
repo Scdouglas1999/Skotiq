@@ -26,7 +26,7 @@ class _PresetNameDialogState extends State<_PresetNameDialog> {
         SkotiqButton(
           onPressed: () => Navigator.of(context).pop(),
           label: 'Cancel',
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           size: ButtonSize.small,
         ),
         SkotiqButton(

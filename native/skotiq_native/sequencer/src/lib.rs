@@ -28,6 +28,8 @@ pub mod flat_wizard;
 // Measuring a focuser's mechanical backlash instead of asking the operator
 // for a figure the app has never been able to work out for itself.
 #[cfg(test)]
+mod app_matched_ids_tests;
+#[cfg(test)]
 mod autofocus_config_fixture_tests;
 pub mod focuser_calibration;
 mod frame_naming;
@@ -393,7 +395,7 @@ impl NodeType {
             NodeType::Notification(_) => "Notification",
             NodeType::RunScript(_) => "RunScript",
             NodeType::PolarAlignment(_) => "PolarAlignment",
-            NodeType::MeridianFlip(_) => "MeridianFlip",
+            NodeType::MeridianFlip(_) => meridian_flip_executor::MERIDIAN_FLIP_INSTRUCTION,
             NodeType::OpenDome(_) => "OpenDome",
             NodeType::CloseDome(_) => "CloseDome",
             NodeType::ParkDome(_) => "ParkDome",
@@ -603,28 +605,17 @@ pub const PHOTOMETRIC_FILTER_BANDS: [&str; 17] = [
 
 #[cfg(test)]
 mod photometric_bands_fixture_tests {
-    const FIXTURE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../test_fixtures/wire_words/photometric_bands.json"
-    );
+    const FIXTURE: &str = "wire_words/photometric_bands.json";
 
     /// Regenerate with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer
     /// photometric_bands_fixture`.
     #[test]
     fn photometric_bands_fixture() {
         let value = serde_json::json!(super::PHOTOMETRIC_FILTER_BANDS);
-        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-            text.push('\n');
-            std::fs::write(FIXTURE, text).expect("write fixture");
-            return;
-        }
-        let committed: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(FIXTURE).expect("fixture"))
-                .expect("JSON");
-        assert_eq!(
-            committed, value,
-            "the photometric bands changed; regenerate the fixture and update the app"
+        skotiq_wire_fixtures::pin_json(
+            FIXTURE,
+            &value,
+            "the photometric bands changed; regenerate the fixture and update the app",
         );
     }
 }
@@ -782,7 +773,7 @@ impl PhotometryQualityGates {
 /// Stacking method used by the LiveStacking node.
 ///
 /// The names are kebab-cased on the wire (so the same JSON loads on Dart
-/// without bespoke conversion) and match the brief's enum.
+/// without bespoke conversion).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum StackMethod {
@@ -1154,8 +1145,8 @@ impl FilterCycleMode {
 
 /// Configuration for the [`NodeType::TargetScheduler`] container node.
 ///
-/// Mirrors the Dart-side `TargetSchedulerNode` config. Default values match
-/// the brief — `0.25 / 0.25 / 0.20 / 0.15 / 0.15` weights, 30-point minimum
+/// Mirrors the Dart-side `TargetSchedulerNode` config. Default values are
+/// `0.25 / 0.25 / 0.20 / 0.15 / 0.15` weights, 30-point minimum
 /// score, no automatic recompute mid-target, and the "finish the current loop
 /// iteration before switching" guard turned on so a partially-finished
 /// exposure burst is not abandoned mid-frame.
@@ -1217,7 +1208,7 @@ pub struct TargetSchedulerConfig {
     pub swap_hysteresis_secs: f64,
 
     /// Tier preferences (per-tier conditions-score floors). Defaults
-    /// follow the brief (faint ≥ 70, medium ≥ 50, bright ≥ 30).
+    /// are faint ≥ 70, medium ≥ 50, bright ≥ 30.
     #[serde(default)]
     pub brightness_tier_preferences: crate::scheduling::BrightnessTierPreferences,
 
@@ -2250,12 +2241,10 @@ fn default_af_r_squared_threshold() -> f64 {
     0.7
 }
 
-/// Star selection on, measuring the brightest 10 stars (owner, 2026-10-06:
-/// "Autofocus star selection should be on"). Counting every detection lets
-/// faint, noisy sources dominate the mean: the in-focus rig frame of
-/// 2026-09-14 (2.12 px by an independent PSF fit) reads 13.8 px over every
-/// star and 3.2 px over its brightest 10, which is what the rig ran with. A
-/// stored value, zero included, still wins.
+/// Star selection on, measuring the brightest 10 stars. Counting every
+/// detection lets faint, noisy sources dominate the mean: an in-focus frame of
+/// 2.12 px by an independent PSF fit reads 13.8 px over every star and 3.2 px
+/// over its brightest 10. A stored value, zero included, still wins.
 pub(crate) fn default_af_use_brightest_n_stars() -> u32 {
     10
 }
@@ -3107,8 +3096,7 @@ pub enum TriggerType {
     /// a debounce so a brief gust of haze does not force a target swap.
     ///
     /// Paired with [`RecoveryAction::SwitchTargetOrFilter`] for the
-    /// "swap from RGB faint target to Lum bright backup" workflow
-    /// described in the brief.
+    /// "swap from RGB faint target to Lum bright backup" workflow.
     TransparencyDropped {
         /// Trip threshold as a fraction of clear-sky reference (0.0..=1.0).
         /// A common operator default is 0.7 — "drop more than 30% from

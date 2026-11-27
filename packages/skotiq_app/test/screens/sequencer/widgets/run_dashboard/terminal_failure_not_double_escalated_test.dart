@@ -60,7 +60,8 @@ bridge_event.SkotiqEvent _runStarted(int id) => bridge_event.SkotiqEvent(
       severity: bridge_event.EventSeverity.info,
       category: bridge_event.EventCategory.sequencer,
       payload: const bridge_event.EventPayload.sequencer(
-        bridge_event.SequencerEvent.started(sequenceName: 'Run'),
+        bridge_event.SequencerEvent.started(
+            sequenceName: 'Run', calibrationOnly: false),
       ),
     );
 

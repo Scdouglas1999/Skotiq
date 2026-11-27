@@ -745,7 +745,7 @@ older clients consuming `RADistanceRaw` / `DECDistanceRaw` continue to work.
 
 | eventType | Payload fields |
 | --- | --- |
-| `Started` | `{ "sequence_name": string }` |
+| `Started` | `{ "sequence_name": string, "calibration_only": bool }` |
 | `Paused` | `{}` |
 | `Resumed` | `{}` |
 | `Stopped` | `{}` |

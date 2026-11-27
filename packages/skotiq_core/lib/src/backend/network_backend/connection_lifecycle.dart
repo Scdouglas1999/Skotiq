@@ -223,7 +223,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
           SkotiqEvent(
             timestamp: DateTime.now().millisecondsSinceEpoch,
             category: EventCategory.system,
-            eventType: 'BackendReconnected',
+            eventType: kBackendReconnectedEventType,
             severity: EventSeverity.info,
             data: {
               'message': 'Server instance changed; cached state invalidated',
@@ -410,7 +410,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
                   SkotiqEvent(
                     timestamp: DateTime.now().millisecondsSinceEpoch,
                     category: EventCategory.system,
-                    eventType: 'BackendReconnected',
+                    eventType: kBackendReconnectedEventType,
                     severity: EventSeverity.info,
                     data: {
                       'message': 'Server requested resync',
@@ -509,7 +509,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
           SkotiqEvent(
             timestamp: DateTime.now().millisecondsSinceEpoch,
             category: EventCategory.system,
-            eventType: 'BackendReconnected',
+            eventType: kBackendReconnectedEventType,
             severity: EventSeverity.info,
             data: const {'message': 'WebSocket reconnected'},
           ),

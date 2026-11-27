@@ -178,7 +178,7 @@ class _CoordinateLookupSectionState
                 name.length < 2 ? null : () => setState(() => _query = name),
             icon: LucideIcons.search,
             label: 'Look up coordinates',
-            variant: unset ? ButtonVariant.primary : ButtonVariant.outline,
+            variant: unset ? ButtonVariant.primary : ButtonVariant.secondary,
             size: ButtonSize.small,
           ),
         ),

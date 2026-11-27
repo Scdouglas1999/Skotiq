@@ -146,7 +146,10 @@ void main() {
     [
       _wire(
         const bridge.EventPayload.sequencer(
-          bridge.SequencerEvent.started(sequenceName: 'M31'),
+          bridge.SequencerEvent.started(
+            sequenceName: 'M31',
+            calibrationOnly: false,
+          ),
         ),
         1,
       ),

@@ -1501,7 +1501,7 @@ void main() {
     );
     expect(expand, findsOneWidget);
     // Where inside the alert depends on the alert's width, and this panel is a
-    // ~330px column: under that breakpoint [SkotiqAlert] lays its action
+    // ~330px column: under that breakpoint [SkotiqBanner] lays its action
     // under the TITLE and above the message, at the alert's own width, because
     // beside the text it would be squeezed to half a phone-width alert and the
     // message would wrap down the whole screen. The panel viewport is 256px and

@@ -576,3 +576,23 @@ pub enum ExecutorEvent {
         timeout_secs: u32,
     },
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::ExecutorState::ALL,
+            [
+                super::ExecutorState::Idle,
+                super::ExecutorState::Running,
+                super::ExecutorState::Paused,
+                super::ExecutorState::Stopping,
+                super::ExecutorState::Cancelled,
+                super::ExecutorState::Completed,
+                super::ExecutorState::Failed,
+                super::ExecutorState::Recovering
+            ]
+        );
+    }
+}

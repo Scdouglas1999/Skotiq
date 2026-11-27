@@ -189,7 +189,7 @@ class _FilterOffsetEditorSheetState extends State<_FilterOffsetEditorSheet> {
               Expanded(
                 child: SkotiqButton(
                   label: 'Cancel',
-                  variant: ButtonVariant.outline,
+                  variant: ButtonVariant.secondary,
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ),

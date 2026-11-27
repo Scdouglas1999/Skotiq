@@ -312,6 +312,14 @@ impl SequenceExecutor {
             .map(|sequence| sequence.name.as_str())
     }
 
+    /// Whether the loaded plan only takes calibration frames, the rule that
+    /// keeps the light-frame triggers off its run.
+    pub fn runs_calibration_only(&self) -> bool {
+        self.sequence
+            .as_ref()
+            .is_some_and(start::calibration_run::is_calibration_only)
+    }
+
     /// Write the sequence's totals into the progress snapshot. Indeterminate
     /// totals (unbounded loops, an engaged integration budget) have no finite
     /// ETA, so they read as zero with no estimate.

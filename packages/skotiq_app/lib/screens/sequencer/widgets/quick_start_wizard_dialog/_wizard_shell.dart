@@ -241,7 +241,7 @@ extension _WizardShell on _QuickStartWizardDialogState {
                             : null,
                         icon: LucideIcons.save,
                         label: 'Save as Template',
-                        variant: ButtonVariant.outline,
+                        variant: ButtonVariant.secondary,
                         isLoading: _finishingAsTemplate == true,
                       ),
                       SkotiqButton(

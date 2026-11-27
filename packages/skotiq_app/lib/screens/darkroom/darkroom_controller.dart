@@ -1919,16 +1919,10 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
 /// Family provider keyed by the scope, so a recipe opened by id and a master
 /// opened by id are independent controllers.
 ///
-/// **autoDispose, and why it is not optional.** A controller reads its recipe
-/// row once, in its constructor, and then owns the step list for as long as it
-/// lives. Without autoDispose a family member outlives the screen that made it,
-/// so re-entering the Darkroom by the same route served the stack as it stood
-/// when that route was last open — and the next edit wrote that stale stack
-/// over the row, silently discarding whatever had been done through the other
-/// route in between. A deleted recipe stayed openable for the same reason: the
-/// surviving controller kept rendering a row that no longer existed. Disposing
-/// with the screen means every entry re-reads the row, which is the only way
-/// the editor and the database can be describing the same recipe.
+/// autoDispose is required: a controller reads its recipe row once, in its
+/// constructor, and owns the step list while it lives, so it must not outlive
+/// its screen. Every entry re-reads the row, and an edit never writes a stale
+/// stack over changes made through another route.
 final darkroomControllerProvider = StateNotifierProvider.autoDispose
     .family<DarkroomController, DarkroomViewState, DarkroomScope>(
         (ref, scope) => DarkroomController(ref, scope));

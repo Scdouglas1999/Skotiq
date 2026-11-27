@@ -167,7 +167,7 @@ class CalibrationSection extends ConsumerWidget {
             child: SkotiqButton(
               label: 'Flat wizard',
               icon: LucideIcons.sun,
-              variant: ButtonVariant.outline,
+              variant: ButtonVariant.secondary,
               size: ButtonSize.small,
               onPressed: () => context.push(AppRoute.flatWizard.path),
             ),

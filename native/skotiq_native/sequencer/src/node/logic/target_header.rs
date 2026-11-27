@@ -644,7 +644,7 @@ fn stays_below_floor_until_dawn(
 }
 
 /// Trigger id a target skipped for staying below the altitude floor is
-/// published under; `kTargetBelowFloorTriggerId` in the app must match it.
+/// published under; the app matches it (`test_fixtures/wire_words/run_ids.json`).
 pub const TARGET_BELOW_FLOOR_TRIGGER_ID: &str = "target_below_floor";
 
 /// The target stays below the site's altitude floor until dawn, so it is
@@ -729,7 +729,6 @@ async fn wait_for_trigger(
         return NodeStatus::Success;
     }
 
-    // Shown to the operator: times as a date, not as Unix seconds.
     let label = trigger.label();
     let mut emitted_initial = false;
     let poll = std::time::Duration::from_secs(u64::from(poll_secs));
@@ -797,8 +796,8 @@ async fn wait_for_trigger(
 /// Trigger id every `end_when`-at-entry skip is published under.
 ///
 /// The Dart run-stats layer keys on this id to turn the fire into a run
-/// WARNING (`packages/skotiq_core/lib/src/providers/sequence/target_end_when_notice.dart`);
-/// it is a machine identifier and must stay byte-identical on both sides.
+/// WARNING (`packages/skotiq_core/lib/src/models/sequence/target_end_when_notice.dart`),
+/// pinned by `test_fixtures/wire_words/run_ids.json`.
 pub const TARGET_END_WHEN_TRIGGER_ID: &str = "target_end_when";
 
 /// The trigger fired before the target imaged anything: its `end_when` was

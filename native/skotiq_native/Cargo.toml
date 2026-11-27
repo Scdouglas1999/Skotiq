@@ -13,6 +13,7 @@ members = [
     "processing",
     "native",
     "updater",
+    "wire_fixtures",
 ]
 resolver = "2"
 

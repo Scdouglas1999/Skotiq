@@ -282,7 +282,7 @@ class _RotationControls extends StatelessWidget {
             onPressed: onUseLiveRotator,
             icon: LucideIcons.activity,
             label: 'Use live rotator',
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             size: ButtonSize.small,
           ),
           const SizedBox(height: 6),

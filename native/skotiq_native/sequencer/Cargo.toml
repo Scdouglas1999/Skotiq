@@ -28,6 +28,7 @@ skotiq_imaging = { path = "../imaging" }
 skotiq_platesolve = { path = "../platesolve" }
 
 [dev-dependencies]
+skotiq_wire_fixtures = { path = "../wire_fixtures" }
 # `test-util` is deliberately excluded from tokio's `full` feature, so the
 # scenario simulation harness (executor/scenario_sim_tests.rs) enables it here
 # to use `#[tokio::test(start_paused = true)]` — this lets the guide-star

@@ -72,7 +72,7 @@ class SciencePhotometryNode extends SequenceNode {
 
   /// Maximum inter-frame start-to-start gap (seconds) before a
   /// cadence-broken warning is emitted. 0.0 disables the check.
-  /// Default 2.0s — matches the brief's V0376 Per example.
+  /// Default 2.0s.
   final double maxCadenceGapSecs;
 
   /// Photometric filter (one of [kPhotometricFilterBands]).

@@ -285,9 +285,7 @@ impl InstructionNode for SciencePhotometryInstruction {
                 // computed downstream by the Dart pipeline; here we
                 // assume all references are visible and rely on the
                 // FWHM / SNR / airmass gates to catch the haze cases
-                // that would actually drop a reference. This matches
-                // the brief's "reduce_live=true => run the gates,
-                // reject_path=true" behaviour.
+                // that would actually drop a reference.
                 config.reference_stars.len(),
             );
             if let PhotometryFrameVerdict::Reject { reason } = &verdict {

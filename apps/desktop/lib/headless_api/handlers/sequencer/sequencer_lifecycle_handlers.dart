@@ -606,8 +606,8 @@ extension _SequencerLifecycle on SequencerHandlers {
 
   /// Jump the executor forward to a specific node by id.
   ///
-  /// Why: 's UI lets the operator right-click a node in the tree and say
-  /// "skip directly to this". The Dart NetworkBackend POSTs here; the FRB
+  /// The sequencer tree lets the operator pick a node and skip directly to
+  /// it. The Dart NetworkBackend POSTs here; the FRB
   /// binding marks every preceding sibling Skipped so the executor's next
   /// tree-walk lands on `nodeId`. Empty/missing `nodeId` is a structured 400.
   Future<Response> _handleSequencerSkipToNode(Request request) async {

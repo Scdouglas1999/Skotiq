@@ -14,6 +14,10 @@ import '../models/sequence/sequence_models.dart' show NodeStatus;
 import 'bridge_event_codec.dart';
 import 'bridge_events.dart';
 
+/// The instruction a meridian flip's progress arrives under, whichever
+/// started the flip (`test_fixtures/wire_words/run_ids.json`).
+const String kMeridianFlipInstruction = 'MeridianFlip';
+
 /// The sequencer event [event] carries; null for any other event.
 SequencerEvent? sequencerEventOf(wire.SkotiqEvent event) {
   if (event.category != wire.EventCategory.sequencer) return null;

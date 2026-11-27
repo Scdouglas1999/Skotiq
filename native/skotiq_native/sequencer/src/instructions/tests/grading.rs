@@ -39,10 +39,7 @@ fn reject_dir_absolute_override_inside_the_target_is_kept() {
     assert_eq!(dir, abs);
 }
 
-const REJECT_DIR_FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../test_fixtures/reject_folder/cases.json"
-);
+const REJECT_DIR_FIXTURE: &str = "reject_folder/cases.json";
 
 /// `test_fixtures/reject_folder/cases.json`: where a graded reject goes for
 /// a frame folder and a reject-folder setting. The app's restore reads the
@@ -72,20 +69,10 @@ fn reject_dir_cases_fixture() {
         })
         .collect();
     let value = serde_json::json!({ "cases": cases });
-    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-        let path = std::path::Path::new(REJECT_DIR_FIXTURE);
-        std::fs::create_dir_all(path.parent().expect("dir")).expect("fixture dir");
-        let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-        text.push('\n');
-        std::fs::write(path, text).expect("write fixture");
-        return;
-    }
-    let committed: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(REJECT_DIR_FIXTURE).expect("fixture"))
-            .expect("JSON");
-    assert_eq!(
-        committed, value,
-        "the reject-folder rule changed; regenerate the fixture and update the app's restore"
+    skotiq_wire_fixtures::pin_json(
+        REJECT_DIR_FIXTURE,
+        &value,
+        "the reject-folder rule changed; regenerate the fixture and update the app's restore",
     );
 }
 

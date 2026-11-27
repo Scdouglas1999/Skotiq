@@ -498,27 +498,7 @@ async fn the_result_payload_carries_every_field_dart_requires() {
     assert_eq!(calibration["above"]["approach"], "from_above");
 }
 
-const BACKLASH_FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../test_fixtures/ffi_replies/focuser_backlash_outcomes.json"
-);
-
-/// The JSON kinds and keys of `value`, without its numbers, for a sample
-/// taken from a run whose fitted figures may differ in the last bits.
-fn json_shape(value: &serde_json::Value) -> serde_json::Value {
-    use serde_json::Value;
-    match value {
-        Value::Object(map) => Value::Object(
-            map.iter()
-                .map(|(key, value)| (key.clone(), json_shape(value)))
-                .collect(),
-        ),
-        Value::Array(items) => Value::Array(items.iter().map(json_shape).collect()),
-        Value::Number(_) => Value::String("number".into()),
-        Value::String(_) => Value::String("string".into()),
-        other => other.clone(),
-    }
-}
+const BACKLASH_FIXTURE: &str = "ffi_replies/focuser_backlash_outcomes.json";
 
 /// `test_fixtures/ffi_replies/focuser_backlash_outcomes.json`: a measured
 /// outcome from the simulated run and a refusal, as the app's decoder reads
@@ -546,19 +526,11 @@ async fn focuser_backlash_outcomes_fixture() {
         refusal,
     };
     let value = serde_json::json!({ "measured": measured, "refused": refused });
-    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-        let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-        text.push('\n');
-        std::fs::write(BACKLASH_FIXTURE, text).expect("write fixture");
-        return;
-    }
-    let committed: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(BACKLASH_FIXTURE).expect("fixture"))
-            .expect("JSON");
-    assert_eq!(
-        json_shape(&committed),
-        json_shape(&value),
-        "the backlash outcome changed; regenerate the fixture and update the app's decoder"
+    skotiq_wire_fixtures::pin_json_by(
+        BACKLASH_FIXTURE,
+        &value,
+        skotiq_wire_fixtures::json_shape,
+        "the backlash outcome changed; regenerate the fixture and update the app's decoder",
     );
 }
 

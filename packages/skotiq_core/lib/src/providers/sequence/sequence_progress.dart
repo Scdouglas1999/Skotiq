@@ -190,10 +190,11 @@ void foldRunEvent(
   if (stopEvidence != null) run.setStopEvidence(stopEvidence);
 
   switch (event) {
-    case SequencerEvent_Started(:final sequenceName):
+    case SequencerEvent_Started(:final sequenceName, :final calibrationOnly):
       // A new run answers for itself: the previous run's stop cause must not
       // be read as this one's.
       run.setStopEvidence(null);
+      run.setCalibrationOnly(calibrationOnly);
       if (!executorOwnsRun) {
         // With no executor, nothing else clears the previous run's accounting;
         // integration seconds would otherwise span every run.

@@ -84,10 +84,14 @@ pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
 
     // A run starts only with a plan loaded.
     let sequence_name = executor.sequence_name().unwrap_or_default().to_string();
+    let calibration_only = executor.runs_calibration_only();
     get_state().publish_event(create_event_auto_id(
         EventSeverity::Info,
         EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Started { sequence_name }),
+        EventPayload::Sequencer(SequencerEvent::Started {
+            sequence_name,
+            calibration_only,
+        }),
     ));
 
     Ok(())
@@ -641,8 +645,8 @@ mod executor_site_tests {
         );
     }
 
-    /// The run's start names the plan it runs; the app shows "Started
-    /// sequence: <name>".
+    /// The run's start names the plan it runs (the app shows "Started
+    /// sequence: <name>") and says whether it takes only calibration frames.
     #[tokio::test]
     async fn starting_a_run_announces_the_plan_by_name() {
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
@@ -677,13 +681,16 @@ mod executor_site_tests {
         let mut started = Vec::new();
         while let Ok(event) = events.try_recv() {
             if let crate::event::bus::EventPayload::Sequencer(
-                crate::event::sequencer::SequencerEvent::Started { sequence_name },
+                crate::event::sequencer::SequencerEvent::Started {
+                    sequence_name,
+                    calibration_only,
+                },
             ) = event.payload
             {
-                started.push(sequence_name);
+                started.push((sequence_name, calibration_only));
             }
         }
-        assert_eq!(started, vec!["M 31 mosaic".to_string()]);
+        assert_eq!(started, vec![("M 31 mosaic".to_string(), false)]);
     }
 
     /// A run that is stopped turns Cancelled and the event bridge announces

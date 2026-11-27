@@ -626,3 +626,31 @@ mod tests {
         assert_eq!(m.as_f64_values().unwrap(), vec![1.0, 2.0, 3.0, 4.0]);
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::Element::ALL,
+            [
+                super::Element::I8,
+                super::Element::U8,
+                super::Element::I16,
+                super::Element::U16,
+                super::Element::I32,
+                super::Element::U32,
+                super::Element::I64,
+                super::Element::U64,
+                super::Element::I128,
+                super::Element::U128,
+                super::Element::F32,
+                super::Element::F64,
+                super::Element::F128,
+                super::Element::C32,
+                super::Element::C64,
+                super::Element::C128
+            ]
+        );
+    }
+}

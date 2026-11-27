@@ -483,6 +483,14 @@ fn expected(bin: u32, region: (u32, u32, u32, u32)) -> Vec<u16> {
 const ALL: [Library; 3] = [Library::Gxccd, Library::CxUsb, Library::GxUsb];
 
 #[test]
+fn all_names_every_variant() {
+    skotiq_wire_fixtures::assert_lists_every_variant!(
+        ALL,
+        [Library::Gxccd, Library::CxUsb, Library::GxUsb]
+    );
+}
+
+#[test]
 fn a_full_frame_arrives_top_row_first_on_every_library() {
     let _turn = turn();
     for library in ALL {

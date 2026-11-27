@@ -313,3 +313,27 @@ pub(crate) async fn take_run_frame(
         }
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::CaptureSite::ALL,
+            [
+                super::CaptureSite::ExposureFrame,
+                super::CaptureSite::CenterFrame,
+                super::CaptureSite::AutofocusSample,
+                super::CaptureSite::AutofocusVerify,
+                super::CaptureSite::BacklashCalibration,
+                super::CaptureSite::SecondaryRig,
+                super::CaptureSite::FlatWizardTest,
+                super::CaptureSite::AllSkyPolar,
+                super::CaptureSite::PolarAlignMeasure,
+                super::CaptureSite::PolarAlignAdjust,
+                super::CaptureSite::FlipCenter,
+                super::CaptureSite::FlipNearbyRecovery
+            ]
+        );
+    }
+}

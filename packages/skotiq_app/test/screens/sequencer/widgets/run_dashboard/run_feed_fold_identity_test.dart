@@ -43,7 +43,7 @@ be.SkotiqEvent _started(int id, Duration at) => _event(
       id,
       at,
       const be.EventPayload.sequencer(
-        be.SequencerEvent.started(sequenceName: 'M31'),
+        be.SequencerEvent.started(sequenceName: 'M31', calibrationOnly: false),
       ),
     );
 

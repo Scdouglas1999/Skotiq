@@ -344,7 +344,7 @@ class AddToTargetQueueButton extends ConsumerWidget {
       key: const ValueKey('info_tab_add_to_target_queue'),
       label: queued ? 'In target queue' : 'Add to target queue',
       icon: queued ? SkotiqIcons.check : LucideIcons.listChecks,
-      variant: ButtonVariant.outline,
+      variant: ButtonVariant.secondary,
       size: ButtonSize.small,
       onPressed: queued
           ? null

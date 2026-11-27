@@ -27,5 +27,6 @@ serialport = "4.3"
 skotiq_imaging = { path = "../imaging" }
 
 [dev-dependencies]
+skotiq_wire_fixtures = { path = "../wire_fixtures" }
 # Pseudo-terminals for the serial mount tests
 libc = "0.2"

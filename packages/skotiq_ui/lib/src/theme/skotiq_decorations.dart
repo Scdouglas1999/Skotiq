@@ -293,9 +293,6 @@ abstract final class SkotiqDecorations {
   }
 
   /// Subtle tinted container for icon chips and accent badges.
-  @Deprecated(
-    'Use SkotiqDecorations.well for the icon square. Removed in wave 4.',
-  )
   static BoxDecoration iconChip(
     Color color, {
     BorderRadius? borderRadius,
@@ -315,7 +312,6 @@ abstract final class SkotiqDecorations {
   }
 
   /// Tinted surface with emphasis border.
-  @Deprecated('Use SkotiqDecorations.panel. Removed in wave 4.')
   static BoxDecoration emphasisSurface(
     Color color, {
     BorderRadius? borderRadius,
@@ -333,12 +329,10 @@ abstract final class SkotiqDecorations {
   }
 
   /// Tinted badge background without a border.
-  @Deprecated('Use SkotiqDecorations.chip. Removed in wave 4.')
   static BoxDecoration tintedBadge(Color color, {BorderRadius? borderRadius}) =>
       _chipOfTone(color, borderRadius: borderRadius);
 
   /// Status or state indicator chip.
-  @Deprecated('Use SkotiqDecorations.chip. Removed in wave 4.')
   static BoxDecoration statusChip(
     Color color, {
     BorderRadius? borderRadius,
@@ -350,7 +344,6 @@ abstract final class SkotiqDecorations {
   }
 
   /// Background and border colors for solid accent buttons on hover.
-  @Deprecated('SkotiqButton paints itself. Removed in wave 4.')
   static ({Color background, Color border}) filledButtonColors(
     Color base, {
     required bool isHovered,
@@ -373,7 +366,6 @@ abstract final class SkotiqDecorations {
   }
 
   /// Selected or active toggle surface.
-  @Deprecated('Use SkotiqDecorations.panelSelected. Removed in wave 4.')
   static BoxDecoration selectedSurface(
     Color color, {
     BorderRadius? borderRadius,
@@ -390,7 +382,6 @@ abstract final class SkotiqDecorations {
   }
 
   /// Circular or rounded KPI / score badge.
-  @Deprecated('Use SkotiqDecorations.chip. Removed in wave 4.')
   static BoxDecoration kpiBadge(
     Color color, {
     BorderRadius? borderRadius,
@@ -408,7 +399,6 @@ abstract final class SkotiqDecorations {
   }
 
   /// Full decoration for a solid accent button.
-  @Deprecated('SkotiqButton paints itself. Removed in wave 4.')
   static BoxDecoration filledButton(
     Color base, {
     required bool isHovered,

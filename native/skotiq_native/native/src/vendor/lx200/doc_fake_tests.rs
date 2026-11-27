@@ -574,6 +574,14 @@ async fn settle() {
 
 const ALL: [Fw; 4] = [Fw::Meade, Fw::OnStep, Fw::Gemini, Fw::TenMicron];
 
+#[test]
+fn all_names_every_variant() {
+    skotiq_wire_fixtures::assert_lists_every_variant!(
+        ALL,
+        [Fw::Meade, Fw::OnStep, Fw::Gemini, Fw::TenMicron]
+    );
+}
+
 /// Gotos across the sky, including declinations under ten degrees and
 /// both sides of the equator, reach the fake in a shape its firmware takes
 /// and land where they were sent.

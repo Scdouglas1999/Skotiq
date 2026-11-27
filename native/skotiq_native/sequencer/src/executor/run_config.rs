@@ -1479,3 +1479,40 @@ mod tests {
         assert_eq!(back, config);
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::Section::ALL,
+            [
+                super::Section::Dither,
+                super::Section::Autofocus,
+                super::Section::AutofocusInterval,
+                super::Section::Location,
+                super::Section::AltitudeFloor,
+                super::Section::MaxSunAltitude,
+                super::Section::FilterOffsets,
+                super::Section::SafetyFailMode,
+                super::Section::SafetyCheckInterval,
+                super::Section::WeatherVerdictStaleness,
+                super::Section::WeatherResumeAfterSafe,
+                super::Section::DefaultQualityCheck,
+                super::Section::RejectFolderPath,
+                super::Section::ObserverProfile,
+                super::Section::Recovery,
+                super::Section::DefaultAdaptiveExposure,
+                super::Section::ParkPolicy,
+                super::Section::DeviceRetries,
+                super::Section::MeridianFlip,
+                super::Section::StopOnQualityProblems,
+                super::Section::DecisionLogging,
+                super::Section::CameraFileSaving,
+                super::Section::FrameFormat,
+                super::Section::CalibrationTemperatureTolerance,
+                super::Section::CenteringTolerance
+            ]
+        );
+    }
+}

@@ -971,9 +971,8 @@ class SkotiqApi {
     return { targets };
   }
 
-  // Mount Slew helpers — names match the brief. mountSlewToRaDec
-  // and mountAbortSlew are aliases over the existing mountSlew / mountAbort
-  // to keep app.js handlers readable.
+  // mountSlewToRaDec and mountAbortSlew are aliases over mountSlew /
+  // mountAbort to keep app.js handlers readable.
   async mountSlewToRaDec(deviceId, raHours, decDeg) {
     return this.mountSlew(deviceId, raHours, decDeg);
   }
@@ -1351,8 +1350,8 @@ class SkotiqApi {
   /// 2. The severity parameter is `severity`, and it is an allow-LIST of exact
   ///    level names — not the `minSeverity` floor that /api/logs/recent reads.
   ///    Sending `minSeverity` here is not an error, it is silently ignored.
-  ///    [minSeverity] is expanded to
-  ///    the levels at or above it, which is what the control promises.
+  ///    [minSeverity] is expanded to the levels at or above it, which is
+  ///    what the control promises.
   ///
   /// Why we send the bearer via ?access_token: EventSource has no
   /// header API, so the server's SSE handler accepts the token as a

@@ -183,7 +183,7 @@ class SmartNightSettings {
 
   /// Whether the emitted in-sequence [TargetSchedulerNode] should opt into
   /// adaptive sky-conditions target swapping. When true the node carries a
-  /// `swapOnConditionsBelow` floor (80% — the brief default), so the
+  /// `swapOnConditionsBelow` floor (80% by default), so the
   /// already-built in-sequence swap engine re-orders the candidate pick when
   /// the live conditions score drops. Defaults to `true` so the Smart-Night
   /// preset is self-driving out of the box; the value is purely an

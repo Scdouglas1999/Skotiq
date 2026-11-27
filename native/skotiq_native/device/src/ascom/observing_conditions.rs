@@ -162,3 +162,28 @@ mod tests {
         assert!(matches!(result, Err(DriverError::NotConnected)));
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::Sensor::ALL,
+            [
+                super::Sensor::CloudCover,
+                super::Sensor::DewPoint,
+                super::Sensor::Humidity,
+                super::Sensor::Pressure,
+                super::Sensor::RainRate,
+                super::Sensor::SkyBrightness,
+                super::Sensor::SkyQuality,
+                super::Sensor::SkyTemperature,
+                super::Sensor::StarFwhm,
+                super::Sensor::Temperature,
+                super::Sensor::WindDirection,
+                super::Sensor::WindGust,
+                super::Sensor::WindSpeed
+            ]
+        );
+    }
+}

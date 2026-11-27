@@ -506,9 +506,8 @@ function setConnectionState(state) {
 // Link health
 //
 // A phone left on the nightstand shows whatever the last successful snapshot
-// said. The
-// state below is what lets the page say plainly that it has lost contact, and
-// how stale what it is showing has become.
+// said. The state below is what lets the page say plainly that it has lost
+// contact, and how stale what it is showing has become.
 // ---------------------------------------------------------------------------
 
 // Poll cadences. Declared here because the staleness threshold is derived

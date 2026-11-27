@@ -109,7 +109,7 @@ void main() {
         actions: [
           SkotiqButton(
             label: 'Cancel',
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             onPressed: () {},
           ),
           SkotiqButton(label: 'OK', onPressed: () {}),

@@ -1,0 +1,10 @@
+[package]
+name = "skotiq_wire_fixtures"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true

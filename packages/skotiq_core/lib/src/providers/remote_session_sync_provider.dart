@@ -99,7 +99,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     requestHydration(next);
 
     eventSub = next.eventStream.listen((event) {
-      if (event.eventType == 'BackendReconnected') {
+      if (event.eventType == kBackendReconnectedEventType) {
         requestHydration(next);
       } else {
         applyHostEventOnClient(ref.container, next, event);

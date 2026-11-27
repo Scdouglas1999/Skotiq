@@ -461,7 +461,7 @@ class _BulkButton extends StatelessWidget {
       label: label,
       icon: icon,
       onPressed: onPressed,
-      variant: ButtonVariant.outline,
+      variant: ButtonVariant.secondary,
       size: ButtonSize.small,
     );
   }

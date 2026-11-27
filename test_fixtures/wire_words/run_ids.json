@@ -1,0 +1,6 @@
+{
+  "meridianFlipInstruction": "MeridianFlip",
+  "targetBelowFloorTrigger": "target_below_floor",
+  "targetEndWhenTrigger": "target_end_when",
+  "weatherUnsafeTrigger": "weather_unsafe"
+}

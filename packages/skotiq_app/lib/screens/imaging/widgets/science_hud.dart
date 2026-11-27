@@ -443,7 +443,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
                           );
                         },
                   label: 'Set target',
-                  variant: ButtonVariant.outline,
+                  variant: ButtonVariant.secondary,
                   size: ButtonSize.small,
                 ),
               ),

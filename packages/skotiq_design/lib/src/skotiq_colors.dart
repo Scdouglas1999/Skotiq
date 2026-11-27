@@ -20,7 +20,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
   /// palettes — depth comes from tone, not from borders.
   final Color well;
 
-  @Deprecated('Use well (inset) or surface (container). Removed in wave 4.')
   final Color surfaceAlt;
   final Color surfaceHover;
   final Color surfaceElevated;
@@ -88,7 +87,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     required this.background,
     required this.surface,
     required this.well,
-    // ignore: deprecated_member_use_from_same_package
     required this.surfaceAlt,
     required this.surfaceHover,
     required this.surfaceElevated,
@@ -144,7 +142,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     background: Color(0xFF0B0D12),
     surface: Color(0xFF12151B),
     well: Color(0xFF0E1116),
-    // ignore: deprecated_member_use_from_same_package
     surfaceAlt: Color(0xFF161A21),
     surfaceHover: Color(0xFF1A1E26),
     surfaceElevated: Color(0xFF1C2129),
@@ -189,7 +186,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     background: Color(0xFFF3F5F8),
     surface: Color(0xFFFFFFFF),
     well: Color(0xFFEEF1F5),
-    // ignore: deprecated_member_use_from_same_package
     surfaceAlt: Color(0xFFF7F8FA),
     surfaceHover: Color(0xFFE6EAEF),
     surfaceElevated: Color(0xFFFFFFFF),
@@ -314,7 +310,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     background: Color(0xFF0A0000),
     surface: Color(0xFF140000),
     well: Color(0xFF0F0000),
-    // ignore: deprecated_member_use_from_same_package
     surfaceAlt: Color(0xFF1C0000),
     surfaceHover: Color(0xFF240000),
     surfaceElevated: Color(0xFF280000),
@@ -350,7 +345,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     Color? background,
     Color? surface,
     Color? well,
-    @Deprecated('Use well (inset) or surface (container). Removed in wave 4.')
     Color? surfaceAlt,
     Color? surfaceHover,
     Color? surfaceElevated,
@@ -381,7 +375,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
       background: background ?? this.background,
       surface: surface ?? this.surface,
       well: well ?? this.well,
-      // ignore: deprecated_member_use_from_same_package
       surfaceAlt: surfaceAlt ?? this.surfaceAlt,
       surfaceHover: surfaceHover ?? this.surfaceHover,
       surfaceElevated: surfaceElevated ?? this.surfaceElevated,
@@ -432,7 +425,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
       background: Color.lerp(background, other.background, t)!,
       surface: Color.lerp(surface, other.surface, t)!,
       well: Color.lerp(well, other.well, t)!,
-      // ignore: deprecated_member_use_from_same_package
       surfaceAlt: Color.lerp(surfaceAlt, other.surfaceAlt, t)!,
       surfaceHover: Color.lerp(surfaceHover, other.surfaceHover, t)!,
       surfaceElevated: Color.lerp(surfaceElevated, other.surfaceElevated, t)!,
@@ -476,7 +468,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
         other.background == background &&
         other.surface == surface &&
         other.well == well &&
-        // ignore: deprecated_member_use_from_same_package
         other.surfaceAlt == surfaceAlt &&
         other.surfaceHover == surfaceHover &&
         other.surfaceElevated == surfaceElevated &&
@@ -511,7 +502,6 @@ class SkotiqColors extends ThemeExtension<SkotiqColors> {
     background,
     surface,
     well,
-    // ignore: deprecated_member_use_from_same_package
     surfaceAlt,
     surfaceHover,
     surfaceElevated,

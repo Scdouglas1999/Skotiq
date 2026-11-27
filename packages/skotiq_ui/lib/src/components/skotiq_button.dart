@@ -35,10 +35,6 @@ enum ButtonVariant {
   /// primary action of a settings page, and the operator finds it by colour
   /// from across a dark room.
   start,
-
-  /// Old name for [secondary].
-  @Deprecated('Use ButtonVariant.secondary. Removed in wave 4.')
-  outline,
 }
 
 /// The three button heights: 28 / 32 / 40.
@@ -268,14 +264,7 @@ class _SkotiqButtonState extends State<SkotiqButton>
   /// dims the same way and a disabled destructive still reads as destructive.
   _ButtonFace _face(SkotiqColors colors) {
     final hovered = _isHovered || _isPressed;
-    // `outline` is the deprecated spelling of `secondary`; fold it before the
-    // switch so there is exactly one implementation of that face.
-    final variant = widget.variant == ButtonVariant.outline
-        // ignore: deprecated_member_use_from_same_package
-        ? ButtonVariant.secondary
-        : widget.variant;
-
-    return switch (variant) {
+    return switch (widget.variant) {
       ButtonVariant.primary => (
         fill: hovered ? colors.accent : colors.primary,
         ink: colors.onPrimary,
@@ -288,7 +277,7 @@ class _SkotiqButtonState extends State<SkotiqButton>
         ink: colors.onStart,
         border: Colors.transparent,
       ),
-      ButtonVariant.secondary || ButtonVariant.outline => (
+      ButtonVariant.secondary => (
         fill: hovered ? colors.surfaceHover : Colors.transparent,
         ink: colors.textPrimary,
         border: colors.borderHighlight,

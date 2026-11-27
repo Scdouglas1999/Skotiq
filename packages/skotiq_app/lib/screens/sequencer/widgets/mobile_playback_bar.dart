@@ -121,7 +121,6 @@ class _MobilePlaybackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveEnabled = isEnabled;
-    // Ensure minimum touch target of 44px even when visually compact
     final buttonSize = isCompact ? 40.0 : 44.0;
 
     return Tooltip(

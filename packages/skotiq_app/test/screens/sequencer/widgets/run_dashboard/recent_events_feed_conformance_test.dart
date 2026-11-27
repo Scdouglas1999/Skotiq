@@ -112,7 +112,8 @@ be.SkotiqEvent _started(int id, DateTime at) => be.SkotiqEvent(
       severity: be.EventSeverity.info,
       category: be.EventCategory.sequencer,
       payload: be.EventPayload.sequencer(
-        be.SequencerEvent.started(sequenceName: 'Tonight'),
+        be.SequencerEvent.started(
+            sequenceName: 'Tonight', calibrationOnly: false),
       ),
     );
 

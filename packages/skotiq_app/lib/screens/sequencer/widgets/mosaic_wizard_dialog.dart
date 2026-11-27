@@ -260,7 +260,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
               onPressed: _isBusy || !_panelSizeKnown ? null : _generateMosaic,
               icon: SkotiqIcons.add,
               label: 'Load into Sequencer',
-              variant: ButtonVariant.outline,
+              variant: ButtonVariant.secondary,
               size: ButtonSize.small,
             ),
           ),

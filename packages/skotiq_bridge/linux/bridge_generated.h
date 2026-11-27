@@ -1209,6 +1209,7 @@ typedef struct wire_cst_safety_monitor_capabilities {
 
 typedef struct wire_cst_SequencerEvent_Started {
   struct wire_cst_list_prim_u_8_strict *sequence_name;
+  bool calibration_only;
 } wire_cst_SequencerEvent_Started;
 
 typedef struct wire_cst_SequencerEvent_Stopped {

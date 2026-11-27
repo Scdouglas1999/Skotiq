@@ -480,8 +480,8 @@ class _ConditionalProperties extends ConsumerWidget {
               },
             ),
           ),
-        // Audit C2 — multi-safety-monitor targeting. When more than one
-        // safety monitor is configured the user can pin this conditional
+        // When more than one safety monitor is configured the user can pin
+        // this conditional
         // to a specific monitor; the default (null) consults the
         // aggregated / profile-default safety state.
         if (node.conditionType == ConditionalType.safetyMonitorSafe)
@@ -491,7 +491,7 @@ class _ConditionalProperties extends ConsumerWidget {
   }
 }
 
-/// Audit C2 — safety-monitor selector for a SafetyMonitorSafe conditional.
+/// Safety-monitor selector for a SafetyMonitorSafe conditional.
 ///
 /// Lists every discovered safety monitor by display name plus an
 /// "Aggregated (all monitors)" option that maps to `safetyMonitorId == null`.

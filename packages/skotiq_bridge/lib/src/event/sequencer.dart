@@ -203,8 +203,14 @@ enum SequencerErrorKind {
 sealed class SequencerEvent with _$SequencerEvent {
   const SequencerEvent._();
 
-  const factory SequencerEvent.started({required String sequenceName}) =
-      SequencerEvent_Started;
+  const factory SequencerEvent.started({
+    required String sequenceName,
+
+    /// The plan only takes calibration frames (darks, bias, flats) and
+    /// otherwise only cools, warms, parks or homes; dawn safing leaves
+    /// such a run alone.
+    required bool calibrationOnly,
+  }) = SequencerEvent_Started;
   const factory SequencerEvent.paused() = SequencerEvent_Paused;
   const factory SequencerEvent.resumed() = SequencerEvent_Resumed;
   const factory SequencerEvent.stopped({

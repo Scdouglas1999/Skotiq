@@ -23,44 +23,46 @@ use crate::state::SharedAppState;
 /// `PropertyChanged.property` names for settings with no event of their own.
 /// The Dart consumers match on these strings.
 pub(crate) mod property {
-    // Gain, offset and binning ride `CameraSettingsChanged`, which carries all
-    // three; these name them only when the camera's status cannot be read
-    // back after the change.
-    pub const GAIN: &str = "Gain";
-    pub const OFFSET: &str = "Offset";
-    pub const READOUT_MODE: &str = "ReadoutMode";
-    /// Value is a JSON array of the slot names.
-    pub const FILTER_NAMES: &str = "FilterNames";
-    /// Rotator sky angle after a sync, in degrees.
-    pub const ROTATOR_POSITION: &str = "Position";
-    pub const ROTATOR_REVERSE: &str = "Reverse";
-    /// Value: the fields (comma-separated) the connect check could not
-    /// verify, whose shown value is the device's own report
-    /// (`connect_check`).
-    pub const UNVERIFIED: &str = "Unverified";
-    /// Value `"<ra hours> <dec degrees>"`, the J2000 position synced to.
-    pub const MOUNT_SYNCED: &str = "Synced";
-    /// Value `"<altitude> <azimuth>"` in degrees: an alt/az slew started.
-    pub const MOUNT_SLEW_ALT_AZ: &str = "SlewToAltAz";
-    /// Value `""`: the slew was aborted.
-    pub const MOUNT_ABORT: &str = "AbortSlew";
-    /// Value `"open"`, `"close"` or `"halt"`: the cover command accepted.
-    pub const COVER: &str = "Cover";
-    /// Value `"on <brightness>"` or `"off"`.
-    pub const CALIBRATOR: &str = "Calibrator";
-    /// Value `"<switch index> <true|false>"`.
-    pub const SWITCH_STATE: &str = "SwitchState";
-    /// Value `"<switch index> <value>"`.
-    pub const SWITCH_VALUE: &str = "SwitchValue";
-    /// Value `"open"` or `"close"`.
-    pub const DOME_SHUTTER: &str = "Shutter";
-    /// Value is the commanded azimuth in degrees.
-    pub const DOME_SLEW: &str = "SlewToAzimuth";
-    pub const DOME_PARK: &str = "Park";
-    pub const DOME_HOME: &str = "FindHome";
-    pub const DOME_ABORT: &str = "AbortSlew";
-    /// Value `"true"` or `"false"`.
-    pub const DOME_SLAVED: &str = "Slaved";
+    word_consts! {
+        // Gain, offset and binning ride `CameraSettingsChanged`, which carries all
+        // three; these name them only when the camera's status cannot be read
+        // back after the change.
+        GAIN = "Gain";
+        OFFSET = "Offset";
+        READOUT_MODE = "ReadoutMode";
+        /// Value is a JSON array of the slot names.
+        FILTER_NAMES = "FilterNames";
+        /// Rotator sky angle after a sync, in degrees.
+        ROTATOR_POSITION = "Position";
+        ROTATOR_REVERSE = "Reverse";
+        /// Value: the fields (comma-separated) the connect check could not
+        /// verify, whose shown value is the device's own report
+        /// (`connect_check`).
+        UNVERIFIED = "Unverified";
+        /// Value `"<ra hours> <dec degrees>"`, the J2000 position synced to.
+        MOUNT_SYNCED = "Synced";
+        /// Value `"<altitude> <azimuth>"` in degrees: an alt/az slew started.
+        MOUNT_SLEW_ALT_AZ = "SlewToAltAz";
+        /// Value `""`: the slew was aborted.
+        MOUNT_ABORT = "AbortSlew";
+        /// Value `"open"`, `"close"` or `"halt"`: the cover command accepted.
+        COVER = "Cover";
+        /// Value `"on <brightness>"` or `"off"`.
+        CALIBRATOR = "Calibrator";
+        /// Value `"<switch index> <true|false>"`.
+        SWITCH_STATE = "SwitchState";
+        /// Value `"<switch index> <value>"`.
+        SWITCH_VALUE = "SwitchValue";
+        /// Value `"open"` or `"close"`.
+        DOME_SHUTTER = "Shutter";
+        /// Value is the commanded azimuth in degrees.
+        DOME_SLEW = "SlewToAzimuth";
+        DOME_PARK = "Park";
+        DOME_HOME = "FindHome";
+        DOME_ABORT = "AbortSlew";
+        /// Value `"true"` or `"false"`.
+        DOME_SLAVED = "Slaved";
+    }
 }
 
 impl crate::device::DeviceInfo {
@@ -360,52 +362,23 @@ mod tests;
 mod wire_words {
     use super::property;
 
-    const FIXTURE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../test_fixtures/wire_words/device_properties.json"
-    );
+    const FIXTURE: &str = "wire_words/device_properties.json";
 
     /// `test_fixtures/wire_words/device_properties.json`: the
     /// `PropertyChanged.property` names, which the app matches. Regenerate
     /// with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_bridge device_property_wire_words`.
     #[test]
     fn device_property_wire_words_fixture() {
-        let value = serde_json::json!({
-            "GAIN": property::GAIN,
-            "OFFSET": property::OFFSET,
-            "READOUT_MODE": property::READOUT_MODE,
-            "FILTER_NAMES": property::FILTER_NAMES,
-            "ROTATOR_POSITION": property::ROTATOR_POSITION,
-            "ROTATOR_REVERSE": property::ROTATOR_REVERSE,
-            "UNVERIFIED": property::UNVERIFIED,
-            "MOUNT_SYNCED": property::MOUNT_SYNCED,
-            "MOUNT_SLEW_ALT_AZ": property::MOUNT_SLEW_ALT_AZ,
-            "MOUNT_ABORT": property::MOUNT_ABORT,
-            "COVER": property::COVER,
-            "CALIBRATOR": property::CALIBRATOR,
-            "SWITCH_STATE": property::SWITCH_STATE,
-            "SWITCH_VALUE": property::SWITCH_VALUE,
-            "DOME_SHUTTER": property::DOME_SHUTTER,
-            "DOME_SLEW": property::DOME_SLEW,
-            "DOME_PARK": property::DOME_PARK,
-            "DOME_HOME": property::DOME_HOME,
-            "DOME_ABORT": property::DOME_ABORT,
-            "DOME_SLAVED": property::DOME_SLAVED,
-        });
-        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-            let path = std::path::Path::new(FIXTURE);
-            std::fs::create_dir_all(path.parent().expect("dir")).expect("fixture dir");
-            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-            text.push('\n');
-            std::fs::write(path, text).expect("write fixture");
-            return;
-        }
-        let committed: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(FIXTURE).expect("fixture"))
-                .expect("JSON");
-        assert_eq!(
-            committed, value,
-            "the PropertyChanged names changed; regenerate the fixture and update the app"
+        let value = serde_json::Value::Object(
+            property::ALL
+                .iter()
+                .map(|(name, word)| (name.to_string(), serde_json::json!(word)))
+                .collect(),
+        );
+        skotiq_wire_fixtures::pin_json(
+            FIXTURE,
+            &value,
+            "the PropertyChanged names changed; regenerate the fixture and update the app",
         );
     }
 }

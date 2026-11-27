@@ -214,26 +214,39 @@ const _dartPackages = <String, _DartPackage>{
 
 /// The layering of the Rust workspace (`native/skotiq_native`), lowest first.
 const _rustCrates = <String, Set<String>>{
+  // Test support only (a dev-dependency): the fixture pins the crates' tests
+  // share with the app's tests.
+  'skotiq_wire_fixtures': {},
   // The frame vocabulary: the color filter array a camera reports and the
   // imaging code demosaics, and the filter-name rule, one crate below both.
-  'skotiq_frame': {},
-  'skotiq_device': {'skotiq_frame'},
-  'skotiq_imaging': {'skotiq_frame'},
+  'skotiq_frame': {'skotiq_wire_fixtures'},
+  'skotiq_device': {'skotiq_frame', 'skotiq_wire_fixtures'},
+  'skotiq_imaging': {'skotiq_frame', 'skotiq_wire_fixtures'},
   'skotiq_phd2': {},
   'skotiq_updater': {},
   'skotiq_platesolve': {'skotiq_imaging'},
-  'skotiq_processing': {'skotiq_imaging', 'skotiq_platesolve'},
+  'skotiq_processing': {
+    'skotiq_imaging',
+    'skotiq_platesolve',
+    'skotiq_wire_fixtures',
+  },
   'skotiq_alpaca': {'skotiq_device'},
   'skotiq_ascom': {'skotiq_device'},
   // An INDI camera sends its frames as FITS or XISF files, which the imaging
   // crate alone decodes, as the native drivers' camera raw files.
   'skotiq_indi': {'skotiq_device', 'skotiq_imaging'},
-  'skotiq_native': {'skotiq_frame', 'skotiq_device', 'skotiq_imaging'},
+  'skotiq_native': {
+    'skotiq_frame',
+    'skotiq_device',
+    'skotiq_imaging',
+    'skotiq_wire_fixtures',
+  },
   'skotiq_sequencer': {
     'skotiq_frame',
     'skotiq_device',
     'skotiq_imaging',
     'skotiq_platesolve',
+    'skotiq_wire_fixtures',
   },
   'skotiq_bridge': {
     'skotiq_alpaca',
@@ -247,6 +260,7 @@ const _rustCrates = <String, Set<String>>{
     'skotiq_platesolve',
     'skotiq_processing',
     'skotiq_sequencer',
+    'skotiq_wire_fixtures',
   },
 };
 
@@ -470,6 +484,16 @@ final _handExposureLabel = RegExp(
   r'|(?<!\\)\$\w*(?:[Ee]xpos|[Ee]xptime)\w*(?!\w)\s(?:s|ms|seconds)\b',
 );
 
+/// Any value interpolated straight before a seconds unit, flagged on a line
+/// whose text speaks of an exposure or a sub, so a value named `seconds`, `min`
+/// or `max` is caught too: `'sub length ${seconds.toStringAsFixed(0)}s'`.
+final _secondsBeforeUnit = RegExp(
+  r'(?<!\\)\$\{[^{}]*\}\s?(?:s|ms|sec|secs|seconds)\b',
+);
+final _exposureWording = RegExp(
+  r'[Ee]xposure|\bsubs?\b|\bsub length\b|nominal duration',
+);
+
 /// Files whose exposure number is not a label.
 const _handExposureExempt = {
   // A master's file name: `MasterDark_2p5s_...` is read back by name.
@@ -477,6 +501,8 @@ const _handExposureExempt = {
   // A Darkroom group label goes into the processing plan the native side reads.
   'packages/skotiq_core/lib/src/services/darkroom_build_service.dart',
   'packages/skotiq_astro/lib/src/format/quantity_format.dart',
+  // A sequence diff shows the stored number as written ("180.0s").
+  'packages/skotiq_core/lib/src/models/sequence/sequence_models/node_kinds.dart',
 };
 
 const _handExposureInstead =
@@ -494,7 +520,11 @@ List<_Violation> _checkHandExposureLabels(List<String> files) {
     for (var i = 0; i < lines.length; i++) {
       final code = lines[i].trimLeft();
       if (code.startsWith('//')) continue;
-      if (!_handExposureLabel.hasMatch(code)) continue;
+      if (!_handExposureLabel.hasMatch(code) &&
+          !(_secondsBeforeUnit.hasMatch(code) &&
+              _exposureWording.hasMatch(code))) {
+        continue;
+      }
       out.add(
         _Violation(
           _Rule.oneHelper,

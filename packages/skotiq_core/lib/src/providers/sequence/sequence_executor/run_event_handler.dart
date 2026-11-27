@@ -157,6 +157,7 @@ class RunEventHandler {
           completedExposures: current,
           // A run looping until its window closes has no total to show.
           message: SequenceProgress.frameCountMessage(current, total),
+          messageIsFrameCount: true,
         );
       case SequencerEvent_TargetChanged(
         :final targetName,

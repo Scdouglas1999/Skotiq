@@ -75,9 +75,9 @@ class CatalogHandlers implements RouteSource {
   /// `availableSpaceBytes` instead of reporting a bogus number.
   final DiskSpaceService? diskSpaceService;
 
-  /// Cache lifetime for `GET /api/catalog/available`. The brief asks
-  /// for an hour; we honour that so a client that polls every minute
-  /// during the install wizard does not hammer the upstream manifest.
+  /// Cache lifetime for `GET /api/catalog/available`: an hour, so a client
+  /// that polls every minute during the install wizard does not hammer the
+  /// upstream manifest.
   static const Duration _availableCacheTtl = Duration(hours: 1);
 
   /// Hard upper bound on uploaded archive size. The audit specifies

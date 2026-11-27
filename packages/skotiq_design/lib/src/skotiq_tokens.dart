@@ -386,13 +386,11 @@ abstract final class SkotiqTokens {
   // feedback) where tonal lift is needed above the base surface.
 
   /// Medium shadow for dropdowns and popovers
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
   static const List<BoxShadow> shadowMd = [
     BoxShadow(color: Color(0x1F000000), blurRadius: 10, offset: Offset(0, 4)),
   ];
 
   /// Large shadow for dialogs/modals
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
   static const List<BoxShadow> shadowLg = [
     BoxShadow(color: Color(0x33000000), blurRadius: 20, offset: Offset(0, 8)),
   ];
