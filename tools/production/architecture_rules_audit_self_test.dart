@@ -1030,6 +1030,65 @@ Future<void> main() async {
     );
   }, exitCode: 0);
 
+  await check(
+    'a second copy of a helper kept once fails',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_planetarium/lib/src/util/aligned_ticker.dart',
+        'class AlignedTicker {}\n',
+      );
+      await _write(
+        root,
+        'packages/skotiq_app/lib/screens/step.dart',
+        'final at = nextLocalTimeOfDay(now, 22, 0);\n',
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/services/darkroom_build_service.dart',
+        'List<List<DbCapturedImage>> _temperatureClusters(\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[one-helper]',
+      'aligned_ticker.dart:1: keeps its own AlignedTicker',
+      'step.dart:1: keeps its own step time of day',
+      'darkroom_build_service.dart:1: keeps its own temperature clusters',
+      'Where it goes instead: Use AlignedTicker from skotiq_astro',
+    ],
+  );
+
+  await check('a helper used through its one copy passes', (root) async {
+    await _write(
+      root,
+      'packages/skotiq_astro/lib/src/util/aligned_ticker.dart',
+      'class AlignedTicker {}\n'
+          'Duration delayToNextBoundary(Duration period) => period;\n',
+    );
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/providers/clock_provider.dart',
+      'DateTime next() => nextLocalTimeOfDay(now, 22, 0);\n'
+          '// nextLocalTimeOfDay( in a comment.\n',
+    );
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/services/darkroom_build_service.dart',
+      'final c = temperatureClusters(frames);\n',
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/lib/screens/shell/clock.dart',
+      'void start() {\n  timer ??= AlignedTicker(period, tick);\n}\n',
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/test/step_test.dart',
+      'final at = nextLocalTimeOfDay(now, 22, 0);\n',
+    );
+  }, exitCode: 0);
+
   if (failures > 0) {
     stderr.writeln('$failures architecture rules self-test case(s) failed.');
     exit(1);
