@@ -2,7 +2,6 @@
 # do not edit by hand (see docs/ci-gates.md, "Keeping the audit gates in step").
 # A site is matched by rule + scope + text. The path is a hint and may be stale.
 path	scope	rule	count	verdict	text
-apps/desktop/lib/desktop_last_gasp.dart	tryParse	empty_catch	1	V0280	} catch (_) {
 apps/desktop/lib/desktop_last_gasp.dart	install	literal_null_coalesce	1	V0281	return previousPlatformOnError?.call(error, stack) ?? false;
 apps/desktop/lib/desktop_last_gasp.dart	tryParse	literal_null_coalesce	1	V0279	final at = DateTime.tryParse(decoded['at'] as String? ?? '');
 apps/desktop/lib/frame_timing_probe.dart	Function	literal_null_coalesce	1	R9-126	double.tryParse(Platform.environment['SKOTIQ_FRAME_TARGET_HZ'] ?? ''),
@@ -133,7 +132,6 @@ apps/desktop/lib/headless_api/handlers/weather_handlers.dart	handleGetRadarData	
 apps/desktop/lib/headless_api/job_manager.dart	Job	comment_best_effort	1	V0121	/// best-effort correlation between a job and the underlying driver's
 apps/desktop/lib/headless_api/mount_move.dart	guiderSilentOk	literal_null_coalesce	1	V0036	optionalBool(payload, GuiderForMove.silentOkKey) ?? false;
 apps/desktop/lib/headless_api/validation.dart	errorTranslationMiddleware	literal_null_coalesce	1	V0068	if (shouldBypass?.call(request) ?? false) {
-apps/desktop/lib/headless_api_server.dart	wireRemotePushDelivery	empty_catch	1	V0038	} catch (_) {
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_HeadlessApiServerEventForwarding	comment_best_effort	1	R9-002	/// best-effort basis.
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_startServer	comment_best_effort	1	V0121	// Best-effort: learn our own tailnet address so /api/info can hand it to a
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_stopServer	comment_best_effort	1	V0121	// Best-effort: if the underlying LazyDatabase never opened (e.g. startup
@@ -3628,7 +3626,6 @@ packages/skotiq_updater/lib/src/models/update_state.dart	statusMessage	literal_n
 packages/skotiq_updater/lib/src/services/android_installer.dart	canRequestPackageInstalls	literal_null_coalesce	1	V0829	return granted ?? false;
 packages/skotiq_updater/lib/src/services/anti_freeze_store.dart	advance	comment_best_effort	1	V0203	// Best-effort persistence; see doc comment.
 packages/skotiq_updater/lib/src/services/anti_freeze_store.dart	advance	empty_catch	1	V0202	} catch (_) {
-packages/skotiq_updater/lib/src/services/update_controller.dart	_readTimestamp	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_updater/lib/src/services/update_controller.dart	stagedUpdate	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_updater/lib/src/services/update_controller.dart	UpdateController.forApp	literal_null_coalesce	1	U2-08	final envChannel = env['SKOTIQ_UPDATE_CHANNEL']?.trim() ?? '';
 packages/skotiq_updater/lib/src/services/update_controller.dart	UpdateController.forApp	literal_null_coalesce	1	U2-08	final envUrl = env['SKOTIQ_UPDATE_SERVER']?.trim() ?? '';
