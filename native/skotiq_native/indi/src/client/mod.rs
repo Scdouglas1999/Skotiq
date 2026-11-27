@@ -90,7 +90,7 @@ pub struct IndiClient {
     devices: Arc<RwLock<HashMap<String, IndiDevice>>>,
     properties: Arc<RwLock<HashMap<(String, String), IndiProperty>>>,
     property_values: Arc<RwLock<PropertyValueMap>>,
-    /// Per-property last server update time (audit ND-/ ND-partial).
+    /// Per-property last server update time.
     property_updated_ms: Arc<RwLock<PropertyUpdateMap>>,
     number_limits: Arc<RwLock<NumberLimitsMap>>,
     latest_blobs: Arc<RwLock<BlobMap>>,

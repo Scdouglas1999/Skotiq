@@ -5,7 +5,7 @@
 //! All `ascom_caps.can_*.unwrap_or(false)` and `m.can_*().unwrap_or(false)`
 //! calls in this file follow the ASCOM ITelescope optional-property contract:
 //! drivers that do not implement a Can* probe throw `PropertyNotImplemented`,
-//! which `skotiq_ascom` surfaces as `Err`. The audit policy is to
+//! which `skotiq_ascom` surfaces as `Err`. The policy is to
 //! interpret missing probe as "this feature not supported" — `false` — so
 //! the UI never offers a button that the driver will reject. The same
 //! interpretation applies to `alignment_mode().map(...).unwrap_or(false)`
@@ -124,8 +124,8 @@ impl AscomMountWrapper {
     /// The queue is bounded and the worker makes one COM call at a time, on a
     /// thread it shares with every other ASCOM device. A driver call that never
     /// returns fills the queue, and a plain `send` would then wait forever,
-    /// holding whatever device locks its caller holds: on the rig that froze
-    /// every device request in the app behind one stuck mount. Give up after
+    /// holding whatever device locks its caller holds and freezing every device
+    /// request in the app behind one stuck mount. Give up after
     /// the write timeout instead, as every reply wait already does.
     async fn enqueue(&self, command: AscomMountCommand) -> Result<(), DriverError> {
         match tokio::time::timeout(Timeouts::property_write(), self.sender.send(command)).await {
@@ -1218,8 +1218,7 @@ mod tests {
 
     /// A driver call that never returns must not hang every later caller. The
     /// worker below takes the first command and never answers; the queue holds
-    /// eight more. Before the bounded enqueue the tenth caller waited on `send`
-    /// forever, and on the rig that caller held the device table's read lock.
+    /// eight more.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn a_wedged_worker_fails_every_caller_instead_of_hanging() {
         let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();

@@ -14,14 +14,9 @@ const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
 /// Whether a guide status counts as GUIDING for recovery purposes: locked AND
 /// settled inside [`REACQUIRE_SETTLE_PIXELS`].
 ///
-/// `is_guiding` on its own does not mean that, and the difference cost the
-/// owner a clear night. PHD2 reports guiding for as long as it is emitting
-/// GuideStep frames, including while it chases a star it has effectively lost.
-/// Measured on his rig on 2026-09-14: `is_guiding: true` throughout, with RA
-/// offsets of -56.8 / -57.2 px and Dec -54.4 / -38.0 px (normal is under 2),
-/// SNR collapsed 126.7 -> 17.3 -> 11.8 and StarMass 2,962,797 -> 7,991 ->
-/// 5,902. Guiding was not working, and every 180 s light taken meanwhile
-/// trailed to HFR 15.6 px.
+/// `is_guiding` on its own does not mean that. PHD2 reports guiding for as
+/// long as it is emitting GuideStep frames, including while it chases a star
+/// it has effectively lost.
 ///
 /// `rms_total` is in guide-camera pixels — PHD2's `RADistanceRaw` /
 /// `DECDistanceRaw` summed in quadrature — the same unit as the settle bound

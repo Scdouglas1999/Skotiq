@@ -1249,9 +1249,8 @@ fn short_plan() -> SequenceDefinition {
     sequence
 }
 
-/// The park's "paused while the mount moves" read on the guider after the
-/// run had ended. However the run ends (completed, guider still guiding, or
-/// failed), it tells the guider its holds are over, after any stop it made.
+/// However the run ends (completed, guider still guiding, or failed), it
+/// tells the guider its holds are over, after any stop it made.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn every_run_end_ends_the_runs_guiding_holds() {
     let assert_ended_last = |calls: Vec<String>| {

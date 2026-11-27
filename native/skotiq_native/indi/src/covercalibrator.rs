@@ -197,7 +197,6 @@ impl IndiCoverCalibrator {
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
 
-        // Check if property is busy (moving)
         if client.is_property_busy(&self.device_name, CAP_PARK).await {
             return IndiCoverState::Moving;
         }

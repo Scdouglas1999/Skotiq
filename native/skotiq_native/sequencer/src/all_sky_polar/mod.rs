@@ -527,8 +527,7 @@ mod tests {
         assert_eq!(cfg.acceptance_threshold_arcsec, 30.0);
     }
 
-    /// Compile-time: ensure the public type re-exports are reachable
-    /// (regression guard for module reorganization).
+    /// Compile-time: ensure the public type re-exports are reachable.
     #[test]
     fn public_types_are_reachable() {
         let _: Option<SolvedFrame> = None;

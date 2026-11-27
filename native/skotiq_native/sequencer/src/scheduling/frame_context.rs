@@ -1,14 +1,5 @@
 //! Image Grading: per-frame metadata bundle carried into `save_fits`.
 //!
-//! Audit complaint: the pre-existing `save_fits` took only four positional
-//! fields (target name, filter, RA, Dec). Standard astrophotography FITS
-//! headers want session ID, panel index, observer, focuser position, sensor
-//! temp, rotator angle, guide RMS, plate-solve coords, Bayer pattern, observer
-//! site coordinates, telescope/camera identification. The
-//! [`MosaicPanelInfo`](crate::MosaicPanelInfo) config was already present but
-//! never made it into FITS headers — so mosaic panels merged in tools like
-//! PixInsight have no way to know which panel a sub belongs to.
-//!
 //! `FrameContext` is the single bundle that flows from the executor through
 //! `expose.rs` into `DeviceOps::save_fits`. Every Option<_> field is honestly
 //! optional — if the corresponding device isn't connected or the telemetry
@@ -179,8 +170,7 @@ pub struct FrameContext {
 
     // Mosaic panel (custom SK-MOSNM / SK-PIDX / SK-PROW / SK-PCOL)
     /// Mosaic panel information when this target is one panel of a
-    /// multi-panel mosaic. The audit's specific complaint: this field
-    /// existed in `MosaicPanelInfo` but was never written to FITS headers.
+    /// multi-panel mosaic.
     pub mosaic_panel: Option<MosaicPanelInfo>,
 
     // Observer / site (observer / sitelat / sitelong / siteelev keywords)

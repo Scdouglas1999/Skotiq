@@ -632,7 +632,7 @@ impl CheckpointManager {
     pub fn mark_completed(&self) -> Result<(), String> {
         // A `None` load means there is no checkpoint to mark, and a corrupt
         // file is a load error: returning Ok(()) for either made a no-op
-        // indistinguishable from a real mark (L52), so both are reported to
+        // indistinguishable from a real mark, so both are reported to
         // the caller instead.
         let mut checkpoint = match self.load() {
             Ok(Some(checkpoint)) => checkpoint,

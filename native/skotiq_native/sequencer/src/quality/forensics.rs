@@ -368,9 +368,7 @@ pub fn analyze_rejection(inputs: &ForensicInputs<'_>) -> ForensicVerdict {
     // 6) A frame with almost no stars. Satellites, aircraft, hot pixels and
     //    cosmic rays add detections; none of them removes a field's stars.
     //    What does is cloud or something in front of the optics (a tree, a
-    //    dew-covered corrector, a cap). On the rig 2026-11-08 the first frame
-    //    of a clouded night, 2 stars where there are hundreds, was called a
-    //    hot pixel because it had no neighbours to compare with.
+    //    dew-covered corrector, a cap).
     let near_empty = match inputs.star_count {
         Some(count) => count <= NEAR_EMPTY_STAR_COUNT,
         None => inputs.reason == RejectReason::NoStars,

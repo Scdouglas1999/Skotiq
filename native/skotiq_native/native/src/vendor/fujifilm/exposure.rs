@@ -416,7 +416,7 @@ mod tests {
         );
     }
 
-    /// P5-4: by ratio, as ISO steps go (the same rule as gPhoto2): between
+    /// By ratio, as ISO steps go (the same rule as gPhoto2): between
     /// 800 and 1600 the midpoint is their geometric mean, 1131.
     #[test]
     fn a_gain_between_iso_steps_selects_the_nearest_iso() {

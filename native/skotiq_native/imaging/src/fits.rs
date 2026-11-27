@@ -2514,7 +2514,7 @@ mod tests {
     }
 
     /// The Darkroom's own summary line, verbatim from an export. A hard split
-    /// at column 72 cuts `fingerprint=e2328f` from `40d1…` (finding D3UI-1).
+    /// at column 72 cuts `fingerprint=e2328f` from `40d1…`.
     const LONG_HISTORY_LINE: &str = "Skotiq Darkroom: stage=final, recipe=1 (4 steps), fingerprint=e2328f40d1890f8d378ab91a6195ab17";
 
     /// The calibration report's reference-light line, whose path carries spaces.

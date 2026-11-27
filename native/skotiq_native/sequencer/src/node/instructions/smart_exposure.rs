@@ -15,7 +15,7 @@
 //!
 //! # Why delegate to ExposureInstruction / ChangeFilterInstruction?
 //!
-//! The brief mandates that SmartExposure does **not** reimplement exposure or
+//! SmartExposure does **not** reimplement exposure or
 //! filter-change logic. Both have grown well-tested integration accounting,
 //! trigger-state updates, HFR baseline propagation, and FITS-save error
 //! routing. Re-implementing any of that here would inevitably diverge.

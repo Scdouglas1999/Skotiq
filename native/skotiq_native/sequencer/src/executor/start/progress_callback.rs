@@ -154,14 +154,11 @@ pub(super) fn build_progress_callback(
                 // terminal status AND `current_frame`/`total_frames` (see
                 // `expose.rs`, which repeats the last frame number to
                 // publish `completed_exposure_secs`). Resetting the
-                // counter first made the frame block below see last=0 and
-                // re-advance 0 -> N for a burst it had already counted
-                // frame-by-frame, so `completed_exposures` counted every
-                // burst TWICE (verified on the rig: a 3-frame burst
-                // emitted frames 1,2,3 and then 1,2,3 again). That figure
-                // is checkpointed, so a resumed run believed it had
-                // already taken twice the frames it had. The reset now
-                // happens after the frame block.
+                // counter first would make the frame block below see last=0
+                // and re-advance 0 -> N for a burst it had already counted
+                // frame-by-frame, counting every burst twice in the
+                // checkpointed `completed_exposures`; the reset happens
+                // after the frame block.
                 node_percent.write().remove(&update.node_id);
                 node_last_status.write().remove(&update.node_id);
                 let mut started = started_nodes.write();

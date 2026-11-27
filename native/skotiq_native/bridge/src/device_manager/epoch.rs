@@ -109,14 +109,9 @@ pub fn jnow_to_j2000(ra_hours: f64, dec_deg: f64) -> (f64, f64) {
 ///
 /// Real GOTO mounts speak coordinates of date (see the module note), so the
 /// device layer precesses what it sends to them and reads back of-date
-/// positions. The simulator used to be exempt from both halves and stored raw
-/// J2000, which made it the one mount on which a J2000 target and a read-back
-/// were the same number. Every place that compared or re-sent one as the other
-/// therefore passed on the simulator and failed on the rig — on 2026-09-14
-/// every sequence with a target died 1.5 s in because slew validation compared
-/// a J2000 target with an of-date read-back, and no simulator run could show it.
+/// positions.
 ///
-/// So the simulator is a JNow mount by default. `SKOTIQ_SIM_MOUNT_FRAME=j2000`
+/// The simulator is a JNow mount by default. `SKOTIQ_SIM_MOUNT_FRAME=j2000`
 /// keeps raw J2000 for a run that needs catalog numbers to
 /// round-trip through the mount unchanged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

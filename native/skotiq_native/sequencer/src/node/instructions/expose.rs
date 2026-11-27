@@ -229,8 +229,7 @@ impl InstructionNode for ExposeInstruction {
                         // The detail names the seconds the frame was RECORDED
                         // as, not the seconds it was asked for: an adaptive or
                         // truncated frame really did expose for something else,
-                        // and every integration total downstream sums this
-                        //.
+                        // and every integration total downstream sums this.
                         let mut upd = ProgressUpdate::instruction_progress(
                             node_id.to_string(),
                             "Exposure",

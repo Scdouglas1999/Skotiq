@@ -1,4 +1,4 @@
-//! P8-2: a wheel or rotator move holds its heartbeat off while the move call
+//! A wheel or rotator move holds its heartbeat off while the move call
 //! runs, as the focuser's does. An ASCOM driver can block in the call on the
 //! STA thread, and a status read queued behind it is not a failed poll.
 

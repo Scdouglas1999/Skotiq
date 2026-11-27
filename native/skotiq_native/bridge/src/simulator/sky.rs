@@ -811,8 +811,7 @@ pub(crate) mod astap_integration {
     /// ASTAP writes its solution as a FITS header: 80-byte cards with NO line
     /// terminators. Scanning it line-by-line finds one giant line and no
     /// `CRVAL1`, which reads as "no solve" while ASTAP is printing "Solution
-    /// found" — the Python probe reported four focal lengths as failures on
-    /// exactly this bug before it split on 80 bytes instead.
+    /// found".
     ///
     /// This is the THIRD `.wcs` card reader in the repo, and it is deliberately
     /// not folded into the other two. The shared conformance fixture at

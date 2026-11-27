@@ -1297,7 +1297,7 @@ use crate::simulator::sim_singleton_test_lock;
 mod client_slot_tests {
     use super::*;
 
-    /// P5-7: the reconnect after PHD2's socket closed starts PHD2 again
+    /// The reconnect after PHD2's socket closed starts PHD2 again
     /// only during a run and only on this computer.
     #[test]
     fn the_reconnect_starts_a_local_phd2_again_only_during_a_run() {

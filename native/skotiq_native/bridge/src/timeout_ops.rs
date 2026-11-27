@@ -254,7 +254,7 @@ mod tests {
     /// Every ASCOM wrapper in `ascom_wrapper` awaits its worker's `connect`
     /// reply under `Timeouts::connection()`. `AscomDeviceConnection::connect`
     /// spends up to `CONNECT_VERIFY_TIMEOUT` polling `Connected` back before it
-    /// can report a phantom device (finding L4: a driver with no hardware
+    /// can report a phantom device (a driver with no hardware
     /// behind it accepts `Connected = true` and then reads back false for
     /// ever). If the polling budget reaches the transport deadline, the caller
     /// has already dropped the receiver: the operator is shown the generic

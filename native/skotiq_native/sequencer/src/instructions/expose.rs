@@ -673,7 +673,6 @@ async fn take_burst(
             let g = crate::quality::grade_frame_with_baselines(qc, &metrics, &baselines);
             match g {
                 crate::quality::FrameGrade::Pass => {
-                    // Update the baselines with this accepted frame.
                     {
                         let mut baseline_guard = frame_baseline_handle.write().await;
                         let mut samples_guard = frame_baseline_samples_handle.write().await;
@@ -843,10 +842,7 @@ async fn take_burst(
             Err(e) => {
                 // A FITS save failure is data loss — the
                 // exposure is already complete and the image bytes are in
-                // RAM, so a failed write means that frame is gone. The
-                // previous warn-and-continue was the audit-flagged silent
-                // fallback: the user would discover the missing frame hours
-                // later when checking captures, with no surfaced error.
+                // RAM, so a failed write means that frame is gone.
                 //
                 // Policy: log at ERROR, emit an ExecutorEvent::Error so the
                 // UI sees it, and return InstructionResult::failure so the

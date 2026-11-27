@@ -68,8 +68,7 @@ impl GuidingStartError {
 /// Every place the run (re)starts guiding goes through here, because the field
 /// may have changed since the guider last selected a star: after a slew, a
 /// center, a target change, a flip or an autofocus run. Started without it,
-/// PHD2 kept the previous field's lock position and guided on nothing (owner
-/// report from the rig, 2026-10-06).
+/// PHD2 kept the previous field's lock position and guided on nothing.
 pub(crate) async fn start_guiding_on_fresh_star(
     device_ops: &SharedDeviceOps,
     settle_pixels: f64,
@@ -345,8 +344,8 @@ pub(crate) async fn sample_post_settle_rms<S>(
 /// A mount move the run is making: a slew, a center, a sync or a flip.
 ///
 /// A guider cannot guide through a move. Left guiding, PHD2 chases the star
-/// out of its frame and reports it lost, and on the rig that loss
-/// paused the run and the recovery stopped tracking under a running slew. So,
+/// out of its frame and reports it lost, which would pause the run and stop
+/// tracking under a running slew. So,
 /// as N.I.N.A. does, the outermost move stops a guider that is guiding first.
 /// Guiding this run had started is picked up again on a fresh star before the
 /// next light frame ([`resume_guiding_after_motion`]), not straight after the
@@ -758,13 +757,10 @@ async fn start_guiding(
                     GuidingLock::Stopped(result) => return result,
                 }
 
-                // P3-7: post-start calibration quality validation. A guider can
+                // Post-start calibration quality validation. A guider can
                 // report `is_guiding == true` and still be hopelessly miscalibrated
                 // — wrong axis directions, mirror-flipped pulses, near-singular
-                // matrix. The audit specifically flagged that bad calibrations
-                // were "slipping through" the existing is_guiding poll, so this
-                // gate is fail-closed (errors fail the StartGuiding instruction
-                // rather than letting the night drift away silently).
+                // matrix.
                 if config.validate_calibration {
                     if let Some(cb) = progress_callback {
                         cb(90.0, "Validating calibration quality".to_string());

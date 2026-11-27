@@ -1342,13 +1342,8 @@ mod tests {
         }
     }
 
-    // Regression tests for the star-erasure defect
-    //
     // These build frames the way real sub-frames actually are: a shared sky
-    // signal plus an INDEPENDENT noise realisation per frame. That single
-    // property is what the old pixel-pair estimator could not survive, and what
-    // every pre-existing test above accidentally avoided by making the frame an
-    // exact function of the reference.
+    // signal plus an INDEPENDENT noise realisation per frame.
 
     /// Deterministic LCG — reproducible "independent" noise per frame.
     struct Lcg(u64);
@@ -1388,10 +1383,9 @@ mod tests {
 
     #[test]
     fn independent_noise_frames_recover_unit_scale() {
-        // THE regression test. Two same-night, equal-exposure subs differ only by
+        // Two same-night, equal-exposure subs differ only by
         // an independent noise realisation, so the honest answer is scale ≈ 1 and
-        // offset ≈ 0. The old estimator returned scale ≈ 0.002 here and flattened
-        // the frame to a constant.
+        // offset ≈ 0.
         let (w, h) = (128usize, 128usize);
         let reference = sparse_star_frame(w, h, 1, 530.0, 4.5);
         let frame = sparse_star_frame(w, h, 2, 530.0, 4.5);

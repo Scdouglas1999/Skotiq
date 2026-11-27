@@ -66,9 +66,7 @@ fn separation_arcmin(a: (f64, f64), b: (f64, f64)) -> f64 {
 }
 
 /// A Slew node aimed at a J2000 target lands, and validates, on an of-date
-/// mount. This is the rig's 2026-09-14 failure run on the simulator: with the
-/// validation fix in `execute_slew` reverted, this test fails with the same
-/// "Slew position validation failed" miss of ~16' RA / ~8' Dec.
+/// mount.
 #[tokio::test]
 async fn a_target_slew_validates_on_an_of_date_simulated_mount() {
     let _serialized = sim_singleton_test_lock().lock().await;

@@ -455,7 +455,7 @@ async fn only_what_the_camera_held_is_restored() {
 /// Rig, 2026-11-16 03:36: a manual Disconnect and Connect about five
 /// minutes after the run's reopen left the cooler off. The app switches the
 /// cooler off as part of a disconnect, and that off was kept as what the
-/// camera held. What the camera held, cooler on at -10, now survives any
+/// camera held. What the camera held, cooler on at -10, survives any
 /// number of reopens and that manual reconnect.
 #[tokio::test]
 async fn the_cooler_survives_two_reopens_and_then_a_manual_reconnect() {
@@ -783,7 +783,7 @@ async fn a_not_connected_kind_without_the_words_is_gone_at_every_recovery_site()
     let _ = manager.disconnect_device(focuser).await;
 }
 
-/// P8-7: the app's own wheel and focuser moves (the FFI calls the manager
+/// The app's own wheel and focuser moves (the FFI calls the manager
 /// directly) get the reopen the run's moves get after a bus drop.
 #[tokio::test]
 async fn a_manual_wheel_and_focuser_move_after_a_bus_drop_reopens_and_lands() {

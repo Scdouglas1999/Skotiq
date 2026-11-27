@@ -180,7 +180,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     /// Test helper that records the `safety_id` passed to `safety_is_safe`
-    /// and delegates everything else to `NullDeviceOps`. Lets the audit-C2
+    /// and delegates everything else to `NullDeviceOps`. Lets the
     /// dispatch test assert the safety_monitor_id flows from
     /// `ConditionalConfig` all the way down to the DeviceOps boundary.
     struct SafetyRecordingOps {

@@ -535,9 +535,6 @@ impl VCurveAutofocus {
         // symmetrically therefore treats the focus region as the outlier and
         // deletes the very minimum the sweep exists to find — and the cleaner
         // the sweep, the smaller the MAD and the more certain that deletion.
-        // Seen on the rig: a nine-point sweep bottoming at 4.30 px had its
-        // three best points cut, leaving only wings, and autofocus reported
-        // success with a "best HFR" of 11.01 px.
         //
         // A frame can read spuriously HIGH for reasons that have nothing to do
         // with focus (cloud crossing, satellite trail, a lost guide star), and

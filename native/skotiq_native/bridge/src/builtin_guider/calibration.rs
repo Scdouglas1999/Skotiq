@@ -273,8 +273,7 @@ pub(crate) async fn calibrate_axis_response(
 ///
 /// One 250 ms pulse moves the star about as far as seeing does between two
 /// frames (about 2 arcseconds at half sidereal rate), so a single-pulse leg
-/// measured a direction that was as much noise as motion: the simulator's
-/// calibration came out 44 degrees off perpendicular. The rate is the
+/// measured a direction that was as much noise as motion. The rate is the
 /// per-pulse average over the whole leg.
 pub(crate) const CALIBRATION_MIN_PULSES: u32 = 3;
 pub(crate) const CALIBRATION_MAX_PULSES: u32 = 16;

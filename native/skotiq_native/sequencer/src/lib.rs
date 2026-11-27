@@ -3327,7 +3327,7 @@ mod recovery_action_serde_tests {
         }
     }
 
-    /// Guards the historical bug: a bare `"Retry"` string is rejected by serde
+    /// A bare `"Retry"` string is rejected by serde
     /// for a struct variant. If this ever starts succeeding, serde's
     /// representation of `RecoveryAction` changed and the Dart serialiser must
     /// be revisited.

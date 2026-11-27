@@ -100,7 +100,7 @@ impl GuidingStatus {
 /// driver does not expose them (the older Alpaca-only path, for example).
 /// When present, the absolute difference between them should sit close to
 /// 90° on a well-calibrated mount; the executor uses this to catch silent
-/// "looks calibrated but axes are wrong" failures (P3-7).
+/// "looks calibrated but axes are wrong" failures.
 #[derive(Debug, Clone)]
 pub struct GuidingCalibration {
     pub is_calibrated: bool,

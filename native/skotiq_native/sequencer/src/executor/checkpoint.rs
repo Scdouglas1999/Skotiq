@@ -224,8 +224,8 @@ impl SequenceExecutor {
         // A run that ended in this launch leaves the executor in its terminal
         // state, and a start recycles such an executor, node tree included.
         // Recycled here instead, before the tree is marked, the start that
-        // follows finds nothing to wipe: stopping, restoring and starting
-        // again without a restart used to run the whole plan a second time.
+        // follows finds nothing to wipe, so stopping, restoring and starting
+        // again without a restart never runs the whole plan a second time.
         if matches!(
             self.run_state.get(),
             ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled

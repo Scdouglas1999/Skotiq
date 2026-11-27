@@ -387,7 +387,7 @@ mod meade_pty_tests {
     }
 }
 
-/// P12-1: the park flag follows the instance's data root.
+/// The park flag follows the instance's data root.
 #[cfg(test)]
 mod park_state_file_tests {
     use super::*;

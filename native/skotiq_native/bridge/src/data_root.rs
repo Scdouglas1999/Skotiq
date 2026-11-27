@@ -75,7 +75,7 @@ mod tests {
         );
     }
 
-    /// P12-2: before a host names its data root there is none; nothing
+    /// Before a host names its data root there is none; nothing
     /// is written to the temp directory.
     #[test]
     fn without_a_root_there_is_no_data_directory() {

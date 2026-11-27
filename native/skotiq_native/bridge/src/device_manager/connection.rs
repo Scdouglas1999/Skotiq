@@ -336,8 +336,8 @@ impl DeviceManager {
     ///
     /// A requested connect starts with its own un-tripped cancel token. A
     /// manual disconnect trips the device's token and leaves it tripped, so
-    /// borrowing the old one made every later connect fail at once with
-    /// "reconnect canceled by manual disconnect" until the app restarted. A
+    /// borrowing it would fail every later connect at once with
+    /// "reconnect canceled by manual disconnect". A
     /// disconnect that arrives while this connect runs still trips the fresh
     /// token and cancels it.
     pub async fn connect_device(&self, device_id: &str) -> Result<(), String> {

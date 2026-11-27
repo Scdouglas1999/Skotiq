@@ -172,9 +172,8 @@ mod tests {
         }
     }
 
-    /// P8-5 (BUG M4): with a guide camera connected whose id sorts first,
-    /// polar alignment took its frames from the guide camera. Polar
-    /// alignment and frame pointing take the profile's device first.
+    /// With a guide camera connected whose id sorts first, polar alignment
+    /// and frame pointing take the profile's device first.
     #[tokio::test]
     async fn polar_alignment_and_frame_pointing_take_the_profiles_device_first() {
         let manager = DeviceManager::without_reconnection(crate::state::AppState::new());

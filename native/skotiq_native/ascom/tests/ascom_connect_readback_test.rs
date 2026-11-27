@@ -1,4 +1,4 @@
-//! Hardware-fixture test for the connect read-back check (finding L4).
+//! Hardware-fixture test for the connect read-back check.
 //!
 //! The pure timing/message policy is unit-tested in `connect_verify`, but those
 //! tests pass whether or not `AscomDeviceConnection::connect` actually *calls*

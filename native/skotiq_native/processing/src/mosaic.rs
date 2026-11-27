@@ -173,7 +173,6 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
         panels.push(MosaicPanel { image, wcs });
     }
 
-    // Build the stitch config from the JSON args.
     let cfg = build_config(&args.config)?;
 
     let output = mosaic_stitch::stitch_mosaic(&panels, &cfg).map_err(|e| describe_error(&e))?;

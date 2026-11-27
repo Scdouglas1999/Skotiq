@@ -18,15 +18,7 @@ pub const CAMERA_BUSY_DOWNLOAD_SLACK_SECS: f64 = 20.0;
 /// the token self-heals back to free.
 ///
 /// This is deliberately NOT the same number as
-/// [`CAMERA_BUSY_DOWNLOAD_SLACK_SECS`], and keeping them apart is the fix for a
-/// measured defect. The old claim had one deadline doing both jobs: `exposure
-/// duration + 20 s` was simultaneously the estimate a waiter read AND the
-/// instant the token became free. So a 180 s light whose readout ran a little
-/// long handed the camera to a waiting trigger while the sensor was still
-/// integrating. The trigger then started its own 5 s plate-solve exposure on a
-/// busy camera and failed on a timeout of its own request plus margin —
-/// `Exposure on native:zwo:1 did not complete within 65.0s timeout` — a number
-/// with no relationship to the 180 s frame it was actually queued behind.
+/// [`CAMERA_BUSY_DOWNLOAD_SLACK_SECS`].
 ///
 /// An estimate that is slightly wrong must not transfer ownership. So the
 /// expected finish is what a waiter reads to size its wait, and the hard expiry
@@ -41,13 +33,7 @@ pub const IMAGING_TRAIN_CLAIM_OVERRUN_GRACE_SECS: f64 = 300.0;
 /// The two devices are one claim because every operation that contends for
 /// them takes both. The capture loop sets a filter and then exposes through it;
 /// a trigger-fired autofocus sets its own filter and then exposes through that;
-/// a meridian flip re-solves and restores the filter. Arbitrating the camera
-/// alone is what produced the 2026-09-14 failure: the autofocus trigger held
-/// the camera and commanded the wheel to "L" (position 0), the capture loop —
-/// blocked on the camera but having already commanded the wheel for its own
-/// frame — left it at "SII" (position 5), and autofocus then polled a healthy,
-/// idle, responsive wheel for 120 s waiting for a position nothing was going to
-/// move it to. The wheel was never broken; the arbitration was.
+/// a meridian flip re-solves and restores the filter.
 ///
 /// Borrowing is allowed and expected — an autofocus needs the wheel mid-burst —
 /// but a holder that moves the wheel MUST put it back before releasing, because
