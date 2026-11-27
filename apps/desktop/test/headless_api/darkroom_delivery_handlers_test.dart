@@ -429,9 +429,7 @@ void main() {
     });
 
     test('reading a manifest or an artifact needs control, not view', () {
-      // This assertion used to require only a view token, which is what the
-      // routes actually did: with no entry in `resourcePrefixKeys` and no
-      // scope rule, both GETs fell through to the method default. The manifest
+      // The manifest
       // lists every master this job published with its size and SHA-256 and
       // the artifact route streams those masters byte-for-byte, so a read-only
       // credential — the phone by the bed, a shared run-watch link — must not

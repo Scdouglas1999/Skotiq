@@ -204,7 +204,6 @@ class AnalyticsHandlers implements RouteSource {
       return jsonOk({"session": null});
     }
 
-    // Return the most recent active session
     final active = activeSessions.first;
     return jsonOk({
       "session": _sessionToJson(active, await _gradingFor(database, active.id)),
