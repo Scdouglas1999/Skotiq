@@ -91,6 +91,13 @@ class BackupService {
   /// another machine would otherwise repoint this install's backup folder,
   /// and its retention deletes, at a path that machine chose.
   static const String backupDirectorySettingKey = 'backup.directory';
+
+  /// Set in a database a replace-restore builds: its plate-solver rows are
+  /// the backup's, to be written to the native preference when it is first
+  /// opened (the preference is a file outside the database, which the
+  /// restore does not replace).
+  static const String restoredSolverRowsSettingKey =
+      'backup.restored_solver_rows';
   final String runtimeAppVersion;
 
   /// The columns the sections of a backup older than 3.1 named, by table,

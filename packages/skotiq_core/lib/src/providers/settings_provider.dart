@@ -29,6 +29,7 @@ import '../settings/setting.dart';
 import '../models/focuser_backlash_calibration.dart'
     show FocuserBacklashCalibrationSettings;
 import '../database/daos/settings_dao.dart';
+import '../services/backup_service.dart' show BackupService;
 import '../models/backend/backend_types.dart';
 import 'plate_solve_service_provider.dart';
 import 'plate_solver_provider.dart'

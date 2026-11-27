@@ -181,5 +181,14 @@ void main() {
       ).getConfiguredBackupDirectory(),
       chosen.path,
     );
+    expect(
+      await SettingsDao(
+        replaced,
+      ).getSetting(BackupService.restoredSolverRowsSettingKey),
+      isNotNull,
+      reason:
+          'the first open writes the restored solver rows to the '
+          'preference',
+    );
   });
 }

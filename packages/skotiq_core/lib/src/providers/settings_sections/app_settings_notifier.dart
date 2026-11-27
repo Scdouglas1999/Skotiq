@@ -470,6 +470,31 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   ) async {
     final preference = await _solverPreference();
     if (preference == null) return stored;
+    final dao = ref.read(settingsDaoProvider);
+    const restoredKey = BackupService.restoredSolverRowsSettingKey;
+    if (await dao.getSetting(restoredKey) != null) {
+      // A replace-restore: the rows are the backup's, and the preference
+      // takes them once. Kept for the next open if the preference refuses.
+      final restored = preference.copyWith(
+        choice:
+            PlateSolverChoice.fromSettingLabel(stored.plateSolver) ??
+            preference.choice,
+        astapPath: stored.astapPath,
+        astrometryPath: stored.astrometryPath,
+      );
+      try {
+        await ref.read(plateSolveServiceProvider).setConfig(restored);
+      } on Object catch (error) {
+        Log.warning(
+          'The restored plate-solver settings could not be written to the '
+          'solver preference; trying again on the next start: $error',
+          source: 'AppSettingsNotifier',
+        );
+        return stored;
+      }
+      await dao.deleteSetting(restoredKey);
+      return stored;
+    }
     final storedRows = storedRowsOf(stored);
     final changed = {
       for (final MapEntry(:key, :value) in plateSolverPreferenceRows(
@@ -481,7 +506,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     // Straight to the DAO, not `_saveSetting`: this runs while `build()` is
     // still resolving, so the loaded-state guard and the remote write path do
     // not apply; this is by construction the local store.
-    await ref.read(settingsDaoProvider).setSettings(changed);
+    await dao.setSettings(changed);
     return _withSolverPreference(stored, preference);
   }
 

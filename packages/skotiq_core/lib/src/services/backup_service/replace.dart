@@ -57,6 +57,7 @@ extension _BackupReplace on BackupService {
       if (backupCreatedAt is String &&
           DateTime.tryParse(backupCreatedAt) != null)
         BackupService.lastBackupSettingKey: backupCreatedAt,
+      BackupService.restoredSolverRowsSettingKey: 'true',
     };
     final counts = <String, int>{};
     final leftOut = <String, int>{};
