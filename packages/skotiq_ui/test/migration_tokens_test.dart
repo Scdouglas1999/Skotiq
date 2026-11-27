@@ -122,27 +122,4 @@ void main() {
       expect(SkotiqTypography.labelStrongSm.fontWeight, FontWeight.w600);
     });
   });
-
-  group('Semantic color coverage for migration', () {
-    test('standard semantic roles exist on every built-in palette', () {
-      for (final colors in [
-        SkotiqColors.dark,
-        SkotiqColors.light,
-        SkotiqColors.redNight,
-      ]) {
-        // The migration map maps raw Colors.* onto these roles; they must all
-        // be present (compile-time guaranteed by the type, asserted for intent).
-        expect(colors.error, isA<Color>());
-        expect(colors.warning, isA<Color>());
-        expect(colors.success, isA<Color>());
-        expect(colors.info, isA<Color>());
-        expect(colors.textPrimary, isA<Color>());
-        expect(colors.textSecondary, isA<Color>());
-        expect(colors.textMuted, isA<Color>());
-        expect(colors.accent, isA<Color>());
-        expect(colors.surface, isA<Color>());
-        expect(colors.border, isA<Color>());
-      }
-    });
-  });
 }
