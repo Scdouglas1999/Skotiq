@@ -144,8 +144,10 @@ Get server status.
 
 Run a non-invasive headless runtime self-test. This endpoint is authenticated
 whenever the server requires authentication. It reports platform details, auth
-and bind mode, backend type, driver availability, storage path writability, and
-API route count without connecting to hardware.
+and bind mode, backend type, driver availability, storage path writability,
+whether the paired devices were read from the pairing database at start, and
+API route count without connecting to hardware. `status` is `degraded` when any
+check reads `error`.
 
 **Response:**
 ```json
@@ -196,6 +198,11 @@ API route count without connecting to hardware.
   "database": {
     "name": "driftDatabase",
     "status": "ok"
+  },
+  "pairedSessions": {
+    "name": "pairedSessions",
+    "status": "ok",
+    "message": "Paired devices were read at start."
   },
   "api": {
     "endpointCount": 120,
