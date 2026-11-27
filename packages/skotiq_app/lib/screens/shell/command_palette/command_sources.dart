@@ -18,6 +18,7 @@ import '../../../router/app_routes.dart';
 import '../../../router/planner_route.dart';
 import '../shell_navigation.dart';
 import '../../../services/mount_command_service.dart';
+import '../../../services/run_control/run_control.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
 import 'command_entry.dart';
@@ -132,7 +133,7 @@ List<CommandEntry> buildSettingEntries(BuildContext context, String query) {
 /// about whether the hardware stopped.
 List<CommandEntry> buildActionEntries(BuildContext context, WidgetRef ref) {
   final l10n = context.l10n;
-  final executionState = ref.watch(sequenceExecutionStateProvider);
+  final transport = ref.watch(sequencerRunTransportProvider);
   final mountConnected = ref.watch(mountStateProvider).connectionState ==
       DeviceConnectionState.connected;
   final cameraState = ref.watch(cameraStateProvider);
@@ -140,9 +141,17 @@ List<CommandEntry> buildActionEntries(BuildContext context, WidgetRef ref) {
       cameraState.connectionState == DeviceConnectionState.connected;
   final profile = ref.watch(activeEquipmentProfileProvider);
 
-  final isRunning = executionState == SequenceExecutionState.running ||
-      executionState == SequenceExecutionState.paused ||
-      executionState == SequenceExecutionState.recovering;
+  // The Sequencer's own run controls: a run that is stopping, or whose stop
+  // failed, offers no Start, and a failed stop offers Stop again.
+  final start = transport.start;
+  final stop = transport.stop;
+  final startReason = start == null
+      ? (transport.phase == NightRunPhase.stopping
+          ? l10n.text('ncPlanStopping')
+          : 'Already running')
+      : start.disabledReason?.resolve(l10n);
+  final stopReason =
+      stop == null ? 'Nothing is running' : stop.disabledReason?.resolve(l10n);
 
   return [
     CommandEntry(
@@ -150,18 +159,25 @@ List<CommandEntry> buildActionEntries(BuildContext context, WidgetRef ref) {
       group: CommandGroup.actions,
       icon: LucideIcons.play,
       label: 'Start sequence',
-      enabled: !isRunning,
-      disabledReason: isRunning ? 'Already running' : null,
+      enabled: start?.enabled == true,
+      disabledReason: startReason,
       keywords: const ['run', 'begin', 'sequence'],
-      invoke: (context, ref) => startWithPreflight(context, ref),
+      invoke: (context, ref) {
+        // The checks' Start unparks the mount: ask the run again at the
+        // moment of the press, not when the list was built.
+        if (ref.read(sequencerRunTransportProvider).start?.enabled != true) {
+          return;
+        }
+        startWithPreflight(context, ref);
+      },
     ),
     CommandEntry(
       id: 'action:sequence-stop',
       group: CommandGroup.actions,
       icon: LucideIcons.square,
       label: 'Stop sequence',
-      enabled: isRunning,
-      disabledReason: isRunning ? null : 'Nothing is running',
+      enabled: stop?.enabled == true,
+      disabledReason: stopReason,
       keywords: const ['halt', 'abort', 'sequence'],
       invoke: (context, ref) => ref.read(sequenceActionServiceProvider).stop(),
     ),
