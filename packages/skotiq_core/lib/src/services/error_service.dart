@@ -100,25 +100,18 @@ class ErrorEntry {
   String toString() => logMessage;
 }
 
+/// Records the app's errors and shows the error and warning ones as toasts.
+/// `errorServiceProvider` builds one per provider container.
 class ErrorService {
-  static final ErrorService _instance = ErrorService._internal();
-  factory ErrorService() => _instance;
-  ErrorService._internal();
+  ErrorService({LoggingService? loggingService, UiNotices? notices})
+    : _loggingService = loggingService,
+      _uiNotificationNotifier = notices;
 
   static const int _maxHistorySize = 100;
   final Queue<ErrorEntry> _errorHistory = Queue<ErrorEntry>();
   final List<void Function(ErrorEntry)> _listeners = [];
-  LoggingService? _loggingService;
-  UiNotices? _uiNotificationNotifier;
-
-  /// Set the logging service for file output integration
-  void setLoggingService(LoggingService service) {
-    _loggingService = service;
-  }
-
-  void setUiNotificationNotifier(UiNotices notifier) {
-    _uiNotificationNotifier = notifier;
-  }
+  final LoggingService? _loggingService;
+  final UiNotices? _uiNotificationNotifier;
 
   void log(ErrorEntry entry) {
     _errorHistory.add(entry);
@@ -141,7 +134,8 @@ class ErrorService {
       );
     }
 
-    if (_uiNotificationNotifier != null) {
+    final notices = _uiNotificationNotifier;
+    if (notices != null) {
       final text = describeError(
         entry.message,
         domain: switch (entry.category) {
@@ -154,7 +148,7 @@ class ErrorService {
       );
       switch (entry.severity) {
         case ErrorSeverity.error:
-          _uiNotificationNotifier!.showError(
+          notices.showError(
             text.full,
             title: entry.deviceType != null
                 ? '${entry.deviceType} Error'
@@ -162,7 +156,7 @@ class ErrorService {
           );
           break;
         case ErrorSeverity.critical:
-          _uiNotificationNotifier!.showError(
+          notices.showError(
             text.full,
             title: 'Critical: ${_categoryToTitle(entry.category)}',
             duration: const Duration(
@@ -171,7 +165,7 @@ class ErrorService {
           );
           break;
         case ErrorSeverity.warning:
-          _uiNotificationNotifier!.showWarning(
+          notices.showWarning(
             text.message,
             title: entry.deviceType != null
                 ? '${entry.deviceType} Warning'
