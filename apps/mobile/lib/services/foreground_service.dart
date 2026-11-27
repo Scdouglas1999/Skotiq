@@ -16,6 +16,7 @@ class ImagingForegroundService {
   bool _isRunning = false;
   String _currentTarget = '';
   int _completedExposures = 0;
+  String? _shownText;
 
   bool get isRunning => _isRunning;
 
@@ -107,6 +108,7 @@ class ImagingForegroundService {
   }) async {
     _currentTarget = targetName;
     _completedExposures = 0;
+    _shownText = null;
 
     if (await FlutterForegroundTask.isRunningService) {
       final restarted = await FlutterForegroundTask.restartService();
@@ -128,14 +130,18 @@ class ImagingForegroundService {
   }
 
   /// Shows the run's current step and frame count on the ongoing
-  /// notification.
+  /// notification. Android takes the service's wake and WiFi locks again on
+  /// every update, so an update that would show the same words is not sent.
   void updateProgress(SequenceExecutionState exec, SequenceProgress progress) {
     if (!_isRunning) return;
 
     _completedExposures = progress.completedExposures;
+    final text = ongoingRunText(exec, progress);
+    if (text == _shownText) return;
+    _shownText = text;
     FlutterForegroundTask.updateService(
       notificationTitle: 'Imaging $_currentTarget',
-      notificationText: ongoingRunText(exec, progress),
+      notificationText: text,
     );
   }
 
@@ -153,9 +159,13 @@ class ImagingForegroundService {
     _isRunning = false;
     _currentTarget = '';
     _completedExposures = 0;
+    _shownText = null;
   }
 
+  /// A service started again shows its start text, so the next update is
+  /// sent whatever it says.
   void setRunning(bool running) {
+    if (running != _isRunning) _shownText = null;
     _isRunning = running;
   }
 }
