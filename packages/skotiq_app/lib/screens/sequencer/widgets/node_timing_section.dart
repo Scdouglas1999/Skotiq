@@ -220,8 +220,7 @@ class NodeTimingSection extends ConsumerWidget {
         return [
           _DurationDetail(
             label: 'Wait until',
-            value:
-                '${wait.waitUntil!.hour.toString().padLeft(2, '0')}:${wait.waitUntil!.minute.toString().padLeft(2, '0')}',
+            value: ref.watch(clockProvider).timeOfDay(wait.waitUntil!),
           ),
         ];
       } else if (wait.waitForTwilight != null) {

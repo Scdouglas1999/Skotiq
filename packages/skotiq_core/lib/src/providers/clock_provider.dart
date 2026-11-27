@@ -90,8 +90,11 @@ extension ClockTimeOfDay on Clock {
       hour,
       minute,
     ).subtract(utcOffset);
-    if (!today.isBefore(from)) return today;
-    return today.add(const Duration(days: 1));
+    final next = today.isBefore(from)
+        ? today.add(const Duration(days: 1))
+        : today;
+    // Local, like a step time read back from a saved plan.
+    return next.toLocal();
   }
 
   /// [instant]'s wall-clock fields on this clock, for a picker to start from.

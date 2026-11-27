@@ -11,16 +11,17 @@ void main() {
   );
 
   test('a time of day later tonight on the site clock is tonight', () {
-    expect(
-      site.nextTimeOfDay(23, 15, now: now),
-      DateTime.utc(2026, 11, 26, 4, 15),
-    );
+    final next = site.nextTimeOfDay(23, 15, now: now);
+    expect(next.isAtSameMomentAs(DateTime.utc(2026, 11, 26, 4, 15)), isTrue);
+    expect(next.isUtc, isFalse);
   });
 
   test('a time of day already past on the site clock is tomorrow', () {
     expect(
-      site.nextTimeOfDay(21, 0, now: now),
-      DateTime.utc(2026, 11, 27, 2, 0),
+      site
+          .nextTimeOfDay(21, 0, now: now)
+          .isAtSameMomentAs(DateTime.utc(2026, 11, 27, 2, 0)),
+      isTrue,
     );
   });
 

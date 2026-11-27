@@ -49,6 +49,6 @@ void main() {
       0,
       now: DateTime.utc(2026, 11, 26, 6),
     );
-    expect(picked, DateTime.utc(2026, 11, 26, 8, 15));
+    expect(picked.isAtSameMomentAs(DateTime.utc(2026, 11, 26, 8, 15)), isTrue);
   });
 }
