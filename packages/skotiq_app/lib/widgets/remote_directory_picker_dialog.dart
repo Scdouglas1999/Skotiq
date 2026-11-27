@@ -140,7 +140,7 @@ class _RemoteDirectoryPickerDialogState
       _validationError = null;
     });
 
-    Map<String, dynamic> validation;
+    HostDirectoryVerdict validation;
     try {
       validation = await hostFiles.validateRemoteDirectory(
         selectedPath,
@@ -163,20 +163,15 @@ class _RemoteDirectoryPickerDialogState
     // returned; the host change has already said so on screen.
     if (scope.isStale) return;
 
-    if (validation['valid'] == true) {
-      final normalized = validation['normalizedPath'];
-      Navigator.of(context).pop(
-        normalized is String ? normalized : selectedPath,
-      );
+    if (validation.valid) {
+      Navigator.of(context).pop(validation.pathOr(selectedPath));
       return;
     }
 
-    final error = validation['error'];
     setState(() {
       _validating = false;
-      _validationError = error is String && error.trim().isNotEmpty
-          ? error.trim()
-          : 'The selected host directory is not writable.';
+      _validationError =
+          validation.reason ?? 'The selected host directory is not writable.';
     });
   }
 
@@ -210,16 +205,13 @@ class _RemoteDirectoryPickerDialogState
       );
       if (scope.isStale) return;
       setState(() => _validating = false);
-      if (result['valid'] == true) {
-        final normalized = result['normalizedPath'];
-        await _load(normalized is String ? normalized : path);
+      if (result.valid) {
+        await _load(result.pathOr(path));
         return;
       }
-      final error = result['error'];
       setState(() {
-        _validationError = error is String && error.trim().isNotEmpty
-            ? error.trim()
-            : 'The imaging host could not create that folder.';
+        _validationError =
+            result.reason ?? 'The imaging host could not create that folder.';
       });
     } catch (error) {
       if (scope.isStale) return;

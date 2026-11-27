@@ -79,7 +79,7 @@ void main() {
             mustExist: any(named: 'mustExist'),
             mustBeWritable: any(named: 'mustBeWritable'),
           ),
-        ).thenAnswer((_) async => result);
+        ).thenAnswer((_) async => HostDirectoryVerdict.fromJson(result));
 
     test('the host is asked by the same rule', () async {
       answer({'valid': true, 'exists': true, 'writable': true});
@@ -149,10 +149,12 @@ void main() {
     test('are the linked host\'s, and a missing one is not made', () async {
       final backend = _MockNetworkBackend();
       when(() => backend.validateRemoteDirectory(
-            any(),
-            mustExist: any(named: 'mustExist'),
-            mustBeWritable: any(named: 'mustBeWritable'),
-          )).thenAnswer((_) async => {'valid': false, 'exists': false});
+                any(),
+                mustExist: any(named: 'mustExist'),
+                mustBeWritable: any(named: 'mustBeWritable'),
+              ))
+          .thenAnswer((_) async =>
+              HostDirectoryVerdict.fromJson({'valid': false, 'exists': false}));
       final folders = containerOn(backend).read(hostFoldersProvider);
 
       expect(folders, isA<LinkedHostFolders>());

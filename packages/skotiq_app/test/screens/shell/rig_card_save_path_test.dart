@@ -114,7 +114,7 @@ void main() {
         mustExist: true,
         mustBeWritable: false,
       ),
-    ).thenAnswer((_) async => const {'valid': true});
+    ).thenAnswer((_) async => HostDirectoryVerdict.fromJson({'valid': true}));
 
     final exists = await configuredSavePathExists(
       backend,

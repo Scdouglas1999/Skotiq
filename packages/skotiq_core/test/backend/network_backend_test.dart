@@ -134,8 +134,8 @@ void main() {
         mustBeWritable: true,
       );
 
-      expect(answer['valid'], isFalse);
-      expect(answer['error'], 'Not a folder this host lets clients use.');
+      expect(answer.valid, isFalse);
+      expect(answer.error, 'Not a folder this host lets clients use.');
     });
 
     test('refreshes auth token once after 401 and retries discovery', () async {

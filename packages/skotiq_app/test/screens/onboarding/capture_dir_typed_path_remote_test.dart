@@ -67,7 +67,8 @@ void main() {
         mustBeWritable: true,
       ),
     ).thenAnswer(
-      (_) async => const {'valid': true, 'normalizedPath': '/mnt/host/astro'},
+      (_) async => HostDirectoryVerdict.fromJson(
+          {'valid': true, 'normalizedPath': '/mnt/host/astro'}),
     );
 
     final container = _container(database, backend);
@@ -111,7 +112,8 @@ void main() {
         mustBeWritable: true,
       ),
     ).thenAnswer(
-      (_) async => const {'valid': false, 'error': 'No such directory.'},
+      (_) async => HostDirectoryVerdict.fromJson(
+          {'valid': false, 'error': 'No such directory.'}),
     );
 
     final container = _container(database, backend);

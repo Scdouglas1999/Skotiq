@@ -18,7 +18,7 @@ import 'package:skotiq_app/router/app_routes.dart' show AppRoutes;
 import 'package:skotiq_app/router/equipment_route.dart' show EquipmentTab;
 import 'package:skotiq_app/skotiq_app.dart'
     show SkotiqSplashGate, appRouterProvider;
-import 'package:skotiq_app/widgets/remote_directory_picker_dialog.dart';
+import 'package:skotiq_app/services/host_folders.dart' show hostFoldersProvider;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
@@ -354,11 +354,13 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
 
   Future<void> _browseImageOutputPath() async {
     if (_busy) return;
-    final selected = await RemoteDirectoryPickerDialog.show(
-      context,
-      title: 'Choose the capture folder on the rig',
-      initialPath: _lastBrowsedHostPath,
-    );
+    final selected = await ref
+        .read(hostFoldersProvider)
+        .pick(
+          context,
+          title: 'Choose the capture folder on the rig',
+          initialPath: _lastBrowsedHostPath,
+        );
     if (selected == null || !mounted) return;
     setState(() {
       _lastBrowsedHostPath = selected;
@@ -389,20 +391,15 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         mustExist: true,
         mustBeWritable: true,
       );
-      if (validation['valid'] != true) {
-        final reason = validation['error'];
+      if (!validation.valid) {
         throw ServerError(
           code: 'invalid_output_path',
-          message: reason is String && reason.trim().isNotEmpty
-              ? reason.trim()
-              : 'Choose a folder on the rig that exists and can be written '
-                    'to.',
+          message:
+              validation.reason ??
+              'Choose a folder on the rig that exists and can be written to.',
         );
       }
-      final normalized = validation['normalizedPath'];
-      final validatedPath = normalized is String && normalized.trim().isNotEmpty
-          ? normalized.trim()
-          : path;
+      final validatedPath = validation.pathOr(path);
       final current = await backend.getSettings();
       await backend.updateSettings(
         current.copyWith(imageOutputPath: validatedPath),

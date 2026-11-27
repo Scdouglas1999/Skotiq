@@ -166,7 +166,8 @@ void main() {
           mustExist: any(named: 'mustExist'),
           mustBeWritable: any(named: 'mustBeWritable'),
         )).thenAnswer(
-      (_) async => const {'valid': false, 'error': 'Read-only filesystem'},
+      (_) async => HostDirectoryVerdict.fromJson(
+          {'valid': false, 'error': 'Read-only filesystem'}),
     );
     final container = ProviderContainer(
       overrides: [
@@ -202,7 +203,8 @@ void main() {
           mustExist: any(named: 'mustExist'),
           mustBeWritable: any(named: 'mustBeWritable'),
         )).thenAnswer(
-      (_) async => const {'valid': true, 'normalizedPath': '/srv/captures'},
+      (_) async => HostDirectoryVerdict.fromJson(
+          {'valid': true, 'normalizedPath': '/srv/captures'}),
     );
     late _SwitchingBackendNotifier notifier;
     final container = ProviderContainer(

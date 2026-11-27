@@ -11,32 +11,29 @@ mixin HostFiles on NetworkBackendTransport {
     return RemoteDirectoryListing.fromJson(response);
   }
 
-  Future<Map<String, dynamic>> validateRemoteDirectory(
+  Future<HostDirectoryVerdict> validateRemoteDirectory(
     String path, {
     bool mustExist = false,
     bool mustBeWritable = false,
     bool create = false,
   }) async {
     try {
-      return await _post(
-        FileSystemApi.validateDirectory,
-        body: {
-          'path': path,
-          'mustExist': mustExist,
-          'mustBeWritable': mustBeWritable,
-          // Makes the folder first, inside the host's allowed folders.
-          if (create) 'create': true,
-        },
+      return HostDirectoryVerdict.fromJson(
+        await _post(
+          FileSystemApi.validateDirectory,
+          body: {
+            'path': path,
+            'mustExist': mustExist,
+            'mustBeWritable': mustBeWritable,
+            // Makes the folder first, inside the host's allowed folders.
+            if (create) 'create': true,
+          },
+        ),
       );
     } on ServerError catch (refusal) {
       // A folder outside the host's folders is an answer about the folder.
       if (refusal.code != 'path_not_allowed') rethrow;
-      return {
-        'valid': false,
-        'exists': false,
-        'writable': false,
-        'error': refusal.message,
-      };
+      return HostDirectoryVerdict.refused(refusal.message);
     }
   }
 

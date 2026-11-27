@@ -308,7 +308,8 @@ void main() {
           mustExist: any(named: 'mustExist'),
           mustBeWritable: any(named: 'mustBeWritable'),
         )).thenAnswer(
-      (_) async => {'valid': false, 'error': 'Host folder is read-only'},
+      (_) async => HostDirectoryVerdict.fromJson(
+          {'valid': false, 'error': 'Host folder is read-only'}),
     );
 
     final results = <String?>[];
@@ -339,7 +340,7 @@ void main() {
         ],
       ),
     );
-    final validate = Completer<Map<String, dynamic>>();
+    final validate = Completer<HostDirectoryVerdict>();
     when(() => backend.validateRemoteDirectory(
           any(),
           mustExist: any(named: 'mustExist'),
@@ -371,7 +372,14 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(results, isEmpty);
 
-    validate.complete({'valid': true, 'normalizedPath': '/data/normalized'});
+    validate.complete(
+      const HostDirectoryVerdict(
+        valid: true,
+        exists: true,
+        writable: true,
+        normalizedPath: '/data/normalized',
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
@@ -396,10 +404,10 @@ void main() {
           mustExist: any(named: 'mustExist'),
           mustBeWritable: any(named: 'mustBeWritable'),
         )).thenAnswer(
-      (inv) async => {
+      (inv) async => HostDirectoryVerdict.fromJson({
         'valid': true,
         'normalizedPath': inv.positionalArguments.first,
-      },
+      }),
     );
 
     final results = <String?>[];
@@ -445,7 +453,8 @@ void main() {
           mustBeWritable: true,
           create: true,
         )).thenAnswer(
-      (_) async => {'valid': true, 'normalizedPath': '/data/Captures'},
+      (_) async => HostDirectoryVerdict.fromJson(
+          {'valid': true, 'normalizedPath': '/data/Captures'}),
     );
 
     final results = <String?>[];
