@@ -855,6 +855,7 @@ async fn lost_star_rms_does_not_recommend_hundreds_of_pixels_for_settling() {
     for (is_guiding, rms) in [(true, 134.89), (false, 1.0), (true, f64::NAN), (true, 0.0)] {
         let status = GuidingStatus {
             is_guiding,
+            stop_reason: None,
             rms_ra: rms,
             rms_dec: 0.0,
             rms_total: rms,
@@ -866,6 +867,7 @@ async fn lost_star_rms_does_not_recommend_hundreds_of_pixels_for_settling() {
     }
     let held = GuidingStatus {
         is_guiding: true,
+        stop_reason: None,
         rms_ra: 1.0,
         rms_dec: 0.0,
         rms_total: 1.0,

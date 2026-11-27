@@ -1057,6 +1057,7 @@ impl GuiderOps for ScriptedDomeRotatorOps {
         let rms_total = *self.guider_rms_total.lock().unwrap();
         Ok(GuidingStatus {
             is_guiding: pending == 0 && self.guiding.load(Ordering::SeqCst),
+            stop_reason: None,
             rms_ra: rms_total / std::f64::consts::SQRT_2,
             rms_dec: rms_total / std::f64::consts::SQRT_2,
             rms_total,

@@ -160,6 +160,7 @@ impl GuiderOps for DeadGuiderRig {
         self.record(format!("guider_get_status->{guiding}"));
         Ok(GuidingStatus {
             is_guiding: guiding,
+            stop_reason: None,
             rms_ra: 0.5,
             rms_dec: 0.4,
             rms_total: 0.64,
