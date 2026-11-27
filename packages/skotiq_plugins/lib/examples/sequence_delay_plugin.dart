@@ -233,39 +233,41 @@ class CooldownWaitNode implements PluginSequenceNode {
     final deadline = DateTime.now().add(Duration(minutes: timeoutMinutes));
 
     // Listen for temperature updates from focuser events
-    final subscription = context.eventBus.on('focuser.moved').listen((data) {
-      final temp = data['temperature'];
-      if (temp == null) return;
+    final subscription = context.eventBus
+        .on(PluginHostEvents.focuserMoved)
+        .listen((data) {
+          final temp = data['temperature'];
+          if (temp == null) return;
 
-      final temperature = (temp is num)
-          ? temp.toDouble()
-          : double.tryParse(temp.toString());
-      if (temperature == null) return;
+          final temperature = (temp is num)
+              ? temp.toDouble()
+              : double.tryParse(temp.toString());
+          if (temperature == null) return;
 
-      final delta = (temperature - targetTemperature).abs();
+          final delta = (temperature - targetTemperature).abs();
 
-      context.logger.debug(
-        'Temperature: ${temperature.toStringAsFixed(1)} C '
-        '(delta: ${delta.toStringAsFixed(1)} C)',
-      );
+          context.logger.debug(
+            'Temperature: ${temperature.toStringAsFixed(1)} C '
+            '(delta: ${delta.toStringAsFixed(1)} C)',
+          );
 
-      context.eventBus.emit('plugin.cooldown.progress', {
-        'currentTemperature': temperature,
-        'targetTemperature': targetTemperature,
-        'delta': delta,
-        'tolerance': toleranceDegrees,
-      });
+          context.eventBus.emit('plugin.cooldown.progress', {
+            'currentTemperature': temperature,
+            'targetTemperature': targetTemperature,
+            'delta': delta,
+            'tolerance': toleranceDegrees,
+          });
 
-      if (delta <= toleranceDegrees) {
-        context.logger.info(
-          'Temperature ${temperature.toStringAsFixed(1)} C is within '
-          'tolerance of target ${targetTemperature.toStringAsFixed(1)} C',
-        );
-        if (!completer.isCompleted) {
-          completer.complete(true);
-        }
-      }
-    });
+          if (delta <= toleranceDegrees) {
+            context.logger.info(
+              'Temperature ${temperature.toStringAsFixed(1)} C is within '
+              'tolerance of target ${targetTemperature.toStringAsFixed(1)} C',
+            );
+            if (!completer.isCompleted) {
+              completer.complete(true);
+            }
+          }
+        });
 
     final timeoutTimer = Timer(Duration(minutes: timeoutMinutes), () {
       if (!completer.isCompleted) {

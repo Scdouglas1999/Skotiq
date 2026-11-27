@@ -26,9 +26,6 @@ class _PushoverConfigDialogState extends State<_PushoverConfigDialog> {
   bool _saving = false;
   String? _validationError;
 
-  static const _apiTokenKey = 'pushover.apiToken';
-  static const _userKeyKey = 'pushover.userKey';
-
   @override
   void initState() {
     super.initState();
@@ -36,8 +33,8 @@ class _PushoverConfigDialogState extends State<_PushoverConfigDialog> {
   }
 
   Future<void> _prefill() async {
-    final token = await widget.storage.getString(_apiTokenKey);
-    final user = await widget.storage.getString(_userKeyKey);
+    final token = await widget.storage.getString(kPushoverApiTokenStorageKey);
+    final user = await widget.storage.getString(kPushoverUserKeyStorageKey);
     if (!mounted) return;
     setState(() {
       _apiTokenController.text = token ?? '';

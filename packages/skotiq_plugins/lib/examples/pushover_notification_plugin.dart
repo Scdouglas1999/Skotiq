@@ -27,11 +27,12 @@ import 'package:http/http.dart' as http;
 import '../src/plugin_api.dart';
 import '../src/plugin_http.dart';
 
-/// Storage key for the Pushover application token (per-plugin).
-const String _kApiTokenStorageKey = 'pushover.apiToken';
+/// Storage key for the Pushover application token (per-plugin); the
+/// settings dialog reads it to prefill.
+const String kPushoverApiTokenStorageKey = 'pushover.apiToken';
 
 /// Storage key for the Pushover user/group key (per-plugin).
-const String _kUserKeyStorageKey = 'pushover.userKey';
+const String kPushoverUserKeyStorageKey = 'pushover.userKey';
 
 /// Plugin entry point. Exposes a single `pushover.notify` sequence node.
 class PushoverNotificationPlugin extends SequencePlugin {
@@ -70,10 +71,14 @@ class PushoverNotificationPlugin extends SequencePlugin {
   Future<void> onLoad(PluginContext context) async {
     _context = context;
     final tokenPresent =
-        (await context.storage.getString(_kApiTokenStorageKey))?.isNotEmpty ??
+        (await context.storage.getString(
+          kPushoverApiTokenStorageKey,
+        ))?.isNotEmpty ??
         false;
     final userPresent =
-        (await context.storage.getString(_kUserKeyStorageKey))?.isNotEmpty ??
+        (await context.storage.getString(
+          kPushoverUserKeyStorageKey,
+        ))?.isNotEmpty ??
         false;
     context.logger.info(
       'Pushover plugin loaded. Credentials configured: '
@@ -99,8 +104,8 @@ class PushoverNotificationPlugin extends SequencePlugin {
         'Cannot configure Pushover credentials before plugin is loaded',
       );
     }
-    await ctx.storage.setString(_kApiTokenStorageKey, apiToken);
-    await ctx.storage.setString(_kUserKeyStorageKey, userKey);
+    await ctx.storage.setString(kPushoverApiTokenStorageKey, apiToken);
+    await ctx.storage.setString(kPushoverUserKeyStorageKey, userKey);
     ctx.logger.info('Pushover credentials updated');
   }
 
@@ -158,8 +163,10 @@ class _PushoverNotificationNode implements PluginSequenceNode {
 
   @override
   Future<bool> execute(PluginContext context) async {
-    final apiToken = await context.storage.getString(_kApiTokenStorageKey);
-    final userKey = await context.storage.getString(_kUserKeyStorageKey);
+    final apiToken = await context.storage.getString(
+      kPushoverApiTokenStorageKey,
+    );
+    final userKey = await context.storage.getString(kPushoverUserKeyStorageKey);
     if (apiToken == null || apiToken.isEmpty) {
       context.logger.error(
         'Pushover API token is not configured; skipping push',

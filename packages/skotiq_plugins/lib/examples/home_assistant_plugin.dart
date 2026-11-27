@@ -40,11 +40,12 @@ String? homeAssistantBaseUrlProblem(String value) {
   return null;
 }
 
-/// Storage key for the HA base URL (e.g. `http://homeassistant.local:8123`).
-const String _kHaBaseUrlStorageKey = 'home_assistant.baseUrl';
+/// Storage key for the HA base URL (e.g. `http://homeassistant.local:8123`);
+/// the settings dialog reads it to prefill.
+const String kHomeAssistantBaseUrlStorageKey = 'home_assistant.baseUrl';
 
 /// Storage key for the HA long-lived access token.
-const String _kHaTokenStorageKey = 'home_assistant.token';
+const String kHomeAssistantTokenStorageKey = 'home_assistant.token';
 
 class HomeAssistantPlugin extends SequencePlugin {
   PluginContext? _context;
@@ -78,8 +79,12 @@ class HomeAssistantPlugin extends SequencePlugin {
   @override
   Future<void> onLoad(PluginContext context) async {
     _context = context;
-    final baseUrl = await context.storage.getString(_kHaBaseUrlStorageKey);
-    final token = await context.storage.getString(_kHaTokenStorageKey);
+    final baseUrl = await context.storage.getString(
+      kHomeAssistantBaseUrlStorageKey,
+    );
+    final token = await context.storage.getString(
+      kHomeAssistantTokenStorageKey,
+    );
     context.logger.info(
       'Home Assistant plugin loaded. Configured: '
       'base=${baseUrl != null && baseUrl.isNotEmpty}, '
@@ -113,8 +118,8 @@ class HomeAssistantPlugin extends SequencePlugin {
     final normalized = trimmed.endsWith('/')
         ? trimmed.substring(0, trimmed.length - 1)
         : trimmed;
-    await ctx.storage.setString(_kHaBaseUrlStorageKey, normalized);
-    await ctx.storage.setString(_kHaTokenStorageKey, accessToken);
+    await ctx.storage.setString(kHomeAssistantBaseUrlStorageKey, normalized);
+    await ctx.storage.setString(kHomeAssistantTokenStorageKey, accessToken);
     ctx.logger.info('Home Assistant connection configured: $normalized');
   }
 
@@ -190,8 +195,12 @@ class _HomeAssistantToggleNode implements PluginSequenceNode {
 
   @override
   Future<bool> execute(PluginContext context) async {
-    final baseUrl = await context.storage.getString(_kHaBaseUrlStorageKey);
-    final token = await context.storage.getString(_kHaTokenStorageKey);
+    final baseUrl = await context.storage.getString(
+      kHomeAssistantBaseUrlStorageKey,
+    );
+    final token = await context.storage.getString(
+      kHomeAssistantTokenStorageKey,
+    );
     if (baseUrl == null || baseUrl.isEmpty) {
       context.logger.error('Home Assistant base URL is not configured');
       return false;

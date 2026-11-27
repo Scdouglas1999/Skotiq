@@ -68,19 +68,21 @@ class WeatherLoggerPlugin extends SkotiqPlugin {
 
     context.logger.info('Starting weather data collection');
 
-    _weatherSubscription = context.eventBus.on('weather.updated').listen((
-      data,
-    ) {
-      _recordReading('weather_station', data);
-    });
+    _weatherSubscription = context.eventBus
+        .on(PluginHostEvents.weatherUpdated)
+        .listen((data) {
+          _recordReading('weather_station', data);
+        });
 
     // Also record temperature from focuser events (common temperature source)
-    _focuserSubscription = context.eventBus.on('focuser.moved').listen((data) {
-      final temperature = data['temperature'];
-      if (temperature != null) {
-        _recordReading('focuser_probe', {'temperature': temperature});
-      }
-    });
+    _focuserSubscription = context.eventBus
+        .on(PluginHostEvents.focuserMoved)
+        .listen((data) {
+          final temperature = data['temperature'];
+          if (temperature != null) {
+            _recordReading('focuser_probe', {'temperature': temperature});
+          }
+        });
 
     _flushTimer = Timer.periodic(
       const Duration(minutes: 5),
