@@ -286,6 +286,7 @@ class NightChartAxes extends StatelessWidget {
 List<SeriesChartLine> _withReadableSpan(
   List<SeriesChartLine> lines,
   SeriesChartPainter painter, {
+  bool leftGrouped = false,
   required bool rightGrouped,
 }) {
   (double, double)? widened(SeriesChartAxis axis, double least) {
@@ -295,7 +296,7 @@ List<SeriesChartLine> _withReadableSpan(
     return (mid - least / 2, mid + least / 2);
   }
 
-  final left = widened(SeriesChartAxis.left, 0.1);
+  final left = widened(SeriesChartAxis.left, leftGrouped ? 10 : 0.1);
   final right = widened(SeriesChartAxis.right, rightGrouped ? 10 : 0.1);
   if (left == null && right == null) return lines;
   return <SeriesChartLine>[
@@ -523,17 +524,27 @@ class NightChartStrips extends StatelessWidget {
       final count = strips.length;
       final bandHeight =
           (constraints.maxHeight - timeHeight - gap * (count - 1)) / count;
-      final painters = <SeriesChartPainter>[
-        for (final strip in strips)
+      SeriesChartPainter painterOf(List<SeriesChartLine> lines) =>
           SeriesChartPainter(
             colors: colors,
-            lines: strip.lines,
+            lines: lines,
             markers: markers,
             highlights: const <SeriesChartHighlight>[],
             from: from,
             to: to,
             zeroLineY: null,
+          );
+      final bandLines = <List<SeriesChartLine>>[
+        for (final strip in strips)
+          _withReadableSpan(
+            strip.lines,
+            painterOf(strip.lines),
+            leftGrouped: strip.grouped,
+            rightGrouped: false,
           ),
+      ];
+      final painters = <SeriesChartPainter>[
+        for (final lines in bandLines) painterOf(lines),
       ];
       // A band about a label tall (its label may run into the gap below)
       // still gets its unit and its top value; two values need a label and
@@ -598,7 +609,7 @@ class NightChartStrips extends StatelessWidget {
       Widget band(int i) {
         final strip = strips[i];
         final chart = SeriesChart(
-          lines: strip.lines,
+          lines: bandLines[i],
           markers: markers,
           from: from,
           to: to,

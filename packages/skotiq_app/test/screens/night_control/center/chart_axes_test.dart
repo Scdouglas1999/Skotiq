@@ -215,6 +215,49 @@ void main() {
     expect(right.toSet(), hasLength(right.length), reason: 'right: $right');
   });
 
+  testWidgets('a nearly flat strip gets labels that tell its ticks apart',
+      (tester) async {
+    // A cooler holding -10.00 / -9.99 C.
+    final t0 = DateTime(2026, 11, 26, 10, 24);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 320,
+            height: 160,
+            child: NightChartStrips(
+              semanticLabel: 'cooler',
+              strips: <NightChartStrip>[
+                NightChartStrip(
+                  unit: '°C',
+                  lines: <SeriesChartLine>[
+                    SeriesChartLine(
+                      points: <(DateTime, double?)>[
+                        (t0, -10.0),
+                        (t0.add(const Duration(minutes: 10)), -9.99),
+                      ],
+                      tone: SeriesChartTone.primary,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    final labels = <String>[
+      for (final e in find.byType(Text).evaluate())
+        if (RegExp(r'^[-\u2212]?\d+(\.\d+)?$')
+            .hasMatch((e.widget as Text).data!))
+          (e.widget as Text).data!,
+    ];
+    expect(labels.length, greaterThanOrEqualTo(2), reason: '$labels');
+    expect(labels.toSet(), hasLength(labels.length), reason: '$labels');
+  });
+
   for (final (bodyHeight, row) in const <(double, String)>[
     (758, '120 px row'),
     (700, '96 px row'),
