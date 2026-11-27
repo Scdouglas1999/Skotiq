@@ -17,10 +17,18 @@ class ProfileNotFound extends StateError {
 
 /// Who hears about a saved profile.
 class ProfileSaveNotice {
-  const ProfileSaveNotice({required this.remoteOnly, this.extra = const {}});
+  const ProfileSaveNotice({
+    required this.remoteOnly,
+    this.extra = const {},
+    this.onceWritten = false,
+  });
 
   /// Only linked clients: the app that saved refreshes its own providers.
   final bool remoteOnly;
+
+  /// Announced as soon as the row is written, before the save's follow-up
+  /// steps run; otherwise announced last.
+  final bool onceWritten;
 
   /// Extra fields of the host mutation event.
   final Map<String, dynamic> extra;
@@ -59,8 +67,8 @@ class ProfileStore {
   /// the stored row. [beforeWriteThrough] runs once the row is written;
   /// unless [writeThrough] is false, an active row then goes to the native
   /// store (a native failure is logged, not reported: the save has
-  /// committed), and the change is announced last. Throws [ProfileNotFound]
-  /// when row [id] does not exist.
+  /// committed). The change is announced when [ProfileSaveNotice] says.
+  /// Throws [ProfileNotFound] when row [id] does not exist.
   Future<int> save({
     required int? id,
     required EquipmentProfilesCompanion Function() newRow,
@@ -78,6 +86,28 @@ class ProfileStore {
       await updateRow(stored);
       savedId = stored.id;
     }
+    void announce() {
+      final action = id == null
+          ? HostMutationAction.created
+          : HostMutationAction.updated;
+      if (notice.remoteOnly) {
+        hub.publishRemoteOnly(
+          entityType: HostMutationEntity.profile,
+          action: action,
+          entityId: savedId.toString(),
+          extra: notice.extra,
+        );
+      } else {
+        hub.publish(
+          entityType: HostMutationEntity.profile,
+          action: action,
+          entityId: savedId.toString(),
+          extra: notice.extra,
+        );
+      }
+    }
+
+    if (notice.onceWritten) announce();
     await beforeWriteThrough?.call(savedId);
     if (writeThrough && (await dao.getProfileById(savedId))?.isActive == true) {
       await writeActiveProfileThrough(
@@ -87,24 +117,7 @@ class ProfileStore {
         profileId: savedId,
       );
     }
-    final action = id == null
-        ? HostMutationAction.created
-        : HostMutationAction.updated;
-    if (notice.remoteOnly) {
-      hub.publishRemoteOnly(
-        entityType: HostMutationEntity.profile,
-        action: action,
-        entityId: savedId.toString(),
-        extra: notice.extra,
-      );
-    } else {
-      hub.publish(
-        entityType: HostMutationEntity.profile,
-        action: action,
-        entityId: savedId.toString(),
-        extra: notice.extra,
-      );
-    }
+    if (!notice.onceWritten) announce();
     return savedId;
   }
 }

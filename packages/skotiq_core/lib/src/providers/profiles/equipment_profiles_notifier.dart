@@ -164,7 +164,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState>
         ),
         // This app's own providers refresh through [ref.invalidateSelf]; the
         // REST handlers announce their own saves, so none is announced twice.
-        notice: const ProfileSaveNotice(remoteOnly: true),
+        notice: const ProfileSaveNotice(remoteOnly: true, onceWritten: true),
         beforeWriteThrough: (id) async {
           if (defaultChanged) {
             await _setDefaultHere(
