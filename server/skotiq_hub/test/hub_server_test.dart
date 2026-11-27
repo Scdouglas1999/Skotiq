@@ -61,7 +61,7 @@ void main() {
     final r = await req('GET', '/v1/info');
     expect(r.statusCode, 200);
     final body = await jsonOf(r);
-    expect(body['version'], '6.0.0');
+    expect(body['version'], hubVersion);
     expect(body['requiresConsent'], true);
     expect(body['supportedLicenses'], contains('cc-by'));
     expect(body['healpixOrder'], 9);
