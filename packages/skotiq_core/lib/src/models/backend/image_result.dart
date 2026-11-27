@@ -1,6 +1,8 @@
 /// Image capture result types for Skotiq.
 library;
 
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+
 /// Image statistics result
 class ImageStatsResult {
   final double min;
@@ -28,6 +30,20 @@ class ImageStatsResult {
     this.fwhm,
     required this.starCount,
   });
+
+  /// The statistics the native library measured.
+  factory ImageStatsResult.fromBridge(bridge.ImageStatsResult s) =>
+      ImageStatsResult(
+        min: s.min,
+        max: s.max,
+        mean: s.mean,
+        median: s.median,
+        stdDev: s.stdDev,
+        hfr: s.hfr,
+        eccentricity: s.eccentricity,
+        fwhm: s.fwhm,
+        starCount: s.starCount,
+      );
 
   factory ImageStatsResult.fromJson(Map<String, dynamic> json) {
     return ImageStatsResult(
