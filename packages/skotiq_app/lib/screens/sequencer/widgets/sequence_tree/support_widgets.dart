@@ -448,7 +448,7 @@ Widget _treeMenuSurface(
 /// widget holds no key the incoming one needs.
 ///
 /// Every piece of the canvas that belongs to one density goes through this —
-/// the rows, the ledger's column header and the gutter map — so the switch is
+/// the rows and the ledger's column header — so the switch is
 /// ONE fade rather than a fade with two things blinking in the middle of it.
 ///
 /// [animate] is false while the canvas is CLAMPING the density rather than

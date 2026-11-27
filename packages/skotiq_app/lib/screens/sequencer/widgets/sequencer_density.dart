@@ -94,12 +94,11 @@ final sequencerDensityProvider = Provider<SequencerDensity>((ref) {
 /// The density the canvas RESOLVED for the tree it is drawing, published by
 /// `SequenceTree` once its `LayoutBuilder` knows how wide the canvas is.
 ///
-/// The preference is only half the answer: the phone builder always draws
-/// comfortable rows, and a desktop canvas narrower than the ledger's column
-/// floor falls back to compact rows. Surfaces that have to agree with what is
-/// ON SCREEN — the visible-row order behind the arrow keys, the gutter map and
-/// the step finder — must read the resolved value, or they fold away rows the
-/// tree is drawing one by one.
+/// The preference is only half the answer: a canvas narrower than the
+/// ledger's column floor falls back to compact rows. Surfaces that have to
+/// agree with what is ON SCREEN — the visible-row order behind the arrow keys,
+/// the overview and the step finder — must read the resolved value, or they
+/// fold away rows the tree is drawing one by one.
 ///
 /// Null until a tree mounts, and null again once it unmounts, so a screen with
 /// no sequencer on it falls back to the preference rather than to a stale

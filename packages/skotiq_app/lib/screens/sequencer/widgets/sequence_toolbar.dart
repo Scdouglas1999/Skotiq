@@ -735,12 +735,10 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           // The overview control speaks for the density the canvas is
           // DRAWING, not for the stored preference: on a canvas too narrow to
           // host Ledger the tree is showing compact rows and the strip below
-          // them, and a button offering to hide a gutter that is not there is
-          // how this control came to do nothing at all.
+          // them.
           final overviewDensity = ref.watch(canvasSequencerDensityProvider);
           final showOverview = ref.watch(sequenceOverviewVisibleProvider);
           final overviewLabel = sequenceOverviewToggleLabel(
-            density: overviewDensity,
             visible: showOverview,
           );
           // Ledger has no overview, so it has no toggle for one.
@@ -856,7 +854,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 ),
                 if (offersOverview)
                   SkotiqButton(
-                    label: sequenceOverviewButtonLabel(overviewDensity),
+                    label: sequenceOverviewButtonLabel,
                     icon: LucideIcons.map,
                     size: ButtonSize.small,
                     variant: showOverview

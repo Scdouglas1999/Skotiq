@@ -8,15 +8,9 @@ import 'package:skotiq_core/settings.dart';
 
 import 'sequencer_density.dart';
 
-/// Whether the sequence overview is showing, remembered per density.
-///
-/// The overview is one feature with two shapes: the 80 px strip under the tree
-/// in Comfortable and Compact, and the 34 px gutter down the tree's right edge
-/// in Ledger. They cost the canvas different things — the strip takes height
-/// the rows were using, the gutter takes width the ledger columns were using —
-/// so one shared on/off would make the canvas bar's toggle undo a trade the
-/// user made somewhere else. A choice per density is what the operator
-/// actually expressed, and it is what a density switch has to give back.
+/// Whether the sequence overview (the 80 px strip under the tree) is showing,
+/// remembered per density. Comfortable and Compact each keep the operator's
+/// own choice, which a density switch gives back; Ledger draws no overview.
 @immutable
 class SequenceOverviewPrefs {
   /// The densities the user has actually chosen in. A density they have never
@@ -113,10 +107,9 @@ class SequenceOverviewPrefsNotifier
 ///
 /// Synchronous for the same reason [sequencerDensityProvider] is: the tree is
 /// built on the first frame, before the settings read has resolved, and an
-/// [AsyncValue] here would open the gutter a frame after the rows it belongs
+/// [AsyncValue] here would open the strip a frame after the rows it belongs
 /// to. It reads [canvasSequencerDensityProvider], not the preference, so a
-/// canvas too narrow to host Ledger toggles the strip it is really drawing
-/// instead of the gutter it is not.
+/// canvas too narrow to host Ledger toggles the strip it is really drawing.
 final sequenceOverviewVisibleProvider = Provider<bool>((ref) {
   final prefs = ref.watch(sequenceOverviewPrefsProvider).valueOrNull ??
       SequenceOverviewPrefs.defaults;
@@ -124,16 +117,8 @@ final sequenceOverviewVisibleProvider = Provider<bool>((ref) {
 });
 
 /// What the canvas bar's overview control does if it is pressed now.
-///
-/// The two densities hide two different things in two different places, and a
-/// control that named neither is how "Show the map" came to do nothing in
-/// Ledger: it was talking about a strip that density does not draw.
-String sequenceOverviewToggleLabel({
-  required SequencerDensity density,
-  required bool visible,
-}) {
-  return visible ? 'Hide the map' : 'Show the map';
-}
+String sequenceOverviewToggleLabel({required bool visible}) =>
+    visible ? 'Hide the map' : 'Show the map';
 
-/// The one word the labelled tier puts on the button, for the same reason.
-String sequenceOverviewButtonLabel(SequencerDensity density) => 'Map';
+/// The one word the labelled tier puts on the overview button.
+const String sequenceOverviewButtonLabel = 'Map';

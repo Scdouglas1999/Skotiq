@@ -62,7 +62,7 @@ final treeNodeKeyRegistryProvider =
 /// [alignment] of the way down its viewport.
 ///
 /// Every "jump to this node" in the builder goes through here: the run's
-/// auto-follow, the pinned-ancestor tap, the map/gutter jump, Find a step, and
+/// auto-follow, the pinned-ancestor tap, the map jump, Find a step, and
 /// the Targets panel's "In this sequence" rows. One helper because they are one
 /// movement, and because the alternative is one bug repeated five times.
 ///
@@ -657,7 +657,7 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
     // Every builder follows the stored density; a canvas too narrow for the
     // ledger's columns (a phone held upright) draws compact rows instead.
     final density = ref.watch(sequencerDensityProvider);
-    // Cached for the post-frame sticky pass and for the gutter's row mapping.
+    // Cached for the post-frame sticky pass and for the map's row mapping.
     // See [_visibleOrder]: watching here is what keeps the autoDispose order
     // alive between scroll frames.
     _visibleOrder = ref.watch(visibleNodeOrderProvider);
@@ -764,9 +764,6 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
                   (widget.isMobile
                       ? SkotiqTokens.spaceMd * 2
                       : SkotiqTokens.spaceXl * 2);
-              // The gutter comes out of the same width as the columns, so it
-              // is part of the affordability test: a canvas that fits the
-              // columns only by taking the gutter's 34 px cannot host Ledger.
               final ledgerColumns = _ledgerColumnSetFor(context, contentWidth);
               final canvasDensity =
                   density == SequencerDensity.ledger && ledgerColumns == null
