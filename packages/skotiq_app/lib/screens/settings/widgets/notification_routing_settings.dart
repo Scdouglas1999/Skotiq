@@ -49,7 +49,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
 
-    if (ref.watch(isRemoteModeProvider)) {
+    if (ref.watch(isRemoteClientProvider)) {
       return const Column(
         children: [
           SettingsSection(
