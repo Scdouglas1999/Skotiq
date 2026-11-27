@@ -1211,6 +1211,10 @@ typedef struct wire_cst_SequencerEvent_Started {
   struct wire_cst_list_prim_u_8_strict *sequence_name;
 } wire_cst_SequencerEvent_Started;
 
+typedef struct wire_cst_SequencerEvent_ActionHold {
+  bool held;
+} wire_cst_SequencerEvent_ActionHold;
+
 typedef struct wire_cst_SequencerEvent_Stopped {
   int64_t *sequence_run_id;
 } wire_cst_SequencerEvent_Stopped;
@@ -1546,6 +1550,7 @@ typedef struct wire_cst_SequencerEvent_DecisionLogged {
 
 typedef union SequencerEventKind {
   struct wire_cst_SequencerEvent_Started Started;
+  struct wire_cst_SequencerEvent_ActionHold ActionHold;
   struct wire_cst_SequencerEvent_Stopped Stopped;
   struct wire_cst_SequencerEvent_Failed Failed;
   struct wire_cst_SequencerEvent_NodeStarted NodeStarted;
@@ -2558,6 +2563,7 @@ typedef struct wire_cst_sequencer_state {
   struct wire_cst_list_prim_u_8_strict *current_target;
   struct wire_cst_list_prim_u_8_strict *current_filter;
   struct wire_cst_list_prim_u_8_strict *message;
+  bool held_by_action;
 } wire_cst_sequencer_state;
 
 typedef struct wire_cst_SkotiqError_DeviceNotFound {
@@ -3529,6 +3535,9 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_has_checkpoint(int64_t port_);
 
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_hold_for_action(int64_t port_,
+                                                                                                struct wire_cst_list_prim_u_8_strict *holder);
+
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_load_json(int64_t port_,
                                                                                           struct wire_cst_list_prim_u_8_strict *json);
 
@@ -3544,11 +3553,15 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_recovery_try_now(int64_t port_);
 
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_release_action_hold(int64_t port_,
+                                                                                                    struct wire_cst_list_prim_u_8_strict *holder);
+
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_reset(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume(int64_t port_);
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume(int64_t port_,
+                                                                                       struct wire_cst_list_prim_u_8_strict *releases_hold_of);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume_from_checkpoint(int64_t port_);
 
@@ -4400,9 +4413,11 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_get_checkpoint_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_get_state);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_has_checkpoint);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_hold_for_action);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_load_json);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_pause);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_plugin_node_finished);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_release_action_hold);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_reset);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume);

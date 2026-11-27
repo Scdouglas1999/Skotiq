@@ -245,7 +245,8 @@ void main() {
       c.read(runRecordProvider.notifier).setLifecycle(running);
       await done;
 
-      expect(h.ops.calls, ['pause']);
+      // The hold the action took is given up; nothing is resumed.
+      expect(h.ops.calls, ['pause', 'release']);
       expect(
           c.read(nightActionStateProvider).error?.key, 'nightActErrRunMoved');
     });

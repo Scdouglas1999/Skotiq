@@ -117,10 +117,48 @@ pub async fn api_sequencer_pause() -> Result<(), SkotiqError> {
     Ok(())
 }
 
-/// Resume the sequence executor
-pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
+/// Resume the sequence executor. `releases_hold_of` names the holder of a
+/// manual action's hold this resume ends ([`api_sequencer_hold_for_action`]);
+/// the hold ends even when the resume then fails, and the run stays paused.
+pub async fn api_sequencer_resume(releases_hold_of: Option<String>) -> Result<(), SkotiqError> {
     tracing::info!("Resuming sequence execution");
+    if let Some(holder) = releases_hold_of {
+        skotiq_sequencer::executor_handle().release_action_hold(&holder);
+    }
     crate::sequence_run::resume().await
+}
+
+/// Hold the run for a manual action of `holder`: a running run is paused, a
+/// paused one stays paused, and until the holder releases it nothing else
+/// resumes or skips it. Stop is never held back.
+pub async fn api_sequencer_hold_for_action(holder: String) -> Result<(), SkotiqError> {
+    tracing::info!(
+        holder = holder.as_str(),
+        "Holding the run for a manual action"
+    );
+    skotiq_sequencer::executor_handle()
+        .hold_for_action(&holder)
+        .await
+        .map_err(run_command_refused)
+}
+
+/// End `holder`'s hold on the run without resuming it. Returns whether
+/// `holder` held it.
+pub fn api_sequencer_release_action_hold(holder: String) -> bool {
+    tracing::info!(
+        holder = holder.as_str(),
+        "Releasing a manual action's hold on the run"
+    );
+    skotiq_sequencer::executor_handle().release_action_hold(&holder)
+}
+
+fn run_command_refused(e: skotiq_sequencer::RunCommandError) -> SkotiqError {
+    match e {
+        skotiq_sequencer::RunCommandError::HeldByAction => {
+            SkotiqError::refused(Refusal::RunHeldByAction, e.to_string())
+        }
+        skotiq_sequencer::RunCommandError::Failed(reason) => SkotiqError::OperationFailed(reason),
+    }
 }
 
 /// Stop the sequence executor. `origin` names the CALLER — `None` /
@@ -254,7 +292,8 @@ pub async fn api_sequencer_plugin_node_finished(
 
 /// Get the current sequencer state
 pub async fn api_sequencer_get_state() -> SequencerState {
-    SequencerState::from(skotiq_sequencer::executor_handle().progress())
+    let executor = skotiq_sequencer::executor_handle();
+    SequencerState::new(executor.progress(), executor.held_by_action())
 }
 
 // Sequencer checkpoint / crash recovery

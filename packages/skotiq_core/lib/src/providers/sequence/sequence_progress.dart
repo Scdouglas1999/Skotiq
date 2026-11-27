@@ -97,6 +97,12 @@ final sequenceStepProgressProvider = Provider<SequenceProgress>((ref) {
 ///
 /// Cleared when a run starts, so one night's cause can never be attached to the
 /// next one's stop.
+/// A manual action holds the run paused, as the run's host publishes it.
+/// Every Resume and Skip reads this; the host refuses both while it holds.
+final runHeldByActionProvider = runRecordProvider.select(
+  (record) => record.heldByAction,
+);
+
 final sequenceStopEvidenceProvider = runRecordProvider.select(
   (run) => run.stopEvidence,
 );
@@ -207,6 +213,9 @@ void foldRunEvent(
 
     case SequencerEvent_Resumed():
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.running);
+
+    case SequencerEvent_ActionHold(:final held):
+      run.setHeldByAction(held);
 
     case SequencerEvent_Stopped():
       if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.idle);

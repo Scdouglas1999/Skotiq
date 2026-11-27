@@ -226,6 +226,11 @@ pub enum SequencerEvent {
     },
     Paused,
     Resumed,
+    /// A manual action started or stopped holding the paused run. While one
+    /// holds it, only the action's own release resumes or skips it.
+    ActionHold {
+        held: bool,
+    },
     Stopped {
         /// The run this terminal belongs to, when the publisher knows it.
         /// Episode identity for the dashboard's stop fold: without it a

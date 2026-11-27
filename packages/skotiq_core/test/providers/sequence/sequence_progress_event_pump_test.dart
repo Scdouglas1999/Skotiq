@@ -34,6 +34,15 @@ void main() {
   void apply(SkotiqEvent event) =>
       applySequencerEventToSequenceProviders(container.read, event);
 
+  test("a manual action's hold follows the host's ActionHold events", () {
+    apply(_event('Paused'));
+    apply(_event('ActionHold', {'held': true}));
+    expect(container.read(runHeldByActionProvider), isTrue);
+
+    apply(_event('ActionHold', {'held': false}));
+    expect(container.read(runHeldByActionProvider), isFalse);
+  });
+
   group('NodeCompleted carries a status STRING, not a success bool', () {
     test('status=success records success (was recorded as failure)', () {
       apply(_event('NodeStarted', {'node_id': 'n1', 'node_type': 'Exposure'}));

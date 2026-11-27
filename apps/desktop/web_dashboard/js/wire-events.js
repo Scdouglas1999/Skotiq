@@ -88,6 +88,7 @@ const WIRE_EVENTS = Object.freeze({
     started: 'Started',
     paused: 'Paused',
     resumed: 'Resumed',
+    actionHold: 'ActionHold',
     stopped: 'Stopped',
     completed: 'Completed',
     sequenceFailed: 'SequenceFailed',

@@ -26,6 +26,10 @@ enum Refusal {
   /// The sequencer has no sequence loaded.
   noSequenceLoaded,
 
+  /// A manual action holds the run paused, and the command was not its
+  /// release.
+  runHeldByAction,
+
   /// No DepthLock goal has the id. Named so its rendering holds none of the
   /// words error text is classified by ("not found", "busy", ...).
   depthLockNoSuchGoal,

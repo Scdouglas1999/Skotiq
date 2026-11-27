@@ -17,6 +17,7 @@ import 'package:shelf/shelf.dart';
 
 import '../../host/host_checkpoint_directory.dart';
 import '../command_correlator.dart';
+import '../request_context.dart';
 import '../response_helpers.dart';
 import '../sequence_wire_validation.dart';
 import '../validation.dart';
@@ -47,6 +48,7 @@ class SequencerHandlers implements RouteSource {
     SequencerApi.cancelScheduledStart: handleCancelScheduledStart,
     SequencerApi.pause: handleSequencerPause,
     SequencerApi.resume: handleSequencerResume,
+    SequencerApi.releaseActionHold: handleSequencerReleaseActionHold,
     SequencerApi.skip: handleSequencerSkip,
     SequencerApi.skipToNode: handleSequencerSkipToNode,
     SequencerApi.pluginNodeFinished: handleSequencerPluginNodeFinished,
@@ -138,6 +140,9 @@ class SequencerHandlers implements RouteSource {
       _handleSequencerResume(request);
   Future<Response> handleSequencerSkip(Request request) =>
       _handleSequencerSkip(request);
+
+  Future<Response> handleSequencerReleaseActionHold(Request request) =>
+      _handleSequencerReleaseActionHold(request);
   Future<Response> handleSequencerSkipToNode(Request request) =>
       _handleSequencerSkipToNode(request);
   Future<Response> handleSequencerPluginNodeFinished(Request request) =>

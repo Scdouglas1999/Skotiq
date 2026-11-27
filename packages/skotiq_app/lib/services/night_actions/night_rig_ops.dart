@@ -34,8 +34,15 @@ class NightCenterTarget {
 }
 
 abstract interface class NightRigOps {
+  /// Holds the run for the manual action on the run's host: a running run is
+  /// paused, a paused one stays paused.
   Future<CommandActionResult> pauseRun();
+
+  /// Ends the action's hold and resumes the run.
   Future<CommandActionResult> resumeRun();
+
+  /// Ends the action's hold and leaves the run as it is.
+  Future<CommandActionResult> releaseRun();
 
   /// Starts the armed run, a start nobody is at the keyboard for.
   Future<CommandActionResult> startRun();
@@ -120,11 +127,15 @@ class ServiceNightRigOps implements NightRigOps {
   AppSettingsState? get _settings => _ref.read(appSettingsProvider).valueOrNull;
 
   @override
-  Future<CommandActionResult> pauseRun() => _sequence.pause();
+  Future<CommandActionResult> pauseRun() => _sequence.holdForAction();
 
   @override
   Future<CommandActionResult> resumeRun() =>
-      _sequence.resume(releasesHold: true);
+      _sequence.releaseActionHold(resume: true);
+
+  @override
+  Future<CommandActionResult> releaseRun() =>
+      _sequence.releaseActionHold(resume: false);
 
   @override
   Future<CommandActionResult> startRun() => _sequence.startUnattended();

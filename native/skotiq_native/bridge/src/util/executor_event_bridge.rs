@@ -176,6 +176,7 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
         | ExecutorEvent::TargetCompleted { .. }
         | ExecutorEvent::TriggerFired { .. }
         | ExecutorEvent::Cancelled
+        | ExecutorEvent::ActionHoldChanged { .. }
         | ExecutorEvent::MeridianFlipProgress { .. }
         | ExecutorEvent::MeridianFlipOutcome { .. }
         | ExecutorEvent::RuntimeConfigUpdated { .. }

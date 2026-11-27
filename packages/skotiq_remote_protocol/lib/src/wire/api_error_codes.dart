@@ -41,6 +41,10 @@ abstract final class ApiErrorCodes {
   /// A 409 for a stop or pause with no sequence running.
   static const sequencerNotRunning = 'sequencer_not_running';
 
+  /// A 409 for a resume or skip of a run a manual action holds paused: only
+  /// the action's own release lets the run go on.
+  static const runHeldByAction = 'run_held_by_action';
+
   /// Pairing refusals.
   static const invalidPairingCode = 'invalid_pairing_code';
   static const pairingCodeExpired = 'pairing_code_expired';
@@ -58,6 +62,7 @@ abstract final class ApiErrorCodes {
     'guiderNotAnswering': guiderNotAnswering,
     'linkedToHost': linkedToHost,
     'sequencerNotRunning': sequencerNotRunning,
+    'runHeldByAction': runHeldByAction,
     'invalidPairingCode': invalidPairingCode,
     'pairingCodeExpired': pairingCodeExpired,
     'pairingCodeAlreadyUsed': pairingCodeAlreadyUsed,

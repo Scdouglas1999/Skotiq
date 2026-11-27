@@ -21,7 +21,7 @@ class PlanStartCanceled implements Exception {
 }
 
 /// The distinct playback commands, keyed for the shared single-flight latch.
-enum _SequenceCommand { start, pause, resume, stop, skip, reset }
+enum _SequenceCommand { start, pause, hold, release, resume, stop, skip, reset }
 
 /// Centralized service for sequence playback actions.
 ///
@@ -229,16 +229,50 @@ class SequenceActionService {
             }
           }));
 
+  /// Holds the run for a manual action this app runs: a running run is
+  /// paused, a paused one stays paused, and until [releaseActionHold] the
+  /// run's host refuses every other resume or skip.
+  Future<CommandActionResult> holdForAction() => _single(
+      _SequenceCommand.hold,
+      () => _afterStart(() async {
+            final state = _ref.read(sequenceExecutionStateProvider);
+            if (!state.canPause && state != SequenceExecutionState.paused) {
+              return CommandActionResult.ok;
+            }
+            try {
+              await _executor.holdForAction();
+              return CommandActionResult.ok;
+            } catch (e) {
+              return CommandActionResult.failure(
+                  'Failed to pause sequence: ${userFacingError(e)}');
+            }
+          }));
+
+  /// Ends this app's manual-action hold; with [resume] the paused run is
+  /// resumed too. The hold ends even when the resume fails.
+  Future<CommandActionResult> releaseActionHold({required bool resume}) =>
+      _single(
+          _SequenceCommand.release,
+          () => _afterStart(() async {
+                try {
+                  await _executor.releaseActionHold(resume: resume);
+                  return CommandActionResult.ok;
+                } catch (e) {
+                  return CommandActionResult.failure(
+                      'Failed to resume sequence: ${userFacingError(e)}');
+                }
+              }));
+
   /// Resumes a paused run. While a manual action holds the pause, only that
-  /// action resumes it ([releasesHold]): any other resume would move the run
-  /// on while the action still uses the rig.
-  Future<CommandActionResult> resume({bool releasesHold = false}) => _single(
+  /// action's release resumes it ([releaseActionHold]): any other resume
+  /// would move the run on while the action still uses the rig.
+  Future<CommandActionResult> resume() => _single(
       _SequenceCommand.resume,
       () => _afterStart(() async {
             if (!_ref.read(sequenceExecutionStateProvider).canResume) {
               return CommandActionResult.ok;
             }
-            if (!releasesHold && _actionHoldsRun) return _heldByAction;
+            if (_actionHoldsRun) return _heldByAction;
             try {
               await _executor.resume();
               return CommandActionResult.ok;

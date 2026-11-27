@@ -20,8 +20,31 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> sequencerResume() async {
-    await _native('sequencerResume', () => bridge.apiSequencerResume());
+  Future<void> sequencerHoldForAction({
+    String holder = hostActionHolder,
+  }) async {
+    await _native(
+      'sequencerHoldForAction',
+      () => bridge.apiSequencerHoldForAction(holder: holder),
+    );
+  }
+
+  @override
+  Future<void> sequencerResume({String? releasingHoldOf}) async {
+    await _native(
+      'sequencerResume',
+      () => bridge.apiSequencerResume(releasesHoldOf: releasingHoldOf),
+    );
+  }
+
+  @override
+  Future<bool> sequencerReleaseActionHold({
+    String holder = hostActionHolder,
+  }) async {
+    return _native(
+      'sequencerReleaseActionHold',
+      () => bridge.apiSequencerReleaseActionHold(holder: holder),
+    );
   }
 
   @override
@@ -281,6 +304,7 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
         totalExposures: status.totalExposures,
       ),
       message: status.message,
+      heldByAction: status.heldByAction,
     );
   }
 

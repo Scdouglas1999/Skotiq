@@ -1665,7 +1665,9 @@ class SequenceExecutor {
     }
   }
 
-  Future<void> pause() async {
+  Future<void> pause() => _pause();
+
+  Future<void> _pause({bool hold = false}) async {
     _ensureBackendAuthority();
     if (_lifecycle.pauseResume.isHeld) {
       throw Exception('Pause/Resume operation already in progress');
@@ -1683,7 +1685,11 @@ class SequenceExecutor {
 
     try {
       final backend = _backend;
-      await backend.sequencerPause();
+      if (hold) {
+        await backend.sequencerHoldForAction();
+      } else {
+        await backend.sequencerPause();
+      }
 
       final confirmed = await _awaitStateChange(SequenceExecutionState.paused);
       if (!confirmed) {
@@ -1701,7 +1707,38 @@ class SequenceExecutor {
     }
   }
 
-  Future<void> resume() async {
+  /// Hold the run for a manual action this app runs: a running run is paused
+  /// as [pause] does, a paused one stays paused. Until
+  /// [releaseActionHold] nothing else resumes or skips the run, on this app
+  /// or any other.
+  Future<void> holdForAction() async {
+    _ensureBackendAuthority();
+    final currentState = _ref.read(sequenceExecutionStateProvider);
+    if (currentState == SequenceExecutionState.paused) {
+      await _backend.sequencerHoldForAction();
+      return;
+    }
+    await _pause(hold: true);
+  }
+
+  /// End this app's manual-action hold. With [resume] a paused run is
+  /// resumed as [resume] does; the hold ends whether or not the resume can
+  /// be made.
+  Future<void> releaseActionHold({required bool resume}) async {
+    _ensureBackendAuthority();
+    if (resume &&
+        !_lifecycle.pauseResume.isHeld &&
+        _ref.read(sequenceExecutionStateProvider) ==
+            SequenceExecutionState.paused) {
+      await _resume(releasingHoldOf: hostActionHolder);
+      return;
+    }
+    await _backend.sequencerReleaseActionHold();
+  }
+
+  Future<void> resume() => _resume();
+
+  Future<void> _resume({String? releasingHoldOf}) async {
     _ensureBackendAuthority();
     if (_lifecycle.pauseResume.isHeld) {
       throw Exception('Pause/Resume operation already in progress');
@@ -1716,7 +1753,7 @@ class SequenceExecutor {
 
     try {
       final backend = _backend;
-      await backend.sequencerResume();
+      await backend.sequencerResume(releasingHoldOf: releasingHoldOf);
 
       final confirmed = await _awaitStateChange(SequenceExecutionState.running);
       if (!confirmed) {

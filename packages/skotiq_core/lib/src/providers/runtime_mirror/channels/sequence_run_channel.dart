@@ -14,6 +14,7 @@ typedef SequenceRunSnapshot = ({
   SequenceProgress progress,
   Map<String, NodeExposureTally> tally,
   SessionState session,
+  bool heldByAction,
 });
 
 final _sequenceRunSnapshotProvider = Provider<SequenceRunSnapshot>(
@@ -21,6 +22,7 @@ final _sequenceRunSnapshotProvider = Provider<SequenceRunSnapshot>(
     progress: ref.watch(sequenceProgressProvider),
     tally: ref.watch(nodeExposureTallyProvider),
     session: ref.watch(sessionStateProvider),
+    heldByAction: ref.watch(runHeldByActionProvider),
   ),
 );
 
@@ -86,6 +88,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
         ),
         'nodeLatestReport': _reportsJson(p.nodeLatestReport, running),
       },
+      'heldByAction': value.heldByAction,
       'tally': {
         for (final e in value.tally.entries)
           e.key: [e.value.captured, e.value.planned],
@@ -187,6 +190,10 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
             ),
           );
     }
+
+    context
+        .read(runRecordProvider.notifier)
+        .setHeldByAction(value['heldByAction'] == true);
 
     final tally = value['tally'];
     if (tally is Map) {

@@ -451,6 +451,11 @@ pub enum ExecutorEvent {
     RunHeld {
         message: String,
     },
+    /// A manual action started or stopped holding the run. While one holds
+    /// it, a resume or skip that is not the action's own release is refused.
+    ActionHoldChanged {
+        held: bool,
+    },
     /// Detailed flip telemetry, shared by sequenced and standalone flips.
     /// This is not a verdict and must not be counted as another flip.
     MeridianFlipProgress {

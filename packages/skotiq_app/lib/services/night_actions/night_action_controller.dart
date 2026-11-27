@@ -613,6 +613,8 @@ class NightActionController extends Notifier<ManualActionState>
       ref: ref,
       pause: _ops.pauseRun,
       resume: _ops.resumeRun,
+      release: _ops.releaseRun,
+      holdsPausedRun: id == ManualActionId.loop,
     );
     var hold = RunHold.notOwed;
     NightText? error;
@@ -688,6 +690,8 @@ class NightActionController extends Notifier<ManualActionState>
           case RunReleaseOutcome.notOwed:
             break;
         }
+      } else if (hold.held) {
+        await guard.release(hold);
       }
       state = ManualActionState(
         phase: ManualActionPhase.idle,

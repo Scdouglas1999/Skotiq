@@ -77,6 +77,11 @@ String? authIdentityFrom(Request request) {
   return value is String ? value : null;
 }
 
+/// The holder a manual action's hold on the run names for the client that
+/// authenticated as [identity] ([authIdentityFrom]): its token digest, or one
+/// name for every client when the host asks for no token.
+String actionHolderFor(String? identity) => identity ?? 'remote';
+
 /// Redact a bearer or auth-identity token for structured-log output.
 ///
 /// Shows the first 4 + last 4 characters and masks the middle, so log

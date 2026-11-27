@@ -6851,21 +6851,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.tag = 2;
       return;
     }
+    if (apiObj is SequencerEvent_ActionHold) {
+      var pre_held = cst_encode_bool(apiObj.held);
+      wireObj.tag = 3;
+      wireObj.kind.ActionHold.held = pre_held;
+      return;
+    }
     if (apiObj is SequencerEvent_Stopped) {
       var pre_sequence_run_id = cst_encode_opt_box_autoadd_i_64(
         apiObj.sequenceRunId,
       );
-      wireObj.tag = 3;
+      wireObj.tag = 4;
       wireObj.kind.Stopped.sequence_run_id = pre_sequence_run_id;
       return;
     }
     if (apiObj is SequencerEvent_Completed) {
-      wireObj.tag = 4;
+      wireObj.tag = 5;
       return;
     }
     if (apiObj is SequencerEvent_Failed) {
       var pre_error = cst_encode_String(apiObj.error);
-      wireObj.tag = 5;
+      wireObj.tag = 6;
       wireObj.kind.Failed.error = pre_error;
       return;
     }
@@ -6873,7 +6879,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_node_id = cst_encode_String(apiObj.nodeId);
       var pre_node_type = cst_encode_String(apiObj.nodeType);
       var pre_frame_type = cst_encode_opt_String(apiObj.frameType);
-      wireObj.tag = 6;
+      wireObj.tag = 7;
       wireObj.kind.NodeStarted.node_id = pre_node_id;
       wireObj.kind.NodeStarted.node_type = pre_node_type;
       wireObj.kind.NodeStarted.frame_type = pre_frame_type;
@@ -6882,7 +6888,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SequencerEvent_NodeCompleted) {
       var pre_node_id = cst_encode_String(apiObj.nodeId);
       var pre_status = cst_encode_String(apiObj.status);
-      wireObj.tag = 7;
+      wireObj.tag = 8;
       wireObj.kind.NodeCompleted.node_id = pre_node_id;
       wireObj.kind.NodeCompleted.status = pre_status;
       return;
@@ -6890,7 +6896,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SequencerEvent_Progress) {
       var pre_current = cst_encode_u_32(apiObj.current);
       var pre_total = cst_encode_u_32(apiObj.total);
-      wireObj.tag = 8;
+      wireObj.tag = 9;
       wireObj.kind.Progress.current = pre_current;
       wireObj.kind.Progress.total = pre_total;
       return;
@@ -6899,7 +6905,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_target_name = cst_encode_String(apiObj.targetName);
       var pre_ra = cst_encode_opt_box_autoadd_f_64(apiObj.ra);
       var pre_dec = cst_encode_opt_box_autoadd_f_64(apiObj.dec);
-      wireObj.tag = 9;
+      wireObj.tag = 10;
       wireObj.kind.TargetChanged.target_name = pre_target_name;
       wireObj.kind.TargetChanged.ra = pre_ra;
       wireObj.kind.TargetChanged.dec = pre_dec;
@@ -6907,7 +6913,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
     if (apiObj is SequencerEvent_TargetCompleted) {
       var pre_target_name = cst_encode_String(apiObj.targetName);
-      wireObj.tag = 10;
+      wireObj.tag = 11;
       wireObj.kind.TargetCompleted.target_name = pre_target_name;
       return;
     }
@@ -6916,7 +6922,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_total = cst_encode_u_32(apiObj.total);
       var pre_filter = cst_encode_opt_String(apiObj.filter);
       var pre_duration_secs = cst_encode_f_64(apiObj.durationSecs);
-      wireObj.tag = 11;
+      wireObj.tag = 12;
       wireObj.kind.ExposureStarted.frame = pre_frame;
       wireObj.kind.ExposureStarted.total = pre_total;
       wireObj.kind.ExposureStarted.filter = pre_filter;
@@ -6927,7 +6933,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_frame = cst_encode_u_32(apiObj.frame);
       var pre_total = cst_encode_u_32(apiObj.total);
       var pre_duration_secs = cst_encode_f_64(apiObj.durationSecs);
-      wireObj.tag = 12;
+      wireObj.tag = 13;
       wireObj.kind.ExposureCompleted.frame = pre_frame;
       wireObj.kind.ExposureCompleted.total = pre_total;
       wireObj.kind.ExposureCompleted.duration_secs = pre_duration_secs;
@@ -6939,7 +6945,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_notice = cst_encode_opt_box_autoadd_sequencer_notice(
         apiObj.notice,
       );
-      wireObj.tag = 13;
+      wireObj.tag = 14;
       wireObj.kind.Error.message = pre_message;
       wireObj.kind.Error.kind = pre_kind;
       wireObj.kind.Error.notice = pre_notice;
@@ -6954,7 +6960,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_failed_steps = cst_encode_list_String(apiObj.failedSteps);
       var pre_error = cst_encode_opt_String(apiObj.error);
       var pre_action_taken = cst_encode_opt_String(apiObj.actionTaken);
-      wireObj.tag = 14;
+      wireObj.tag = 15;
       wireObj.kind.MeridianFlipOutcome.outcome = pre_outcome;
       wireObj.kind.MeridianFlipOutcome.target_name = pre_target_name;
       wireObj.kind.MeridianFlipOutcome.new_pier_side = pre_new_pier_side;
@@ -6972,7 +6978,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_night_end = cst_encode_opt_box_autoadd_sequencer_night_end(
         apiObj.nightEnd,
       );
-      wireObj.tag = 15;
+      wireObj.tag = 16;
       wireObj.kind.TriggerFired.trigger_id = pre_trigger_id;
       wireObj.kind.TriggerFired.trigger_name = pre_trigger_name;
       wireObj.kind.TriggerFired.action = pre_action;
@@ -6986,7 +6992,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_detail = cst_encode_String(apiObj.detail);
       var pre_detail_kind = cst_encode_String(apiObj.detailKind);
       var pre_detail_json = cst_encode_String(apiObj.detailJson);
-      wireObj.tag = 16;
+      wireObj.tag = 17;
       wireObj.kind.InstructionProgress.node_id = pre_node_id;
       wireObj.kind.InstructionProgress.instruction = pre_instruction;
       wireObj.kind.InstructionProgress.progress_percent = pre_progress_percent;
@@ -6997,14 +7003,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
     if (apiObj is SequencerEvent_DitherPerformed) {
       var pre_node_id = cst_encode_opt_String(apiObj.nodeId);
-      wireObj.tag = 17;
+      wireObj.tag = 18;
       wireObj.kind.DitherPerformed.node_id = pre_node_id;
       return;
     }
     if (apiObj is SequencerEvent_FrameWatchReport) {
       var pre_kind = cst_encode_String(apiObj.kind);
       var pre_payload_json = cst_encode_String(apiObj.payloadJson);
-      wireObj.tag = 18;
+      wireObj.tag = 19;
       wireObj.kind.FrameWatchReport.kind = pre_kind;
       wireObj.kind.FrameWatchReport.payload_json = pre_payload_json;
       return;
@@ -7018,7 +7024,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_confirmation_frames = cst_encode_u_32(apiObj.confirmationFrames);
       var pre_score = cst_encode_f_64(apiObj.score);
       var pre_threshold = cst_encode_f_64(apiObj.threshold);
-      wireObj.tag = 19;
+      wireObj.tag = 20;
       wireObj.kind.DepthGoalCompleted.node_id = pre_node_id;
       wireObj.kind.DepthGoalCompleted.filter_name = pre_filter_name;
       wireObj.kind.DepthGoalCompleted.goal_id = pre_goal_id;
@@ -7045,7 +7051,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_capture = cst_encode_box_autoadd_frame_capture_metadata(
         apiObj.capture,
       );
-      wireObj.tag = 20;
+      wireObj.tag = 21;
       wireObj.kind.FrameAccepted.node_id = pre_node_id;
       wireObj.kind.FrameAccepted.frame = pre_frame;
       wireObj.kind.FrameAccepted.total = pre_total;
@@ -7094,7 +7100,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_capture = cst_encode_box_autoadd_frame_capture_metadata(
         apiObj.capture,
       );
-      wireObj.tag = 21;
+      wireObj.tag = 22;
       wireObj.kind.FrameRejected.node_id = pre_node_id;
       wireObj.kind.FrameRejected.frame = pre_frame;
       wireObj.kind.FrameRejected.total = pre_total;
@@ -7131,7 +7137,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
         apiObj.pickedScore,
       );
       var pre_scores = cst_encode_list_scheduler_score_entry(apiObj.scores);
-      wireObj.tag = 22;
+      wireObj.tag = 23;
       wireObj.kind.SchedulerDecision.node_id = pre_node_id;
       wireObj.kind.SchedulerDecision.decision_counter = pre_decision_counter;
       wireObj.kind.SchedulerDecision.picked_target_id = pre_picked_target_id;
@@ -7148,7 +7154,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_budget_secs = cst_encode_f_64(apiObj.budgetSecs);
       var pre_fraction = cst_encode_f_64(apiObj.fraction);
       var pre_budget_met = cst_encode_bool(apiObj.budgetMet);
-      wireObj.tag = 23;
+      wireObj.tag = 24;
       wireObj.kind.IntegrationBudget.target_id = pre_target_id;
       wireObj.kind.IntegrationBudget.filter = pre_filter;
       wireObj.kind.IntegrationBudget.completed_secs = pre_completed_secs;
@@ -7167,7 +7173,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_filter = cst_encode_opt_String(apiObj.filter);
       var pre_reason = cst_encode_String(apiObj.reason);
       var pre_unchanged = cst_encode_bool(apiObj.unchanged);
-      wireObj.tag = 24;
+      wireObj.tag = 25;
       wireObj.kind.ExposureAdjusted.node_id = pre_node_id;
       wireObj.kind.ExposureAdjusted.adapted_secs = pre_adapted_secs;
       wireObj.kind.ExposureAdjusted.nominal_secs = pre_nominal_secs;
@@ -7194,7 +7200,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_reject_reason = cst_encode_opt_String(apiObj.rejectReason);
       var pre_reduce_live = cst_encode_bool(apiObj.reduceLive);
       var pre_apply_differential = cst_encode_bool(apiObj.applyDifferential);
-      wireObj.tag = 25;
+      wireObj.tag = 26;
       wireObj.kind.PhotometryFrame.node_id = pre_node_id;
       wireObj.kind.PhotometryFrame.target_designation = pre_target_designation;
       wireObj.kind.PhotometryFrame.reference_stars = pre_reference_stars;
@@ -7220,7 +7226,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_gap_secs = cst_encode_f_64(apiObj.gapSecs);
       var pre_max_gap_secs = cst_encode_f_64(apiObj.maxGapSecs);
       var pre_cadence_breaks = cst_encode_u_32(apiObj.cadenceBreaks);
-      wireObj.tag = 26;
+      wireObj.tag = 27;
       wireObj.kind.PhotometryCadenceBroken.node_id = pre_node_id;
       wireObj.kind.PhotometryCadenceBroken.frame = pre_frame;
       wireObj.kind.PhotometryCadenceBroken.total = pre_total;
@@ -7238,7 +7244,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_last_reject_reason = cst_encode_opt_String(
         apiObj.lastRejectReason,
       );
-      wireObj.tag = 27;
+      wireObj.tag = 28;
       wireObj.kind.PhotometrySummary.node_id = pre_node_id;
       wireObj.kind.PhotometrySummary.target_designation =
           pre_target_designation;
@@ -7264,7 +7270,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_max_duration_secs = cst_encode_f_64(apiObj.maxDurationSecs);
       var pre_phase = cst_encode_String(apiObj.phase);
       var pre_last_error = cst_encode_opt_String(apiObj.lastError);
-      wireObj.tag = 28;
+      wireObj.tag = 29;
       wireObj.kind.RecoveryStarted.started_at_iso = pre_started_at_iso;
       wireObj.kind.RecoveryStarted.cause_kind = pre_cause_kind;
       wireObj.kind.RecoveryStarted.cause_custom_label = pre_cause_custom_label;
@@ -7294,7 +7300,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_max_duration_secs = cst_encode_f_64(apiObj.maxDurationSecs);
       var pre_phase = cst_encode_String(apiObj.phase);
       var pre_last_error = cst_encode_opt_String(apiObj.lastError);
-      wireObj.tag = 29;
+      wireObj.tag = 30;
       wireObj.kind.RecoveryProgress.started_at_iso = pre_started_at_iso;
       wireObj.kind.RecoveryProgress.cause_kind = pre_cause_kind;
       wireObj.kind.RecoveryProgress.cause_custom_label = pre_cause_custom_label;
@@ -7324,7 +7330,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_max_duration_secs = cst_encode_f_64(apiObj.maxDurationSecs);
       var pre_phase = cst_encode_String(apiObj.phase);
       var pre_last_error = cst_encode_opt_String(apiObj.lastError);
-      wireObj.tag = 30;
+      wireObj.tag = 31;
       wireObj.kind.RecoveryCompleted.started_at_iso = pre_started_at_iso;
       wireObj.kind.RecoveryCompleted.cause_kind = pre_cause_kind;
       wireObj.kind.RecoveryCompleted.cause_custom_label =
@@ -7356,7 +7362,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_phase = cst_encode_String(apiObj.phase);
       var pre_last_error = cst_encode_opt_String(apiObj.lastError);
       var pre_aborted_by_user = cst_encode_bool(apiObj.abortedByUser);
-      wireObj.tag = 31;
+      wireObj.tag = 32;
       wireObj.kind.RecoveryGaveUp.started_at_iso = pre_started_at_iso;
       wireObj.kind.RecoveryGaveUp.cause_kind = pre_cause_kind;
       wireObj.kind.RecoveryGaveUp.cause_custom_label = pre_cause_custom_label;
@@ -7377,7 +7383,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_config_json = cst_encode_String(apiObj.configJson);
       var pre_display_name = cst_encode_opt_String(apiObj.displayName);
       var pre_timeout_secs = cst_encode_u_32(apiObj.timeoutSecs);
-      wireObj.tag = 32;
+      wireObj.tag = 33;
       wireObj.kind.PluginNodeRequested.node_id = pre_node_id;
       wireObj.kind.PluginNodeRequested.plugin_id = pre_plugin_id;
       wireObj.kind.PluginNodeRequested.node_type_id = pre_node_type_id;
@@ -7391,7 +7397,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_plugin_id = cst_encode_String(apiObj.pluginId);
       var pre_node_type_id = cst_encode_String(apiObj.nodeTypeId);
       var pre_detail_json = cst_encode_String(apiObj.detailJson);
-      wireObj.tag = 33;
+      wireObj.tag = 34;
       wireObj.kind.PluginNodeProgress.node_id = pre_node_id;
       wireObj.kind.PluginNodeProgress.plugin_id = pre_plugin_id;
       wireObj.kind.PluginNodeProgress.node_type_id = pre_node_type_id;
@@ -7411,7 +7417,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
         apiObj.notice,
       );
       var pre_stop = cst_encode_opt_box_autoadd_sequencer_stop(apiObj.stop);
-      wireObj.tag = 34;
+      wireObj.tag = 35;
       wireObj.kind.DecisionLogged.timestamp_iso = pre_timestamp_iso;
       wireObj.kind.DecisionLogged.category = pre_category;
       wireObj.kind.DecisionLogged.summary = pre_summary;
@@ -7471,6 +7477,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.current_target = cst_encode_opt_String(apiObj.currentTarget);
     wireObj.current_filter = cst_encode_opt_String(apiObj.currentFilter);
     wireObj.message = cst_encode_opt_String(apiObj.message);
+    wireObj.held_by_action = cst_encode_bool(apiObj.heldByAction);
   }
 
   @protected
@@ -15200,6 +15207,33 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__lifecycle__api_sequencer_has_checkpointPtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__sequencer__lifecycle__api_sequencer_hold_for_action(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> holder,
+  ) {
+    return _wire__crate__api__sequencer__lifecycle__api_sequencer_hold_for_action(
+      port_,
+      holder,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__lifecycle__api_sequencer_hold_for_actionPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_hold_for_action',
+      );
+  late final _wire__crate__api__sequencer__lifecycle__api_sequencer_hold_for_action =
+      _wire__crate__api__sequencer__lifecycle__api_sequencer_hold_for_actionPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__sequencer__lifecycle__api_sequencer_load_json(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> json,
@@ -15317,6 +15351,34 @@ class RustLibWire implements BaseWire {
           .asFunction<void Function(int)>();
 
   void
+  wire__crate__api__sequencer__lifecycle__api_sequencer_release_action_hold(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> holder,
+  ) {
+    return _wire__crate__api__sequencer__lifecycle__api_sequencer_release_action_hold(
+      port_,
+      holder,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__lifecycle__api_sequencer_release_action_holdPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_release_action_hold',
+      );
+  late final _wire__crate__api__sequencer__lifecycle__api_sequencer_release_action_hold =
+      _wire__crate__api__sequencer__lifecycle__api_sequencer_release_action_holdPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void
   wire__crate__api__sequencer__lifecycle__api_sequencer_request_meridian_flip(
     int port_,
   ) {
@@ -15345,17 +15407,32 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__lifecycle__api_sequencer_resetPtr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__sequencer__lifecycle__api_sequencer_resume(int port_) {
-    return _wire__crate__api__sequencer__lifecycle__api_sequencer_resume(port_);
+  void wire__crate__api__sequencer__lifecycle__api_sequencer_resume(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> releases_hold_of,
+  ) {
+    return _wire__crate__api__sequencer__lifecycle__api_sequencer_resume(
+      port_,
+      releases_hold_of,
+    );
   }
 
   late final _wire__crate__api__sequencer__lifecycle__api_sequencer_resumePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
         'frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_resume',
       );
   late final _wire__crate__api__sequencer__lifecycle__api_sequencer_resume =
       _wire__crate__api__sequencer__lifecycle__api_sequencer_resumePtr
-          .asFunction<void Function(int)>();
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void
   wire__crate__api__sequencer__lifecycle__api_sequencer_resume_from_checkpoint(
@@ -21133,6 +21210,11 @@ final class wire_cst_SequencerEvent_Started extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> sequence_name;
 }
 
+final class wire_cst_SequencerEvent_ActionHold extends ffi.Struct {
+  @ffi.Bool()
+  external bool held;
+}
+
 final class wire_cst_SequencerEvent_Stopped extends ffi.Struct {
   external ffi.Pointer<ffi.Int64> sequence_run_id;
 }
@@ -21712,6 +21794,8 @@ final class wire_cst_SequencerEvent_DecisionLogged extends ffi.Struct {
 
 final class SequencerEventKind extends ffi.Union {
   external wire_cst_SequencerEvent_Started Started;
+
+  external wire_cst_SequencerEvent_ActionHold ActionHold;
 
   external wire_cst_SequencerEvent_Stopped Stopped;
 
@@ -23555,6 +23639,9 @@ final class wire_cst_sequencer_state extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_filter;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  @ffi.Bool()
+  external bool held_by_action;
 }
 
 final class wire_cst_SkotiqError_DeviceNotFound extends ffi.Struct {

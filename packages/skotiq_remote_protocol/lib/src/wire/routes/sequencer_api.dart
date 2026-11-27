@@ -69,6 +69,14 @@ enum SequencerApi implements ApiEndpoint {
       sessionOwner: true,
     ),
   ),
+  releaseActionHold(
+    ApiRoute.post(
+      '/api/sequencer/action-hold/release',
+      resource: ApiResource.sequencer,
+      rate: ApiRateTier.control,
+      sessionOwner: true,
+    ),
+  ),
   skip(
     ApiRoute.post(
       '/api/sequencer/skip',

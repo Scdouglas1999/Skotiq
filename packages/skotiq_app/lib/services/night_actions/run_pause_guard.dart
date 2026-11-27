@@ -80,13 +80,18 @@ enum RunHoldAbortReason {
   cancelled,
 }
 
-/// What the guard holds: whether it owes a resume.
+/// What the guard holds: whether it owes a resume, and whether it holds the
+/// run on the run's host.
 class RunHold {
-  RunHold._(this.weStartedPause);
+  RunHold._(this.weStartedPause, {bool? held}) : held = held ?? weStartedPause;
 
   /// True when the run was running and this guard paused it. Only then does
   /// [RunPauseGuard.release] resume it.
   final bool weStartedPause;
+
+  /// True when the run's host holds the run for this action, so nothing
+  /// else resumes or skips it until [RunPauseGuard.release].
+  final bool held;
 
   /// A hold for a run that was already paused by someone else, or no run.
   static RunHold get notOwed => RunHold._(false);
@@ -116,17 +121,27 @@ class RunReleaseResult {
 
 /// Holds the run paused around one manual action.
 class RunPauseGuard {
+  /// [pause] holds the run for the action on the run's host, pausing a
+  /// running run; [resume] ends the hold and resumes; [release] ends the
+  /// hold and leaves the run as it is. [holdsPausedRun] holds a run the
+  /// operator already paused too (a Loop keeps it paused while it runs).
   RunPauseGuard({
     required Ref ref,
     required Future<CommandActionResult> Function() pause,
     required Future<CommandActionResult> Function() resume,
+    required Future<CommandActionResult> Function() release,
+    bool holdsPausedRun = false,
   })  : _ref = ref,
         _pause = pause,
-        _resume = resume;
+        _resume = resume,
+        _release = release,
+        _holdsPausedRun = holdsPausedRun;
 
   final Ref _ref;
   final Future<CommandActionResult> Function() _pause;
   final Future<CommandActionResult> Function() _resume;
+  final Future<CommandActionResult> Function() _release;
+  final bool _holdsPausedRun;
 
   SequenceExecutionState get _runState =>
       _ref.read(sequenceExecutionStateProvider);
@@ -168,6 +183,15 @@ class RunPauseGuard {
         );
       }
       hold = RunHold._(true);
+    } else if (_holdsPausedRun) {
+      final result = await _pause();
+      if (!result.isSuccess) {
+        throw RunHoldAborted(
+          RunHoldAbortReason.pauseFailed,
+          detail: result.message,
+        );
+      }
+      hold = RunHold._(false, held: true);
     }
     // Recorded before the wait, so a cancel or a failure while waiting still
     // resumes the run this guard paused.
@@ -177,13 +201,15 @@ class RunPauseGuard {
     return hold;
   }
 
-  /// Step 4: resume only when this guard paused the run and the run is still
-  /// paused. Never throws, never stops, never parks.
+  /// Step 4: end the hold, and resume only when this guard paused the run
+  /// and the run is still paused. Never throws, never stops, never parks.
   Future<RunReleaseResult> release(RunHold hold) async {
     if (!hold.weStartedPause) {
+      if (hold.held) await _release();
       return const RunReleaseResult(RunReleaseOutcome.notOwed);
     }
     if (_runState != SequenceExecutionState.paused) {
+      await _release();
       return const RunReleaseResult(RunReleaseOutcome.notPaused);
     }
     try {

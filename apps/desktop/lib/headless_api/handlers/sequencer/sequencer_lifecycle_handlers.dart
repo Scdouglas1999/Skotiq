@@ -91,6 +91,9 @@ extension _SequencerLifecycle on SequencerHandlers {
       // While paused: whether the step the run was in has finished, so a
       // client knows when the rig is free to act on. Null when not paused.
       'pausedIdle': container.read(pausedRunIdleProvider),
+      // A manual action holds the run paused: Resume and Skip are refused
+      // until the action releases it.
+      'heldByAction': status.heldByAction,
       if (runVitals != null) 'runVitals': runVitals,
     });
   }
@@ -549,14 +552,27 @@ extension _SequencerLifecycle on SequencerHandlers {
     );
   }
 
+  /// A body of `{"forAction": true}` is a manual action's hold
+  /// ([SequencerBackend.sequencerHoldForAction]), taken in the caller's name:
+  /// it pauses a running run or holds a paused one.
   Future<Response> _handleSequencerPause(Request request) async {
     _logInfo('[API] POST /api/sequencer/pause');
+    final forAction = optionalBool(
+      await readJsonObjectOrEmpty(request),
+      'forAction',
+    );
     await _requireRunInFlight('pause');
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerPause,
     );
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerPause();
+    if (forAction == true) {
+      await backend.sequencerHoldForAction(
+        holder: actionHolderFor(authIdentityFrom(request)),
+      );
+    } else {
+      await backend.sequencerPause();
+    }
     publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.sequencer,
@@ -569,14 +585,24 @@ extension _SequencerLifecycle on SequencerHandlers {
     });
   }
 
+  /// A body of `{"releasesHold": true}` is a manual action's own release:
+  /// it ends the caller's hold, then resumes.
   Future<Response> _handleSequencerResume(Request request) async {
     _logInfo('[API] POST /api/sequencer/resume');
+    final releasesHold = optionalBool(
+      await readJsonObjectOrEmpty(request),
+      'releasesHold',
+    );
     await _requireRunInFlight('resume');
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerResume,
     );
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerResume();
+    await backend.sequencerResume(
+      releasingHoldOf: releasesHold == true
+          ? actionHolderFor(authIdentityFrom(request))
+          : null,
+    );
     publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.sequencer,
@@ -602,6 +628,17 @@ extension _SequencerLifecycle on SequencerHandlers {
       'status': 'skipped',
       kWasRunningField: true,
     });
+  }
+
+  /// End the caller's manual-action hold without resuming the run.
+  Future<Response> _handleSequencerReleaseActionHold(Request request) async {
+    _logInfo('[API] POST /api/sequencer/action-hold/release');
+    final released = await container
+        .read(sequencerBackendProvider)
+        .sequencerReleaseActionHold(
+          holder: actionHolderFor(authIdentityFrom(request)),
+        );
+    return jsonOk({'released': released});
   }
 
   /// Jump the executor forward to a specific node by id.

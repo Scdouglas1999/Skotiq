@@ -44,6 +44,9 @@ abstract class AdaptiveSwapBackend {
 /// methods (`sequencerUpdateConditionsScore`, `sequencerGetAdaptiveSwapSnapshot`)
 /// are sequencer-runtime mutations and the adaptive-swap composer depends
 /// on exactly that pair.
+/// The holder name of a manual action the host's own window runs.
+const String hostActionHolder = 'host';
+
 abstract class SequencerBackend implements AdaptiveSwapBackend {
   Future<void> sequencerStart();
 
@@ -54,7 +57,20 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
 
   Future<void> sequencerPause();
 
-  Future<void> sequencerResume();
+  /// Hold the run for a manual action of [holder]: a running run is paused,
+  /// a paused one stays paused, and until the holder releases it nothing else
+  /// resumes or skips it. Stop is never held back. A linked client's host
+  /// names the client as the holder itself; the network backend sends none.
+  Future<void> sequencerHoldForAction({String holder = hostActionHolder});
+
+  /// Resume a paused run. [releasingHoldOf] is the holder whose hold this
+  /// resume ends: a manual action's own release. The hold ends even when the
+  /// resume then fails.
+  Future<void> sequencerResume({String? releasingHoldOf});
+
+  /// End [holder]'s hold without resuming the run. Returns whether [holder]
+  /// held it.
+  Future<bool> sequencerReleaseActionHold({String holder = hostActionHolder});
 
   Future<void> sequencerSkip();
 

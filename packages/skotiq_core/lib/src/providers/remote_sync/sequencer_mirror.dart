@@ -56,4 +56,7 @@ void _applySequencerStatus(
   // during a tracking-limit hold read "Guider needs a look" with no reason.
   container.read(guidingStopReasonProvider.notifier).state =
       status.guidingStopReason;
+  container
+      .read(runRecordProvider.notifier)
+      .setHeldByAction(status.heldByAction);
 }

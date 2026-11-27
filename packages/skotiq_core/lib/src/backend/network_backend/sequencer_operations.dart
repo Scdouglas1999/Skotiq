@@ -134,9 +134,28 @@ mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
     await _post(SequencerApi.pause);
   }
 
+  // The host names this client as the holder, so no holder is sent.
   @override
-  Future<void> sequencerResume() async {
-    await _post(SequencerApi.resume);
+  Future<void> sequencerHoldForAction({
+    String holder = hostActionHolder,
+  }) async {
+    await _post(SequencerApi.pause, body: {'forAction': true});
+  }
+
+  @override
+  Future<void> sequencerResume({String? releasingHoldOf}) async {
+    await _post(
+      SequencerApi.resume,
+      body: releasingHoldOf == null ? null : {'releasesHold': true},
+    );
+  }
+
+  @override
+  Future<bool> sequencerReleaseActionHold({
+    String holder = hostActionHolder,
+  }) async {
+    final response = await _post(SequencerApi.releaseActionHold);
+    return response['released'] == true;
   }
 
   @override

@@ -16,10 +16,17 @@ class _RecordingExecutor extends SequenceExecutor {
   _RecordingExecutor(super.ref);
 
   int resumeCount = 0;
+  int releaseCount = 0;
   int skipCount = 0;
 
   @override
   Future<void> resume() async => resumeCount++;
+
+  @override
+  Future<void> releaseActionHold({required bool resume}) async {
+    releaseCount++;
+    if (resume) resumeCount++;
+  }
 
   @override
   Future<void> skip() async => skipCount++;
@@ -83,6 +90,7 @@ void main() {
 
     final result = await h.container.read(nightRigOpsProvider).resumeRun();
 
+    expect(h.executor.releaseCount, 1);
     expect(h.executor.resumeCount, 1);
     expect(result.isSuccess, isTrue);
   });
