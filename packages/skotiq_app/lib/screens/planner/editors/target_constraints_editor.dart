@@ -23,6 +23,7 @@ part 'target_constraints_editor/wizard_params_review.dart';
 /// this machine's.
 final _horizonProfilesProvider =
     hostRoleProvider<Future<List<HorizonProfile>> Function()>(
+  phoneKeeps: true,
   here: (ref) {
     final db = ref.watch(databaseProvider);
     return () => loadHorizonProfiles(db);

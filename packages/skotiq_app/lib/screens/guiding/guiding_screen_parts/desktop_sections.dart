@@ -296,8 +296,8 @@ mixin _GuidingDesktopSections
     bool isConnected,
     Phd2State phd2State,
   ) {
-    final guiderId = ref.watch(guiderStateProvider).deviceId;
-    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
+    final kind = ref.watch(connectedGuiderKindProvider);
+    final isPhd2Guider = kind == GuiderKind.phd2;
 
     final brainButton = SkotiqButton(
       key: TourTarget.guidingBrainButton.key,
@@ -325,8 +325,11 @@ mixin _GuidingDesktopSections
           _buildControls(isConnected, phd2State),
           const SizedBox(height: SidePanel.sectionGap),
           _buildGuiderCalibration(colors, isConnected, phd2State),
-          const SizedBox(height: SidePanel.sectionGap),
-          brainButton,
+          // The demo guider has no settings to open.
+          if (kind != GuiderKind.demo) ...[
+            const SizedBox(height: SidePanel.sectionGap),
+            brainButton,
+          ],
         ],
       ),
     );
@@ -375,10 +378,21 @@ mixin _GuidingDesktopSections
     bool isConnected,
     Phd2State phd2State,
   ) {
-    final guiderId = ref.watch(guiderStateProvider).deviceId;
-    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
-    if (!isPhd2Guider && !ref.watch(isBuiltinGuiderProvider)) {
-      return _buildNonPhd2GuiderInfo(colors);
+    final kind = ref.watch(connectedGuiderKindProvider);
+    final isPhd2Guider = kind == GuiderKind.phd2;
+    switch (kind) {
+      case GuiderKind.demo:
+        return const EmptyState.compact(
+          icon: SkotiqIcons.guider,
+          title: 'Demo guider',
+          body: 'This guider is simulated on the phone. It needs no '
+              'calibration and has no settings.',
+        );
+      case GuiderKind.external:
+        return _buildNonPhd2GuiderInfo(colors);
+      case GuiderKind.phd2:
+      case GuiderKind.builtin:
+        break;
     }
     return _buildCalibrationSection(
       colors,
@@ -517,7 +531,8 @@ mixin _GuidingDesktopSections
   /// The guider in use is not PHD2, so PHD2's calibration and Brain controls do
   /// not exist for it. One empty state, one button (05 §12).
   Widget _buildNonPhd2GuiderInfo(SkotiqColors colors) {
-    final isBuiltin = ref.watch(isBuiltinGuiderProvider);
+    final isBuiltin =
+        ref.watch(connectedGuiderKindProvider) == GuiderKind.builtin;
     return SingleChildScrollView(
       child: EmptyState.compact(
         icon: isBuiltin ? SkotiqIcons.guider : SkotiqIcons.settings,

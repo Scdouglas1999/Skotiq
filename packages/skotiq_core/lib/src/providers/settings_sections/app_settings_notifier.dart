@@ -398,7 +398,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       });
     }
 
-    if (backend.linksToHost) {
+    if (backend.hostPlace.isLinked) {
       // Subscribe BEFORE the GET so an event that lands between the
       // POST acknowledgment and the GET's response can be re-applied
       // when the future resolves.
@@ -470,6 +470,38 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   ) async {
     final preference = await _solverPreference();
     if (preference == null) return stored;
+    final dao = ref.read(settingsDaoProvider);
+    const restoredKey = BackupService.restoredSolverRowsSettingKey;
+    if (await dao.getSetting(restoredKey) case final restoredRows?) {
+      // A replace-restore: the rows are the backup's, and the preference
+      // takes them once. Kept for the next open if the preference refuses.
+      // A backup without a solver row leaves that part of the preference.
+      final rows = restoredRows.split(',').toSet();
+      bool restoredRow(TextSetting setting) => rows.contains(setting.key);
+      final restored = preference.copyWith(
+        choice: restoredRow(AppSettingDefs.plateSolver)
+            ? PlateSolverChoice.fromSettingLabel(stored.plateSolver)
+            : null,
+        astapPath: restoredRow(AppSettingDefs.astapPath)
+            ? stored.astapPath
+            : null,
+        astrometryPath: restoredRow(AppSettingDefs.astrometryPath)
+            ? stored.astrometryPath
+            : null,
+      );
+      try {
+        await ref.read(plateSolveServiceProvider).setConfig(restored);
+      } on Object catch (error) {
+        Log.warning(
+          'The restored plate-solver settings could not be written to the '
+          'solver preference; trying again on the next start: $error',
+          source: 'AppSettingsNotifier',
+        );
+        return stored;
+      }
+      await dao.deleteSetting(restoredKey);
+      return _withSolverPreference(stored, restored);
+    }
     final storedRows = storedRowsOf(stored);
     final changed = {
       for (final MapEntry(:key, :value) in plateSolverPreferenceRows(
@@ -481,7 +513,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     // Straight to the DAO, not `_saveSetting`: this runs while `build()` is
     // still resolving, so the loaded-state guard and the remote write path do
     // not apply; this is by construction the local store.
-    await ref.read(settingsDaoProvider).setSettings(changed);
+    await dao.setSettings(changed);
     return _withSolverPreference(stored, preference);
   }
 
@@ -524,7 +556,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     // Device-local display prefs always persist to the local store, even
     // on a linked client — they are this device's rendering choice.
     final isDeviceLocalDisplay = AppSettingsCodec.clientOwnKeys.contains(key);
-    final dao = (backend.linksToHost && !isDeviceLocalDisplay)
+    final dao = (backend.hostPlace.isLinked && !isDeviceLocalDisplay)
         ? null
         : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(key, generation, () async {
@@ -533,11 +565,11 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         throw StateError('The settings host changed before saving $key.');
       }
       _requireLoadedSettings('saving $key');
-      if (backend.linksToHost && hostStoreKeys.contains(key)) {
+      if (backend.hostPlace.isLinked && hostStoreKeys.contains(key)) {
         await _writeHostStoreRows({key: value}, backend, generation);
         return;
       }
-      if (backend.linksToHost && !isDeviceLocalDisplay) {
+      if (backend.hostPlace.isLinked && !isDeviceLocalDisplay) {
         final current = _requireLoadedSettings('saving $key');
         final updated = _applySettingsMap(current, {key: value});
         await _writeRemoteSettings(
@@ -568,7 +600,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       // remote-write concern and would wrongly reject host-only keys
       // (`start_minimized`, `database_path`, `horizon_profile_json`, ...).
     });
-    if (backend.linksToHost && !isDeviceLocalDisplay) {
+    if (backend.hostPlace.isLinked && !isDeviceLocalDisplay) {
       _trackPendingRemoteWrite([key], write);
     }
     return write;
@@ -606,7 +638,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   Future<void> _saveSettings(Map<String, String> settings) {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final dao = backend.linksToHost ? null : ref.read(settingsDaoProvider);
+    final dao = backend.hostPlace.isLinked
+        ? null
+        : ref.read(settingsDaoProvider);
     final write = _serializeSettingsWrite(
       settings.keys.join(', '),
       generation,
@@ -616,7 +650,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
           throw StateError('The settings host changed before saving.');
         }
         _requireLoadedSettings('saving ${settings.keys.join(', ')}');
-        if (backend.linksToHost) {
+        if (backend.hostPlace.isLinked) {
           final storeRows = {
             for (final entry in settings.entries)
               if (hostStoreKeys.contains(entry.key)) entry.key: entry.value,
@@ -659,7 +693,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         // `setImageOutputPath`).
       },
     );
-    if (backend.linksToHost) {
+    if (backend.hostPlace.isLinked) {
       _trackPendingRemoteWrite(settings.keys, write);
     }
     return write;
@@ -785,7 +819,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// setters / `_writeRemoteSettings` instead.)
   Future<void> applyRemoteSettings(models.AppSettings remote) async {
     final backend = ref.read(backendProvider);
-    if (backend.linksToHost) {
+    if (backend.hostPlace.isLinked) {
       throw StateError(
         'applyRemoteSettings is host-only; refusing to relay a full snapshot '
         'through a remote client.',

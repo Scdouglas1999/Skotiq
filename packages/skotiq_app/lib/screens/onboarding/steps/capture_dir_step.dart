@@ -9,7 +9,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../services/host_folders.dart';
-import 'package:skotiq_core/utils.dart' show AsyncScope;
+import 'package:skotiq_core/utils.dart' show AsyncScope, DeviceTraits;
 
 typedef OnboardingCaptureDirectoryWriter = Future<void> Function(String path);
 
@@ -58,7 +58,7 @@ Future<String> makeCaptureDirectoryIn(String home, {String? configDir}) async {
 /// not there yet. Null where there is no sensible default (no home directory,
 /// a phone).
 Future<String?> prepareDefaultCaptureDirectory() async {
-  if (Platform.isAndroid || Platform.isIOS) return null;
+  if (DeviceTraits.current.touchOs) return null;
   final env = Platform.environment;
   final home = env[Platform.isWindows ? 'USERPROFILE' : 'HOME'];
   if (home == null || home.trim().isEmpty) return null;

@@ -89,6 +89,42 @@ final isBuiltinGuiderProvider = Provider<bool>((ref) {
   return guiderState.deviceId == builtinGuiderDeviceId;
 });
 
+/// Which guider a screen is describing, and so which controls and settings
+/// it has.
+enum GuiderKind {
+  /// PHD2, or no guider chosen yet: PHD2 is the default guider.
+  phd2,
+
+  /// Skotiq's own multi-star guider.
+  builtin,
+
+  /// The demo rig's simulated guider, which has no settings.
+  demo,
+
+  /// Any other guider driver, configured from Equipment.
+  external,
+}
+
+/// The kind of the guider with [deviceId] (null when none is chosen) on a
+/// backend whose host is [place].
+GuiderKind guiderKindOf(String? deviceId, HostPlace place) {
+  if (deviceId == null || isPhd2DeviceId(deviceId)) return GuiderKind.phd2;
+  if (deviceId == builtinGuiderDeviceId) return GuiderKind.builtin;
+  return place == HostPlace.demo ? GuiderKind.demo : GuiderKind.external;
+}
+
+/// The kind of the connected guider.
+final connectedGuiderKindProvider = Provider<GuiderKind>((ref) {
+  final id = ref.watch(guiderStateProvider.select((s) => s.deviceId));
+  if (id != null && !isPhd2DeviceId(id) && ref.watch(isBuiltinGuiderProvider)) {
+    return GuiderKind.builtin;
+  }
+  return guiderKindOf(
+    id,
+    ref.watch(backendProvider.select((b) => b.hostPlace)),
+  );
+});
+
 /// The built-in guider's configuration on the current host. The host keeps
 /// one whether or not the guider is connected, so it is read at once and again
 /// when the guider connects or disconnects and when the host changes.

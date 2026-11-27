@@ -17,7 +17,7 @@ import '../utils/logging_service.dart';
 /// on the host only; a viewer's authoritative source is its runtime snapshot.
 final meridianFlipTelemetryProvider = Provider<void>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend.linksToHost) return;
+  if (backend.hostPlace.isLinked) return;
   // The flip the run's end ended, until the next flip starts: its own end
   // may still arrive and keeps what the flip reached.
   var endedAtRunEnd = false;

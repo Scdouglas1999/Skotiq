@@ -21,6 +21,7 @@ final observationLogsDaoProvider = Provider<ObservationLogsDao>((ref) {
 /// The observation log of whichever machine is the imaging host: this
 /// process's database, or the linked host's.
 final observationLogProvider = hostRoleProvider<ObservationLog>(
+  phoneKeeps: true,
   here: (ref) => ref.watch(observationLogsDaoProvider),
   linked: (ref, host) => host.observationLog,
 );

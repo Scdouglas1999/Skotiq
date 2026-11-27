@@ -293,7 +293,7 @@ class _JoinMosaicButtonState extends ConsumerState<_JoinMosaicButton> {
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
     final isRemote = ref.watch(isRemoteModeProvider);
-    final canJoin = backend.runsRigHere;
+    final canJoin = backend.hostPlace.rigIsHere;
     // A mosaic this rig already published or joined has a local project behind
     // it. Telling its OWNER to "Join this mosaic" — and describing their own
     // project as something to be mirrored in — reads as a different mosaic than
@@ -373,7 +373,7 @@ class _JoinMosaicButtonState extends ConsumerState<_JoinMosaicButton> {
 
   Future<void> _join() async {
     final authority = ref.read(backendProvider);
-    if (!authority.runsRigHere) {
+    if (!authority.hostPlace.rigIsHere) {
       return;
     }
     setState(() => _joining = true);

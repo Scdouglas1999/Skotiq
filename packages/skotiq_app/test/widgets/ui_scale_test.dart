@@ -56,6 +56,7 @@ void main() {
           incompleteSessionsProvider
               .overrideWith((ref) async => const <SessionRecoveryInfo>[]),
           quickStartContextProvider.overrideWith((ref) async => null),
+          launchRoleProvider.overrideWithValue(LaunchRole.mobile),
         ],
         child: const SkotiqApp(isDesktop: false),
       ),

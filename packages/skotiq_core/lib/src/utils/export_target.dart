@@ -1,16 +1,8 @@
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart' as file_selector;
-import 'package:flutter/foundation.dart';
+import './device_traits.dart';
 import './skotiq_data_directory.dart';
-
-/// Forces [chooseExportTarget] down the touch or desktop branch in tests.
-///
-/// Without it the touch branch is only exercisable by running the suite ON a
-/// phone, so CI (Linux) reports green for a platform it never covered. Null in
-/// production, where the real platform decides.
-@visibleForTesting
-bool? debugIsTouchPlatformOverride;
 
 /// Where an export is about to be written, and how the user will get at it.
 class ExportTarget {
@@ -56,9 +48,7 @@ Future<ExportTarget?> chooseExportTarget({
   String? initialDirectory,
   String? confirmButtonText,
 }) async {
-  final isTouch =
-      debugIsTouchPlatformOverride ?? (Platform.isAndroid || Platform.isIOS);
-  if (isTouch) {
+  if (DeviceTraits.current.touchOs) {
     final directory = await resolveSkotiqExportsDirectory();
     return ExportTarget(
       path: '${directory.path}/${sanitizeExportFileName(suggestedName)}',

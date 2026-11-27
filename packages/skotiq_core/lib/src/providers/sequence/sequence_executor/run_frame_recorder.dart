@@ -348,7 +348,7 @@ class RunFrameRecorder {
   }
 
   void _notifyPersistedFrame(int rowId, String action) {
-    if (_isDisposed() || _backend.linksToHost) return;
+    if (_isDisposed() || _backend.hostPlace.isLinked) return;
     _ref
         .read(hostMutationEventHubProvider)
         .publishRemoteOnly(

@@ -1,12 +1,10 @@
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 
 /// What the operator has already agreed may leave the machine.
 ///
@@ -150,7 +148,7 @@ Future<bool> confirmGeolocationLookup(
                 includeWifiScan: includeWifiScan,
                 includeIpFallback: includeIpFallback,
                 googleKeyPresent: googleKeyPresent,
-                onPhone: !kIsWeb && (Platform.isAndroid || Platform.isIOS),
+                onPhone: DeviceTraits.current.touchOs,
               ),
             ),
           ),

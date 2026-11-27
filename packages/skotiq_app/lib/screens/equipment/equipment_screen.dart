@@ -104,7 +104,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
   Widget build(BuildContext context) {
     watchProfileAuthority();
     final colors = SkotiqColors.of(context);
-    if (ref.watch(backendProvider).hasNoHost) {
+    if (ref.watch(backendProvider).hostPlace == HostPlace.none) {
       return const Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

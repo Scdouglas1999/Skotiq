@@ -56,7 +56,7 @@ extension ConstellationPrivacyText on ConstellationPrivacy {
 /// contribute sheet all agree on slave detection.
 final isConstellationHostActionEnabledProvider = Provider<bool>((ref) {
   final backend = ref.watch(backendProvider);
-  return backend.runsRigHere;
+  return backend.hostPlace.rigIsHere;
 });
 
 /// The hub identity once connectivity + tiling have been verified, or null when

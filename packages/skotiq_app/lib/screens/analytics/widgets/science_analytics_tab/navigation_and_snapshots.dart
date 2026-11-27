@@ -129,7 +129,7 @@ class _ScienceJumpNav extends ConsumerWidget {
       messenger.clearSnackBars();
       // On mobile the app-docs file is unreachable and "Open folder"
       // (xdg-open/explorer) is a desktop-only shell action — share instead.
-      if (Platform.isAndroid || Platform.isIOS) {
+      if (DeviceTraits.current.touchOs) {
         await revealExportedFile(
           context,
           file.path,

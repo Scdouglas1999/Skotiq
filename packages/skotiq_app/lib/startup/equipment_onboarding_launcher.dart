@@ -73,7 +73,7 @@ class _EquipmentOnboardingLauncherState
     final generation = ++_checkGeneration;
     // With no imaging computer there is no rig here to set up: every scan in
     // the wizard would fail. Linking one runs this check again.
-    if (authority.hasNoHost) {
+    if (authority.hostPlace == HostPlace.none) {
       _queue.pass(StartupSurface.equipmentOnboarding);
       return;
     }

@@ -187,7 +187,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
     final colors = SkotiqColors.of(context);
     final backend = ref.watch(backendProvider);
     final isRemote = ref.watch(isRemoteModeProvider);
-    final isDisconnected = backend.hasNoHost;
+    final isDisconnected = backend.hostPlace == HostPlace.none;
     final canCreateProject = !isRemote && !isDisconnected;
     final panels = _calculatePanels();
     final smartExposure = mosaicWizardExposureSettingsForContext(

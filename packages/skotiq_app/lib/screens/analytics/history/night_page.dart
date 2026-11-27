@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -8,6 +6,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../router/analytics_route.dart';
@@ -524,7 +523,7 @@ class _NightHeader extends ConsumerWidget {
           l10n.text('analyticsExportHtml'),
         ),
         // Share exists only where the OS has a share sheet.
-        if (Platform.isAndroid || Platform.isIOS)
+        if (DeviceTraits.current.touchOs)
           item<Object>(_NightMenu.share, LucideIcons.share, l10n.text('share')),
       ],
     ];

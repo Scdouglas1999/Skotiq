@@ -17,8 +17,22 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../tours/tour_target.dart';
 import 'settings_widgets.dart';
 
+/// The folders the Files & Storage page edits.
+enum HostPathSetting {
+  /// Where captured frames are saved: carried by the remote wire model, so a
+  /// linked client may change it on the host.
+  imageOutput(editableWhenLinked: true),
+
+  /// Where sequences are saved: the host's own, changed only on the host.
+  sequences(editableWhenLinked: false);
+
+  const HostPathSetting({required this.editableWhenLinked});
+
+  final bool editableWhenLinked;
+}
+
 typedef FilePathSettingsWriter = Future<void> Function(
-  String settingKey,
+  HostPathSetting setting,
   String path,
 );
 
@@ -77,15 +91,13 @@ final backupDirectoryWriterProvider = Provider<BackupDirectoryWriter>((ref) {
 });
 
 final filePathSettingsWriterProvider = Provider<FilePathSettingsWriter>((ref) {
-  return (settingKey, path) async {
+  return (setting, path) async {
     final notifier = ref.read(appSettingsProvider.notifier);
-    switch (settingKey) {
-      case 'image':
+    switch (setting) {
+      case HostPathSetting.imageOutput:
         await notifier.setImageOutputPath(path);
-      case 'sequences':
+      case HostPathSetting.sequences:
         await notifier.setSequencesPath(path);
-      default:
-        throw ArgumentError.value(settingKey, 'settingKey');
     }
   };
 });
@@ -98,7 +110,7 @@ class FilePathSettings extends ConsumerWidget {
   Future<void> _selectPath(
     BuildContext context,
     WidgetRef ref,
-    String settingKey,
+    HostPathSetting setting,
     String currentPath,
   ) async {
     final host = ref.backendScope();
@@ -108,7 +120,7 @@ class FilePathSettings extends ConsumerWidget {
     // persistence and setting them throws UnsupportedError. Block the picker
     // up-front in remote mode so the user gets a clear message instead of an
     // unhandled exception.
-    if (isRemoteMode && settingKey != 'image') {
+    if (isRemoteMode && !setting.editableWhenLinked) {
       context.showWarningSnackBar(
           'This path can only be changed on the host machine.');
       return;
@@ -129,11 +141,11 @@ class FilePathSettings extends ConsumerWidget {
         return;
       }
 
-      await ref.read(filePathSettingsWriterProvider)(settingKey, result);
+      await ref.read(filePathSettingsWriterProvider)(setting, result);
       if (!context.mounted || host.isStale) {
         return;
       }
-      if (settingKey == 'sequences') {
+      if (setting == HostPathSetting.sequences) {
         // The sequence file service watches settings and updates its initial
         // directory immediately — no restart required.
         context.showSuccessSnackBar(
@@ -160,7 +172,7 @@ class FilePathSettings extends ConsumerWidget {
   Future<void> _enterPath(
     BuildContext context,
     WidgetRef ref,
-    String settingKey,
+    HostPathSetting setting,
     String typed,
   ) async {
     final host = ref.backendScope();
@@ -173,7 +185,7 @@ class FilePathSettings extends ConsumerWidget {
       );
       return;
     }
-    if (isRemoteMode && settingKey != 'image') {
+    if (isRemoteMode && !setting.editableWhenLinked) {
       context.showWarningSnackBar(
         'This path can only be changed on the host machine.',
       );
@@ -207,17 +219,18 @@ class FilePathSettings extends ConsumerWidget {
         if (!useAnyway || !context.mounted || host.isStale) return;
     }
 
-    await ref.read(filePathSettingsWriterProvider)(settingKey, path);
+    await ref.read(filePathSettingsWriterProvider)(setting, path);
     if (!context.mounted || host.isStale) {
       return;
     }
     context.showSuccessSnackBar(
       isRemoteMode
           ? 'Image output set to $path on the imaging host.'
-          : switch (settingKey) {
-              'sequences' => 'Sequences directory set to $path. New '
-                  'exports/imports will start here.',
-              _ => 'Image output set to $path.',
+          : switch (setting) {
+              HostPathSetting.sequences =>
+                'Sequences directory set to $path. New '
+                    'exports/imports will start here.',
+              HostPathSetting.imageOutput => 'Image output set to $path.',
             },
     );
   }
@@ -262,10 +275,10 @@ class FilePathSettings extends ConsumerWidget {
                     fillWhenNarrow: true,
                     path: settings.imageOutputPath,
                     authorityKey: authority,
-                    onBrowse: () => _selectPath(
-                        context, ref, 'image', settings.imageOutputPath),
-                    onPathEntered: (value) =>
-                        _enterPath(context, ref, 'image', value),
+                    onBrowse: () => _selectPath(context, ref,
+                        HostPathSetting.imageOutput, settings.imageOutputPath),
+                    onPathEntered: (value) => _enterPath(
+                        context, ref, HostPathSetting.imageOutput, value),
                   ),
                 ),
                 SettingRow(
@@ -281,11 +294,11 @@ class FilePathSettings extends ConsumerWidget {
                     onBrowse: () => _selectPath(
                       context,
                       ref,
-                      'sequences',
+                      HostPathSetting.sequences,
                       settings.sequencesPath,
                     ),
-                    onPathEntered: (value) =>
-                        _enterPath(context, ref, 'sequences', value),
+                    onPathEntered: (value) => _enterPath(
+                        context, ref, HostPathSetting.sequences, value),
                   ),
                 ),
               ],
@@ -343,9 +356,9 @@ class _AppDataFolderRow extends ConsumerWidget {
     };
 
     final openLabel =
-        Platform.isAndroid || Platform.isIOS ? 'Copy path' : 'Open folder';
+        DeviceTraits.current.touchOs ? 'Copy path' : 'Open folder';
     final openLogsLabel =
-        Platform.isAndroid || Platform.isIOS ? 'Copy logs path' : 'Open logs';
+        DeviceTraits.current.touchOs ? 'Copy logs path' : 'Open logs';
 
     return SettingRow(
       title: 'Database and logs',
@@ -493,9 +506,7 @@ class _BackupFolderRow extends ConsumerWidget {
             ),
           if (resolved != null)
             SkotiqButton(
-              label: Platform.isAndroid || Platform.isIOS
-                  ? 'Copy path'
-                  : 'Open folder',
+              label: DeviceTraits.current.touchOs ? 'Copy path' : 'Open folder',
               icon: LucideIcons.folderOpen,
               variant: ButtonVariant.ghost,
               size: ButtonSize.small,

@@ -232,7 +232,9 @@ void main(List<String> args) async {
       // handshake — and after any drop — a `--remote-host` client is not
       // connected, and a screen that reads the connection instead of the role
       // offers it the imaging host's editor over its own empty database.
-      remoteClientLaunchProvider.overrideWithValue(remoteTarget != null),
+      launchRoleProvider.overrideWithValue(
+        remoteTarget != null ? LaunchRole.linkedClient : LaunchRole.hostGui,
+      ),
       remoteLaunchTargetProvider.overrideWithValue(
         remoteTarget == null
             ? null

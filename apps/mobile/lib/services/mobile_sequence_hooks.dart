@@ -159,7 +159,7 @@ class MobileSequenceHooks {
     await _eventNotifier?.stop();
     final backend = _ref.read(backendProvider);
     // The demo rig raises no alerts worth a phone notification.
-    if (backend.hasNoHost || backend.isDemoRig) {
+    if (backend.hostPlace.offersLink) {
       _eventNotifier = null;
       return;
     }

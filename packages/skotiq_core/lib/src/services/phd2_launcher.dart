@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import 'notification/ui_notices.dart';
 import '../backend/phd2_status_poll.dart';
+import '../utils/device_traits.dart';
 
 /// Auto-launches PHD2 on the local machine and waits for its socket to
 /// come up.
@@ -36,9 +36,11 @@ class Phd2Launcher {
   final Duration _pollInterval;
 
   /// True when the configured host is the same machine (i.e. we should
-  /// auto-spawn PHD2 ourselves rather than expecting it to be remote).
+  /// auto-spawn PHD2 ourselves rather than expecting it to be remote). Never
+  /// on a device without the native library, such as the phone: it cannot
+  /// start PHD2.
   bool isLocalHost(String host) {
-    if (kIsWeb) return false;
+    if (!DeviceTraits.current.nativeLibrary) return false;
     final normalized = host.trim().toLowerCase();
     return normalized.isEmpty ||
         normalized == 'localhost' ||

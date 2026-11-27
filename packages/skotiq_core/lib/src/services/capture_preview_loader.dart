@@ -74,7 +74,7 @@ class CapturePreviewPublisher {
   }
 
   bool _shouldScheduleRawLoad(SkotiqBackend backend) {
-    if (backend.hasNoHost) {
+    if (backend.hostPlace == HostPlace.none) {
       return false;
     }
     return true;

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../database/database.dart';
 import '../database/integrity_check.dart';
 import '../database/daos/settings_dao.dart';
+import '../settings/app_settings_state.g.dart' show AppSettingDefs;
 import '../models/backup/restore_mode.dart';
 import '../models/sequence/sequence_models.dart';
 import '../utils/logging_service.dart';
@@ -37,7 +38,10 @@ Future<Map<String, int>> Function(void Function(double)) _archiveWriter({
       outputPath: outputPath,
       head: head,
       tables: tables,
-      omitSettings: const {BackupService.backupDirectorySettingKey},
+      omitSettings: const {
+        BackupService.backupDirectorySettingKey,
+        BackupService.restoredSolverRowsSettingKey,
+      },
       settingsOverlay: settingsOverlay,
       report: report,
     );
@@ -51,7 +55,10 @@ Future<BackupArchiveContents> Function(void Function(double)) _archiveReader({
       archivePath: archivePath,
       databasePath: databasePath,
       never: never,
-      omitSettings: const {BackupService.backupDirectorySettingKey},
+      omitSettings: const {
+        BackupService.backupDirectorySettingKey,
+        BackupService.restoredSolverRowsSettingKey,
+      },
       report: report,
     );
 
@@ -91,6 +98,13 @@ class BackupService {
   /// another machine would otherwise repoint this install's backup folder,
   /// and its retention deletes, at a path that machine chose.
   static const String backupDirectorySettingKey = 'backup.directory';
+
+  /// Set in a database a replace-restore builds, to the plate-solver rows the
+  /// backup carried (comma separated): they are written to the native
+  /// preference when it is first opened (the preference is a file outside
+  /// the database, which the restore does not replace).
+  static const String restoredSolverRowsSettingKey =
+      'backup.restored_solver_rows';
   final String runtimeAppVersion;
 
   /// The columns the sections of a backup older than 3.1 named, by table,
@@ -245,6 +259,10 @@ class BackupService {
           staged,
           backupName: path.basename(file.path),
           backupCreatedAt: loaded.contents.sections['createdAt'],
+          backupSettingKeys: switch (loaded.contents.sections['settings']) {
+            final Map<String, dynamic> settings => settings.keys.toSet(),
+            _ => const <String>{},
+          },
           onProgress: (step, fraction) =>
               onProgress?.call(RestoreProgress(step, 0.7 + 0.3 * fraction)),
         );

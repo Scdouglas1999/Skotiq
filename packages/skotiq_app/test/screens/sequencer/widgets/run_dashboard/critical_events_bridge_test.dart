@@ -71,7 +71,7 @@ bridge_event.SkotiqEvent _criticalSystemErrorEvent({
 }
 
 /// Starts the critical-alert services [role] runs, as the app does at launch.
-void _startCriticalAlerts(ProviderContainer container, AppRole role) {
+void _startCriticalAlerts(ProviderContainer container, LaunchRole role) {
   final providers = <ProviderListenable<Object?>>[
     runCriticalAlertsProvider,
     runCriticalAlertSoundProvider,
@@ -161,7 +161,7 @@ void main() {
       });
       addTearDown(pushSub.cancel);
 
-      _startCriticalAlerts(container, AppRole.hostGui);
+      _startCriticalAlerts(container, LaunchRole.hostGui);
 
       // Inject a critical event into the history. The bridge listens to
       // `eventHistoryProvider`; pushing through its notifier is the same
@@ -192,7 +192,7 @@ void main() {
 
     Future<List<PushNotification>> pushesFor(
       ProviderContainer container,
-      AppRole role,
+      LaunchRole role,
     ) async {
       await container.read(appSettingsProvider.future);
       final pushService = container.read(pushNotificationServiceProvider);
@@ -252,7 +252,7 @@ void main() {
       final received = <PushNotification>[];
       final pushSub = pushService.notifications.listen(received.add);
       addTearDown(pushSub.cancel);
-      _startCriticalAlerts(container, AppRole.hostDaemon);
+      _startCriticalAlerts(container, LaunchRole.hostDaemon);
 
       final history = container.read(eventHistoryProvider.notifier);
       history.addEvent(
@@ -314,7 +314,7 @@ void main() {
         final received = <PushNotification>[];
         final pushSub = pushService.notifications.listen(received.add);
         addTearDown(pushSub.cancel);
-        _startCriticalAlerts(container, AppRole.hostDaemon);
+        _startCriticalAlerts(container, LaunchRole.hostDaemon);
         container.read(eventHistoryProvider.notifier).addEvent(
               bridge_event.SkotiqEvent(
                 eventId: BigInt.from(41),
@@ -353,7 +353,7 @@ void main() {
         audibleAlertsOnCritical: true,
         pushCriticalAlerts: true,
       );
-      final pushes = await pushesFor(container, AppRole.hostGui);
+      final pushes = await pushesFor(container, LaunchRole.hostGui);
       expect(pushes, hasLength(1));
       expect(player.playCalls, ['systemBell']);
     });
@@ -363,7 +363,7 @@ void main() {
         audibleAlertsOnCritical: true,
         pushCriticalAlerts: true,
       );
-      final pushes = await pushesFor(container, AppRole.hostDaemon);
+      final pushes = await pushesFor(container, LaunchRole.hostDaemon);
       expect(pushes, hasLength(1));
       expect(player.playCalls, isEmpty);
     });
@@ -373,7 +373,7 @@ void main() {
         audibleAlertsOnCritical: true,
         pushCriticalAlerts: true,
       );
-      final pushes = await pushesFor(container, AppRole.linkedClient);
+      final pushes = await pushesFor(container, LaunchRole.linkedClient);
       expect(pushes, isEmpty);
       expect(player.playCalls, ['systemBell']);
       expect(container.read(runDashboardCriticalEventsProvider), hasLength(1));
@@ -386,7 +386,7 @@ void main() {
       );
       await container.read(appSettingsProvider.future);
 
-      _startCriticalAlerts(container, AppRole.hostGui);
+      _startCriticalAlerts(container, LaunchRole.hostGui);
 
       // Fire 5 critical events in rapid succession.
       for (var i = 1; i <= 5; i++) {
@@ -410,7 +410,7 @@ void main() {
       );
       await container.read(appSettingsProvider.future);
 
-      _startCriticalAlerts(container, AppRole.hostGui);
+      _startCriticalAlerts(container, LaunchRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 7));
@@ -440,7 +440,7 @@ void main() {
       final pushSub = pushService.notifications.listen(received.add);
       addTearDown(pushSub.cancel);
 
-      _startCriticalAlerts(container, AppRole.hostGui);
+      _startCriticalAlerts(container, LaunchRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 11));
@@ -470,7 +470,7 @@ void main() {
       });
       addTearDown(pushSub.cancel);
 
-      _startCriticalAlerts(container, AppRole.hostGui);
+      _startCriticalAlerts(container, LaunchRole.hostGui);
       container
           .read(eventHistoryProvider.notifier)
           .addEvent(_criticalSystemErrorEvent(id: 13));

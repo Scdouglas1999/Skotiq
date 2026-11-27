@@ -522,13 +522,27 @@ class DemoBackend extends _DemoRigCore
       if (_filterWheel.connected)
         if (_filterWheel.nameOf(_filterWheel.positionAt(t)) case final name?)
           ('FILTER', name, null),
-      if (_focuser.connected) ('FOCPOS', _focuser.positionAt(t), 'steps'),
+      // The keywords the native writer uses (frame_header/mod.rs), so a demo
+      // frame reads like a rig's.
+      if (_focuser.connected) ('FOCUSPOS', _focuser.positionAt(t), 'steps'),
       if (_mount.connected) ...[
         ('RA', _mount.position().raHours * 15.0, 'degrees'),
+        ('OBJCTRA', demoSexagesimal(_mount.position().raHours), null),
         ('DEC', _mount.position().decDeg, 'degrees'),
+        (
+          'OBJCTDEC',
+          demoSexagesimal(_mount.position().decDeg, signed: true),
+          null,
+        ),
       ],
+      if (header.focalLength case final focal?) ('FOCALLEN', focal, 'mm'),
+      if (header.aperture case final aperture?) ('APTDIA', aperture, 'mm'),
       if (header.telescope != null) ('TELESCOP', header.telescope!, null),
       if (header.observer != null) ('OBSERVER', header.observer!, null),
+      if (header.siteLatitude case final lat?) ('SITELAT', lat, 'degrees'),
+      if (header.siteLongitude case final long?) ('SITELONG', long, 'degrees'),
+      if (header.siteElevation case final elevation?)
+        ('SITEELEV', elevation, 'meters'),
     ];
     final bytes = encodeDemoFits(
       width: frame.width,

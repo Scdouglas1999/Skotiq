@@ -8,6 +8,7 @@ import 'package:skotiq_app/screens/imaging/widgets/stacking_panel.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
@@ -114,6 +115,9 @@ Future<_Harness> _pumpPanel(
   bool onHost = false,
   bool nativeLibrary = true,
 }) async {
+  DeviceTraits.debugOverride =
+      nativeLibrary ? DeviceTraits.desktop : DeviceTraits.phone;
+  addTearDown(() => DeviceTraits.debugOverride = null);
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(420, 1600);
   addTearDown(() {
@@ -128,7 +132,6 @@ Future<_Harness> _pumpPanel(
       inMemoryDatabaseOverride(),
       isRemoteModeProvider.overrideWithValue(false),
       connectedCameraIdProvider.overrideWithValue(null),
-      savedFrameDecodesOnDeviceProvider.overrideWithValue(nativeLibrary),
       stackingMasterDestinationPickerProvider.overrideWithValue(
         (suggestedName) async {
           _log.add('pick:$suggestedName');

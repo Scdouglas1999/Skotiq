@@ -136,6 +136,7 @@ abstract interface class YourSkyAtlas {
 }
 
 final yourSkyAtlasProvider = hostRoleProvider<YourSkyAtlas>(
+  phoneKeeps: true,
   here: (ref) => _LocalYourSkyAtlas(
     ref.watch(skyAtlasServiceProvider),
     ref.watch(skyAtlasDaoProvider),

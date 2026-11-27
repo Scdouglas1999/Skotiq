@@ -16,6 +16,7 @@ import '../backend/disconnected_backend.dart';
 import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
 import 'database_provider.dart';
+import 'launch_role.dart';
 import 'host_mutation_event_provider.dart';
 import 'native_events_lost_notice.dart';
 import 'ui_notification_provider.dart';
@@ -109,8 +110,8 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     _demoRigLatitude = latitudeDeg;
     _demoRigLongitude = longitudeDeg;
     final current = state;
-    final resting = current.hasNoHost || current.isDemoRig;
-    if (!resting || current.isDemoRig == wanted) return;
+    final resting = current.hostPlace.offersLink;
+    if (!resting || (current.hostPlace == HostPlace.demo) == wanted) return;
     final next = _restingBackend();
     try {
       // The current generation, not a new one: this must never supersede a
@@ -401,13 +402,12 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
 
     final executionState = _ref.read(sequenceExecutionStateProvider);
     final outgoingHostIsControllable =
-        !oldBackend.hasNoHost &&
+        oldBackend.hostPlace != HostPlace.none &&
         (oldBackend.remoteHost?.link.connectionState ??
                 BackendConnectionState.connected) ==
             BackendConnectionState.connected;
     final leavingRemoteHost =
-        oldBackend.linksToHost &&
-        (newBackend.hasNoHost || newBackend.isDemoRig);
+        oldBackend.hostPlace.isLinked && newBackend.hostPlace.offersLink;
     if (outgoingHostIsControllable &&
         executionState.isBusy &&
         !leavingRemoteHost) {
@@ -510,12 +510,12 @@ final backendProvider = StateNotifierProvider<BackendNotifier, SkotiqBackend>((
 /// store serves host data is a [hostRoleProvider] (`host_role.dart`), never a
 /// test of this flag.
 final isRemoteModeProvider = Provider<bool>(
-  (ref) => ref.watch(backendProvider).linksToHost,
+  (ref) => ref.watch(backendProvider).hostPlace.isLinked,
 );
 
-/// True when this process was LAUNCHED as a thin client of a remote imaging
-/// host — the desktop's `--remote-host` flag — rather than as the machine that
-/// owns the hardware.
+/// True when this process was LAUNCHED as a client of an imaging host on
+/// another machine — the phone app, or a desktop started with `--remote-host`
+/// — rather than as the machine that owns the hardware.
 ///
 /// This is the ROLE, which is fixed at launch. [isRemoteModeProvider] answers a
 /// narrower question: whether a remote connection is open right now. The two
@@ -523,12 +523,11 @@ final isRemoteModeProvider = Provider<bool>(
 /// handshake, and again whenever the connection drops — and a surface that
 /// decides WHOSE database it is editing has to read the role, because a
 /// never-connected client owns none of the host's rows and a row it writes
-/// locally is a row no dawn job will ever read.
-///
-/// Defaults to false: a process that never overrides it owns its own hardware.
-/// The desktop entry point overrides it from the launch flags it already
-/// parses.
-final remoteClientLaunchProvider = Provider<bool>((ref) => false);
+/// locally is a row no dawn job will ever read. The phone's demo rig is a
+/// client resting on simulated equipment: it owns no host features either.
+final remoteClientLaunchProvider = Provider<bool>(
+  (ref) => !ref.watch(launchRoleProvider).ownsRig,
+);
 
 /// True when this process must treat the imaging host's data as another
 /// machine's: it is connected to one now, or it was launched as one's client.
@@ -619,7 +618,7 @@ final networkBackendConnectionStateProvider =
 /// unreachable host.
 final backendCanCommandProvider = Provider<bool>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend.hasNoHost) return false;
+  if (backend.hostPlace == HostPlace.none) return false;
   if (backend.remoteHost != null) {
     return ref.watch(networkBackendConnectionStateProvider).valueOrNull ==
         BackendConnectionState.connected;

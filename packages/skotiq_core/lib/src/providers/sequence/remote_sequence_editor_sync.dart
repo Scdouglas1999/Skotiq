@@ -225,7 +225,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
 
   late final RemoteSequencePreSwapFlush preSwapFlush;
   preSwapFlush = (outgoingBackend, {required requireSuccess}) async {
-    if (isDisposed || !outgoingBackend.linksToHost) return;
+    if (isDisposed || !outgoingBackend.hostPlace.isLinked) return;
     if (ref.backendScopeOver(outgoingBackend).isStale) return;
     await flushPending(reason: 'backend_swap', drainLatest: true);
     if (requireSuccess &&
@@ -253,7 +253,7 @@ final remoteSequenceEditorSyncProvider = Provider<void>((ref) {
       writeThroughTimer = null;
       syncState.reset();
     }
-    if (!next.linksToHost) {
+    if (!next.hostPlace.isLinked) {
       debounce?.cancel();
       debounce = null;
     }

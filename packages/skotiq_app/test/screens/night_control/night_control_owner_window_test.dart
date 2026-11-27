@@ -140,7 +140,7 @@ void main() {
     addTearDown(pushSub.cancel);
     final services = startAlwaysOnServices(
       container,
-      AppRole.hostGui,
+      LaunchRole.hostGui,
       services: [
         for (final service in alwaysOnServices)
           if (identical(service.provider, runCriticalAlertsProvider) ||

@@ -163,7 +163,7 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
   ) {
     final guiderState = ref.watch(guiderStateProvider);
     final guiderId = _selectedGuiderId();
-    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
+    final isPhd2Guider = _selectedGuiderKind() == GuiderKind.phd2;
     final connecting =
         guiderState.connectionState == DeviceConnectionState.connecting;
 

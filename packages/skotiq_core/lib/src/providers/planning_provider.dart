@@ -210,6 +210,7 @@ final projectListProvider = StreamProvider<List<Project>>((ref) {
 /// stream here.
 final _projectListFeedProvider =
     hostRoleProvider<Stream<List<Project>> Function(ProjectService service)>(
+      phoneKeeps: true,
       here: (_) => (service) async* {
         yield await service.listProjects();
         await for (final _ in service.watchChanges()) {

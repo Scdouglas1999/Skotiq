@@ -172,7 +172,7 @@ class _RemoteConnectionIndicatorState
         },
       );
     }
-    if (ref.watch(backendProvider).isDemoRig) {
+    if (ref.watch(backendProvider).hostPlace == HostPlace.demo) {
       return _build(context, RemoteConnectionStatus.demoRig, hostAddress: null);
     }
     // A launch linked to a host that has not answered yet has no backend to
@@ -576,7 +576,7 @@ class _RemoteConnectionSheetState
     final unansweredSeconds =
         hostLink == null ? null : unansweredSecondsFor(hostLink);
     var status = hostLink == null
-        ? (activeBackend.isDemoRig
+        ? (activeBackend.hostPlace == HostPlace.demo
             ? RemoteConnectionStatus.demoRig
             : RemoteConnectionStatus.notConnected)
         : _statusForConnectionState(hostLink.connectionState);
@@ -700,7 +700,9 @@ class _RemoteConnectionSheetState
                 ),
               ),
             ),
-          ] else if (hostLink == null && !activeBackend.hasNoHost && canSwitch)
+          ] else if (hostLink == null &&
+              activeBackend.hostPlace != HostPlace.none &&
+              canSwitch)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: SizedBox(
@@ -758,7 +760,7 @@ class _RemoteConnectionSheetState
           // Gated on the backend TYPE, not on `status`: a local FFI desktop is
           // also "notConnected" to a server, and offering it a way to local
           // mode it is already in would be a control that does nothing.
-          if (activeBackend.hasNoHost && canWorkLocally)
+          if (activeBackend.hostPlace == HostPlace.none && canWorkLocally)
             const Padding(
               padding: EdgeInsets.only(top: 8),
               child: WorkLocallyButton(

@@ -181,5 +181,14 @@ void main() {
       ).getConfiguredBackupDirectory(),
       chosen.path,
     );
+    expect(
+      await SettingsDao(
+        replaced,
+      ).getSetting(BackupService.restoredSolverRowsSettingKey),
+      isNull,
+      reason:
+          'a bundle without plate-solver rows leaves the solver '
+          'preference as it is',
+    );
   });
 }

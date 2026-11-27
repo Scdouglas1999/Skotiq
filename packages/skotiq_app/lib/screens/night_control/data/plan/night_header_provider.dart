@@ -74,7 +74,8 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
           NightRunPhase.notSetUp:
       final notReady = _notReadyReason(
         tree,
-        hasHost: !ref.watch(backendProvider.select((b) => b.hasNoHost)),
+        hasHost: !ref.watch(
+            backendProvider.select((b) => b.hostPlace == HostPlace.none)),
         cameraConnected: ref.watch(nightCameraConnectedProvider),
       );
       startNow = notReady != null

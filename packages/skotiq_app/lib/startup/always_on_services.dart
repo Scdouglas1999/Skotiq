@@ -6,33 +6,22 @@ import '../screens/night_control/data/plan/scheduler_provider.dart';
 import '../services/run_dashboard_providers.dart';
 import 'location_sync_service.dart';
 
-/// What this process is, decided once at launch.
-enum AppRole {
-  /// A desktop window that owns the hardware.
-  hostGui,
-
-  /// The windowless daemon (`--headless`) that owns the hardware.
-  hostDaemon,
-
-  /// A desktop window driving another computer's rig.
-  linkedClient,
-
-  /// The phone or tablet app.
-  mobile,
-}
-
 const _everyRole = {
-  AppRole.hostGui,
-  AppRole.hostDaemon,
-  AppRole.linkedClient,
-  AppRole.mobile,
+  LaunchRole.hostGui,
+  LaunchRole.hostDaemon,
+  LaunchRole.linkedClient,
+  LaunchRole.mobile,
 };
 
 /// Roles with a screen and a person in front of it.
-const _windows = {AppRole.hostGui, AppRole.linkedClient, AppRole.mobile};
+const _windows = {
+  LaunchRole.hostGui,
+  LaunchRole.linkedClient,
+  LaunchRole.mobile
+};
 
 /// Roles that own the hardware and the database.
-const _hosts = {AppRole.hostGui, AppRole.hostDaemon};
+const _hosts = {LaunchRole.hostGui, LaunchRole.hostDaemon};
 
 /// A provider that does its work only while something listens to it, and
 /// which must therefore be listened to for the life of the app.
@@ -41,7 +30,7 @@ class AlwaysOnService {
 
   final String name;
   final ProviderListenable<Object?> provider;
-  final Set<AppRole> roles;
+  final Set<LaunchRole> roles;
 
   /// What stops happening when this is not running.
   final String does;
@@ -389,7 +378,7 @@ final List<AlwaysOnService> alwaysOnServices = [
 class AlwaysOnServices {
   AlwaysOnServices._(this.role, this._subscriptions, this.running);
 
-  final AppRole role;
+  final LaunchRole role;
   final List<ProviderSubscription<Object?>> _subscriptions;
 
   /// Names of the services that started, in table order.
@@ -412,7 +401,7 @@ class AlwaysOnServices {
 /// One service failing to start is logged and does not stop the others.
 AlwaysOnServices startAlwaysOnServices(
   ProviderContainer container,
-  AppRole role, {
+  LaunchRole role, {
   List<AlwaysOnService>? services,
   List<AlwaysOnService> platformServices = const [],
 }) {

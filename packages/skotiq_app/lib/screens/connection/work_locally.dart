@@ -1,33 +1,33 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/snackbar_helper.dart';
+import 'link_rig_actions.dart' show useThisComputerInstead;
 
 /// Whether this build can stand up a local backend at all.
 ///
 /// Only the desktop/headless entry points install an FfiBackend
 /// (`apps/desktop/lib/main.dart`); the phone app is a client of a rig it never
 /// owns, so offering "work locally" there would be a button to nowhere.
-bool get canWorkLocally =>
-    debugCanWorkLocallyOverride ??
-    (Platform.isLinux || Platform.isMacOS || Platform.isWindows);
-
-/// Lets a widget test on a desktop host render what a phone renders.
-@visibleForTesting
-bool? debugCanWorkLocallyOverride;
+bool get canWorkLocally => DeviceTraits.current.nativeLibrary;
 
 /// Reinstate the local [FfiBackend] on a machine sitting on a
 /// [DisconnectedBackend], and say what happened.
 ///
 /// Shared by Settings, the disconnected banner, and the title-bar popover so
-/// superseded transitions are handled consistently.
+/// superseded transitions are handled consistently. The role is fixed for the
+/// life of the process, so a client launch (`--remote-host`) restarts as this
+/// computer's host ([useThisComputerInstead]) instead of swapping backends.
 Future<void> switchToLocalBackend(BuildContext context, WidgetRef ref) async {
+  if (ref.read(remoteClientLaunchProvider)) {
+    await useThisComputerInstead(context, ref);
+    return;
+  }
   try {
     await ref.read(backendProvider.notifier).useLocalBackend();
     if (context.mounted) {

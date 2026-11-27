@@ -22,21 +22,28 @@ void main() {
     });
 
     test('the bridges that were defined but never ran are in it', () {
-      const hosts = {AppRole.hostGui, AppRole.hostDaemon};
-      const windows = {AppRole.hostGui, AppRole.linkedClient, AppRole.mobile};
+      const hosts = {LaunchRole.hostGui, LaunchRole.hostDaemon};
+      const windows = {
+        LaunchRole.hostGui,
+        LaunchRole.linkedClient,
+        LaunchRole.mobile
+      };
 
       expect(_entry(usbDisconnectEventBridgeProvider).roles,
-          AppRole.values.toSet());
-      expect(_entry(hotplugEventBridgeProvider).roles, AppRole.values.toSet());
+          LaunchRole.values.toSet());
+      expect(
+          _entry(hotplugEventBridgeProvider).roles, LaunchRole.values.toSet());
       // The session record reads the recovery history on a daemon too, where
       // no banner is ever mounted.
-      expect(_entry(recoveryEventBridgeProvider).roles, AppRole.values.toSet());
+      expect(
+          _entry(recoveryEventBridgeProvider).roles, LaunchRole.values.toSet());
       // A sound needs someone to hear it; a push needs the host's queue.
       expect(_entry(recoveryAudibleBridgeProvider).roles, windows);
       expect(_entry(recoveryPushBridgeProvider).roles, hosts);
       expect(_entry(liveStackingKillSwitchBridgeProvider).roles, hosts);
       // Critical run alerts reach the operator whichever screen is open.
-      expect(_entry(runCriticalAlertsProvider).roles, AppRole.values.toSet());
+      expect(
+          _entry(runCriticalAlertsProvider).roles, LaunchRole.values.toSet());
       expect(_entry(runCriticalAlertSoundProvider).roles, windows);
       expect(_entry(runCriticalAlertPushProvider).roles, hosts);
     });
@@ -57,7 +64,7 @@ void main() {
       ]) {
         expect(
           _entry(provider).roles,
-          containsAll([AppRole.hostGui, AppRole.hostDaemon]),
+          containsAll([LaunchRole.hostGui, LaunchRole.hostDaemon]),
           reason: _entry(provider).name,
         );
       }
@@ -80,10 +87,10 @@ void main() {
 
       final running = startAlwaysOnServices(
         container,
-        AppRole.hostDaemon,
+        LaunchRole.hostDaemon,
         services: [
-          AlwaysOnService('host', host, {AppRole.hostDaemon}, 'x'),
-          AlwaysOnService('client', client, {AppRole.linkedClient}, 'x'),
+          AlwaysOnService('host', host, {LaunchRole.hostDaemon}, 'x'),
+          AlwaysOnService('client', client, {LaunchRole.linkedClient}, 'x'),
         ],
       );
 
@@ -102,9 +109,9 @@ void main() {
 
       startAlwaysOnServices(
         container,
-        AppRole.hostGui,
+        LaunchRole.hostGui,
         services: [
-          AlwaysOnService('follows', service, {AppRole.hostGui}, 'x'),
+          AlwaysOnService('follows', service, {LaunchRole.hostGui}, 'x'),
         ],
       );
       container.read(dependency.notifier).state = 1;
@@ -120,10 +127,10 @@ void main() {
 
       final running = startAlwaysOnServices(
         container,
-        AppRole.mobile,
+        LaunchRole.mobile,
         services: [
-          AlwaysOnService('broken', broken, {AppRole.mobile}, 'x'),
-          AlwaysOnService('healthy', healthy, {AppRole.mobile}, 'x'),
+          AlwaysOnService('broken', broken, {LaunchRole.mobile}, 'x'),
+          AlwaysOnService('healthy', healthy, {LaunchRole.mobile}, 'x'),
         ],
       );
 
@@ -137,10 +144,10 @@ void main() {
 
       startAlwaysOnServices(
         container,
-        AppRole.mobile,
+        LaunchRole.mobile,
         services: const [],
         platformServices: [
-          AlwaysOnService('platform', platform, {AppRole.mobile}, 'x'),
+          AlwaysOnService('platform', platform, {LaunchRole.mobile}, 'x'),
         ],
       );
 
@@ -157,9 +164,9 @@ void main() {
 
       final running = startAlwaysOnServices(
         container,
-        AppRole.hostGui,
+        LaunchRole.hostGui,
         services: [
-          AlwaysOnService('service', service, {AppRole.hostGui}, 'x'),
+          AlwaysOnService('service', service, {LaunchRole.hostGui}, 'x'),
         ],
       );
       running.stop();

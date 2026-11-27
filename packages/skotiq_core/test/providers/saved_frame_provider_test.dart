@@ -13,13 +13,26 @@ import 'package:path/path.dart' as p;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart'
-    show CapturedImageResult, ImageStatsResult;
+    show
+        CapturedImageResult,
+        DeviceType,
+        FitsWriteHeader,
+        FrameType,
+        ImageStatsResult;
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/src/backend/demo_backend/demo_star_field.dart';
 import 'package:skotiq_core/src/models/imaging/saved_frame.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 
 class _MockImagingBackend extends Mock implements ImagingBackend {}
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _PinnedBackend extends BackendNotifier {
+  _PinnedBackend(super.ref, SkotiqBackend backend) {
+    state = backend;
+  }
+}
 
 bridge.FitsReadResult _decoded(int width, int height) => bridge.FitsReadResult(
   width: width,
@@ -267,11 +280,12 @@ void main() {
           timestamp: _capturedAt.toIso8601String(),
         ),
       );
+      DeviceTraits.debugOverride = DeviceTraits.phone;
+      addTearDown(() => DeviceTraits.debugOverride = null);
       final c = ProviderContainer(
         overrides: [
           imagingBackendProvider.overrideWithValue(backend),
           isRemoteModeProvider.overrideWithValue(true),
-          savedFrameDecodesOnDeviceProvider.overrideWithValue(false),
           linkedHostImagingRecordsProvider.overrideWithValue(network),
           frameFileDecoderProvider.overrideWithValue((path) async {
             decoded.add(path);
@@ -298,6 +312,53 @@ void main() {
       verify(
         () => network.getSavedFrameJpeg(7, maxWidth: hostDrawnFrameMaxEdge),
       ).called(1);
+    },
+  );
+
+  test(
+    'a frame the demo rig saved opens on the phone, drawn as it was live',
+    () async {
+      DeviceTraits.debugOverride = DeviceTraits.phone;
+      addTearDown(() => DeviceTraits.debugOverride = null);
+      final demo = DemoBackend(
+        latitudeDeg: 40,
+        longitudeDeg: -105,
+        renderFrame: (request) async => renderDemoFrame(request),
+        scratchDirectory: () async => cache,
+        cameraWidth: 64,
+        cameraHeight: 48,
+      );
+      await demo.connectDevice(DeviceType.camera, DemoDeviceIds.camera);
+      await demo.cameraStartExposure(
+        deviceId: DemoDeviceIds.camera,
+        exposureTime: 2,
+        frameType: FrameType.light,
+      );
+      final live = (await demo.cameraGetLastImage(DemoDeviceIds.camera))!;
+      final path = await demo.saveFitsFromLastCapture(
+        deviceId: DemoDeviceIds.camera,
+        filePath: p.join(cache.path, 'M31_L_0001.fits'),
+        headerData: const FitsWriteHeader(
+          exposureTime: 2,
+          captureTimestamp: '2026-11-26T03:00:00Z',
+          frameType: 'Light',
+          objectName: 'M31',
+        ),
+      );
+      final c = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith((ref) => _PinnedBackend(ref, demo)),
+        ],
+      );
+      addTearDown(c.dispose);
+
+      final load = await _settled(c, _frame(hostPath: path));
+
+      expect(load, isA<SavedFrameReady>());
+      final image = (load as SavedFrameReady).image;
+      expect((image.width, image.height), (64, 48));
+      expect(image.displayData, live.displayData);
+      expect(image.settings.exposureTime, 2);
     },
   );
 }

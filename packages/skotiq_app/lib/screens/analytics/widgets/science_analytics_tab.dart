@@ -1,6 +1,5 @@
 import '../analytics_exports.dart';
 import 'dart:math' as math;
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +12,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 
 import '../../../services/host_folders.dart';
 import '../../../utils/exported_file_reveal.dart';

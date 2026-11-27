@@ -12,6 +12,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/site_angle.dart';
@@ -126,7 +127,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
         final isRemoteMode = ref.watch(isRemoteModeProvider);
         // A phone is the device that stands at the rig and has a GPS, so its
         // Detect is the quickest way to a site and says so.
-        final onPhone = Platform.isAndroid || Platform.isIOS;
+        final onPhone = DeviceTraits.current.touchOs;
         final storedGoogleKey = ref.watch(googleGeolocationKeyProvider).value;
         if (storedGoogleKey != null) _seedGoogleKey(storedGoogleKey);
         final horizonProfile =

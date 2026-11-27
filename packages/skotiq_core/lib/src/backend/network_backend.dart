@@ -213,6 +213,10 @@ abstract class NetworkBackendTransport {
   final StreamController<Map<String, dynamic>> _polarAlignController =
       StreamController<Map<String, dynamic>>.broadcast();
 
+  /// True for the stand-in host of a client that is not linked: every request
+  /// throws [HostNotLinkedException] before any socket is opened.
+  final bool _refusesEveryCall;
+
   /// Persistent HTTP client for connection reuse.
   /// Using a single client avoids TCP connection churn and enables
   /// keep-alive connections for better performance.
@@ -378,7 +382,9 @@ abstract class NetworkBackendTransport {
     Duration? connectionTimeout,
     http.Client? httpClient,
     bool autoConnectWebSocket = true,
-  }) : scheme = _normalizeScheme(scheme),
+    bool refusesEveryCall = false,
+  }) : _refusesEveryCall = refusesEveryCall,
+       scheme = _normalizeScheme(scheme),
        isRemoteHost = TailnetDetector.isTailscaleEndpoint(serverHost),
        webSocketHeartbeatInterval =
            webSocketHeartbeatInterval ?? const Duration(seconds: 15),
@@ -550,7 +556,10 @@ abstract class NetworkBackendTransport {
 
   Future<bool> testConnection() => _testConnection();
 
-  Future<void> connect() => _connect();
+  Future<void> connect() async {
+    if (_refusesEveryCall) throw const HostNotLinkedException();
+    return _connect();
+  }
 
   void pauseWebSocketHeartbeatForAppLifecycle() =>
       _pauseWebSocketHeartbeatForAppLifecycle();
@@ -653,4 +662,31 @@ class NetworkBackend extends NetworkBackendTransport
     super.httpClient,
     super.autoConnectWebSocket,
   });
+
+  /// The host of a client that is not linked to one: it never connects, and
+  /// every call it is asked to make throws [HostNotLinkedException].
+  NetworkBackend.unlinked()
+    : super(
+        serverHost: 'unlinked.invalid',
+        autoConnectWebSocket: false,
+        httpClient: _RefusingHttpClient(),
+        refusesEveryCall: true,
+      );
+}
+
+/// Thrown by every call to the host of a client that is not linked to one.
+class HostNotLinkedException implements Exception {
+  const HostNotLinkedException();
+
+  @override
+  String toString() =>
+      'Not linked to an imaging host. This lives on the imaging computer; '
+      'link to it to see it here.';
+}
+
+/// The JSON client of [NetworkBackend.unlinked]: refuses without a socket.
+class _RefusingHttpClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      Future<http.StreamedResponse>.error(const HostNotLinkedException());
 }

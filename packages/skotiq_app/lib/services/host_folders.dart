@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart' show DeviceTraits;
 
 import '../utils/snackbar_helper.dart';
 import '../widgets/remote_directory_picker_dialog.dart';
@@ -260,7 +261,7 @@ class LocalFolders extends HostFolders {
   /// made first.
   Future<void> reveal(BuildContext context, String path) async {
     await create(path);
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (DeviceTraits.current.touchOs) {
       await Clipboard.setData(ClipboardData(text: path));
       if (context.mounted) context.showSuccessSnackBar('Path copied: $path');
       return;

@@ -58,10 +58,12 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   }
 
   /// A companion that has not reached its host must not be offered this
-  /// machine's sessions. The check stays unconsumed until the link exists.
+  /// machine's sessions. The check waits for the link; both turns are passed
+  /// meanwhile so later prompts are not held, and the link asks for them
+  /// again.
   bool _waitsForHost() =>
       ref.read(remoteClientLaunchProvider) &&
-      !ref.read(backendProvider).linksToHost;
+      !ref.read(backendProvider).hostPlace.isLinked;
 
   void _passBoth() {
     _queue
@@ -73,7 +75,10 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   /// their turn when it returns, so the prompts after them never wait on a
   /// check that ended early.
   Future<void> _checkForStartupOptions() async {
-    if (_waitsForHost()) return;
+    if (_waitsForHost()) {
+      _passBoth();
+      return;
+    }
     try {
       await _checkSessions();
     } finally {
@@ -607,9 +612,13 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
   Widget build(BuildContext context) {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (_hasChecked) return;
-      if (!ref.read(remoteClientLaunchProvider) || !next.linksToHost) return;
+      if (!ref.read(remoteClientLaunchProvider) || !next.hostPlace.isLinked)
+        return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _hasChecked || _waitsForHost()) return;
+        _queue
+          ..expect(StartupSurface.interruptedSession)
+          ..expect(StartupSurface.quickStart);
         unawaited(_checkForStartupOptions());
       });
     });

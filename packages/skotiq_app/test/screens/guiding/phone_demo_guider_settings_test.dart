@@ -48,4 +48,44 @@ void main() {
     expect(find.text('Open guider settings'), findsNothing);
     expect(find.text('External guider'), findsNothing);
   });
+
+  for (final (layout, size) in [
+    ('phone', const Size(360, 780)),
+    ('wide', const Size(1280, 800)),
+  ]) {
+    testWidgets(
+        'the $layout controls say the demo guider needs no '
+        'calibration, and send nowhere', (tester) async {
+      final demo = DemoBackend(latitudeDeg: 40, longitudeDeg: -105);
+      addTearDown(demo.dispose);
+      await pumpAppScreen(
+        tester,
+        const GuidingScreen(),
+        size: size,
+        settle: false,
+        extraOverrides: [
+          backendProvider.overrideWith((ref) => TestBackendNotifier(ref, demo)),
+          guiderStateProvider.overrideWith(_DemoGuiderConnected.new),
+          phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
+        ],
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      if (layout == 'phone') {
+        await tester.tap(find.bySemanticsLabel(RegExp('^Controls')).last);
+      }
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.dragUntilVisible(
+        find.text('Demo guider'),
+        find.byType(Scrollable).last,
+        const Offset(0, -200),
+      );
+
+      expect(find.text('Demo guider'), findsOneWidget);
+      expect(find.text('External guider'), findsNothing);
+      expect(find.text('Open equipment'), findsNothing);
+      expect(find.text('Guider settings'), findsNothing);
+    });
+  }
 }

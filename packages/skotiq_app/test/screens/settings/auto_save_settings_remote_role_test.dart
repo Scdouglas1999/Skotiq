@@ -100,6 +100,28 @@ void main() {
     service.dispose();
   });
 
+  testWidgets('the phone app is told where the schedule lives, linked or not',
+      (tester) async {
+    final database = mockDatabase();
+    addTearDown(database.close);
+
+    final service = _service();
+    await pumpAppScreen(
+      tester,
+      const AutoSaveSettings(),
+      database: database,
+      extraOverrides: [
+        autoSaveServiceProvider.overrideWithValue(service),
+        launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+        isRemoteModeProvider.overrideWithValue(false),
+      ],
+    );
+
+    expect(find.text('Configure on the host'), findsOneWidget);
+    expect(find.text('Enable automatic backups'), findsNothing);
+    service.dispose();
+  });
+
   testWidgets('a host launch keeps its own schedule editor', (tester) async {
     final database = mockDatabase();
     addTearDown(database.close);

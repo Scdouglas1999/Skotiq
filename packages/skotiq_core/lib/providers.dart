@@ -65,6 +65,7 @@ export 'src/providers/backend_provider.dart';
 export 'src/providers/demo_rig_provider.dart';
 export 'src/providers/host_paths.dart';
 export 'src/providers/host_role.dart';
+export 'src/providers/launch_role.dart';
 export 'src/providers/linked_host.dart';
 export 'src/providers/captured_image_rows.dart';
 export 'src/providers/remote_session_sync_provider.dart';

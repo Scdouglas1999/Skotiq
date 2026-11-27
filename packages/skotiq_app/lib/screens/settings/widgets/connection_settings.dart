@@ -30,7 +30,7 @@ class ConnectionSettings extends ConsumerWidget {
     final isNetwork = hostLink != null;
     // The demo rig is not linked to anything: it offers the link as no
     // backend does.
-    final isDisconnected = backend.hasNoHost || backend.isDemoRig;
+    final isDisconnected = backend.hostPlace.offersLink;
     // Live connection state — the authoritative signal for whether a network
     // backend is actually connected, mid-handshake, or errored. Relying on
     // `backend.remoteHost != null` alone would render a still-connecting (or a
@@ -64,7 +64,7 @@ class ConnectionSettings extends ConsumerWidget {
         connectionStatus = 'Connecting...';
         statusColor = colors.warning;
       }
-    } else if (backend.isDemoRig) {
+    } else if (backend.hostPlace == HostPlace.demo) {
       serverAddress = 'Not linked: simulated equipment on this phone';
       connectionStatus = 'Demo rig';
       statusColor = colors.warning;

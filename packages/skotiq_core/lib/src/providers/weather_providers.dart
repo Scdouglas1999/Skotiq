@@ -93,6 +93,7 @@ typedef WeatherSettingsChange = ({
 });
 
 final weatherRulesProvider = hostRoleProvider<WeatherRules>(
+  phoneKeeps: true,
   here: (ref) => _LocalWeatherRules(ref.watch(databaseProvider)),
   linked: (ref, host) => _HostWeatherRules(host.weather),
 );
@@ -429,7 +430,7 @@ RadarProviderType _parseProviderType(String providerString) {
 final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
   // A viewer shows the host's forecast. It does not fetch the sky for its
   // own site, which may be unset or a different place than the rig.
-  if (ref.watch(backendProvider).linksToHost) {
+  if (ref.watch(backendProvider).hostPlace.isLinked) {
     return ref.watch(hostForecastCloudCoverProvider);
   }
   return (await ref.watch(currentSkyProvider.future))?.percent;

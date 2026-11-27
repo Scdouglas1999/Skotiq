@@ -1,3 +1,4 @@
+import 'package:skotiq_core/providers.dart' show LaunchRole;
 import 'package:skotiq_app/startup/always_on_services.dart';
 
 import 'live_activity_lifecycle_provider.dart';
@@ -6,7 +7,7 @@ import 'poll_rate_service.dart';
 import 'voice_control_lifecycle_provider.dart';
 import 'watch_complication_lifecycle_provider.dart';
 
-const _mobile = {AppRole.mobile};
+const _mobile = {LaunchRole.mobile};
 
 /// The phone app's own always-on services: the ones that talk to iOS and
 /// Android. They are started with the shared table in

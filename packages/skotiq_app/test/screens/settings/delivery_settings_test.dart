@@ -1227,6 +1227,33 @@ void main() {
   );
 
   testWidgets(
+    'the phone app, not linked, is told where destinations live',
+    (tester) async {
+      _swallowKnownOverflows();
+      final database = mockDatabase();
+      addTearDown(database.close);
+
+      await pumpAppScreen(
+        tester,
+        const DeliverySettings(),
+        database: database,
+        size: const Size(1280, 1000),
+        extraOverrides: [
+          ..._overrides(),
+          launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+          isRemoteModeProvider.overrideWithValue(false),
+        ],
+      );
+
+      expect(
+        find.text('Delivery destinations live on the imaging host'),
+        findsOneWidget,
+      );
+      expect(find.text('Add watched folder'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'a host launch keeps its own destination editor',
     (tester) async {
       _swallowKnownOverflows();
