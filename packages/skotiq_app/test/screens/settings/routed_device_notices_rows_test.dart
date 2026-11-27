@@ -28,6 +28,9 @@ void main() {
       NotificationCategory.focusOffsetFailed,
       NotificationCategory.deviceAnsweredLate,
       NotificationCategory.checkpointFailed,
+      NotificationCategory.switchChannelFailed,
+      NotificationCategory.guiderStarting,
+      NotificationCategory.exposureTimedOut,
     ]) {
       await tester.scrollUntilVisible(
         find.text(category.label),
