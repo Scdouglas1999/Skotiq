@@ -757,7 +757,11 @@ const _expected = <String, List<String>>{
     'push Weather unsafe [weatherUnsafe]',
   ],
   'hostGui weatherUnsafe rowOff': [
+    'toast error Weather unsafe',
     'push Critical · Safety [weatherUnsafe]',
+  ],
+  'hostGui weatherUnsafe routingOff': [
+    'toast error Weather unsafe',
   ],
   'hostGui weatherSafeAgain defaults': [
     'toast success Weather safe again',
@@ -767,7 +771,11 @@ const _expected = <String, List<String>>{
     'push Mount fault [mountFault]',
   ],
   'hostGui mountFault rowOff': [
+    'toast error Mount fault',
     'push Critical · Safety [mountFault]',
+  ],
+  'hostGui mountFault routingOff': [
+    'toast error Mount fault',
   ],
   'hostGui diskSpaceLow defaults': [
     'toast error Disk space low',
@@ -894,7 +902,11 @@ const _expected = <String, List<String>>{
     'push Weather unsafe [weatherUnsafe]',
   ],
   'hostDaemon weatherUnsafe rowOff': [
+    'toast error Weather unsafe',
     'push Critical · Safety [weatherUnsafe]',
+  ],
+  'hostDaemon weatherUnsafe routingOff': [
+    'toast error Weather unsafe',
   ],
   'hostDaemon weatherSafeAgain defaults': [
     'toast success Weather safe again',
@@ -904,7 +916,11 @@ const _expected = <String, List<String>>{
     'push Mount fault [mountFault]',
   ],
   'hostDaemon mountFault rowOff': [
+    'toast error Mount fault',
     'push Critical · Safety [mountFault]',
+  ],
+  'hostDaemon mountFault routingOff': [
+    'toast error Mount fault',
   ],
   'hostDaemon diskSpaceLow defaults': [
     'toast error Disk space low',

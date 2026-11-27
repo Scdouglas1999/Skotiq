@@ -224,15 +224,20 @@ class NotificationRouter {
     Map<String, String> contextValues, {
     EventSeverity severity = EventSeverity.info,
   }) {
-    if (!_matrix.enabled) return;
     final rule = _ruleFor(category);
-    if (!rule.enabled) return;
-    if (severity.index < rule.minSeverity.index) return;
+    final ruled =
+        _matrix.enabled &&
+        rule.enabled &&
+        severity.index >= rule.minSeverity.index;
+    if (!ruled && !category.alwaysShownInApp) return;
 
     if (_isDebounced(category, rule)) return;
     if (_isRateLimited(category, rule)) return;
 
-    final configured = _eligibleTransports(rule.transports);
+    final configured = _eligibleTransports([
+      if (ruled) ...rule.transports,
+      if (category.alwaysShownInApp) NotificationTransportKind.inApp,
+    ]);
     if (configured.isEmpty) return;
 
     if (category == NotificationCategory.sequenceStopped) {
@@ -272,14 +277,19 @@ class NotificationRouter {
         false;
   }
 
-  /// Whether a [category] notice at [severity] is shown in the app under
-  /// the operator's rules: notifications and the category's rule are on, the
-  /// severity clears the rule's floor, the rule names the in-app notice and
-  /// the in-app transport is set up.
+  /// Whether a [category] notice at [severity] is shown in the app: the
+  /// in-app transport is set up and either the category is always shown or,
+  /// under the operator's rules, notifications and the category's rule are
+  /// on, the severity clears the rule's floor and the rule names the in-app
+  /// notice.
   bool wouldShowInApp(
     NotificationCategory category, {
     EventSeverity severity = EventSeverity.critical,
   }) {
+    if (category.alwaysShownInApp) {
+      return _transports[NotificationTransportKind.inApp]?.isConfigured ??
+          false;
+    }
     if (!_matrix.enabled) return false;
     final rule = _ruleFor(category);
     if (!rule.enabled || severity.index < rule.minSeverity.index) return false;
@@ -292,8 +302,9 @@ class NotificationRouter {
   /// Whether the notice for [event] is the router's: it routes every event
   /// the classifier knows and every Notification node that names its own
   /// transports. Its row and the routing switch are then the operator's answer
-  /// for that notice, shown or not, and no other producer may tell it. A
-  /// router runs on every app role.
+  /// for that notice, shown or not (a safety notice is shown in the app
+  /// regardless, see [NotificationCategory.alwaysShownInApp]), and no other
+  /// producer may tell it. A router runs on every app role.
   static bool tellsInApp(SkotiqEvent event) {
     if (systemEventOf(event) case final SystemEvent_Notification notification
         when nodeNotificationTransports(notification) != null) {
@@ -585,7 +596,17 @@ class NotificationRouter {
     // Followed with notifications off too, so an episode under way when they
     // are turned on is not told as new.
     final guideStar = _guideStar.observe(event);
-    if (!_matrix.enabled) return;
+    if (!_matrix.enabled) {
+      final classified = NotificationEventClassifier.classify(event);
+      if (classified != null && classified.category.alwaysShownInApp) {
+        route(
+          classified.category,
+          _buildContext(event, classified.context),
+          severity: classified.severity,
+        );
+      }
+      return;
+    }
     if (guideStar != null) {
       route(
         guideStar.category,

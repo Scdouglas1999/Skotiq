@@ -261,40 +261,42 @@ void main() {
       },
     );
 
-    test(
-      'disabling a category suppresses BOTH push and in-app (toggle)',
-      () async {
-        for (final entry in _criticalCases.entries) {
-          final disabledMatrix = NotificationRoutingMatrix.defaults().withRule(
-            entry.value.category,
-            NotificationRoutingMatrix.defaults()
-                .ruleFor(entry.value.category)
-                .copyWith(enabled: false),
-          );
-          final rig = build(matrix: disabledMatrix);
-          final pushes = <PushNotification>[];
-          final sub = rig.push.notifications.listen(pushes.add);
+    test('disabling a category suppresses BOTH push and in-app (toggle), '
+        'except that a safety notice is still shown in the app', () async {
+      for (final entry in _criticalCases.entries) {
+        final disabledMatrix = NotificationRoutingMatrix.defaults().withRule(
+          entry.value.category,
+          NotificationRoutingMatrix.defaults()
+              .ruleFor(entry.value.category)
+              .copyWith(enabled: false),
+        );
+        final rig = build(matrix: disabledMatrix);
+        final pushes = <PushNotification>[];
+        final sub = rig.push.notifications.listen(pushes.add);
 
-          rig.router.attachEventStream(Stream.value(entry.value.event));
-          await Future<void>.delayed(const Duration(milliseconds: 5));
+        rig.router.attachEventStream(Stream.value(entry.value.event));
+        await Future<void>.delayed(const Duration(milliseconds: 5));
 
-          expect(
-            pushes,
-            isEmpty,
-            reason: '${entry.key}: disabled category must not push',
-          );
-          expect(
-            rig.inApp.sentCategories,
-            isEmpty,
-            reason: '${entry.key}: disabled category must not dispatch in-app',
-          );
+        expect(
+          pushes,
+          isEmpty,
+          reason: '${entry.key}: disabled category must not push',
+        );
+        expect(
+          rig.inApp.sentCategories,
+          entry.value.category.alwaysShownInApp
+              ? [entry.value.category]
+              : isEmpty,
+          reason:
+              '${entry.key}: a disabled category dispatches in-app only '
+              'when it is a safety notice',
+        );
 
-          await sub.cancel();
-          await rig.router.dispose();
-          rig.push.dispose();
-        }
-      },
-    );
+        await sub.cancel();
+        await rig.router.dispose();
+        rig.push.dispose();
+      }
+    });
 
     test(
       'master push disabled suppresses the mobile push but keeps in-app',

@@ -211,6 +211,13 @@ enum NotificationCategory {
     }
   }
 
+  /// A safety notice is never silent: shown in the app whatever its row or
+  /// the routing switch says. The row and the switch still decide the phone
+  /// push and the other transports.
+  bool get alwaysShownInApp =>
+      this == NotificationCategory.weatherUnsafe ||
+      this == NotificationCategory.mountFault;
+
   static NotificationCategory? fromStorageKey(String key) {
     for (final c in NotificationCategory.values) {
       if (c.name == key) return c;

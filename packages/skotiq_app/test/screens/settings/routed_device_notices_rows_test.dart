@@ -1,5 +1,6 @@
 // The device and centering notices are routing rows: Settings › Notifications
-// lists each one, and its switch is saved.
+// lists each one, and its switch is saved. A safety row says it is always
+// shown in the app.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
@@ -19,29 +20,7 @@ void main() {
   testWidgets(
       'Settings › Notifications lists the device notices and saves '
       'their switch', (tester) async {
-    final defaultOnError = FlutterError.onError;
-    FlutterError.onError = (details) {
-      if (details.exceptionAsString().contains('overflowed')) return;
-      defaultOnError?.call(details);
-    };
-    addTearDown(() => FlutterError.onError = defaultOnError);
-
-    final handle = await pumpAppScreen(
-      tester,
-      SettingsScreen(
-          initialSection: SettingsSectionId.resolve('notifications')),
-      size: const Size(1280, 2400),
-      settle: false,
-      extraOverrides: [
-        secretsStoreProvider.overrideWithValue(
-          SecretsStore(InMemorySecureKeyValueStore()),
-        ),
-      ],
-    );
-    await handle.container.read(notificationRoutingMatrixProvider.future);
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+    final handle = await _pumpNotifications(tester);
 
     for (final category in const [
       NotificationCategory.mountMoved,
@@ -87,4 +66,61 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('a safety row says it is always shown in the app',
+      (tester) async {
+    await _pumpNotifications(tester);
+    for (final category in const [
+      NotificationCategory.weatherUnsafe,
+      NotificationCategory.mountFault,
+    ]) {
+      await tester.scrollUntilVisible(
+        _row(category.label).first,
+        300,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(
+        find.descendant(
+          of: _row(category.label),
+          matching: find.textContaining('Always shown in the app'),
+        ),
+        findsWidgets,
+        reason: category.label,
+      );
+    }
+    expect(
+      find.descendant(
+        of: _row(NotificationCategory.weatherSafeAgain.label),
+        matching: find.textContaining('Always shown in the app'),
+      ),
+      findsNothing,
+    );
+  });
+}
+
+Future<HarnessHandle> _pumpNotifications(WidgetTester tester) async {
+  final defaultOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    if (details.exceptionAsString().contains('overflowed')) return;
+    defaultOnError?.call(details);
+  };
+  addTearDown(() => FlutterError.onError = defaultOnError);
+
+  final handle = await pumpAppScreen(
+    tester,
+    SettingsScreen(initialSection: SettingsSectionId.resolve('notifications')),
+    size: const Size(1280, 2400),
+    settle: false,
+    extraOverrides: [
+      secretsStoreProvider.overrideWithValue(
+        SecretsStore(InMemorySecureKeyValueStore()),
+      ),
+    ],
+  );
+  await handle.container.read(notificationRoutingMatrixProvider.future);
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+
+  return handle;
 }
