@@ -891,11 +891,6 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
     );
   }
 
-  /// The current settings projected to the remote wire model — companion to
-  /// [applyRemoteSettings] for the headless `GET /api/settings` handler.
-  models.AppSettings exportRemoteSettings() =>
-      _toWire(_requireLoadedSettings('exporting a remote settings snapshot'));
-
   /// The settings document this host serves its linked clients: the
   /// settings, with the plate-solver choice and program paths read from the
   /// native preference, which changes through its own route as well.
