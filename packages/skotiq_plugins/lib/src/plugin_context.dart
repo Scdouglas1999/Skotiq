@@ -139,6 +139,8 @@ final RegExp _safePluginIdPattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]*$');
 class FilePluginStorage implements PluginStorage {
   final String _pluginId;
   final Future<Directory> Function() _baseDirectoryProvider;
+  final Future<Directory> Function()? _legacyBaseDirectoryProvider;
+  bool _legacyChecked = false;
 
   /// One queue per canonical storage path, shared by every storage instance.
   /// Registration retries create a fresh context/storage object; a per-instance
@@ -149,28 +151,63 @@ class FilePluginStorage implements PluginStorage {
   /// Monotonic counter feeding a per-write temp filename.
   static int _tempCounter = 0;
 
-  /// Creates persistent storage for [pluginId].
+  /// Creates persistent storage for [pluginId] under
+  /// `<base>/skotiq_plugins/storage/<pluginId>.json`.
   ///
-  /// [baseDirectoryProvider] is primarily intended for tests. The [pluginId]
-  /// is validated up front ([assertSafePluginId]) so an unsafe id never
-  /// reaches the filesystem.
+  /// [baseDirectoryProvider] gives the data root; the app passes its own
+  /// (see `resolveSkotiqDataDirectory` in skotiq_core). Without one the file
+  /// lives under [legacyPluginStorageDirectory].
+  ///
+  /// When [legacyBaseDirectoryProvider] is given and this plugin has no file
+  /// under the data root yet, the file found under the legacy root is copied
+  /// in once. The copy leaves the legacy file in place, so every instance
+  /// that shared it still finds its settings whichever starts first.
+  ///
+  /// The [pluginId] is validated up front ([assertSafePluginId]) so an unsafe
+  /// id never reaches the filesystem.
   FilePluginStorage(
     this._pluginId, {
     Future<Directory> Function()? baseDirectoryProvider,
+    Future<Directory> Function()? legacyBaseDirectoryProvider,
   }) : _baseDirectoryProvider =
-           baseDirectoryProvider ?? _defaultPluginStorageDirectory {
+           baseDirectoryProvider ?? legacyPluginStorageDirectory,
+       _legacyBaseDirectoryProvider = legacyBaseDirectoryProvider {
     assertSafePluginId(_pluginId);
   }
 
   Future<File> _getStorageFile() async {
     final baseDir = await _baseDirectoryProvider();
-    final pluginsDir = Directory(
-      path.join(baseDir.path, 'skotiq_plugins', 'storage'),
-    );
+    final pluginsDir = Directory(_storageDirIn(baseDir));
     if (!await pluginsDir.exists()) {
       await pluginsDir.create(recursive: true);
     }
     return File(path.join(pluginsDir.path, '$_pluginId.json'));
+  }
+
+  static String _storageDirIn(Directory base) =>
+      path.join(base.path, 'skotiq_plugins', 'storage');
+
+  /// Copies the legacy file in when [file] does not exist yet. A legacy root
+  /// that is the data root itself finds [file] present and copies nothing.
+  Future<void> _adoptLegacyFile(File file) async {
+    final legacyProvider = _legacyBaseDirectoryProvider;
+    if (_legacyChecked || legacyProvider == null) return;
+    _legacyChecked = true;
+    if (await file.exists()) return;
+    final legacy = File(
+      path.join(_storageDirIn(await legacyProvider()), '$_pluginId.json'),
+    );
+    try {
+      if (!await legacy.exists()) return;
+      await _writeSnapshot(file, await legacy.readAsString());
+      _pluginStorageLog.info(
+        'Copied plugin storage for $_pluginId from ${legacy.path}',
+      );
+    } on FileSystemException catch (e) {
+      _pluginStorageLog.warning(
+        'Could not copy plugin storage for $_pluginId from ${legacy.path}: $e',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> _readStorage(File file) async {
@@ -203,7 +240,10 @@ class FilePluginStorage implements PluginStorage {
     final file = await _getStorageFile();
     final key = file.absolute.path;
     final previous = _fileTails[key] ?? Future<void>.value();
-    final operation = previous.then((_) => action(file));
+    final operation = previous.then((_) async {
+      await _adoptLegacyFile(file);
+      return action(file);
+    });
     final tail = operation.then<void>(
       (_) {},
       onError: (Object _, StackTrace __) {},
@@ -316,7 +356,11 @@ class FilePluginStorage implements PluginStorage {
   Future<void> clear() => _mutate((values) => values.clear());
 }
 
-Future<Directory> _defaultPluginStorageDirectory() async {
+/// The data root plugin storage used before the app supplied its own:
+/// `%LOCALAPPDATA%\Skotiq`, `~/Library/Application Support/Skotiq` or
+/// `$XDG_DATA_HOME/skotiq`. The app reads it only to carry existing plugin
+/// files over to its data root.
+Future<Directory> legacyPluginStorageDirectory() async {
   final home =
       Platform.environment['HOME'] ??
       Platform.environment['USERPROFILE'] ??
@@ -511,11 +555,9 @@ class PluginContextFactory {
   /// Creates a factory.
   ///
   /// [storageFactory] builds the [PluginStorage] for each plugin context.
-  /// Defaults to [FilePluginStorage] (the production store, persisted under the
-  /// app-support directory). Tests inject [InMemoryPluginStorage] here so the
-  /// plugin lifecycle (`onLoad`/`onEnable`, which read persisted config) does
-  /// not block on `path_provider` — a platform channel that never answers under
-  /// the widget-test binding, which would otherwise hang the test indefinitely.
+  /// The app passes a [FilePluginStorage] under its data root; the default is
+  /// a [FilePluginStorage] under [legacyPluginStorageDirectory]. Tests inject
+  /// [InMemoryPluginStorage] so nothing touches the disk.
   ///
   /// [loggerFactory] builds each plugin's [PluginLogger]; it defaults to
   /// [ConsolePluginLogger], whose records reach the app log.
