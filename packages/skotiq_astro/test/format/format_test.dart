@@ -249,5 +249,7 @@ void main() {
     }
     expect(QuantityFormat.exposure(2.5, space: false), '2.5s');
     expect(QuantityFormat.exposure(0.005, space: false), '5 ms');
+    expect(QuantityFormat.exposureParts(0.0015), (value: '1.5', unit: 'ms'));
+    expect(QuantityFormat.exposureParts(0.25), (value: '0.25', unit: 's'));
   });
 }

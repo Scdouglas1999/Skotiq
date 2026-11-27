@@ -9,12 +9,24 @@ abstract final class QuantityFormat {
   /// "0 s". From 10 s it keeps one decimal ("300.5 s").
   /// [space] puts a space before "s" ("2.5 s") or not ("2.5s").
   static String exposure(double seconds, {bool space = true}) {
+    final (:value, :unit) = exposureParts(seconds);
+    return '$value${space || unit != 's' ? ' ' : ''}$unit';
+  }
+
+  /// [exposure] as a number and its unit ("s" or "ms"), for a readout that
+  /// sets the unit apart.
+  static ({String value, String unit}) exposureParts(double seconds) {
     if (seconds > 0 && seconds < 0.1) {
       final ms = seconds * 1000;
-      return '${trimmed(ms, maxDecimals: _exposureDecimals(ms))} ms';
+      return (
+        value: trimmed(ms, maxDecimals: _exposureDecimals(ms)),
+        unit: 'ms',
+      );
     }
-    final value = trimmed(seconds, maxDecimals: _exposureDecimals(seconds));
-    return '$value${space ? ' ' : ''}s';
+    return (
+      value: trimmed(seconds, maxDecimals: _exposureDecimals(seconds)),
+      unit: 's',
+    );
   }
 
   static int _exposureDecimals(double value) {
