@@ -658,22 +658,6 @@ Initialize settings storage.
 void apiInitSettingsStorage({required String storagePath})
 ```
 
-### `apiGetSettings`
-
-Get application settings.
-
-```dart
-AppSettings apiGetSettings()
-```
-
-### `apiUpdateSettings`
-
-Update application settings.
-
-```dart
-void apiUpdateSettings({required AppSettings settings})
-```
-
 ### `apiGetLocation`
 
 Get observer location.

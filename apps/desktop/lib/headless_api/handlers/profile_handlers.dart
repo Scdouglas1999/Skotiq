@@ -368,8 +368,7 @@ class ProfileHandlers implements RouteSource {
 
   Future<Response> handleGetSettings(Request request) async {
     // Read from the DB-backed settings notifier (the desktop's source of
-    // truth) rather than the Rust bridge, which only carries the ~7
-    // engine-relevant fields and would report defaults for everything else.
+    // truth); the native library keeps only the site.
     final notifier = container.read(appSettingsProvider.notifier);
     await container.read(appSettingsProvider.future);
     final settings = (await notifier.exportHostSettings()).toJson();
@@ -906,13 +905,10 @@ class ProfileHandlers implements RouteSource {
       await backend.setLocation(site.value);
     }
 
-    // The database is the source of truth, shared with the desktop, so the
-    // COMPLETE settings go there. The bridge then gets the engine-relevant
-    // subset (location/theme/language/autoConnect) to keep the executor
-    // consistent. Writing only the bridge would drop every other field.
+    // The settings store is the source of truth, shared with the desktop;
+    // the native library keeps only the site, written above.
     try {
       await settingsNotifier.applyRemoteSettings(settings);
-      await backend.updateSettings(settings);
     } on Object catch (error, stackTrace) {
       if (site.changed) {
         // The site moved and the document that mirrors it did not. Put the

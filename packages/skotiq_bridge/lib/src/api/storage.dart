@@ -31,14 +31,6 @@ Future<void> apiLoadProfile({required String profileId}) =>
 Future<EquipmentProfile?> apiGetActiveProfile() =>
     RustLib.instance.api.crateApiStorageApiGetActiveProfile();
 
-/// Get application settings
-AppSettings apiGetSettings() =>
-    RustLib.instance.api.crateApiStorageApiGetSettings();
-
-/// Update application settings
-void apiUpdateSettings({required AppSettings settings}) =>
-    RustLib.instance.api.crateApiStorageApiUpdateSettings(settings: settings);
-
 /// Get observer location
 ObserverLocation? apiGetLocation() =>
     RustLib.instance.api.crateApiStorageApiGetLocation();

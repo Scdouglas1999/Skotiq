@@ -431,13 +431,6 @@ typedef struct wire_cst_list_frame_card_update {
   int32_t len;
 } wire_cst_list_frame_card_update;
 
-typedef struct wire_cst_app_settings {
-  struct wire_cst_observer_location *location;
-  struct wire_cst_list_prim_u_8_strict *theme;
-  struct wire_cst_list_prim_u_8_strict *language;
-  bool auto_connect;
-} wire_cst_app_settings;
-
 typedef struct wire_cst_list_prim_f_64_strict {
   double *ptr;
   int32_t len;
@@ -3226,8 +3219,6 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_get_rotator_st
 void frbgen_skotiq_bridge_wire__crate__api__devices__environment__api_get_safety_monitor_status(int64_t port_,
                                                                                                 struct wire_cst_list_prim_u_8_strict *device_id);
 
-WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__storage__api_get_settings(void);
-
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_get_star_crops_from_last_image(int64_t port_,
                                                                                         struct wire_cst_list_prim_u_8_strict *device_id,
                                                                                         uint32_t max_crops);
@@ -3791,8 +3782,6 @@ void frbgen_skotiq_bridge_wire__crate__api__frame_file__api_update_frame_cards(i
                                                                                struct wire_cst_list_prim_u_8_strict *file_path,
                                                                                struct wire_cst_list_frame_card_update *cards);
 
-WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__storage__api_update_settings(struct wire_cst_app_settings *settings);
-
 void frbgen_skotiq_bridge_wire__crate__api__frame_file__api_write_frame_wcs(int64_t port_,
                                                                             struct wire_cst_list_prim_u_8_strict *file_path,
                                                                             struct wire_cst_frame_wcs *wcs);
@@ -3884,8 +3873,6 @@ struct wire_cst_api_night_sky *frbgen_skotiq_bridge_cst_new_box_autoadd_api_nigh
 struct wire_cst_api_reference_geometry *frbgen_skotiq_bridge_cst_new_box_autoadd_api_reference_geometry(void);
 
 struct wire_cst_api_scoring_weights *frbgen_skotiq_bridge_cst_new_box_autoadd_api_scoring_weights(void);
-
-struct wire_cst_app_settings *frbgen_skotiq_bridge_cst_new_box_autoadd_app_settings(void);
 
 struct wire_cst_autofocus_config_api *frbgen_skotiq_bridge_cst_new_box_autoadd_autofocus_config_api(void);
 
@@ -4080,7 +4067,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_night_sky);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_reference_geometry);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_scoring_weights);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_app_settings);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_autofocus_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_bool);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_calibrator_state);
@@ -4456,11 +4442,9 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_get_active_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_get_location);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_get_profiles);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_get_settings);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_load_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_save_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_set_location);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_update_settings);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_rank_scheduler_targets);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__target_scoring__api_score_targets_for_night);
     dummy_var ^= ((int64_t) (void*) store_dart_post_cobject);

@@ -6,37 +6,6 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-class AppSettings {
-  final ObserverLocation? location;
-  final String theme;
-  final String language;
-  final bool autoConnect;
-
-  const AppSettings({
-    this.location,
-    required this.theme,
-    required this.language,
-    required this.autoConnect,
-  });
-
-  @override
-  int get hashCode =>
-      location.hashCode ^
-      theme.hashCode ^
-      language.hashCode ^
-      autoConnect.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AppSettings &&
-          runtimeType == other.runtimeType &&
-          location == other.location &&
-          theme == other.theme &&
-          language == other.language &&
-          autoConnect == other.autoConnect;
-}
-
 class ObserverLocation {
   final double latitude;
   final double longitude;
