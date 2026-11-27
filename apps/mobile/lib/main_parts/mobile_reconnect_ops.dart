@@ -118,22 +118,11 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // pass it through so connectToRig skips re-pairing every night.
         authToken: presetAuthToken,
       );
-      // Capture the live backend instance BEFORE the connect attempt. A
-      // successful connect swaps in a brand-new NetworkBackend (see
-      // BackendNotifier.connect -> _swapBackend, which always assigns a fresh
-      // instance); a failed connect leaves the existing backend in place.
-      // Keying success on a backend *swap* — rather than merely `is
-      // NetworkBackend` — means a stale prior NetworkBackend session (from a
-      // previous rig) cannot be mistaken for a successful relay connect.
-      final priorBackend = ref.read(backendProvider);
-      await connectToRig(relayServer);
+      final connected = await connectToRig(relayServer);
 
-      // If the connect failed (no backend swap happened), tear the tunnel back
-      // down so we don't leak a loopback listener or persist a bogus relay row.
-      final swappedBackend = ref.read(backendProvider);
-      if (!mounted ||
-          !ref.read(isRemoteModeProvider) ||
-          identical(swappedBackend, priorBackend)) {
+      // A failed connect tears the tunnel back down, so no loopback listener
+      // is left open and no relay row is saved for it.
+      if (!mounted || !connected) {
         await _closeActiveRelayTunnel();
         return;
       }
