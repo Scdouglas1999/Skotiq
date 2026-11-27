@@ -1,6 +1,5 @@
 import 'startup/fujifilm_notice_after_connect.dart';
 import 'startup/mount_site_reconciliation_card.dart';
-import 'screens/shell/shell_chrome.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,7 +12,7 @@ import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/startup/quick_start_checker.dart';
 import 'package:skotiq_app/startup/update/update_manager_widget.dart';
 import 'package:skotiq_app/startup/your_sky_off_notice.dart';
-import 'package:skotiq_app/widgets/red_night_filter.dart';
+import 'package:skotiq_app/app_frame.dart';
 import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_app/utils/startup_surface_queue.dart';
 import 'package:skotiq_app/startup/database_recovery_launcher.dart';
@@ -153,9 +152,7 @@ class SkotiqApp extends ConsumerWidget {
             // Everything below inherits the app's text scale and theme;
             // a prompt raised from outside this builder would render
             // unscaled on high-DPI displays.
-            Widget result = UnfocusOnKeyboardClose(
-              child: StartupPrompts(child: scaledChild),
-            );
+            Widget result = StartupPrompts(child: scaledChild);
 
             // Desktop and Android both install Skotiq from its
             // GitHub releases, so both can update in place. (The old
@@ -172,9 +169,7 @@ class SkotiqApp extends ConsumerWidget {
                 child: result,
               );
             }
-            return DeviceShellLayoutScope(
-              child: RedNightScreen(child: result),
-            );
+            return skotiqAppFrame(result);
           },
         ),
       ),

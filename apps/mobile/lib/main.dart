@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/skotiq_app.dart';
@@ -17,7 +16,6 @@ import 'package:skotiq_core/utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skotiq_app/widgets/red_night_filter.dart';
 import 'screens/setup/first_run_setup_screen.dart';
 import 'screens/servers/saved_servers_screen.dart';
 import 'services/saved_servers_service.dart';
@@ -35,6 +33,7 @@ import 'services/voice_control_lifecycle_provider.dart';
 import 'services/voice_control_service.dart';
 import 'widgets/connect_texts.dart';
 import 'widgets/phone_battery_indicator.dart';
+import 'widgets/phone_standalone_app.dart';
 import 'widgets/relay_connect_dialog.dart';
 import 'widgets/tailscale_setup_sheet.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
@@ -260,8 +259,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         // to stay reachable, so the splash plays its draw over it once
         // and lifts instead of holding a loading mark in front of
         // interactive prompts.
-        return _standaloneApp(
-          SkotiqSplashGate(
+        return PhoneStandaloneApp(
+          home: SkotiqSplashGate(
             ready: true,
             child: Builder(
               builder: (context) => _buildConnectionScreen(connection),
@@ -292,7 +291,10 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         },
       );
       if (connection.connected == null) return shell;
-      return FirstRunSetupGate(frame: _standaloneApp, child: shell);
+      return FirstRunSetupGate(
+        frame: (home) => PhoneStandaloneApp(home: home),
+        child: shell,
+      );
     } catch (e, stackTrace) {
       Log.error(
         'Error building app: $e',
@@ -352,37 +354,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         ),
       );
     }
-  }
-
-  /// The themed app frame for what the phone shows outside the shell: the
-  /// connection screen and first-run setup.
-  Widget _standaloneApp(
-    Widget home, {
-    GlobalKey<NavigatorState>? navigatorKey,
-  }) {
-    final settings = ref.watch(appSettingsProvider).valueOrNull;
-    final theme = resolveSkotiqThemeData(
-      themeSetting: settings?.theme ?? 'dark',
-      accentColorHex: settings?.accentColor,
-    );
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: systemUiOverlayStyleFor(theme),
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        title: 'Skotiq',
-        debugShowCheckedModeBanner: false,
-        theme: theme,
-        localizationsDelegates: SkotiqLocalizations.localizationsDelegates,
-        supportedLocales: SkotiqLocalizations.supportedLocales,
-        // The shell's own router app ends text editing on keyboard close;
-        // this covers the connection screen (pairing code, address).
-        builder: (context, child) => UnfocusOnKeyboardClose(
-          child: RedNightScreen(child: child ?? const SizedBox.shrink()),
-        ),
-        navigatorObservers: [UnfocusTextOnPopupObserver()],
-        home: home,
-      ),
-    );
   }
 
   Widget _buildConnectionScreen(RigConnectState connection) {
