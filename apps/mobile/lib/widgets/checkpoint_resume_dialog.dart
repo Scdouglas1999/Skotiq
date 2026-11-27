@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class CheckpointResumeDialog extends StatelessWidget {
@@ -27,7 +28,7 @@ class CheckpointResumeDialog extends StatelessWidget {
         : '${(integrationMins / 60).toStringAsFixed(1)} hr';
 
     return SkotiqDialog(
-      title: 'Resume Sequence?',
+      title: 'Restore sequence?',
       icon: LucideIcons.rotateCcw,
       width: 420,
       actions: [
@@ -39,8 +40,8 @@ class CheckpointResumeDialog extends StatelessWidget {
         ),
         SkotiqButton(
           onPressed: onResume,
-          label: 'Resume',
-          icon: LucideIcons.play,
+          label: 'Restore',
+          icon: LucideIcons.rotateCcw,
           size: ButtonSize.small,
         ),
       ],
@@ -49,7 +50,8 @@ class CheckpointResumeDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'An interrupted sequence was found. Would you like to resume where you left off?',
+            'An interrupted sequence was found. Restore loads its sequence '
+            'and progress. Nothing moves until you press Start.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 20),
@@ -186,3 +188,11 @@ class CheckpointResumeDialog extends StatelessWidget {
     );
   }
 }
+
+/// Acts on the operator's answer to [CheckpointResumeDialog]: [restore] loads
+/// the interrupted run and leaves it waiting for Start; otherwise the
+/// checkpoint is discarded.
+Future<void> settleCheckpointChoice(
+  SequenceExecutor executor, {
+  required bool restore,
+}) => restore ? executor.restoreFromCheckpoint() : executor.discardCheckpoint();

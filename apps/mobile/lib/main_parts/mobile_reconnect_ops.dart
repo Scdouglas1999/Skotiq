@@ -665,21 +665,18 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           if (shouldResume == null || !dialogContext.mounted) return;
 
           try {
-            if (shouldResume) {
-              await executor.resumeFromCheckpoint();
-              if (!dialogContext.mounted) return;
+            await settleCheckpointChoice(executor, restore: shouldResume);
+            if (shouldResume && dialogContext.mounted) {
               dialogContext.showSuccessSnackBar(
-                'Sequence resumed from checkpoint',
+                'Sequence restored. Press Start to continue.',
               );
-            } else {
-              await executor.discardCheckpoint();
             }
             return;
           } catch (e) {
             if (!dialogContext.mounted) return;
             showApiErrorWithPrefix(
               dialogContext,
-              shouldResume ? 'Failed to resume' : 'Failed to discard',
+              shouldResume ? 'Failed to restore' : 'Failed to discard',
               e,
             );
           }
