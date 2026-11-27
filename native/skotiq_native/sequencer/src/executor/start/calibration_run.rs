@@ -89,6 +89,22 @@ mod tests {
         sequence
     }
 
+    /// The executor answers for the plan it has loaded, which is what the
+    /// bridge publishes on the run's start.
+    #[test]
+    fn the_executor_judges_the_loaded_plan() {
+        let mut executor = crate::SequenceExecutor::new();
+        assert!(!executor.runs_calibration_only());
+        executor
+            .load_sequence(plan(vec![node("dark", exposure("Dark"))]))
+            .expect("loads");
+        assert!(executor.runs_calibration_only());
+        executor
+            .load_sequence(plan(vec![node("light", exposure("Light"))]))
+            .expect("loads");
+        assert!(!executor.runs_calibration_only());
+    }
+
     #[test]
     fn darks_and_bias_with_cooling_are_a_calibration_run() {
         let sequence = plan(vec![
