@@ -241,7 +241,6 @@ impl IndiDome {
 
     pub async fn is_slewing(&self) -> bool {
         let client = self.client.read().await;
-        // Check if the dome position property is in "Busy" state
         client
             .is_property_busy(&self.device_name, ABS_DOME_POSITION)
             .await

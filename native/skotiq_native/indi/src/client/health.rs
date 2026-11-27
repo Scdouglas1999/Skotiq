@@ -160,7 +160,6 @@ impl IndiClient {
             });
         }
 
-        // Check if enough time has passed since last keepalive was SENT
         let last_sent_ms = self.last_keepalive_ms.load(Ordering::SeqCst);
         if current_ms.saturating_sub(last_sent_ms) >= keepalive_interval_ms {
             self.send_keepalive().await?;
