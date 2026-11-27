@@ -5,7 +5,8 @@ import '../../models/sequence/sequence_models.dart'
 import '../../services/plan_timer.dart';
 import '../../services/sequence_time_estimator.dart';
 import '../armed_start_provider.dart' show nightArmedStartProvider;
-import '../clock_provider.dart' show ClockInstant, clockProvider;
+import '../clock_provider.dart'
+    show ClockInstant, ClockTimeOfDay, clockProvider;
 import '../sequence_provider.dart' show currentSequenceProvider;
 import '../session_provider.dart' show sessionStateProvider;
 import '../settings_provider.dart'
@@ -20,7 +21,7 @@ import 'sequencer_defaults.dart' show sequencerOverheadConfigProvider;
 
 /// The [PlanTimer] for this rig's settings: the Sequencer's overhead model,
 /// the Autofocus settings, the site, "Park before dawn", the autofocus cadence
-/// the executor adds and the site's altitude floor.
+/// the executor adds, the site's altitude floor and the clock its times print on.
 final planTimerProvider = Provider<PlanTimer>((ref) {
   final site = ref.watch(appObserverLocationProvider);
   final s = ref.watch(
@@ -38,6 +39,7 @@ final planTimerProvider = Provider<PlanTimer>((ref) {
       overhead: ref.watch(sequencerOverheadConfigProvider),
       autofocus: ref.watch(autofocusSettingsProvider),
       floor: ref.watch(altitudeFloorProvider),
+      wallClock: ref.watch(clockProvider).wallClockOf,
     ),
     site: site == null
         ? null
