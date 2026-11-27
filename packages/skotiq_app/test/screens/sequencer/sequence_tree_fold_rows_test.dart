@@ -952,6 +952,46 @@ void main() {
     await _drainValidationDebounce(tester);
   });
 
+  testWidgets(
+      'a running run marks itself in the warm "now" color its running '
+      'steps use', (tester) async {
+    final built = _runInAlpha();
+    final progress = RunRecordNotifier();
+    await _pumpTree(tester, built.sequence, progressNotifier: progress);
+    final colors = SkotiqTheme.dark.extension<SkotiqColors>()!;
+    expect(colors.primary, isNot(colors.brandWarm));
+
+    progress.updateNodeStatus(built.exposureIds[1], NodeStatus.running);
+    progress.updateNodeProgress(built.exposureIds[1], 50, '');
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final foldRow = _rowShellOf(find.text('Ha · OIII · SII')).first;
+    expect(
+      find.descendant(
+        of: foldRow,
+        matching: find.byWidgetPredicate(
+          (w) => w is ColoredBox && w.color == colors.brandWarm,
+        ),
+      ),
+      findsOneWidget,
+      reason: 'the left running marker',
+    );
+    expect(
+      find.descendant(
+        of: foldRow,
+        matching: find.byWidgetPredicate(
+          (w) =>
+              w is AnimatedContainer &&
+              (w.decoration as BoxDecoration?)?.color == colors.brandWarm,
+        ),
+      ),
+      findsOneWidget,
+      reason: 'the progress bar',
+    );
+    await _drainValidationDebounce(tester);
+  });
+
   testWidgets('the run\'s badge carries the worst of its members\' issues',
       (tester) async {
     final built = _runInAlpha();

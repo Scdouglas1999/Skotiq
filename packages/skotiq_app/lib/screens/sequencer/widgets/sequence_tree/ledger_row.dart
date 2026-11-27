@@ -715,7 +715,6 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
       // is drawn elsewhere; a second breath for the same step would be two
       // heartbeats for one run.
       steadyMarker: widget.pinned || widget.isDragging,
-      runningTone: colors.brandWarm,
       chevron: _buildChevron(context),
       icon: nodeIcon(node.iconName),
       category: node.category,
@@ -860,7 +859,6 @@ class _LedgerLine extends StatelessWidget {
 
   /// Draw the running marker without its breath.
   final bool steadyMarker;
-  final Color runningTone;
   final Widget chevron;
   final IconData icon;
   final NodeCategory category;
@@ -886,7 +884,6 @@ class _LedgerLine extends StatelessWidget {
     required this.colors,
     required this.depth,
     required this.steadyMarker,
-    required this.runningTone,
     required this.chevron,
     required this.icon,
     required this.category,
@@ -920,9 +917,9 @@ class _LedgerLine extends StatelessWidget {
           height: _ledgerRowHeight,
           child: isRunning
               ? (steadyMarker
-                  ? ColoredBox(color: runningTone)
+                  ? ColoredBox(color: colors.brandWarm)
                   : _RunningMarkerBreath(
-                      child: ColoredBox(color: runningTone),
+                      child: ColoredBox(color: colors.brandWarm),
                     ))
               : null,
         ),
@@ -1039,9 +1036,7 @@ List<Widget> _targetCoordinateChips(
 /// A chip on a ledger row.
 ///
 /// [tone] null is the neutral chip — a fact about the node (a coordinate).
-/// A toned chip carries STATE, and it takes the same colour the rest of the
-/// row uses for that state: the running chip is `primary` to match the row's
-/// tint and its left marker, rather than adding a second colour for one fact.
+/// A toned chip carries STATE: the running chip is `primary`.
 class _LedgerChip extends StatelessWidget {
   final SkotiqColors colors;
   final String label;

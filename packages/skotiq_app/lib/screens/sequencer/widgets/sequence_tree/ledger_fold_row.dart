@@ -187,7 +187,6 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
       colors: colors,
       depth: widget.depth,
       steadyMarker: widget.isDragging,
-      runningTone: colors.primary,
       chevron: _LedgerChevron(
         colors: colors,
         isCollapsed: true,
@@ -257,7 +256,7 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
     final colors = widget.colors;
     final Color fill;
     if (state.isRunning) {
-      fill = colors.primary;
+      fill = colors.brandWarm;
     } else if (state.hasFailure) {
       fill = colors.error;
     } else {
