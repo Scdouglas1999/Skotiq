@@ -90,7 +90,6 @@ pub struct TelescopeFullStatus {
     pub slewing: bool,
     pub tracking: bool,
     pub tracking_rate: DriveRate,
-    // (mounts where `CanPulseGuide == false` return error 0x400 / NotImplemented).
     pub is_pulse_guiding: Option<bool>,
     pub at_home: bool,
     pub at_park: bool,
