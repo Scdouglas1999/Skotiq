@@ -90,8 +90,6 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   /// register against. Inert on non-iOS.
   PushRegistrationService? _pushRegistration;
 
-  bool _checkpointChecked = false;
-
   /// How long the WebSocket can stay disconnected before we declare the
   /// session dead and route the user back to the connection screen. The
   /// backend's own reconnector backs off up to 30 s; we wait the full
@@ -271,12 +269,6 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
     // v4 relay: the session is dead — drop the loopback tunnel too.
     unawaited(_closeActiveRelayTunnel());
     ref.read(connectionStaleProvider.notifier).state = false;
-    // Audit reset the once-per-lifetime checkpoint flag so
-    // a future reconnect re-runs the resume dialog if the server
-    // now has a fresh interrupted sequence to recover. Without
-    // this, dropping mid-session and reconnecting in the same
-    // app lifecycle would silently skip the recovery prompt.
-    _checkpointChecked = false;
     setState(() {
       _connectedServer = null;
       _isDiscovering = false;
@@ -405,10 +397,6 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
           _disconnectGraceTimer = null;
           if (_connectionStale) {
             _connectionStale = false;
-            // Back after a drop: the host may have restarted inside the
-            // grace and left a run it can continue. Look again (the check
-            // does not offer it while a run is going).
-            _checkpointChecked = false;
             ref.read(connectionStaleProvider.notifier).state = false;
             setState(() {
               _statusMessage = '';

@@ -9,7 +9,6 @@ import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/connection/link_mismatch_actions.dart';
 import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
-import 'package:skotiq_app/screens/shell/checkpoint_recovery_rule.dart';
 import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_core/backend.dart';
@@ -43,8 +42,6 @@ import 'services/push_registration_service.dart';
 import 'services/rig_connection.dart';
 import 'services/voice_control_lifecycle_provider.dart';
 import 'services/voice_control_service.dart';
-import 'utils/error_snackbar.dart';
-import 'widgets/checkpoint_resume_dialog.dart';
 import 'widgets/phone_battery_indicator.dart';
 import 'widgets/tailscale_setup_sheet.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
@@ -374,12 +371,6 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         if (_connectedServer != null &&
             next.hostPlace.offersLink &&
             !_skippedConnection) {
-          // Audit drop the checkpoint-once latch alongside the
-          // backend swap. Otherwise a Settings-driven disconnect then
-          // reconnect in the same app lifecycle would silently skip the
-          // resume dialog even if the server now has a fresh
-          // interrupted sequence.
-          _checkpointChecked = false;
           setState(() {
             _connectedServer = null;
             _error = null;
@@ -430,8 +421,8 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
           // a rebuild can't double-route).
           unawaited(MobileNotificationService().handleLaunchNotification());
 
-          // Check for checkpoint on first connection
-          _checkForCheckpoint(context, ref);
+          // A run to recover is offered by the shell's checkpoint prompt,
+          // on every link (AppShell).
 
           return SkotiqApp(platformServices: mobilePlatformServices);
         },
