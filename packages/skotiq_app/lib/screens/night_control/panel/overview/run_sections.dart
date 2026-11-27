@@ -40,10 +40,10 @@ class NightAdaptiveExposureSection extends StatelessWidget {
     final l10n = SkotiqLocalizations.of(context);
     final (String key, MetricGridTone? tone) = switch (decision.reason) {
       AdaptiveExposureReason.adapted => (
-          decision.isNontrivialAdjustment
-              ? 'nightAdaptiveAdapted'
-              : 'nightAdaptiveAsPlanned',
-          decision.isNontrivialAdjustment ? MetricGridTone.good : null,
+          decision.unchanged
+              ? 'nightAdaptiveAsPlanned'
+              : 'nightAdaptiveAdapted',
+          decision.unchanged ? null : MetricGridTone.good,
         ),
       AdaptiveExposureReason.clampedMin => (
           'nightAdaptiveClampedMin',

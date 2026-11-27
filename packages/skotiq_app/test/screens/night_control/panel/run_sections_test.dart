@@ -26,14 +26,17 @@ final _now = DateTime.utc(2026, 10, 18, 4, 30);
 AdaptiveExposureEvent _adapted({
   AdaptiveExposureReason reason = AdaptiveExposureReason.adapted,
   double adapted = 120,
+  double nominal = 180,
+  bool unchanged = false,
 }) =>
     AdaptiveExposureEvent(
       nodeId: 'exp-1',
       adaptedSecs: adapted,
-      nominalSecs: 180,
+      nominalSecs: nominal,
       skyBrightnessMag: 20.314,
       filter: 'Ha',
       reason: reason,
+      unchanged: unchanged,
       receivedAt: _now,
     );
 
@@ -116,6 +119,30 @@ void main() {
       expect(find.text('2m (plan 3m)'), findsOneWidget);
       expect(find.text('20.31 mag/arcsec²'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    // The sequencer decides whether the length changed; the step line and
+    // the feed already say "adjusted" for 300 s taken as 302 s.
+    testWidgets('a small adjustment the sequencer made reads as adapted',
+        (tester) async {
+      await _pumpSection(
+        tester,
+        NightAdaptiveExposureSection(
+          decision: _adapted(adapted: 302, nominal: 300),
+        ),
+      );
+      expect(find.text('Adapted to the sky'), findsOneWidget);
+    });
+
+    testWidgets('a length the sequencer left as planned reads as planned',
+        (tester) async {
+      await _pumpSection(
+        tester,
+        NightAdaptiveExposureSection(
+          decision: _adapted(adapted: 300, nominal: 300, unchanged: true),
+        ),
+      );
+      expect(find.text('Adapted to the sky'), findsNothing);
     });
 
     testWidgets('a clamped exposure is flagged', (tester) async {

@@ -51,6 +51,9 @@ class AdaptiveExposureEvent {
   /// Tag describing why the value was chosen.
   final AdaptiveExposureReason reason;
 
+  /// The burst is taken at its planned length, as the sequencer decided.
+  final bool unchanged;
+
   /// Wall-clock receipt timestamp (used to expire stale snapshots in
   /// the dashboard).
   final DateTime receivedAt;
@@ -62,6 +65,7 @@ class AdaptiveExposureEvent {
     required this.skyBrightnessMag,
     required this.filter,
     required this.reason,
+    required this.unchanged,
     required this.receivedAt,
   });
 
@@ -75,18 +79,7 @@ class AdaptiveExposureEvent {
     skyBrightnessMag: event.skyBrightnessMag,
     filter: event.filter,
     reason: AdaptiveExposureReason.fromWire(event.reason),
+    unchanged: event.unchanged,
     receivedAt: DateTime.now(),
   );
-
-  /// Percent change from nominal. Positive => stretched (sky brighter
-  /// than reference), negative => shortened.
-  double get changePercent {
-    if (nominalSecs <= 0) return 0;
-    return ((adaptedSecs - nominalSecs) / nominalSecs) * 100;
-  }
-
-  /// Whether this decision actually changed the exposure duration
-  /// noticeably (>1 % delta — anything smaller is rounding noise on
-  /// the pipeline).
-  bool get isNontrivialAdjustment => changePercent.abs() > 1.0;
 }
