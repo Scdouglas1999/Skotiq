@@ -1907,7 +1907,7 @@ async fn a_trigger_fired_autofocus_names_itself_on_the_wire() {
     let announced = tokio::time::timeout(std::time::Duration::from_secs(20), async {
         loop {
             match events.recv().await {
-                Ok(ExecutorEvent::NodeStarted { id, name })
+                Ok(ExecutorEvent::NodeStarted { id, name, .. })
                     if id.starts_with("trigger:") && id.ends_with(":autofocus") =>
                 {
                     return (id, name);

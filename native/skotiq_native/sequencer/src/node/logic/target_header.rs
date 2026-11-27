@@ -585,32 +585,29 @@ fn waits_for_floor(start: &TargetTrigger) -> bool {
 /// The instruction name a target step's waiting reading is published under.
 const TARGET_WAIT_INSTRUCTION: &str = "Target";
 
-/// How every [`waiting_message`] begins; `kTargetWaitMessagePrefix` in the
-/// app reads a step's reading as "waiting" by it.
-pub const TARGET_WAIT_MESSAGE_PREFIX: &str = "Waiting for ";
-
 /// What the run says while a target waits to start: the floor it is held
 /// behind, with its altitude and the floor's in that direction, when that is
 /// what holds it; otherwise the condition it waits for.
-fn waiting_message(
+fn waiting_detail(
     target: &str,
     start: &TargetTrigger,
     label: &str,
     observer: &TriggerObserverContext,
-) -> String {
-    if waits_for_floor(start) {
-        if let Some(floor) = observer.altitude_floor.as_ref() {
+) -> ProgressDetail {
+    let held_by_floor = observer
+        .altitude_floor
+        .as_ref()
+        .filter(|_| waits_for_floor(start))
+        .and_then(|floor| {
             let (altitude, azimuth) = observer.floor_target().alt_az(observer.now);
-            if !floor.clears(altitude, azimuth) {
-                return format!(
-                    "{TARGET_WAIT_MESSAGE_PREFIX}{target} to clear the altitude floor: \
-                     {altitude:.0}° up, floor {:.0}° in that direction",
-                    floor.at_azimuth(azimuth)
-                );
-            }
-        }
+            (!floor.clears(altitude, azimuth)).then(|| (altitude, floor.at_azimuth(azimuth)))
+        });
+    ProgressDetail::TargetWaiting {
+        target: target.to_string(),
+        condition: label.to_string(),
+        altitude_deg: held_by_floor.map(|(altitude, _)| altitude),
+        floor_deg: held_by_floor.map(|(_, floor)| floor),
     }
-    format!("{TARGET_WAIT_MESSAGE_PREFIX}{target}: {label}")
 }
 
 /// Whether `start` waits for the altitude floor and the target does not clear
@@ -783,21 +780,17 @@ async fn wait_for_trigger(
 
         if !emitted_initial {
             emitted_initial = true;
-            let message = waiting_message(&target_label, trigger, &label, &trig_ctx);
-            tracing::info!("{message}");
-            // The operator sees why the target has not started: on the
-            // step (its reading) and as the run's message.
-            context.send_progress(ProgressUpdate::instruction_progress(
-                node_id.clone(),
-                TARGET_WAIT_INSTRUCTION,
-                0.0,
-                ProgressDetail::Generic(message.clone()),
-            ));
-            context.send_progress(ProgressUpdate::lifecycle(
-                node_id.clone(),
-                NodeStatus::Running,
-                message,
-            ));
+            let detail = waiting_detail(&target_label, trigger, &label, &trig_ctx);
+            tracing::info!("{}", detail.detail_text());
+            context.send_progress(
+                ProgressUpdate::instruction_progress(
+                    node_id.clone(),
+                    TARGET_WAIT_INSTRUCTION,
+                    0.0,
+                    detail,
+                )
+                .with_bare_status_line(),
+            );
         }
 
         tokio::time::sleep(poll).await;
@@ -2249,15 +2242,17 @@ mod site_floor_tests {
         let start = start_when_with_site_floor(&eastern(), &ctx).unwrap();
         let observer =
             trigger_observer_ctx(&eastern(), &ctx, &start, TriggerRole::StartWhen).unwrap();
-        let message = waiting_message("East", &start, &start.label(), &observer);
+        let message = waiting_detail("East", &start, &start.label(), &observer).detail_text();
         assert!(
             message.starts_with("Waiting for East to clear the altitude floor: ")
                 && message.ends_with("° up, floor 40° in that direction"),
             "{message}"
         );
         let timed = TargetTrigger::TimeAfter(0);
-        assert!(waiting_message("East", &timed, &timed.label(), &observer)
-            .starts_with(TARGET_WAIT_MESSAGE_PREFIX));
+        assert_eq!(
+            waiting_detail("East", &timed, &timed.label(), &observer).detail_text(),
+            "Waiting for East: time ≥ 0"
+        );
     }
 
     /// A target above the floor now, with a start time after it has set for

@@ -247,6 +247,9 @@ pub enum SequencerEvent {
     NodeStarted {
         node_id: String,
         node_type: String,
+        /// What an exposure node's frames are (`Light`, `Dark`, ... as the
+        /// FITS `IMAGETYP` spells it); `None` for any other node.
+        frame_type: Option<String>,
     },
     NodeCompleted {
         node_id: String,
@@ -491,9 +494,11 @@ pub enum SequencerEvent {
         /// Filter being captured through. `None` for monochrome / no
         /// filter wheel rigs.
         filter: Option<String>,
-        /// Lowercase tag: `adapted`, `clamped_min`, `clamped_max`,
-        /// `unavailable`, `disabled`, `out_of_nominal_bounds`.
+        /// The reason's wire word, as
+        /// `test_fixtures/wire_words/adaptive_exposure_reasons.json` lists them.
         reason: String,
+        /// The burst is taken at its planned length.
+        unchanged: bool,
     },
 
     // Typed Science / photometry progress payloads.

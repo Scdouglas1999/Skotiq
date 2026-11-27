@@ -473,15 +473,9 @@ String _sequencerTitle(SequencerEvent v) {
     SequencerEvent_RecoveryCompleted() => 'Recovery complete',
     SequencerEvent_RecoveryGaveUp(abortedByUser: final aborted) =>
       aborted ? 'Recovery aborted' : 'Recovery exhausted',
-    // Adaptive exposure ("ExposureAdjusted") and any
-    // other adaptive-exposure events that haven't been wired into this
-    // label switch yet. Fallback to the generic class-name discriminant
-    // until each is given a hand-written label.
-    // The run reports a decision for every frame, adaptive exposure off
+    // The run reports a decision for every burst, adaptive exposure off
     // included; one that leaves the length as planned is not an adjustment.
-    SequencerEvent_ExposureAdjusted(nominalSecs: final o, adaptedSecs: final a)
-        when (a - o).abs() < 0.05 =>
-      'Exposure unchanged',
+    SequencerEvent_ExposureAdjusted(unchanged: true) => 'Exposure unchanged',
     SequencerEvent_ExposureAdjusted() => 'Exposure adjusted',
     SequencerEvent_PluginNodeRequested() => 'Plugin node requested',
     SequencerEvent_PluginNodeProgress() => 'Plugin node progress',

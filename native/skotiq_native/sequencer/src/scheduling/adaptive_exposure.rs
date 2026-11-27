@@ -232,7 +232,8 @@ pub struct AdaptiveExposureDecision {
 /// Carried in the structured progress event so the dashboard can render a
 /// human-readable explanation without the user reverse-engineering the
 /// math.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AdaptiveExposureReason {
     /// The adapter ran end-to-end with no clamping needed.
     Adapted,
@@ -253,18 +254,31 @@ pub enum AdaptiveExposureReason {
 }
 
 impl AdaptiveExposureReason {
-    /// Single-line label for the dashboard / progress feed.
-    pub fn label(&self) -> &'static str {
+    pub const ALL: [Self; 6] = [
+        Self::Adapted,
+        Self::ClampedMin,
+        Self::ClampedMax,
+        Self::Unavailable,
+        Self::Disabled,
+        Self::OutOfNominalBounds,
+    ];
+
+    /// The reason's wire word, which is also its serde form. The app reads
+    /// it by `test_fixtures/wire_words/adaptive_exposure_reasons.json`.
+    pub fn as_wire(self) -> &'static str {
         match self {
-            AdaptiveExposureReason::Adapted => "adapted",
-            AdaptiveExposureReason::ClampedMin => "clamped to min",
-            AdaptiveExposureReason::ClampedMax => "clamped to max",
-            AdaptiveExposureReason::Unavailable => "sky brightness unavailable",
-            AdaptiveExposureReason::Disabled => "disabled",
-            AdaptiveExposureReason::OutOfNominalBounds => "nominal out of bounds",
+            Self::Adapted => "adapted",
+            Self::ClampedMin => "clamped_min",
+            Self::ClampedMax => "clamped_max",
+            Self::Unavailable => "unavailable",
+            Self::Disabled => "disabled",
+            Self::OutOfNominalBounds => "out_of_nominal_bounds",
         }
     }
 }
+
+/// An adapted length this close to the planned one is the planned length.
+pub const ADAPTED_UNCHANGED_SECS: f64 = 0.05;
 
 /// Compute the adapted exposure for a single capture.
 ///
@@ -602,20 +616,41 @@ mod tests {
         assert_eq!(r.reason, AdaptiveExposureReason::Disabled);
     }
 
+    const REASONS_FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/wire_words/adaptive_exposure_reasons.json"
+    );
+
+    /// `test_fixtures/wire_words/adaptive_exposure_reasons.json`: every
+    /// reason's wire word, which the app's `AdaptiveExposureReason.fromWire`
+    /// reads. Regenerate with
+    /// `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer adaptive_exposure_reasons_fixture`.
     #[test]
-    fn label_text_for_every_reason() {
-        // Future-proofing: if a new variant is added without a label, the
-        // dashboard would render the Debug form. Force the maintainer to
-        // visit `label()`.
-        for r in [
-            AdaptiveExposureReason::Adapted,
-            AdaptiveExposureReason::ClampedMin,
-            AdaptiveExposureReason::ClampedMax,
-            AdaptiveExposureReason::Unavailable,
-            AdaptiveExposureReason::Disabled,
-            AdaptiveExposureReason::OutOfNominalBounds,
-        ] {
-            assert!(!r.label().is_empty());
+    fn adaptive_exposure_reasons_fixture() {
+        let words: Vec<&str> = AdaptiveExposureReason::ALL
+            .iter()
+            .map(|reason| {
+                assert_eq!(
+                    serde_json::to_value(reason).unwrap(),
+                    serde_json::json!(reason.as_wire()),
+                    "the serde form is the wire word"
+                );
+                reason.as_wire()
+            })
+            .collect();
+        let value = serde_json::json!(words);
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+            text.push('\n');
+            std::fs::write(REASONS_FIXTURE, text).expect("write fixture");
+            return;
         }
+        let committed: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(REASONS_FIXTURE).expect("fixture"))
+                .expect("JSON");
+        assert_eq!(
+            committed, value,
+            "an adaptive exposure reason changed; regenerate the fixture and update the app"
+        );
     }
 }

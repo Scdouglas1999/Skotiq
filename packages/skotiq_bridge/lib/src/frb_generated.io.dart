@@ -6915,9 +6915,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SequencerEvent_NodeStarted) {
       var pre_node_id = cst_encode_String(apiObj.nodeId);
       var pre_node_type = cst_encode_String(apiObj.nodeType);
+      var pre_frame_type = cst_encode_opt_String(apiObj.frameType);
       wireObj.tag = 6;
       wireObj.kind.NodeStarted.node_id = pre_node_id;
       wireObj.kind.NodeStarted.node_type = pre_node_type;
+      wireObj.kind.NodeStarted.frame_type = pre_frame_type;
       return;
     }
     if (apiObj is SequencerEvent_NodeCompleted) {
@@ -7207,6 +7209,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       );
       var pre_filter = cst_encode_opt_String(apiObj.filter);
       var pre_reason = cst_encode_String(apiObj.reason);
+      var pre_unchanged = cst_encode_bool(apiObj.unchanged);
       wireObj.tag = 24;
       wireObj.kind.ExposureAdjusted.node_id = pre_node_id;
       wireObj.kind.ExposureAdjusted.adapted_secs = pre_adapted_secs;
@@ -7214,6 +7217,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.ExposureAdjusted.sky_brightness_mag = pre_sky_brightness_mag;
       wireObj.kind.ExposureAdjusted.filter = pre_filter;
       wireObj.kind.ExposureAdjusted.reason = pre_reason;
+      wireObj.kind.ExposureAdjusted.unchanged = pre_unchanged;
       return;
     }
     if (apiObj is SequencerEvent_PhotometryFrame) {
@@ -21246,6 +21250,8 @@ final class wire_cst_SequencerEvent_NodeStarted extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> node_id;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> node_type;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> frame_type;
 }
 
 final class wire_cst_SequencerEvent_NodeCompleted extends ffi.Struct {
@@ -21552,6 +21558,9 @@ final class wire_cst_SequencerEvent_ExposureAdjusted extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
+
+  @ffi.Bool()
+  external bool unchanged;
 }
 
 final class wire_cst_SequencerEvent_PhotometryFrame extends ffi.Struct {

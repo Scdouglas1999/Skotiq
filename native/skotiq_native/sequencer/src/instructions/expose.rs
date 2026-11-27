@@ -70,7 +70,7 @@ impl Drop for CameraExposureAbortGuard {
 #[derive(Default)]
 pub struct BurstControl<'a> {
     pub pause: crate::node::context::PauseGate,
-    pub status: Option<&'a (dyn Fn(&str) + Send + Sync)>,
+    pub status: Option<&'a (dyn Fn(crate::ProgressDetail) + Send + Sync)>,
     /// Frames of this burst taken before a stop; the burst continues with
     /// the next one.
     pub frames_taken: u32,
@@ -78,8 +78,12 @@ pub struct BurstControl<'a> {
 
 impl BurstControl<'_> {
     pub(crate) fn report(&self, message: &str) {
+        self.report_detail(message.into());
+    }
+
+    pub(crate) fn report_detail(&self, detail: crate::ProgressDetail) {
         if let Some(status) = self.status {
-            status(message);
+            status(detail);
         }
     }
 }

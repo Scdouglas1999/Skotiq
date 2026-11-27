@@ -147,13 +147,15 @@ pub(crate) fn typed_sequencer_event_from_progress_detail(
             sky_brightness_mag,
             filter,
             reason,
+            unchanged,
         } => Some(SequencerEvent::ExposureAdjusted {
             node_id: node_id.to_string(),
             adapted_secs: *adapted_secs,
             nominal_secs: *nominal_secs,
             sky_brightness_mag: *sky_brightness_mag,
             filter: filter.clone(),
-            reason: reason.clone(),
+            reason: reason.as_wire().to_string(),
+            unchanged: *unchanged,
         }),
         // plugin-node progress payload. FRB doesn't
         // bridge `serde_json::Value`, so we stringify the detail for
@@ -295,19 +297,9 @@ pub(crate) fn recovery_cause_fields(
     (cause.policy().kind.to_string(), custom_label)
 }
 
-/// Phase enum → stable Debug-format string. Matches the JSON wire shape
-/// `serde` produces for the Rust `RecoveryPhase` unit-variant enum so the
-/// Dart `_phaseFromWire` parser keeps working.
 #[flutter_rust_bridge::frb(ignore)]
 pub(crate) fn recovery_phase_str(phase: skotiq_sequencer::recovery::RecoveryPhase) -> String {
-    use skotiq_sequencer::recovery::RecoveryPhase as RP;
-    match phase {
-        RP::Waiting => "Waiting",
-        RP::Attempting => "Attempting",
-        RP::Recovered => "Recovered",
-        RP::GaveUp => "GaveUp",
-    }
-    .to_string()
+    phase.as_wire().to_string()
 }
 
 #[flutter_rust_bridge::frb(ignore)]

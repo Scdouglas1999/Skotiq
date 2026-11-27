@@ -1229,6 +1229,7 @@ typedef struct wire_cst_SequencerEvent_Failed {
 typedef struct wire_cst_SequencerEvent_NodeStarted {
   struct wire_cst_list_prim_u_8_strict *node_id;
   struct wire_cst_list_prim_u_8_strict *node_type;
+  struct wire_cst_list_prim_u_8_strict *frame_type;
 } wire_cst_SequencerEvent_NodeStarted;
 
 typedef struct wire_cst_SequencerEvent_NodeCompleted {
@@ -1410,6 +1411,7 @@ typedef struct wire_cst_SequencerEvent_ExposureAdjusted {
   double *sky_brightness_mag;
   struct wire_cst_list_prim_u_8_strict *filter;
   struct wire_cst_list_prim_u_8_strict *reason;
+  bool unchanged;
 } wire_cst_SequencerEvent_ExposureAdjusted;
 
 typedef struct wire_cst_SequencerEvent_PhotometryFrame {

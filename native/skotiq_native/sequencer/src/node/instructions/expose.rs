@@ -15,7 +15,6 @@ use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
 use crate::scheduling::{
     compute_adaptive_exposure, AdaptiveExposureConfig, AdaptiveExposureDecision,
-    AdaptiveExposureReason,
 };
 use crate::{
     AutofocusConfig, AutofocusMethod, ExposureConfig, NodeStatus, NodeType, TriggerAction,
@@ -187,22 +186,14 @@ impl InstructionNode for ExposeInstruction {
         // what lets the frame loop honour a Pause. `status` gives an in-burst
         // hold (the meridian gate) a way to say so, instead of the run
         // appearing stalled at 0/N with no explanation.
-        //
-        // The hold goes out as instruction progress, not a bare lifecycle
-        // message: only instruction progress becomes an event, so a lifecycle
-        // message reached the native status and no client. It keeps the
-        // burst's last percent so the step's bar does not drop to zero.
         let status_cb = context.progress_callback.clone();
         let status_node_id = node_id.to_string();
-        let last_percent = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0f64.to_bits()));
-        let status_percent = last_percent.clone();
-        let status_fn = move |message: &str| {
+        let status_fn = move |detail: ProgressDetail| {
             if let Some(cb) = status_cb.as_ref() {
-                cb(ProgressUpdate::instruction_progress(
+                cb(ProgressUpdate::status(
                     status_node_id.clone(),
                     "Exposure",
-                    f64::from_bits(status_percent.load(Ordering::Relaxed)),
-                    ProgressDetail::Generic(message.to_string()),
+                    detail,
                 ));
             }
         };
@@ -230,7 +221,6 @@ impl InstructionNode for ExposeInstruction {
                         } else {
                             0.0
                         };
-                        last_percent.store(percent.to_bits(), Ordering::Relaxed);
                         // Per-frame structured Exposure progress. current_frame /
                         // total_frames must remain populated because the executor's
                         // progress callback uses them to synthesize ExposureStarted
@@ -410,7 +400,7 @@ fn emit_adaptive_exposure_event(
             decision.nominal_secs,
             decision.adapted_secs,
             filter,
-            decision.reason.label(),
+            decision.reason.as_wire(),
         );
     } else {
         tracing::debug!(
@@ -418,7 +408,7 @@ fn emit_adaptive_exposure_event(
             decision.nominal_secs,
             decision.adapted_secs,
             filter,
-            decision.reason.label(),
+            decision.reason.as_wire(),
         );
     }
     let upd = ProgressUpdate::instruction_progress(
@@ -430,26 +420,12 @@ fn emit_adaptive_exposure_event(
             nominal_secs: decision.nominal_secs,
             sky_brightness_mag: decision.sky_brightness_mag,
             filter: filter.map(|s| s.to_string()),
-            reason: reason_to_str(&decision.reason).to_string(),
+            reason: decision.reason,
+            unchanged: (decision.adapted_secs - decision.nominal_secs).abs()
+                < crate::scheduling::ADAPTED_UNCHANGED_SECS,
         },
     );
     context.send_progress(upd);
-}
-
-/// Convert the typed `AdaptiveExposureReason` to the wire-form lowercase
-/// kebab-case strings the Dart side switches on. Centralised here so the
-/// bridge / Dart side has a single canonical set of strings to match
-/// against; lower-case avoids "Adapted" vs "adapted" confusion in
-/// string-equality matchers.
-fn reason_to_str(reason: &AdaptiveExposureReason) -> &'static str {
-    match reason {
-        AdaptiveExposureReason::Adapted => "adapted",
-        AdaptiveExposureReason::ClampedMin => "clamped_min",
-        AdaptiveExposureReason::ClampedMax => "clamped_max",
-        AdaptiveExposureReason::Unavailable => "unavailable",
-        AdaptiveExposureReason::Disabled => "disabled",
-        AdaptiveExposureReason::OutOfNominalBounds => "out_of_nominal_bounds",
-    }
 }
 
 /// emit the structured `IntegrationBudget` progress
@@ -1024,12 +1000,14 @@ mod tests {
                 sky_brightness_mag,
                 filter,
                 reason,
+                unchanged,
             } => {
+                assert!(!unchanged);
                 assert!((adapted_secs - 142.0).abs() < 1e-9);
                 assert!((nominal_secs - 60.0).abs() < 1e-9);
                 assert_eq!(sky_brightness_mag.as_ref().copied(), Some(19.2));
                 assert_eq!(filter.as_deref(), Some("L"));
-                assert_eq!(reason, "adapted");
+                assert_eq!(*reason, AdaptiveExposureReason::Adapted);
             }
             other => panic!("unexpected detail: {:?}", other),
         }
@@ -1065,12 +1043,14 @@ mod tests {
                 sky_brightness_mag,
                 filter,
                 reason,
+                unchanged,
             } => {
+                assert!(unchanged);
                 assert!((adapted_secs - 60.0).abs() < 1e-9);
                 assert!((nominal_secs - 60.0).abs() < 1e-9);
                 assert_eq!(sky_brightness_mag.as_ref().copied(), None);
                 assert_eq!(filter.as_deref(), Some("R"));
-                assert_eq!(reason, "unavailable");
+                assert_eq!(*reason, AdaptiveExposureReason::Unavailable);
             }
             other => panic!("unexpected detail: {:?}", other),
         }
@@ -1620,7 +1600,10 @@ mod tests {
             } => {
                 assert!((adapted_secs - 300.0).abs() < 1e-9);
                 assert!((nominal_secs - 60.0).abs() < 1e-9);
-                assert_eq!(reason, "clamped_max");
+                assert_eq!(
+                    *reason,
+                    crate::scheduling::AdaptiveExposureReason::ClampedMax
+                );
             }
             other => panic!("unexpected L detail: {:?}", other),
         }
@@ -1634,7 +1617,7 @@ mod tests {
             } => {
                 assert!((adapted_secs - 120.0).abs() < 1e-9);
                 assert!((nominal_secs - 120.0).abs() < 1e-9);
-                assert_eq!(reason, "disabled");
+                assert_eq!(*reason, crate::scheduling::AdaptiveExposureReason::Disabled);
             }
             other => panic!("unexpected R detail: {:?}", other),
         }

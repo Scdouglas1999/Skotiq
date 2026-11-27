@@ -127,8 +127,8 @@ pub(crate) struct RunPlan {
     /// Authored display name per node. A node the operator never named has
     /// no entry: publishing "" prints a blank where a client shows the name.
     pub node_display_names: HashMap<NodeId, String>,
-    /// Duration and filter of every exposure node.
-    pub exposure_nodes: Arc<HashMap<NodeId, (f64, Option<String>)>>,
+    /// What every exposure node takes.
+    pub exposure_nodes: Arc<HashMap<NodeId, super::progress_callback::ExposureNodePlan>>,
     /// Name and coordinates of every target node. An unnamed target has no
     /// entry: its frames are labeled "untargeted" and a made-up name would
     /// put another spelling on the wire.
@@ -156,7 +156,11 @@ impl RunPlan {
             .filter_map(|node| match &node.node_type {
                 NodeType::TakeExposure(config) => Some((
                     node.id.clone(),
-                    (config.duration_secs, config.filter.clone()),
+                    super::progress_callback::ExposureNodePlan {
+                        planned_secs: config.duration_secs,
+                        filter: config.filter.clone(),
+                        frame_type: config.frame_type,
+                    },
                 )),
                 _ => None,
             })
