@@ -39,8 +39,6 @@ fn reject_dir_absolute_override_inside_the_target_is_kept() {
     assert_eq!(dir, abs);
 }
 
-const REJECT_DIR_FIXTURE: &str = "reject_folder/cases.json";
-
 /// `test_fixtures/reject_folder/cases.json`: where a graded reject goes for
 /// a frame folder and a reject-folder setting. The app's restore reads the
 /// same cases (`restoredFramePath`). Regenerate with
@@ -48,6 +46,7 @@ const REJECT_DIR_FIXTURE: &str = "reject_folder/cases.json";
 #[cfg(not(windows))]
 #[test]
 fn reject_dir_cases_fixture() {
+    const REJECT_DIR_FIXTURE: &str = "reject_folder/cases.json";
     let inputs: [(&str, Option<&str>); 7] = [
         ("/captures/M31/L", None),
         ("/captures/M31/L", Some("")),
