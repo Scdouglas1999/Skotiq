@@ -105,8 +105,11 @@ class CameraStateSnapshot extends Equatable
 
   /// The cooler is running, or still draws more than
   /// [kCoolerActivePowerFloor] percent power.
-  bool get coolerActive =>
-      coolerRunning || (coolerPower ?? 0) > kCoolerActivePowerFloor;
+  bool get coolerActive {
+    if (coolerRunning) return true;
+    final power = coolerPower;
+    return power != null && power > kCoolerActivePowerFloor;
+  }
 
   /// Whether the device is healthy (communicated within last 30 seconds)
   bool get isHealthy {
