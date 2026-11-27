@@ -93,7 +93,8 @@ Future<bridge.FitsReadResult> readDemoFitsFile(String path) async {
     }
   }
   int number(String key) {
-    final value = int.tryParse(cards[key] ?? '');
+    final text = cards[key];
+    final value = text == null ? null : int.tryParse(text);
     if (value == null) throw FormatException('No $key in $path');
     return value;
   }
@@ -132,13 +133,16 @@ Future<bridge.FitsReadResult> readDemoFitsFile(String path) async {
       starCount: frame.starCount,
     ),
     objectName: cards['OBJECT'],
-    exposureTime: double.tryParse(cards['EXPTIME'] ?? ''),
+    exposureTime: _real(cards['EXPTIME']),
     filter: cards['FILTER'],
-    ra: double.tryParse(cards['RA'] ?? ''),
-    dec: double.tryParse(cards['DEC'] ?? ''),
+    ra: _real(cards['RA']),
+    dec: _real(cards['DEC']),
     dateObs: cards['DATE-OBS'],
   );
 }
+
+/// A numeric card's value, or null when the card is absent or not a number.
+double? _real(String? text) => text == null ? null : double.tryParse(text);
 
 /// A card's value without its comment; a quoted string unquoted.
 String _cardValue(String field) {

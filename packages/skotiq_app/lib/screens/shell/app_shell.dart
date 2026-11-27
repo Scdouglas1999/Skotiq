@@ -451,7 +451,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (!ref.read(remoteClientLaunchProvider)) return;
       if (!identical(previous, next) &&
-          (previous?.hostPlace.isLinked ?? false)) {
+          (previous != null && previous.hostPlace.isLinked)) {
         _checkpointCheck = null;
       }
       if (!next.hostPlace.isLinked) return;
