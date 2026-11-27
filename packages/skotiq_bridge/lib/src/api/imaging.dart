@@ -340,12 +340,7 @@ Uint8List apiAutoStretchColorImage({
 /// Async and off-thread on purpose. This reads the whole FITS off disk,
 /// converts it to `u16`, downsamples, auto-stretches and JPEG-encodes it —
 /// hundreds of milliseconds of blocking I/O and CPU for a full-frame CMOS
-/// capture. It used to be `#[frb(sync)]`, which runs the whole of that on the
-/// Dart isolate that called it: the UI isolate. A frame strip asking for N
-/// thumbnails therefore froze the app for N serialised full-frame decodes,
-/// which is exactly what the owner saw when a night's Dashboard showed no
-/// thumbnails at all. The work now runs on the blocking pool and the caller
-/// awaits it, so the UI isolate stays free to paint.
+/// capture.
 Future<Uint8List> apiGenerateFitsThumbnail({
   required String filePath,
   required int maxSize,

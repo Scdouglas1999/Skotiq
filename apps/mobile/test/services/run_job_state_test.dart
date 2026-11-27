@@ -27,9 +27,9 @@ void main() {
 
   test('a running step names what it does', () {
     String word(String node) => runJobState(
-          SequenceExecutionState.running,
-          progress: SequenceProgress(currentNodeName: node),
-        );
+      SequenceExecutionState.running,
+      progress: SequenceProgress(currentNodeName: node),
+    );
     expect(word('Autofocus'), 'focusing');
     expect(word('Center target'), 'centering');
     expect(word('Start guiding'), 'guiding');
