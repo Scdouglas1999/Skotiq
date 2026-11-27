@@ -18,18 +18,14 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../tours/tour_target.dart';
 import 'settings_widgets.dart';
 
-/// The folders the Files & Storage page edits.
+/// The imaging host's folders the Files & Storage page edits. The host's
+/// settings carry both, so a linked client changes them on the host.
 enum HostPathSetting {
-  /// Where captured frames are saved: carried by the remote wire model, so a
-  /// linked client may change it on the host.
-  imageOutput(editableWhenLinked: true),
+  /// Where captured frames are saved.
+  imageOutput,
 
-  /// Where sequences are saved: the host's own, changed only on the host.
-  sequences(editableWhenLinked: false);
-
-  const HostPathSetting({required this.editableWhenLinked});
-
-  final bool editableWhenLinked;
+  /// Where sequences are saved.
+  sequences,
 }
 
 typedef FilePathSettingsWriter = Future<void> Function(
@@ -108,17 +104,16 @@ class FilePathSettings extends ConsumerWidget {
     super.key,
   });
 
-  /// Whether [setting] cannot be changed from here. The paths are the
-  /// imaging host's: a client launch changes only those the linked host's
-  /// settings carry (the others, and any while not linked, would be saved
-  /// where nothing reads them). The phone's demo rig captures in this
-  /// process, so its paths are this database's.
-  bool _refusedHere(WidgetRef ref, HostPathSetting setting) {
+  /// Whether the paths cannot be changed from here. They are the imaging
+  /// host's: a client launch changes them only while linked (before that
+  /// they would be saved where nothing reads them). The phone's demo rig
+  /// captures in this process, so its paths are this database's.
+  bool _refusedHere(WidgetRef ref) {
     if (!ref.read(isRemoteClientProvider) ||
         ref.read(backendProvider).hostPlace == HostPlace.demo) {
       return false;
     }
-    return !(ref.read(isRemoteModeProvider) && setting.editableWhenLinked);
+    return !ref.read(isRemoteModeProvider);
   }
 
   Future<void> _selectPath(
@@ -129,7 +124,7 @@ class FilePathSettings extends ConsumerWidget {
   ) async {
     final host = ref.backendScope();
     final isRemoteMode = ref.read(isRemoteModeProvider);
-    if (_refusedHere(ref, setting)) {
+    if (_refusedHere(ref)) {
       context.showWarningSnackBar(
           'This path can only be changed on the host machine.');
       return;
@@ -194,7 +189,7 @@ class FilePathSettings extends ConsumerWidget {
       );
       return;
     }
-    if (_refusedHere(ref, setting)) {
+    if (_refusedHere(ref)) {
       context.showWarningSnackBar(
         'This path can only be changed on the host machine.',
       );
