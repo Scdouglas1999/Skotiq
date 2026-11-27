@@ -2976,7 +2976,6 @@ packages/skotiq_core/lib/src/services/coimaging/coimaging_session_service.dart	r
 packages/skotiq_core/lib/src/services/coimaging/coimaging_session_service/internals.dart	_persistMembership	literal_null_coalesce	1	V0441	framingOffsetDecArcsec: self?.framingOffsetDecArcsec ?? 0,
 packages/skotiq_core/lib/src/services/coimaging/coimaging_session_service/internals.dart	_persistMembership	literal_null_coalesce	1	V0439	framingOffsetIndex: self?.framingOffsetIndex ?? 0,
 packages/skotiq_core/lib/src/services/coimaging/coimaging_session_service/internals.dart	_persistMembership	literal_null_coalesce	1	V0440	framingOffsetRaArcsec: self?.framingOffsetRaArcsec ?? 0,
-packages/skotiq_core/lib/src/services/constellation/constellation_client/io_cleanup.dart	_deleteQuietly	comment_best_effort	1	V0442	// Best-effort cleanup; the caller's error still propagates.
 packages/skotiq_core/lib/src/services/constellation/constellation_models.dart	ArtifactAttribution.fromJson	literal_null_coalesce	1	V0172	artifactRef: json['artifactRef'] as String? ?? '',
 packages/skotiq_core/lib/src/services/constellation/constellation_models.dart	ArtifactAttribution.fromJson	literal_null_coalesce	1	V0172	artifactType: json['artifactType'] as String? ?? '',
 packages/skotiq_core/lib/src/services/constellation/constellation_models.dart	CoImagingAccounting.fromJson	literal_null_coalesce	1	V0172	(json['combinedIntegrationSeconds'] as num?)?.toDouble() ?? 0.0,
@@ -3063,6 +3062,7 @@ packages/skotiq_core/lib/src/services/constellation/constellation_service.dart	f
 packages/skotiq_core/lib/src/services/constellation/constellation_service.dart	pullTarget	literal_null_coalesce	1	V0173	contributors: joined?.contributors ?? 0,
 packages/skotiq_core/lib/src/services/constellation/constellation_service.dart	rehydrateJoined	literal_null_coalesce	1	V0173	decDeg: row.targetDecDeg ?? 0.0,
 packages/skotiq_core/lib/src/services/constellation/constellation_service.dart	rehydrateJoined	literal_null_coalesce	1	V0173	raDeg: row.targetRaDeg ?? 0.0,
+packages/skotiq_core/lib/src/services/constellation/hub_transport.dart	_deleteQuietly	comment_best_effort	1	V0442	// Best-effort cleanup; the caller's error still propagates.
 packages/skotiq_core/lib/src/services/conversational_builder/conversational_history_service.dart	_rowToEntry	literal_null_coalesce	1	V0102	completionTokens: ct ?? 0,
 packages/skotiq_core/lib/src/services/conversational_builder/conversational_history_service.dart	_rowToEntry	literal_null_coalesce	1	V0102	promptTokens: pt ?? 0,
 packages/skotiq_core/lib/src/services/conversational_builder/conversational_history_service.dart	_rowToEntry	literal_null_coalesce	1	V0102	totalTokens: tt ?? ((pt ?? 0) + (ct ?? 0)),
