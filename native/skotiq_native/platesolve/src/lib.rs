@@ -2453,14 +2453,6 @@ mod tests {
 
     /// The catalog search must probe around an exe the MODULE discovered, not
     /// only one the operator configured.
-    ///
-    /// The owner's rig on 2026-09-15: ASTAP at `C:\Program Files\astap\astap.exe`
-    /// with a `d80_*.1476` catalog beside it, solving that night's frames to
-    /// 0.17" — and nothing configured by hand, because nothing needed to be.
-    /// With `ACTIVE_SOLVER_PREF.astap_path` empty the search was handed no exe
-    /// at all, never looked in the exe's own directory (and
-    /// `C:\Program Files\astap` is not in `catalog_dir_candidates`' well-known
-    /// set either), and reported the catalog missing to every run.
     #[test]
     fn catalog_search_falls_back_to_the_discovered_exe() {
         let configured = PathBuf::from("/configured/astap");
