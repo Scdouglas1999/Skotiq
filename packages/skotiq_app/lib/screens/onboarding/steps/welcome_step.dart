@@ -7,6 +7,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../connection/link_rig_actions.dart';
 import '../../connection/link_rig_dialog.dart';
 
+/// Below this card width the link button goes under the text.
+const double _linkCardRowMinWidth = 560;
+
 /// Welcome step — the entry point of the wizard.
 ///
 /// Detects whether the user already has equipment profiles. If they do
@@ -108,45 +111,67 @@ class OnboardingWelcomeStep extends ConsumerWidget {
               key: const ValueKey('onboarding.linkRig'),
               decoration: SkotiqDecorations.well(colors),
               padding: SkotiqTokens.paddingMd,
-              child: Row(
-                children: [
-                  Icon(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final icon = Icon(
                     LucideIcons.monitorSmartphone,
                     color: colors.primary,
                     size: SkotiqTokens.iconMd,
-                  ),
-                  const SizedBox(width: SkotiqTokens.spaceMd),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Is your rig plugged into another computer?',
-                          style: SkotiqTypography.labelStrong.copyWith(
-                            color: colors.textPrimary,
-                          ),
+                  );
+                  final text = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Is your rig plugged into another computer?',
+                        style: SkotiqTypography.labelStrong.copyWith(
+                          color: colors.textPrimary,
                         ),
-                        const SizedBox(height: SkotiqTokens.spaceXs),
-                        Text(
-                          'Link this computer to it instead of setting up '
-                          'equipment here. Skotiq has to be open on that '
-                          'computer with Remote access on.',
-                          style: SkotiqTypography.bodySm.copyWith(
-                            color: colors.textSecondary,
-                          ),
+                      ),
+                      const SizedBox(height: SkotiqTokens.spaceXs),
+                      Text(
+                        'Link this computer to it instead of setting up '
+                        'equipment here. Skotiq has to be open on that '
+                        'computer with Remote access on.',
+                        style: SkotiqTypography.bodySm.copyWith(
+                          color: colors.textSecondary,
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: SkotiqTokens.spaceMd),
-                  SkotiqButton(
+                      ),
+                    ],
+                  );
+                  final button = SkotiqButton(
                     label: 'Connect to an imaging computer',
                     icon: LucideIcons.link,
                     variant: ButtonVariant.secondary,
                     size: ButtonSize.small,
                     onPressed: () => showLinkRigDialog(context),
-                  ),
-                ],
+                  );
+                  if (constraints.maxWidth < _linkCardRowMinWidth) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            icon,
+                            const SizedBox(width: SkotiqTokens.spaceMd),
+                            Expanded(child: text),
+                          ],
+                        ),
+                        const SizedBox(height: SkotiqTokens.spaceMd),
+                        button,
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      icon,
+                      const SizedBox(width: SkotiqTokens.spaceMd),
+                      Expanded(child: text),
+                      const SizedBox(width: SkotiqTokens.spaceMd),
+                      button,
+                    ],
+                  );
+                },
               ),
             ),
           ],
