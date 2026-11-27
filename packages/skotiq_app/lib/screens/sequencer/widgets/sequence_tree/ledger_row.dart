@@ -228,10 +228,9 @@ Color? _ledgerRowFill({
 /// 28 px box, the hovered/running/selected fill and the 2 px progress bar
 /// along the bottom edge.
 ///
-/// Shared because the two must be indistinguishable AS ROWS — a run that
+/// Shared because the two must be indistinguishable AS ROWS: a run that
 /// tinted, ringed or barred differently from the steps above it would read as
-/// a different kind of thing — and because the two had drifted apart once
-/// already when the sticky stack added a pinned variant to only one of them.
+/// a different kind of thing.
 class _LedgerRowShell extends StatelessWidget {
   final SkotiqColors colors;
 

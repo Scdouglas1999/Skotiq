@@ -1,8 +1,8 @@
 part of '../sequence_tree.dart';
 
 // The folded row: one 28 px line standing in for a whole run of sibling steps
-// (spec §6). Same anatomy as [_LedgerRow] — the columns have to line up
-// through it — but everything it shows is an aggregate of its members.
+// (spec §6). It draws the same [_LedgerLine] as [_LedgerRow], so the columns
+// line up through it; everything it shows is an aggregate of its members.
 //
 // It exists only while the run is folded. Unfolding removes this row and
 // renders the members as ordinary [_LedgerRow]s, which is why the chevron here
