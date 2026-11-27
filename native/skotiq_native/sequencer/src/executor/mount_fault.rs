@@ -27,10 +27,7 @@ impl ExecutorHandle {
         device_ops: &SharedDeviceOps,
     ) -> Result<bool, String> {
         let state = self.run_state.get();
-        if !matches!(
-            state,
-            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-        ) {
+        if !state.is_under_way() {
             return Ok(false);
         }
         let trigger_state = self.trigger_manager.read().await.state();

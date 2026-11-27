@@ -123,28 +123,29 @@ class FakeRigOps implements NightRigOps {
     if (error != null) throw error;
   }
 
+  /// The hold's pause is what paused the run, as the run's host records.
+  bool _holdPausedRun = false;
+
   @override
   Future<CommandActionResult> pauseRun() async {
     calls.add('pause');
     if (pauseResult.isSuccess && _run == SequenceExecutionState.running) {
       _run = SequenceExecutionState.paused;
+      _holdPausedRun = true;
     }
     return pauseResult;
   }
 
+  /// Ends the hold the way the run's host does: the run is resumed only when
+  /// the hold paused it and it is still paused, with [resumeResult].
   @override
-  Future<CommandActionResult> resumeRun() async {
-    calls.add('resume');
-    if (resumeResult.isSuccess && _run == SequenceExecutionState.paused) {
-      _run = SequenceExecutionState.running;
-    }
+  Future<CommandActionResult> endRunHold() async {
+    calls.add('endHold');
+    final owed = _holdPausedRun && _run == SequenceExecutionState.paused;
+    _holdPausedRun = false;
+    if (!owed) return const CommandActionResult.leftPaused();
+    if (resumeResult.isSuccess) _run = SequenceExecutionState.running;
     return resumeResult;
-  }
-
-  @override
-  Future<CommandActionResult> releaseRun() async {
-    calls.add('release');
-    return CommandActionResult.ok;
   }
 
   @override

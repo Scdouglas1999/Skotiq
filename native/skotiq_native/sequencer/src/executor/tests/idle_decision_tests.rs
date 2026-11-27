@@ -19,7 +19,7 @@ fn drain(rx: &mut Receiver<DecisionEvent>) -> Vec<String> {
 /// sends it.
 async fn send_every_command(executor: &mut SequenceExecutor) {
     let handle = executor.handle();
-    let _ = handle.pause().await;
+    let _ = handle.pause_from(None).await;
     let _ = handle.resume().await;
     let _ = handle.skip().await;
     let _ = handle.recovery_try_now().await;
@@ -52,7 +52,7 @@ async fn commands_to_a_run_in_flight_are_recorded() {
     let mut executor = SequenceExecutor::new();
     let mut rx = executor.handle().subscribe_decisions();
     executor.run_state.force(ExecutorState::Running);
-    executor.handle().pause().await.unwrap();
+    executor.handle().pause_from(None).await.unwrap();
     executor.run_state.force(ExecutorState::Paused);
     executor.handle().resume().await.unwrap();
     executor.handle().skip().await.unwrap();

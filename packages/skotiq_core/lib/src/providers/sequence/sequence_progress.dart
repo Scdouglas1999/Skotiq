@@ -85,6 +85,19 @@ final sequenceStepProgressProvider = Provider<SequenceProgress>((ref) {
   return ref.read(sequenceProgressProvider);
 });
 
+/// A manual action holds the run paused, as the run's host publishes it.
+/// Every Resume and Skip reads this; the host refuses both while it holds.
+final runHeldByActionProvider = runRecordProvider.select(
+  (record) => record.heldByAction,
+);
+
+/// Whether a pause has to be sent to a run in [state] that a manual action
+/// may hold ([held]): a held run is paused already, but a pause that reaches
+/// it outlives the hold, so the action's end does not resume the run. A run
+/// paused by anything else needs no second pause.
+bool pauseReachesHeldRun(SequenceExecutionState state, {required bool held}) =>
+    state == SequenceExecutionState.paused && held;
+
 /// WHO ended the run in progress, as the last authorship evidence on the wire
 /// named them — null while nothing has named anyone.
 ///
@@ -97,12 +110,6 @@ final sequenceStepProgressProvider = Provider<SequenceProgress>((ref) {
 ///
 /// Cleared when a run starts, so one night's cause can never be attached to the
 /// next one's stop.
-/// A manual action holds the run paused, as the run's host publishes it.
-/// Every Resume and Skip reads this; the host refuses both while it holds.
-final runHeldByActionProvider = runRecordProvider.select(
-  (record) => record.heldByAction,
-);
-
 final sequenceStopEvidenceProvider = runRecordProvider.select(
   (run) => run.stopEvidence,
 );

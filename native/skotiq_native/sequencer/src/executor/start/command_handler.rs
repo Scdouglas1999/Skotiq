@@ -15,6 +15,12 @@ pub(super) async fn run_command_handler(run: Arc<Run>, mut rx: mpsc::Receiver<Ex
         match cmd {
             ExecutorCommand::Pause { origin } => run.pause_from(origin.as_deref()),
             ExecutorCommand::PauseForAction => run.pause_for_action(),
+            ExecutorCommand::Resume if run.state.held_by_action() => {
+                // A resume checks the hold before it is sent; one that
+                // passed just before a manual action took the hold lands
+                // here, after it, and the held run stays paused.
+                tracing::info!("Resume dropped: a manual action holds the run");
+            }
             ExecutorCommand::Resume if current_recovery.read().is_some() => {
                 // The node tree is frozen by a recovery ladder, not by a
                 // pause, and unfreezing it would expose through the fault the
@@ -241,6 +247,22 @@ mod tests {
         assert_eq!(handler.run.state.get(), ExecutorState::Stopping);
         assert_eq!(handler.run.state.progress().state, ExecutorState::Stopping);
         assert_eq!(handler.state_changes(), vec![ExecutorState::Stopping]);
+        handler.task.abort();
+    }
+
+    /// A resume that passed its hold check just before a manual action took
+    /// the hold reaches the run after it: the held run stays paused.
+    #[tokio::test]
+    async fn a_resume_that_arrives_after_a_hold_was_taken_leaves_the_run_paused() {
+        let mut handler = running_handler();
+        handler.send(ExecutorCommand::Pause { origin: None }).await;
+        handler.run.state.take_action_hold("host").unwrap();
+
+        handler.send(ExecutorCommand::Resume).await;
+
+        assert_eq!(handler.run.state.get(), ExecutorState::Paused);
+        assert!(handler.run.is_paused.load(Ordering::Relaxed));
+        assert_eq!(handler.state_changes(), vec![ExecutorState::Paused]);
         handler.task.abort();
     }
 

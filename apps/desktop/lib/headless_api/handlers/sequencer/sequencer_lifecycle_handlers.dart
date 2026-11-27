@@ -585,15 +585,18 @@ extension _SequencerLifecycle on SequencerHandlers {
         '${stillPaused.pausedBy}.',
     statusCode: 409,
     cause: stillPaused,
-    details: {'pausedBy': stillPaused.pausedBy, kWasRunningField: true},
+    details: {
+      RunHoldFields.pausedBy: stillPaused.pausedBy,
+      kWasRunningField: true,
+    },
   );
 
   /// Run [command], answering the executor's refusal of a held run as
   /// [_runHeldByAction] and a release whose run stays paused as
   /// [_runStillPaused].
-  Future<void> _unlessHeld(String verb, Future<void> Function() command) async {
+  Future<T> _unlessHeld<T>(String verb, Future<T> Function() command) async {
     try {
-      await command();
+      return await command();
     } on bridge_api.SkotiqError_Refused catch (error) {
       if (error.kind != bridge_api.Refusal.runHeldByAction) rethrow;
       throw _runHeldByAction(verb, error);
@@ -608,8 +611,8 @@ extension _SequencerLifecycle on SequencerHandlers {
   Future<Response> _handleSequencerPause(Request request) async {
     _logInfo('[API] POST /api/sequencer/pause');
     final body = await readJsonObjectOrEmpty(request);
-    final forAction = optionalBool(body, 'forAction');
-    final origin = optionalString(body, 'origin', maxLength: 200);
+    final forAction = optionalBool(body, RunHoldFields.forAction);
+    final origin = optionalString(body, RunHoldFields.origin, maxLength: 200);
     await _requireRunInFlight('pause');
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerPause,
@@ -637,35 +640,41 @@ extension _SequencerLifecycle on SequencerHandlers {
     });
   }
 
-  /// A body of `{"releasesHold": true}` is a manual action's own release:
-  /// it ends the caller's hold, then resumes.
+  /// A body of `{"releasesHold": true}` is the end of the caller's manual
+  /// action: it ends the caller's hold, and the run resumes when the hold is
+  /// what paused it. `status` is `resumed`, or `released` when the run was
+  /// left as it was.
   Future<Response> _handleSequencerResume(Request request) async {
     _logInfo('[API] POST /api/sequencer/resume');
     final releasesHold = optionalBool(
       await readJsonObjectOrEmpty(request),
-      'releasesHold',
+      RunHoldFields.releasesHold,
     );
     await _requireRunInFlight('resume', refusedWhileHeld: releasesHold != true);
     final commandId = commandCorrelator?.beginCommand(
       operation: CommandOperation.sequencerResume,
     );
     final backend = container.read(sequencerBackendProvider);
-    await _unlessHeld(
+    final resumed = await _unlessHeld(
       'resume',
-      () => backend.sequencerResume(
-        releasingHoldOf: releasesHold == true
-            ? actionHolderFor(authIdentityFrom(request))
-            : null,
-      ),
+      () async => releasesHold == true
+          ? backend.sequencerEndActionHold(
+              holder: actionHolderFor(authIdentityFrom(request)),
+            )
+          : backend.sequencerResume().then((_) => true),
     );
-    publishHostMutationFromContainer(
-      container,
-      entityType: HostMutationEntity.sequencer,
-      action: HostMutationAction.resumed,
-    );
+    if (resumed) {
+      publishHostMutationFromContainer(
+        container,
+        entityType: HostMutationEntity.sequencer,
+        action: HostMutationAction.resumed,
+      );
+    }
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
-      'status': 'resumed',
+      RunHoldFields.status: resumed
+          ? RunHoldFields.resumed
+          : RunHoldFields.released,
       kWasRunningField: true,
     });
   }
@@ -693,7 +702,7 @@ extension _SequencerLifecycle on SequencerHandlers {
         .sequencerReleaseActionHold(
           holder: actionHolderFor(authIdentityFrom(request)),
         );
-    return jsonOk({'released': released});
+    return jsonOk({RunHoldFields.releasedHold: released});
   }
 
   /// Jump the executor forward to a specific node by id.
@@ -708,7 +717,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     final nodeId = requireString(payload, 'nodeId');
 
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSkipToNode(nodeId);
+    await _unlessHeld('skip', () => backend.sequencerSkipToNode(nodeId));
     return jsonOk({'status': 'skipped', 'nodeId': nodeId});
   }
 

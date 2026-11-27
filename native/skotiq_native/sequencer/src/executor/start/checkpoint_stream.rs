@@ -35,10 +35,7 @@ pub(super) async fn run_checkpoint_stream(run: Arc<Run>) {
 
         // A run in recovery is saved too, so a crash during a long recovery
         // keeps the frames accepted before the failure.
-        if !matches!(
-            run_state.get(),
-            ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
-        ) {
+        if !run_state.get().is_under_way() {
             continue;
         }
 

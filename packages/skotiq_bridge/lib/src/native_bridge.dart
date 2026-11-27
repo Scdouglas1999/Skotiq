@@ -92,6 +92,18 @@ abstract final class NativeBridge {
     }
   }
 
+  /// For tests only: stands [api] in for the native library, and [run] calls
+  /// it as it would the library. [disposeMock] undoes it.
+  static void initMock(frb.RustLibApi api) {
+    frb.RustLib.initMock(api: api);
+    _nativeAvailable = true;
+  }
+
+  static void disposeMock() {
+    frb.RustLib.dispose();
+    _nativeAvailable = false;
+  }
+
   /// Runs [call] against the native library.
   ///
   /// Refuses with an [UnsupportedError] naming [operation] when the library is

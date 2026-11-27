@@ -474,7 +474,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
         "the restart at home did not mark the position unknown"
     );
     assert!(
-        crate::api::sequencer::lifecycle::api_sequencer_resume(None)
+        crate::api::sequencer::lifecycle::api_sequencer_resume()
             .await
             .is_err(),
         "a run could be resumed while the mount's position is unknown"

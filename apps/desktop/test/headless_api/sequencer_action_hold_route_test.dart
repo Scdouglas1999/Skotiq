@@ -21,6 +21,33 @@ import 'handler_test_helpers.dart';
 
 class _MockSequencerBackend extends Mock implements SequencerBackend {}
 
+/// The host's real FFI backend over a run a manual action holds.
+class _HeldRunFfiBackend extends FfiBackend {
+  _HeldRunFfiBackend() : super(nativeEvents: () => const Stream.empty());
+
+  @override
+  Future<SequencerStatus> sequencerGetStatus() async =>
+      const SequencerStatus(state: 'paused', progress: 0.2, heldByAction: true);
+}
+
+/// The native library, refusing a release as the bridge does when another
+/// pause keeps the run paused (`test_fixtures/ffi_replies/run_still_paused.json`).
+class _StillPausedNative extends Mock implements bridge_api.RustLibApi {
+  static final pausedBy =
+      (jsonDecode(
+                File(
+                  '../../test_fixtures/ffi_replies/run_still_paused.json',
+                ).readAsStringSync(),
+              )
+              as Map)['pausedBy']
+          as String;
+
+  @override
+  Future<bool> crateApiSequencerLifecycleApiSequencerEndActionHold({
+    required String holder,
+  }) async => throw bridge_api.SkotiqError.runStillPaused(pausedBy: pausedBy);
+}
+
 class _StoppedExecutor extends Fake implements SequenceExecutor {
   var stops = 0;
 
@@ -61,11 +88,10 @@ void main() {
   setUp(() {
     backend = _MockSequencerBackend();
     executor = _StoppedExecutor();
+    when(() => backend.sequencerResume()).thenAnswer((_) async {});
     when(
-      () => backend.sequencerResume(
-        releasingHoldOf: any(named: 'releasingHoldOf'),
-      ),
-    ).thenAnswer((_) async {});
+      () => backend.sequencerEndActionHold(holder: any(named: 'holder')),
+    ).thenAnswer((_) async => true);
     when(() => backend.sequencerSkip()).thenAnswer((_) async {});
     when(
       () => backend.sequencerHoldForAction(holder: any(named: 'holder')),
@@ -94,11 +120,7 @@ void main() {
       expect(body['error'], ApiErrorCodes.runHeldByAction);
       expect(body['message'], contains('a manual action holds the run'));
     }
-    verifyNever(
-      () => backend.sequencerResume(
-        releasingHoldOf: any(named: 'releasingHoldOf'),
-      ),
-    );
+    verifyNever(() => backend.sequencerResume());
     verifyNever(() => backend.sequencerSkip());
   });
 
@@ -106,11 +128,7 @@ void main() {
     'a hold taken after the status read is still refused by the run',
     () async {
       hostReports(held: false);
-      when(
-        () => backend.sequencerResume(
-          releasingHoldOf: any(named: 'releasingHoldOf'),
-        ),
-      ).thenThrow(_held);
+      when(() => backend.sequencerResume()).thenThrow(_held);
       when(() => backend.sequencerSkip()).thenThrow(_held);
 
       for (final call in [
@@ -129,6 +147,19 @@ void main() {
     },
   );
 
+  test('a jump to another step of a held run answers 409', () async {
+    when(() => backend.sequencerSkipToNode('wait')).thenThrow(_held);
+
+    final response = await translateHandlerErrors(
+      handlers.handleSequencerSkipToNode(
+        _post('skip-to-node', body: {'nodeId': 'wait'}),
+      ),
+    );
+
+    expect(response.statusCode, HttpStatus.conflict);
+    expect((await _bodyOf(response))['error'], ApiErrorCodes.runHeldByAction);
+  });
+
   test("the action's release resumes the run in the caller's name", () async {
     hostReports(held: true);
 
@@ -140,14 +171,31 @@ void main() {
 
     expect(response.statusCode, HttpStatus.ok);
     verify(
-      () => backend.sequencerResume(releasingHoldOf: 'phone-token'),
+      () => backend.sequencerEndActionHold(holder: 'phone-token'),
     ).called(1);
+  });
+
+  test('a release that leaves the run as it was says so', () async {
+    hostReports(held: true);
+    when(
+      () => backend.sequencerEndActionHold(holder: 'phone-token'),
+    ).thenAnswer((_) async => false);
+
+    final response = await translateHandlerErrors(
+      handlers.handleSequencerResume(
+        _post('resume', body: {'releasesHold': true}, identity: 'phone-token'),
+      ),
+    );
+
+    expect(response.statusCode, HttpStatus.ok);
+    expect((await _bodyOf(response))['status'], 'released');
+    verifyNever(() => backend.sequencerResume());
   });
 
   test("a second client's release is refused by the run", () async {
     hostReports(held: true);
     when(
-      () => backend.sequencerResume(releasingHoldOf: 'tablet-token'),
+      () => backend.sequencerEndActionHold(holder: 'tablet-token'),
     ).thenThrow(_held);
 
     final response = await translateHandlerErrors(
@@ -181,7 +229,7 @@ void main() {
     () async {
       hostReports(held: true);
       when(
-        () => backend.sequencerResume(releasingHoldOf: 'phone-token'),
+        () => backend.sequencerEndActionHold(holder: 'phone-token'),
       ).thenThrow(const RunStillPaused('Weather turned unsafe'));
 
       final response = await translateHandlerErrors(
@@ -198,6 +246,38 @@ void main() {
       final body = await _bodyOf(response);
       expect(body['error'], ApiErrorCodes.runStillPaused);
       expect(body['message'], contains('Weather turned unsafe'));
+    },
+  );
+
+  test(
+    'a still-paused release crossing the bridge names the pause once',
+    () async {
+      bridge_api.NativeBridge.initMock(_StillPausedNative());
+      addTearDown(bridge_api.NativeBridge.disposeMock);
+      final host = createHeadlessTestContainer(
+        overrides: [
+          sequencerBackendProvider.overrideWithValue(_HeldRunFfiBackend()),
+          sequenceExecutorProvider.overrideWithValue(executor),
+        ],
+      );
+      addTearDown(host.dispose);
+
+      final response = await translateHandlerErrors(
+        SequencerHandlers(host).handleSequencerResume(
+          _post(
+            'resume',
+            body: {'releasesHold': true},
+            identity: 'phone-token',
+          ),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.conflict);
+      final body = await _bodyOf(response);
+      expect(body['pausedBy'], _StillPausedNative.pausedBy);
+      final message = body['message'] as String;
+      expect('still paused'.allMatches(message), hasLength(1), reason: message);
+      expect(message, contains(_StillPausedNative.pausedBy));
     },
   );
 

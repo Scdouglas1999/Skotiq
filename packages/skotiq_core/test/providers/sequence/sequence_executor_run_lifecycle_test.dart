@@ -2399,4 +2399,29 @@ void main() {
       },
     );
   });
+
+  group("a manual action's end", () {
+    for (final state in [
+      SequenceExecutionState.running,
+      SequenceExecutionState.recovering,
+    ]) {
+      test('a run this app sees ${state.name} only loses its hold', () async {
+        when(
+          () =>
+              backend.sequencerReleaseActionHold(holder: any(named: 'holder')),
+        ).thenAnswer((_) async => true);
+        final c = buildContainer();
+        c.read(runRecordProvider.notifier).setLifecycle(state);
+
+        expect(await c.read(sequenceExecutorProvider).endActionHold(), isFalse);
+        verify(
+          () =>
+              backend.sequencerReleaseActionHold(holder: any(named: 'holder')),
+        ).called(1);
+        verifyNever(
+          () => backend.sequencerEndActionHold(holder: any(named: 'holder')),
+        );
+      });
+    }
+  });
 }

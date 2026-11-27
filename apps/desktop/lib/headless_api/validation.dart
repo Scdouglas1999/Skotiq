@@ -63,6 +63,8 @@ String describeBackendError(Object error) => error is bridge_error.SkotiqError
     // The status of the variant each refusal was raised as before it had a
     // kind; the handlers that answer a kind its own way catch it first.
     refused: (v) => v.kind == bridge_error.Refusal.lightLeak ? 400 : 500,
+    // The release routes answer it as 409 run_still_paused first.
+    runStillPaused: (_) => 500,
     invalidState: (_) => 409,
     // Imaging
     imageError: (_) => 500,

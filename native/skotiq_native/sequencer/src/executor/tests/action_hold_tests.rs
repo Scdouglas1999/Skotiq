@@ -1,6 +1,6 @@
 //! A manual action holds the run it paused: only the action's own release
-//! lets the run go on. A resume or skip from anywhere else is refused, and a
-//! stop is never held back.
+//! lets the run go on. A resume, a skip or a jump to another step from
+//! anywhere else is refused, and a stop is never held back.
 
 use super::*;
 use crate::device_ops::NullDeviceOps;
@@ -44,6 +44,10 @@ async fn only_the_holders_release_lets_a_held_run_go_on() {
     assert_eq!(handle.resume().await, Err(RunCommandError::HeldByAction));
     assert_eq!(handle.skip().await, Err(RunCommandError::HeldByAction));
     assert_eq!(
+        handle.skip_to_node("wait".to_string()).await,
+        Err(RunCommandError::HeldByAction)
+    );
+    assert_eq!(
         handle.hold_for_action("phone").await,
         Err(RunCommandError::HeldByAction)
     );
@@ -81,10 +85,10 @@ async fn a_pause_that_took_over_a_held_run_outlives_the_release() {
         .pause_from(Some("weather turned unsafe".to_string()))
         .await
         .expect("weather pauses the held run");
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    drain_commands(&handle).await;
 
     assert_eq!(
-        handle.release_action_hold_to_resume("host"),
+        handle.end_action_hold("host"),
         Err(RunCommandError::StillPaused(
             "weather turned unsafe".to_string()
         ))
@@ -105,10 +109,64 @@ async fn a_hold_alone_is_released_to_resume() {
     let handle = executor.handle();
     handle.hold_for_action("host").await.expect("hold taken");
     wait_for(&executor, ExecutorState::Paused).await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    drain_commands(&handle).await;
 
-    assert_eq!(handle.release_action_hold_to_resume("host"), Ok(()));
+    assert_eq!(handle.end_action_hold("host"), Ok(HoldEnd::Resume));
     handle.resume().await.expect("released run resumes");
     wait_for(&executor, ExecutorState::Running).await;
+    executor.stop().await.ok();
+}
+
+/// Wait until the run's command handler has taken every command sent before
+/// this one.
+async fn drain_commands(handle: &ExecutorHandle) {
+    let mut events = handle.run_state.subscribe();
+    handle.recovery_try_now().await.expect("try-now is sent");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let event = tokio::time::timeout_at(deadline.into(), events.recv())
+            .await
+            .expect("the command handler answers");
+        if let Ok(ExecutorEvent::RuntimeConfigUpdated { what }) = event {
+            if what == "recovery_try_now" {
+                return;
+            }
+        }
+    }
+}
+
+/// A resume that read the run as not held, and a hold that read the run as
+/// paused before that resume reached it: the run stays paused and held.
+#[tokio::test]
+async fn a_resume_sent_just_before_a_hold_leaves_the_held_run_paused() {
+    let mut executor = running_executor().await;
+    let handle = executor.handle();
+    handle.pause_from(None).await.expect("pause sent");
+    wait_for(&executor, ExecutorState::Paused).await;
+
+    handle.resume().await.expect("not held yet");
+    handle.hold_for_action("host").await.expect("hold taken");
+    drain_commands(&handle).await;
+
+    assert_eq!(executor.get_state().await, ExecutorState::Paused);
+    assert!(handle.held_by_action());
+    executor.stop().await.ok();
+}
+
+/// A hold taken on a run the operator had already paused did not pause it,
+/// so its release leaves the operator's pause in place.
+#[tokio::test]
+async fn the_release_of_a_hold_that_found_the_run_paused_leaves_it_paused() {
+    let mut executor = running_executor().await;
+    let handle = executor.handle();
+    handle.pause_from(None).await.expect("operator pause sent");
+    wait_for(&executor, ExecutorState::Paused).await;
+    handle.hold_for_action("phone").await.expect("hold taken");
+    drain_commands(&handle).await;
+
+    assert_eq!(handle.end_action_hold("phone"), Ok(HoldEnd::LeavePaused));
+    assert!(!handle.held_by_action());
+    assert_eq!(handle.end_action_hold("phone"), Ok(HoldEnd::LeavePaused));
+    assert_eq!(executor.get_state().await, ExecutorState::Paused);
     executor.stop().await.ok();
 }

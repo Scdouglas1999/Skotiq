@@ -33,15 +33,21 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> sequencerResume({String? releasingHoldOf}) async {
+  Future<void> sequencerResume() async {
+    await _native('sequencerResume', () => bridge.apiSequencerResume());
+  }
+
+  @override
+  Future<bool> sequencerEndActionHold({
+    String holder = hostActionHolder,
+  }) async {
     try {
-      await _native(
-        'sequencerResume',
-        () => bridge.apiSequencerResume(releasesHoldOf: releasingHoldOf),
+      return await _native(
+        'sequencerEndActionHold',
+        () => bridge.apiSequencerEndActionHold(holder: holder),
       );
-    } on bridge.SkotiqError_Refused catch (e) {
-      if (e.kind != bridge.Refusal.runStillPaused) rethrow;
-      throw RunStillPaused(e.message);
+    } on bridge.SkotiqError_RunStillPaused catch (e) {
+      throw RunStillPaused(e.pausedBy);
     }
   }
 

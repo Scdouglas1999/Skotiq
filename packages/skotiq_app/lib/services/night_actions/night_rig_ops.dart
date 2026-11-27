@@ -38,11 +38,9 @@ abstract interface class NightRigOps {
   /// paused, a paused one stays paused.
   Future<CommandActionResult> pauseRun();
 
-  /// Ends the action's hold and resumes the run.
-  Future<CommandActionResult> resumeRun();
-
-  /// Ends the action's hold and leaves the run as it is.
-  Future<CommandActionResult> releaseRun();
+  /// Ends the action's hold. The run's host resumes the run when the hold is
+  /// what paused it ([CommandActionResult.leftPaused] when it did not).
+  Future<CommandActionResult> endRunHold();
 
   /// Starts the armed run, a start nobody is at the keyboard for.
   Future<CommandActionResult> startRun();
@@ -130,12 +128,7 @@ class ServiceNightRigOps implements NightRigOps {
   Future<CommandActionResult> pauseRun() => _sequence.holdForAction();
 
   @override
-  Future<CommandActionResult> resumeRun() =>
-      _sequence.releaseActionHold(resume: true);
-
-  @override
-  Future<CommandActionResult> releaseRun() =>
-      _sequence.releaseActionHold(resume: false);
+  Future<CommandActionResult> endRunHold() => _sequence.endActionHold();
 
   @override
   Future<CommandActionResult> startRun() => _sequence.startUnattended();
