@@ -361,7 +361,7 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
             : total.inSeconds <= 0
                 ? ''
                 : formatRollupDuration(total),
-        eta: earliest == null ? '' : ClockFormat.hm(earliest.start.toLocal()),
+        eta: ledgerEtaText(ref.watch(clockProvider), earliest),
       ),
       etaMuted: earliest != null && !earliest.isActual && state.hasBar,
     );

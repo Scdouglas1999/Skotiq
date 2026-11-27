@@ -200,6 +200,11 @@ class LedgerEta {
   String toString() => 'LedgerEta($start, actual: $isActual)';
 }
 
+/// [eta]'s start as `HH:mm` on the site clock, the clock every step time in
+/// the Sequencer prints on; empty without one.
+String ledgerEtaText(Clock clock, LedgerEta? eta) =>
+    eta == null ? '' : clock.timeOfDay(eta.start);
+
 /// Predicted start time per node id, derived from the pre-session simulation.
 ///
 /// [PreSessionSimulationResult.segments] only carries the nodes the estimator
