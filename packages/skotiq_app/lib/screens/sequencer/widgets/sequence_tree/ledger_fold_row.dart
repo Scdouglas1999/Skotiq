@@ -323,9 +323,10 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
   /// members, Duration sums the members' own rollups, and ETA is the earliest
   /// member start — the moment the run begins.
   ///
-  /// `etaMuted` follows [_LedgerRow]'s rule: once the run has started, an ETA
+  /// The ETA follows [_LedgerRow]'s rule: once the run has started, an ETA
   /// still quoting the estimator's projection is stale, and the cell shows it
-  /// as a prediction rather than as fact.
+  /// as a prediction rather than as fact; once it has finished, the cell is
+  /// empty.
   ({LedgerColumns columns, bool etaMuted}) _columns(_FoldRowState state) {
     final group = widget.group;
 
@@ -345,6 +346,11 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
       if (earliest == null || eta.start.isBefore(earliest.start)) {
         earliest = eta;
       }
+    }
+    // A finished run whose start this window never observed has no time to
+    // show, as on [_LedgerRow].
+    if (earliest != null && !earliest.isActual && state.isDone) {
+      earliest = null;
     }
 
     final durationSecs = group.durationSecs;

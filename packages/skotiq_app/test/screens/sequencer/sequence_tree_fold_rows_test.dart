@@ -897,6 +897,14 @@ void main() {
     progress.updateNodeStatus(built.exposureIds.first, NodeStatus.running);
     await tester.pump();
     expect(tester.widget<Text>(etaCell).style!.color, colors.textMuted);
+
+    // A finished run whose start this window never saw has no time to show:
+    // the projection would move with the night's lateness.
+    for (final id in built.exposureIds) {
+      progress.updateNodeStatus(id, NodeStatus.success);
+    }
+    await tester.pump();
+    expect(etaCell, findsNothing);
     await _drainValidationDebounce(tester);
   });
 
