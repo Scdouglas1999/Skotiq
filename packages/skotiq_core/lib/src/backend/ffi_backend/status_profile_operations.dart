@@ -72,38 +72,6 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
   }
 
   @override
-  Future<HardwareDomeStatus> getHardwareDomeStatus(String deviceId) async {
-    final status = await (this as AccessoryDeviceBackend).readDomeStatus(
-      deviceId,
-    );
-    if (!status.connected) {
-      throw StateError('Dome $deviceId reported disconnected');
-    }
-    return HardwareDomeStatus(
-      azimuth: status.azimuth,
-      altitude: status.altitude,
-      // `canSetShutter: false` means the driver has no shutter property at all;
-      // reporting `closed` there would be a fabrication, so leave it unknown.
-      shutterStatus: status.canSetShutter
-          ? _shutterStateCode(status.shutter)
-          : null,
-      isSlewing: status.slewing,
-      isAtHome: status.atHome,
-      isParked: status.atPark,
-      isSlaved: status.isSlaved,
-    );
-  }
-
-  static int? _shutterStateCode(ShutterStatus state) => switch (state) {
-    ShutterStatus.open => 0,
-    ShutterStatus.closed => 1,
-    ShutterStatus.opening => 2,
-    ShutterStatus.closing => 3,
-    ShutterStatus.error => 4,
-    ShutterStatus.unknown => null,
-  };
-
-  @override
   Future<CameraCapabilities?> getCameraCapabilities(String deviceId) async {
     try {
       final bridgeCaps = await bridge.apiGetCameraCapabilities(
