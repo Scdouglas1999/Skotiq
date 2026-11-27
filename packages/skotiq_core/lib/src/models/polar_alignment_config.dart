@@ -21,6 +21,25 @@ enum PolarAlignPhase {
   error,
 }
 
+/// The phase a native polar alignment status names (`phase` on the status
+/// event): `measuring`, `adjusting`, `complete` or `error`; anything else is
+/// idle.
+PolarAlignPhase polarAlignPhaseFromWire(String phase) =>
+    switch (phase.toLowerCase()) {
+      'measuring' => PolarAlignPhase.measuring,
+      'adjusting' => PolarAlignPhase.adjusting,
+      'complete' => PolarAlignPhase.complete,
+      'error' => PolarAlignPhase.error,
+      _ => PolarAlignPhase.idle,
+    };
+
+/// Why an alignment failed, from the status line native sends with the
+/// `error` phase, which reads `Error: <reason>`.
+String polarAlignFailureReason(String status) {
+  const prefix = 'Error: ';
+  return status.startsWith(prefix) ? status.substring(prefix.length) : status;
+}
+
 /// Selects which polar-alignment algorithm to run.
 enum PolarAlignmentMode {
   /// Three-Point Polar Alignment — requires a clear view of the celestial

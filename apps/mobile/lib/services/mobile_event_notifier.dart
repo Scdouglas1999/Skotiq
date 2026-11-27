@@ -367,14 +367,12 @@ class MobileEventNotifier {
     final payload = typedEventFromWire(event)?.payload;
     if (payload case EventPayload_PolarAlignmentStatus(
       :final field0,
-    ) when field0.phase == 'error') {
+    ) when polarAlignPhaseFromWire(field0.phase) == PolarAlignPhase.error) {
       if (!_preferences.notifyExposureFailed) return;
       const key = 'polar-alignment:error';
       if (_firedRecently(key, _repeatWindow)) return;
-      const prefix = 'Error: ';
-      final status = field0.status;
       await _notifications.notifyPolarAlignmentFailed(
-        status.startsWith(prefix) ? status.substring(prefix.length) : status,
+        polarAlignFailureReason(field0.status),
       );
       _markFired(key);
     }
