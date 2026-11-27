@@ -33,6 +33,9 @@ use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage,
 const OP_ID: &str = "chroma_denoise";
 const OP_VERSION: u32 = 1;
 
+/// What this operation requires, in the words of its channel refusal.
+const THREE_CHANNELS_EXPECTED: &str = "a color image with 3 channels";
+
 /// Narrowest color smoothing, in full-resolution pixels.
 const SMOOTHING_MIN: f64 = 0.5;
 /// Widest color smoothing, in full-resolution pixels.
@@ -80,6 +83,10 @@ impl DarkroomOp for ChromaDenoiseV1 {
         OpStage::Linear
     }
 
+    fn three_channels_expected(&self) -> Option<&'static str> {
+        Some(THREE_CHANNELS_EXPECTED)
+    }
+
     fn validate_params(&self, params: &Value) -> Result<(), OpError> {
         read_settings(params).map(|_| ())
     }
@@ -100,7 +107,7 @@ impl DarkroomOp for ChromaDenoiseV1 {
                 op_id: OP_ID,
                 op_version: OP_VERSION,
                 channels: image.channels(),
-                expected: "a color image with 3 channels",
+                expected: THREE_CHANNELS_EXPECTED,
             });
         }
         if settings.amount == AMOUNT_MIN {

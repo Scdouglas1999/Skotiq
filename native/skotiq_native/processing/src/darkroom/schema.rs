@@ -1046,6 +1046,7 @@ pub(crate) fn channel_mixes_json() -> Value {
 
 /// The catalogue as wire JSON.
 pub(crate) fn ops_json() -> Result<Value, String> {
+    let registry = registry()?;
     let mut ops = Vec::with_capacity(OP_DOCS.len());
     for doc in OP_DOCS {
         let mut params = Vec::with_capacity(doc.params.len());
@@ -1082,7 +1083,7 @@ pub(crate) fn ops_json() -> Result<Value, String> {
             }
             params.push(entry);
         }
-        ops.push(json!({
+        let mut op = json!({
             "id": doc.id,
             "version": doc.version,
             "stage": doc.stage,
@@ -1090,7 +1091,14 @@ pub(crate) fn ops_json() -> Result<Value, String> {
             "params": params,
             "defaults": default_params(doc)?,
             "example": example_params(doc)?,
-        }));
+        });
+        if let Some(expected) = registry
+            .get(doc.id, doc.version)
+            .and_then(|registered| registered.three_channels_expected())
+        {
+            op["threeChannels"] = json!(expected);
+        }
+        ops.push(op);
     }
     Ok(Value::Array(ops))
 }

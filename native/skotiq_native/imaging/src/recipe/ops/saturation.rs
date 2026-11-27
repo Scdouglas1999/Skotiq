@@ -49,6 +49,9 @@ use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
 const OP_ID: &str = "saturation";
 const OP_VERSION: u32 = 1;
 
+/// What this operation requires, in the words of its channel refusal.
+const THREE_CHANNELS_EXPECTED: &str = "a color master with 3 channels";
+
 /// The only channel layout this operation defines a result for.
 const REQUIRED_CHANNELS: u32 = 3;
 
@@ -96,6 +99,10 @@ impl DarkroomOp for SaturationV1 {
         OpStage::Stretched
     }
 
+    fn three_channels_expected(&self) -> Option<&'static str> {
+        Some(THREE_CHANNELS_EXPECTED)
+    }
+
     fn validate_params(&self, params: &Value) -> Result<(), OpError> {
         read_settings(params).map(|_| ())
     }
@@ -108,7 +115,7 @@ impl DarkroomOp for SaturationV1 {
                 op_id: OP_ID,
                 op_version: OP_VERSION,
                 channels,
-                expected: "a color master with 3 channels",
+                expected: THREE_CHANNELS_EXPECTED,
             });
         }
         ctx.check_cancel()?;

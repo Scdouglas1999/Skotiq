@@ -47,29 +47,6 @@ const String kDarkroomColorCalibrateOpId = 'color_calibrate';
 /// a combine step's params carry it under `palette`.
 const String kDarkroomCustomPaletteId = 'custom';
 
-/// The operations the recipe engine defines a result for on THREE channels
-/// only, with what each one states it requires — the `expected` clause of its
-/// own `unsupported channel layout` refusal, word for word.
-///
-/// The registry's published catalogue carries an operation's stage and its
-/// parameter table and nothing about channels, so this is the one precondition
-/// the chooser cannot read off the catalogue. It is stated here rather than
-/// discovered by a failed render: a mono master accepted `Color calibrate`,
-/// wrote the step into the recipe, and the next render came back refused with
-/// the picture left stale until the operator found and removed the step —
-/// while the Recipe panel two inches away already said the master has one
-/// channel and the colour fit needs three.
-///
-/// Every operation this build registers preserves the channel count, so the
-/// master's own count is the count that reaches the step wherever it lands.
-const Map<String, String> kDarkroomThreeChannelOps = {
-  kDarkroomColorCalibrateOpId:
-      'a color master with 3 channels; combine a per-filter mono master first',
-  'saturation': 'a color master with 3 channels',
-  'scnr': 'a color image with 3 channels',
-  'chroma_denoise': 'a color image with 3 channels',
-};
-
 /// Decode a stored `recipes.steps_json` payload.
 ///
 /// Throws [DarkroomRecipeFormatException] when the payload is not a step array;
@@ -153,6 +130,7 @@ DarkroomCatalog decodeDarkroomCatalog(Map<String, dynamic> reply) {
     final stageWire = raw['stage'];
     final summary = raw['summary'];
     final params = raw['params'];
+    final threeChannels = raw['threeChannels'];
     specs.add(
       DarkroomOpSpec(
         id: id,
@@ -161,6 +139,7 @@ DarkroomCatalog decodeDarkroomCatalog(Map<String, dynamic> reply) {
         stageWire: stageWire is String ? stageWire : 'unstated',
         summary: summary is String ? summary : '',
         params: params is List ? _decodeParams(params) : const [],
+        threeChannels: threeChannels is String ? threeChannels : null,
       ),
     );
   }

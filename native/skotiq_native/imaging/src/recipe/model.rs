@@ -1102,6 +1102,14 @@ pub trait DarkroomOp: Send + Sync {
 
     /// The pixel domain this operation emits.
     fn stage(&self) -> OpStage;
+
+    /// For an operation that runs on three-channel images only, the
+    /// `expected` clause of its [`OpError::UnsupportedChannels`] refusal, so
+    /// an editor can say so before the step is added. `None` for an
+    /// operation that takes any channel count.
+    fn three_channels_expected(&self) -> Option<&'static str> {
+        None
+    }
 }
 
 /// A registry lookup key, ordered so iteration is stable.

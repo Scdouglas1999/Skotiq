@@ -254,22 +254,16 @@ class _DarkroomAddStepDialog extends StatelessWidget {
     );
   }
 
-  /// Why the engine would refuse [op] over THIS master's pixels, or null when
-  /// it would not — or when the channel count is not known here.
+  /// Why the engine would refuse [op] over this master's pixels, or null when
+  /// it would not or the channel count is not known here.
   ///
-  /// A precondition the chooser can know from the open master is stated before
-  /// the press, never discovered by a failed render: `Color calibrate` was
-  /// offered on a one-channel master with its stage rule and its insertion
-  /// index spelled out in full and no word about channels, the step committed,
-  /// and the next render came back "unsupported channel layout" with the
-  /// picture marked stale until the operator found the step and removed it.
-  ///
-  /// The reason is the engine's own — the `expected` clause of the refusal that
-  /// operation raises — joined to the count read off this master's library row,
-  /// which is the same fact the Recipe panel's draft note states two inches
-  /// away. With no library row there is no count, so nothing is claimed.
+  /// The reason is the engine's own (the `expected` clause the catalogue
+  /// carries for an operation that runs on three channels only) joined to the
+  /// count read off this master's library row. Every registered operation
+  /// keeps the channel count, so the master's count reaches the step wherever
+  /// it lands. With no library row there is no count, so nothing is claimed.
   String? _channelRefusal(DarkroomOpSpec op) {
-    final needs = kDarkroomThreeChannelOps[op.id];
+    final needs = op.threeChannels;
     if (needs == null) return null;
     final channels = state.masterChannels;
     if (channels == null || channels == 3) return null;

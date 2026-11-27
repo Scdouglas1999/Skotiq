@@ -31,6 +31,9 @@ use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
 const OP_ID: &str = "scnr";
 const OP_VERSION: u32 = 1;
 
+/// What this operation requires, in the words of its channel refusal.
+const THREE_CHANNELS_EXPECTED: &str = "a color image with 3 channels";
+
 /// Lowest amount; `0` is the identity.
 const AMOUNT_MIN: f64 = 0.0;
 /// Highest amount; `1` limits green to the neutral reference.
@@ -70,6 +73,10 @@ impl DarkroomOp for ScnrV1 {
         OpStage::Linear
     }
 
+    fn three_channels_expected(&self) -> Option<&'static str> {
+        Some(THREE_CHANNELS_EXPECTED)
+    }
+
     fn validate_params(&self, params: &Value) -> Result<(), OpError> {
         read_settings(params).map(|_| ())
     }
@@ -81,7 +88,7 @@ impl DarkroomOp for ScnrV1 {
                 op_id: OP_ID,
                 op_version: OP_VERSION,
                 channels: image.channels(),
-                expected: "a color image with 3 channels",
+                expected: THREE_CHANNELS_EXPECTED,
             });
         }
         if settings.amount == AMOUNT_MIN {

@@ -309,6 +309,10 @@ impl DarkroomOp for ColorCalibrateV1 {
         OpStage::Linear
     }
 
+    fn three_channels_expected(&self) -> Option<&'static str> {
+        Some(THREE_CHANNELS_EXPECTED)
+    }
+
     fn validate_params(&self, params: &Value) -> Result<(), OpError> {
         read_settings(params).map(|_| ())
     }
@@ -729,6 +733,10 @@ fn read_settings(params: &Value) -> Result<Settings, OpError> {
     })
 }
 
+/// What this operation requires, in the words of its channel refusal.
+const THREE_CHANNELS_EXPECTED: &str =
+    "a color master with 3 channels; combine a per-filter mono master first";
+
 /// The channel-count gate both entry points share.
 fn require_three_channels(image: &OpImage) -> Result<(), OpError> {
     let channels = image.channels();
@@ -737,7 +745,7 @@ fn require_three_channels(image: &OpImage) -> Result<(), OpError> {
             op_id: OP_ID,
             op_version: OP_VERSION,
             channels,
-            expected: "a color master with 3 channels; combine a per-filter mono master first",
+            expected: THREE_CHANNELS_EXPECTED,
         });
     }
     Ok(())

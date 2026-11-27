@@ -192,6 +192,7 @@
         }
       ],
       "stage": "linear",
+      "threeChannels": "a color master with 3 channels; combine a per-filter mono master first",
       "version": 1
     },
     {
@@ -285,6 +286,7 @@
         }
       ],
       "stage": "stretched",
+      "threeChannels": "a color master with 3 channels",
       "version": 1
     },
     {
@@ -437,6 +439,7 @@
         }
       ],
       "stage": "linear",
+      "threeChannels": "a color image with 3 channels",
       "version": 1
     },
     {
@@ -468,6 +471,7 @@
         }
       ],
       "stage": "linear",
+      "threeChannels": "a color image with 3 channels",
       "version": 1
     }
   ],
