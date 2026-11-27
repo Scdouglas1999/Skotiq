@@ -38,6 +38,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/network_backend.dart';
 import '../backend/remote_host.dart';
 import '../database/database.dart' show DbCapturedImage;
+import '../utils/logging_service.dart' show LogLevel, LoggingService;
 
 /// One playhead-positioned snapshot of "what the dashboard would have
 /// shown at this moment". Built by [SessionReplayNotifier] by scanning
@@ -126,9 +127,9 @@ class ReplayEventMarker implements ReplayMarker {
   @override
   final DateTime wallClock;
 
-  /// Severity name (`info` | `warning` | `error` | `critical` | `debug`).
-  /// The widget maps this to a colour token via [SkotiqColors].
-  final String severity;
+  /// The log level the entry was written at; a name the wire does not know
+  /// reads as [LogLevel.info].
+  final LogLevel severity;
 
   /// Source/category tag (e.g. `Sequencer`, `Guiding`, `Imaging`).
   final String? source;
@@ -157,7 +158,7 @@ class ReplayEventMarker implements ReplayMarker {
     return ReplayEventMarker(
       offsetMs: e.timestampMs - runStartedMs,
       wallClock: e.timestamp,
-      severity: e.severity,
+      severity: LoggingService.parseLogLevel(e.severity) ?? LogLevel.info,
       source: e.source,
       message: e.message,
       fields: e.fields,

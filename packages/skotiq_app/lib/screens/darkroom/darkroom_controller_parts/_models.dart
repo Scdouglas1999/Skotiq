@@ -354,6 +354,11 @@ class DarkroomOpSpec {
   final String summary;
   final List<DarkroomParamSpec> params;
 
+  /// For an operation the engine runs on three-channel images only, what it
+  /// requires in the words of its own refusal; null when any channel count
+  /// is accepted.
+  final String? threeChannels;
+
   const DarkroomOpSpec({
     required this.id,
     required this.version,
@@ -361,6 +366,7 @@ class DarkroomOpSpec {
     required this.stageWire,
     required this.summary,
     required this.params,
+    this.threeChannels,
   });
 
   DarkroomParamSpec? param(String name) {

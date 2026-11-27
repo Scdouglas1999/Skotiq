@@ -12,6 +12,9 @@ import '../utils/logging_service.dart';
 import 'sequence_file_service.dart';
 import 'local_sequence_repository.dart';
 import 'backup_service/backup_archive.dart';
+import 'backup_service/backup_file_names.dart';
+
+export 'backup_service/backup_file_names.dart';
 
 export 'backup_service/backup_archive.dart' show backupArchiveVersion;
 
@@ -506,12 +509,7 @@ class BackupService {
         .list()
         .where(
           (entity) =>
-              entity is File &&
-              (entity.path.endsWith('.skbackup') ||
-                  // `.nsbackup` is the pre-rename extension; backups made
-                  // before it must stay restorable.
-                  entity.path.endsWith('.nsbackup') ||
-                  entity.path.endsWith('.json')),
+              entity is File && BackupFileNames.isReadableBackup(entity.path),
         )
         .cast<File>()
         .toList();
@@ -559,7 +557,7 @@ class BackupService {
 
     final filePath = path.join(
       backupDir.path,
-      'skotiq_autosave_$timestamp.skbackup',
+      'skotiq_autosave_$timestamp.${BackupFileNames.extension}',
     );
 
     return createBackup(customPath: filePath);
@@ -695,7 +693,10 @@ class BackupService {
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     final backupDir = await _getBackupDirectory();
     await backupDir.create(recursive: true);
-    return path.join(backupDir.path, 'skotiq_backup_$timestamp.skbackup');
+    return path.join(
+      backupDir.path,
+      'skotiq_backup_$timestamp.${BackupFileNames.extension}',
+    );
   }
 
   Future<Directory> _getBackupDirectory() async {

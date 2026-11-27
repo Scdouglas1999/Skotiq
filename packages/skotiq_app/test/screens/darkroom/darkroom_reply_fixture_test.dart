@@ -83,4 +83,25 @@ void main() {
     final drafted = reply['draft']['recipe']['steps'] as List;
     expect(plan.steps, hasLength(drafted.length));
   });
+
+  test('the catalog names what each three-channel operation requires', () {
+    final catalog = decodeDarkroomCatalog(
+      jsonDecode(
+        File('../../test_fixtures/darkroom_ops/catalog.json')
+            .readAsStringSync(),
+      ) as Map<String, dynamic>,
+    );
+    final requirements = {
+      for (final op in catalog.ops)
+        if (op.threeChannels != null) op.id: op.threeChannels,
+    };
+    expect(requirements, {
+      'color_calibrate':
+          'a color master with 3 channels; combine a per-filter mono master '
+              'first',
+      'saturation': 'a color master with 3 channels',
+      'scnr': 'a color image with 3 channels',
+      'chroma_denoise': 'a color image with 3 channels',
+    });
+  });
 }

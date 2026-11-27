@@ -1,8 +1,9 @@
 //! The operation catalogue the app builds recipes against.
 //!
 //! `test_fixtures/darkroom_ops/catalog.json` is the catalogue's contract part:
-//! each operation's id, version and stage, each parameter's kind, bounds and
-//! default, and the recipe schema version. The app's recipe builders are held
+//! each operation's id, version and stage, what a three-channel-only operation
+//! requires, each parameter's kind, bounds and default, and the recipe schema
+//! version. The app's recipe builders are held
 //! to it by Dart tests (`live_darkroom_recipe_contract_test.dart`,
 //! `recipe_schema_version_test.dart`), so a range moved here and not there
 //! fails a test. Regenerate after a deliberate change with
@@ -49,12 +50,16 @@ fn contract() -> Value {
                     Value::Object(kept)
                 })
                 .collect();
-            json!({
+            let mut kept = json!({
                 "id": op["id"],
                 "version": op["version"],
                 "stage": op["stage"],
                 "params": params,
-            })
+            });
+            if let Some(expected) = op.get("threeChannels") {
+                kept["threeChannels"] = expected.clone();
+            }
+            kept
         })
         .collect();
     json!({ "recipeSchemaVersion": RECIPE_SCHEMA_VERSION, "ops": ops })

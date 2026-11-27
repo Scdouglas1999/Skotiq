@@ -3,7 +3,8 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::recipe::testkit::{test_registry, CurvesLikeOp, ScaleOp};
+use crate::recipe::testkit::{test_registry, wcs_header, CurvesLikeOp, ScaleOp};
+use crate::recipe::{OpContext, OpError, OpImage};
 
 #[test]
 fn the_builtin_list_registers_cleanly_and_carries_the_operations_this_build_ships() {
@@ -104,4 +105,25 @@ fn the_debug_form_lists_what_is_registered() {
         .register(Arc::new(ScaleOp::new(1)))
         .expect("test_scale@1 registers");
     assert!(format!("{registry:?}").contains("test_scale"));
+}
+
+#[test]
+fn an_operation_that_refuses_a_mono_image_says_so_in_the_catalogue() {
+    let registry = OpRegistry::builtin().expect("the builtin list registers cleanly");
+    let mono =
+        OpImage::new(16, 16, 1, vec![0.25_f32; 256], wcs_header(16, 16, 1)).expect("mono image");
+    for (op_id, op_version) in registry.keys() {
+        let op = registry.get(&op_id, op_version).expect("registered");
+        let refusal = match op.apply(&mono, &serde_json::json!({}), &OpContext::new()) {
+            Err(OpError::UnsupportedChannels { expected, .. }) => Some(expected),
+            _ => None,
+        };
+        match op.three_channels_expected() {
+            Some(declared) => assert_eq!(refusal, Some(declared), "{op_id}@{op_version}"),
+            None => assert_eq!(
+                refusal, None,
+                "{op_id}@{op_version} refuses mono undeclared"
+            ),
+        }
+    }
 }

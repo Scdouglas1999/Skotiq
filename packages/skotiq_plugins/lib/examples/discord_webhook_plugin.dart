@@ -24,6 +24,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../src/plugin_api.dart';
+import '../src/plugin_http.dart';
 
 /// True only for Discord itself or one of its subdomains. A plain
 /// `endsWith('discord.com')` check also accepts attacker-controlled hosts such
@@ -186,11 +187,13 @@ class _DiscordWebhookNode implements PluginSequenceNode {
       context.logger.info(
         'Posting Discord webhook (${hasEmbed ? "embed" : "content"})',
       );
-      final response = await client.post(
-        Uri.parse(webhookUrl),
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      );
+      final response = await client
+          .post(
+            Uri.parse(webhookUrl),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(pluginHttpTimeout);
       // Discord responds 204 No Content on success.
       if (response.statusCode == 204 || response.statusCode == 200) {
         context.eventBus.emit('plugin.discord.sent', {

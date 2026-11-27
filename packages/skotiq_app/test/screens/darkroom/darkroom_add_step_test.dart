@@ -255,6 +255,8 @@ class _ScriptedDarkroom implements DarkroomSeam {
             'stage': 'linear',
             'summary': 'Fits a B−V color-versus-flux regression.',
             'params': const <dynamic>[],
+            'threeChannels': 'a color master with 3 channels; combine a '
+                'per-filter mono master first',
           },
       ],
     };

@@ -274,6 +274,69 @@ void main() {
       },
     );
 
+    group('legacy storage folder', () {
+      const id = 'com.skotiq.legacy-test';
+      late Directory dataRoot;
+      late Directory legacyRoot;
+
+      File fileIn(Directory root) =>
+          File('${root.path}/skotiq_plugins/storage/$id.json');
+
+      setUp(() async {
+        dataRoot = await Directory.systemTemp.createTemp('plugin_data_root_');
+        legacyRoot = await Directory.systemTemp.createTemp(
+          'plugin_legacy_root_',
+        );
+        addTearDown(() async {
+          await dataRoot.delete(recursive: true);
+          await legacyRoot.delete(recursive: true);
+        });
+      });
+
+      void writeIn(Directory root, String content) {
+        final file = fileIn(root);
+        file.parent.createSync(recursive: true);
+        file.writeAsStringSync(content);
+      }
+
+      FilePluginStorage storageAt(Directory legacy) => FilePluginStorage(
+        id,
+        baseDirectoryProvider: () async => dataRoot,
+        legacyBaseDirectoryProvider: () async => legacy,
+      );
+
+      test('a file only in the legacy folder is copied in and kept', () async {
+        writeIn(legacyRoot, '{"token":"old"}');
+
+        final storage = storageAt(legacyRoot);
+        expect(await storage.getString('token'), 'old');
+        await storage.setString('token', 'new');
+
+        expect(fileIn(dataRoot).readAsStringSync(), contains('new'));
+        expect(fileIn(legacyRoot).readAsStringSync(), '{"token":"old"}');
+      });
+
+      test('a file already under the data root wins', () async {
+        writeIn(dataRoot, '{"token":"current"}');
+        writeIn(legacyRoot, '{"token":"old"}');
+
+        expect(await storageAt(legacyRoot).getString('token'), 'current');
+      });
+
+      test('a legacy folder that is the data root changes nothing', () async {
+        writeIn(dataRoot, '{"token":"same"}');
+
+        final storage = storageAt(dataRoot);
+        expect(await storage.getString('token'), 'same');
+        expect(fileIn(dataRoot).readAsStringSync(), '{"token":"same"}');
+      });
+
+      test('no legacy file starts empty', () async {
+        expect(await storageAt(legacyRoot).getAll(), isEmpty);
+        expect(fileIn(dataRoot).existsSync(), isFalse);
+      });
+    });
+
     test('unsafe plugin ids are rejected before storage is created', () {
       expect(
         () => FilePluginStorage('../outside'),

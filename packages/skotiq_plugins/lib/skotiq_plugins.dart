@@ -58,6 +58,8 @@ export 'src/plugin_host.dart';
 
 export 'src/plugin_context.dart';
 
+export 'src/plugin_http.dart';
+
 // The bundled plugins, their registration and the persisted enabled-set
 // contract an application implements.
 export 'src/plugin_registration.dart';

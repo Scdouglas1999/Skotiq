@@ -129,7 +129,8 @@ extension _BackupReplace on BackupService {
     final safety = await createBackup(
       customPath: path.join(
         (await getBackupDirectory()).path,
-        'skotiq-backup-before-replace-$stamp-${const Uuid().v4()}.skbackup',
+        'skotiq-backup-before-replace-$stamp-${const Uuid().v4()}'
+        '.${BackupFileNames.extension}',
       ),
       onProgress: (fraction) =>
           onProgress('Saving this database first', 0.2 + 0.7 * fraction),

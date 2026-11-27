@@ -34,6 +34,7 @@ import '../../database/daos/living_sky_retention_dao.dart';
 import '../../database/tables/living_sky_retention.dart';
 import '../../models/collaboration/collaboration_models.dart';
 import '../../utils/logging_service.dart';
+import '../sky_atlas/atlas_files.dart';
 import '../sky_atlas/sky_atlas_models.dart';
 import '../sky_atlas/sky_atlas_service.dart';
 import 'constellation_client.dart';
@@ -593,10 +594,20 @@ class ConstellationService {
             exposureSeconds: frame.exposureSeconds,
             instrument: instrumentFingerprint,
           );
+          if (!receipt.accepted) {
+            rejected[frame.capturedImageId] =
+                'Hub refused the raw frame (accepted=false)';
+            _logger.warning(
+              'contributeRawSubs(#$targetId): hub reported accepted=false for '
+              'frame ${frame.capturedImageId}; recorded as rejected.',
+              source: _logSource,
+            );
+            continue;
+          }
           // Key by capturedImageId so the outcome maps a frame to its receipt.
           accepted[frame.capturedImageId] = ContributionReceipt(
             contributionId: receipt.contributionId,
-            accepted: receipt.accepted,
+            accepted: true,
             trustApplied: 1.0,
             totalFramesAfter: 0,
             integrationSecondsAfter: 0,
@@ -1016,49 +1027,22 @@ class ConstellationService {
 
     // Snapshot the swarm blobs (skip the live overlay outright) with their mtime
     // and size, so age + LRU eviction share one stat pass.
-    final blobs = <({File file, DateTime modified, int size})>[];
+    final blobs = <EvictionCandidate>[];
     await for (final entity in dir.list(followLinks: false)) {
       if (entity is! File) continue;
       final ext = p.extension(entity.path).toLowerCase();
-      // `.nst` keeps pre-rename blobs inside the sweep's remit.
-      if (ext != '.skt' && ext != '.nst' && ext != '.fits') continue;
+      if (ext != '.fits' && !isAtlasSidecar(entity.path)) continue;
       if (live.contains(p.normalize(entity.path))) continue;
       final stat = await entity.stat();
       blobs.add((file: entity, modified: stat.modified, size: stat.size));
     }
 
-    var deleted = 0;
-    var reclaimedBytes = 0;
-    final survivors = <({File file, DateTime modified, int size})>[];
-
-    // Age pass: anything past the cutoff goes now.
-    for (final blob in blobs) {
-      if (blob.modified.isBefore(cutoff)) {
-        if (await _deleteSwarmBlob(blob.file)) {
-          deleted++;
-          reclaimedBytes += blob.size;
-        }
-      } else {
-        survivors.add(blob);
-      }
-    }
-
-    // Space pass: if a byte budget is set and the survivors still overflow it,
-    // evict oldest-first (LRU by mtime) until the working set fits.
-    if (maxBytes != null) {
-      var remainingBytes = survivors.fold<int>(0, (s, b) => s + b.size);
-      if (remainingBytes > maxBytes) {
-        survivors.sort((a, b) => a.modified.compareTo(b.modified));
-        for (final blob in survivors) {
-          if (remainingBytes <= maxBytes) break;
-          if (await _deleteSwarmBlob(blob.file)) {
-            deleted++;
-            reclaimedBytes += blob.size;
-            remainingBytes -= blob.size;
-          }
-        }
-      }
-    }
+    final (:deleted, :reclaimedBytes) = await evictAgedThenOldest(
+      blobs,
+      cutoff: cutoff,
+      maxBytes: maxBytes,
+      delete: _deleteSwarmBlob,
+    );
 
     if (_retention != null) {
       await _retention.recordPrune(

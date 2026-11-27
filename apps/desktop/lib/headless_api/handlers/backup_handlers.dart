@@ -492,20 +492,15 @@ class BackupHandlers implements RouteSource {
       return null;
     }
     if (!fileName.contains('.')) {
-      fileName = '$fileName.skbackup';
+      fileName = '$fileName.${BackupFileNames.extension}';
     }
     final lower = fileName.toLowerCase();
-    if (!lower.endsWith('.skbackup') &&
-        !lower.endsWith('.nsbackup') &&
-        !lower.endsWith('.json')) {
+    if (!BackupFileNames.isReadableBackup(lower)) {
       return null;
     }
     if (fileName.length > 120) {
-      final ext = lower.endsWith('.json')
-          ? '.json'
-          : lower.endsWith('.nsbackup')
-          ? '.nsbackup'
-          : '.skbackup';
+      final ext =
+          '.${BackupFileNames.readableExtensions.firstWhere((e) => lower.endsWith('.$e'))}';
       final stem = fileName.substring(0, fileName.length - ext.length);
       final maxStemLength = 120 - ext.length;
       final safeStem = stem.length <= maxStemLength
@@ -721,6 +716,9 @@ class BackupHandlers implements RouteSource {
         .replaceAll(':', '-')
         .replaceAll('.', '-');
     final id = _uuid.v4();
-    return p.join(dir.path, 'skotiq-backup-$tag-$timestamp-$id.skbackup');
+    return p.join(
+      dir.path,
+      'skotiq-backup-$tag-$timestamp-$id.${BackupFileNames.extension}',
+    );
   }
 }

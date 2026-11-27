@@ -311,7 +311,7 @@ class SyncService {
       // 1. Bundle — reuse the exact backup creation the Backup screen uses.
       tempDir = await Directory.systemTemp.createTemp('sk_sync_push_');
       final timestamp = _fileTimestamp(_clock());
-      final bundleName = 'bundle-$timestamp.skbak';
+      final bundleName = 'bundle-$timestamp.${BackupFileNames.bundleExtension}';
       final localPath = p.join(tempDir.path, bundleName);
       final backupResult = await backupService.createBackup(
         customPath: localPath,
@@ -472,9 +472,7 @@ class SyncService {
           .where(
             (e) =>
                 !e.isDirectory &&
-                // `.nsbak` is the pre-rename bundle extension; bundles a
-                // previous build uploaded still count toward the listing.
-                (e.name.endsWith('.skbak') || e.name.endsWith('.nsbak')) &&
+                BackupFileNames.isBundle(e.name) &&
                 !knownNames.contains(e.name),
           )
           .map(
@@ -543,7 +541,7 @@ class SyncService {
       final localFile = File(
         p.join(
           downloadDir.path,
-          'cloud-${sanitizeMachineName(machine)}-$stem.skbackup',
+          'cloud-${sanitizeMachineName(machine)}-$stem.${BackupFileNames.extension}',
         ),
       );
       await localFile.writeAsBytes(bytes, flush: true);

@@ -24,9 +24,6 @@ class _HomeAssistantConfigDialogState
   bool _saving = false;
   String? _validationError;
 
-  static const _baseUrlKey = 'home_assistant.baseUrl';
-  static const _tokenKey = 'home_assistant.token';
-
   @override
   void initState() {
     super.initState();
@@ -34,8 +31,9 @@ class _HomeAssistantConfigDialogState
   }
 
   Future<void> _prefill() async {
-    final baseUrl = await widget.storage.getString(_baseUrlKey);
-    final token = await widget.storage.getString(_tokenKey);
+    final baseUrl =
+        await widget.storage.getString(kHomeAssistantBaseUrlStorageKey);
+    final token = await widget.storage.getString(kHomeAssistantTokenStorageKey);
     if (!mounted) return;
     setState(() {
       _baseUrlController.text = baseUrl ?? '';

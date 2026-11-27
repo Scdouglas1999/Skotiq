@@ -25,6 +25,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../src/plugin_api.dart';
+import '../src/plugin_http.dart';
 
 /// Returns a user-facing validation error for a Home Assistant base URL.
 String? homeAssistantBaseUrlProblem(String value) {
@@ -39,11 +40,12 @@ String? homeAssistantBaseUrlProblem(String value) {
   return null;
 }
 
-/// Storage key for the HA base URL (e.g. `http://homeassistant.local:8123`).
-const String _kHaBaseUrlStorageKey = 'home_assistant.baseUrl';
+/// Storage key for the HA base URL (e.g. `http://homeassistant.local:8123`);
+/// the settings dialog reads it to prefill.
+const String kHomeAssistantBaseUrlStorageKey = 'home_assistant.baseUrl';
 
 /// Storage key for the HA long-lived access token.
-const String _kHaTokenStorageKey = 'home_assistant.token';
+const String kHomeAssistantTokenStorageKey = 'home_assistant.token';
 
 class HomeAssistantPlugin extends SequencePlugin {
   PluginContext? _context;
@@ -77,8 +79,12 @@ class HomeAssistantPlugin extends SequencePlugin {
   @override
   Future<void> onLoad(PluginContext context) async {
     _context = context;
-    final baseUrl = await context.storage.getString(_kHaBaseUrlStorageKey);
-    final token = await context.storage.getString(_kHaTokenStorageKey);
+    final baseUrl = await context.storage.getString(
+      kHomeAssistantBaseUrlStorageKey,
+    );
+    final token = await context.storage.getString(
+      kHomeAssistantTokenStorageKey,
+    );
     context.logger.info(
       'Home Assistant plugin loaded. Configured: '
       'base=${baseUrl != null && baseUrl.isNotEmpty}, '
@@ -112,8 +118,8 @@ class HomeAssistantPlugin extends SequencePlugin {
     final normalized = trimmed.endsWith('/')
         ? trimmed.substring(0, trimmed.length - 1)
         : trimmed;
-    await ctx.storage.setString(_kHaBaseUrlStorageKey, normalized);
-    await ctx.storage.setString(_kHaTokenStorageKey, accessToken);
+    await ctx.storage.setString(kHomeAssistantBaseUrlStorageKey, normalized);
+    await ctx.storage.setString(kHomeAssistantTokenStorageKey, accessToken);
     ctx.logger.info('Home Assistant connection configured: $normalized');
   }
 
@@ -189,8 +195,12 @@ class _HomeAssistantToggleNode implements PluginSequenceNode {
 
   @override
   Future<bool> execute(PluginContext context) async {
-    final baseUrl = await context.storage.getString(_kHaBaseUrlStorageKey);
-    final token = await context.storage.getString(_kHaTokenStorageKey);
+    final baseUrl = await context.storage.getString(
+      kHomeAssistantBaseUrlStorageKey,
+    );
+    final token = await context.storage.getString(
+      kHomeAssistantTokenStorageKey,
+    );
     if (baseUrl == null || baseUrl.isEmpty) {
       context.logger.error('Home Assistant base URL is not configured');
       return false;
@@ -209,14 +219,16 @@ class _HomeAssistantToggleNode implements PluginSequenceNode {
         'Calling Home Assistant: $domain/$service for $entityId',
       );
 
-      final response = await client.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'entity_id': entityId}),
-      );
+      final response = await client
+          .post(
+            url,
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'entity_id': entityId}),
+          )
+          .timeout(pluginHttpTimeout);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         context.logger.error(
@@ -239,10 +251,9 @@ class _HomeAssistantToggleNode implements PluginSequenceNode {
       // the entity state and confirm.
       await Future<void>.delayed(Duration(seconds: confirmStateAfterSecs));
       final stateUrl = Uri.parse('$baseUrl/api/states/$entityId');
-      final stateResponse = await client.get(
-        stateUrl,
-        headers: {'Authorization': 'Bearer $token'},
-      );
+      final stateResponse = await client
+          .get(stateUrl, headers: {'Authorization': 'Bearer $token'})
+          .timeout(pluginHttpTimeout);
       if (stateResponse.statusCode != 200) {
         context.logger.warning(
           'Home Assistant state confirm failed: '

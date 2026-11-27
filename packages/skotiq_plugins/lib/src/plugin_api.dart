@@ -120,6 +120,17 @@ abstract class PluginStorage {
   Future<void> clear();
 }
 
+/// The events the app publishes to every plugin listening on its bus.
+abstract final class PluginHostEvents {
+  /// A new weather-station reading, keyed by the figures the station gave
+  /// (`temperature`, `humidity`, `pressure`, ...) and `sampled_at`.
+  static const String weatherUpdated = 'weather.updated';
+
+  /// The focuser reported a new `position`, with its `temperature` when it
+  /// has one.
+  static const String focuserMoved = 'focuser.moved';
+}
+
 /// Event bus interface for plugins
 ///
 /// Allows plugins to communicate with each other and with the application

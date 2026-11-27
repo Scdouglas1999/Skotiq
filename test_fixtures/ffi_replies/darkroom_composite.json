@@ -763,6 +763,7 @@
       ],
       "stage": "linear",
       "summary": "Scales the channels of a three-channel master from a Johnson B-V colour-versus-flux regression against the caller's photometry. It is not full spectrophotometric calibration: the shipped photometry is B and V only.",
+      "threeChannels": "a color master with 3 channels; combine a per-filter mono master first",
       "version": 1
     },
     {
@@ -925,6 +926,7 @@
       ],
       "stage": "stretched",
       "summary": "Scales each pixel's departure from its own luminance, protecting the brightest tones.",
+      "threeChannels": "a color master with 3 channels",
       "version": 1
     },
     {
@@ -1331,6 +1333,7 @@
       ],
       "stage": "linear",
       "summary": "Removes a green cast by limiting green to a neutral built from red and blue (PixInsight SCNR).",
+      "threeChannels": "a color image with 3 channels",
       "version": 1
     },
     {
@@ -1385,6 +1388,7 @@
       ],
       "stage": "linear",
       "summary": "Smooths large-scale color noise in the background, leaving lightness, stars and the target's color untouched.",
+      "threeChannels": "a color image with 3 channels",
       "version": 1
     }
   ],

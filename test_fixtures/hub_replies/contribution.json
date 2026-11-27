@@ -1,0 +1,15 @@
+{
+  "contributionId": "e8ff8b0f-1171-45a8-904a-a946bbd083b1",
+  "accepted": true,
+  "trustApplied": 1.0,
+  "totalFramesAfter": 4,
+  "integrationSecondsAfter": 1200.0,
+  "contributorsAfter": 1,
+  "quality": {
+    "accepted": true,
+    "reason": "insufficient-overlap",
+    "medianOffset": 0.0,
+    "robustSigma": 0.0,
+    "deviation": 0.0
+  }
+}

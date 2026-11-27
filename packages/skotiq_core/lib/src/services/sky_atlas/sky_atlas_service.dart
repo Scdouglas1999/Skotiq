@@ -13,6 +13,7 @@ import '../../settings/store_settings.dart';
 import '../../utils/logging_service.dart';
 import '../../database/daos/images_dao.dart' show StoredWcsDistortion;
 import '../wcs/plate_solve_data_from_result.dart' show storedFrameWcs;
+import 'atlas_files.dart';
 import 'sky_atlas_models.dart';
 import 'sky_atlas_seam.dart';
 import '../../utils/skotiq_data_directory.dart';
@@ -767,7 +768,7 @@ class SkyAtlasService {
     required DateTime since,
   }) async {
     final root = await atlasRoot();
-    final outPath = p.join(_cacheDir(root), 'delta_$tileId.skt');
+    final outPath = atlasSidecarPath(_cacheDir(root), 'delta_$tileId');
     final result = await _seam.dispatch({
       'action': 'exportDelta',
       'atlasRoot': root,
@@ -946,22 +947,13 @@ class SkyAtlasService {
     return _serialized(() async {
       await _requireEnabled();
       final root = await atlasRoot();
-      // Pre-rename atlases may still hold `.nst` sidecars; fold the merge into
-      // whichever path actually holds the accumulated depth.
-      String resolve(String dir) {
-        final current = p.join(dir, '$tileId.skt');
-        if (File(current).existsSync()) return current;
-        final legacy = p.join(dir, '$tileId.nst');
-        return File(legacy).existsSync() ? legacy : current;
-      }
+      final basePath = existingAtlasSidecarPath(_tilesDir(root), '$tileId');
+      // The overlay is rebuilt from scratch below under its current name; a
+      // legacy-named twin is cleared with it.
+      final overlayPaths = atlasSidecarPaths(_overlayDir(root), '$tileId');
+      final overlayPath = overlayPaths.first;
 
-      final basePath = resolve(_tilesDir(root));
-      // The overlay is rebuilt from scratch below, so it always writes its
-      // `.skt` name; a stale `.nst` twin is reclaimed alongside it.
-      final overlayPath = p.join(_overlayDir(root), '$tileId.skt');
-      final legacyOverlay = File(p.join(_overlayDir(root), '$tileId.nst'));
-
-      for (final stale in [File(overlayPath), legacyOverlay]) {
+      for (final stale in overlayPaths.map(File.new)) {
         if (!stale.existsSync()) continue;
         try {
           stale.deleteSync();
@@ -1054,9 +1046,8 @@ class SkyAtlasService {
   /// grows without bound (a 2048² PNG+FITS pair per distinct region browse),
   /// silently filling a long-running host or a constrained appliance.
   ///
-  /// Two-pass LRU mirroring the swarm-blob sweep: first evict anything older
-  /// than [maxAge], then — if [maxBytes] is set and the survivors still overflow
-  /// it — evict oldest-first by mtime until the working set fits. Returns the
+  /// Evicts by [evictAgedThenOldest]: anything older than [maxAge], then
+  /// oldest-first while the rest exceed [maxBytes]. Returns the
   /// number of files reclaimed. Cheap to call on startup / the maintenance
   /// schedule; a vanished file mid-sweep is swallowed so one race cannot sink
   /// the pass.
@@ -1071,47 +1062,23 @@ class SkyAtlasService {
     final now = DateTime.now();
     final cutoff = now.subtract(maxAge);
 
-    final entries = <({File file, DateTime modified, int size})>[];
+    final entries = <EvictionCandidate>[];
     await for (final entity in dir.list(followLinks: false)) {
       if (entity is! File) continue;
       final ext = p.extension(entity.path).toLowerCase();
-      // `.nst` keeps pre-rename sidecars inside the sweep's remit.
-      if (ext != '.png' && ext != '.fits' && ext != '.skt' && ext != '.nst') {
+      if (ext != '.png' && ext != '.fits' && !isAtlasSidecar(entity.path)) {
         continue;
       }
       final stat = await entity.stat();
       entries.add((file: entity, modified: stat.modified, size: stat.size));
     }
 
-    var deleted = 0;
-    var reclaimedBytes = 0;
-    final survivors = <({File file, DateTime modified, int size})>[];
-
-    for (final entry in entries) {
-      if (entry.modified.isBefore(cutoff)) {
-        if (await _deleteCacheFile(entry.file)) {
-          deleted++;
-          reclaimedBytes += entry.size;
-        }
-      } else {
-        survivors.add(entry);
-      }
-    }
-
-    if (maxBytes != null) {
-      var remainingBytes = survivors.fold<int>(0, (s, e) => s + e.size);
-      if (remainingBytes > maxBytes) {
-        survivors.sort((a, b) => a.modified.compareTo(b.modified));
-        for (final entry in survivors) {
-          if (remainingBytes <= maxBytes) break;
-          if (await _deleteCacheFile(entry.file)) {
-            deleted++;
-            reclaimedBytes += entry.size;
-            remainingBytes -= entry.size;
-          }
-        }
-      }
-    }
+    final (:deleted, :reclaimedBytes) = await evictAgedThenOldest(
+      entries,
+      cutoff: cutoff,
+      maxBytes: maxBytes,
+      delete: _deleteCacheFile,
+    );
 
     if (deleted > 0) {
       _logger.info(
@@ -1128,13 +1095,10 @@ class SkyAtlasService {
   /// next [sweepCache]. A vanished/locked file is swallowed (best-effort).
   Future<bool> deleteExportedDelta(int tileId) async {
     final root = await atlasRoot();
-    // A pre-rename export may have left `delta_<id>.nst`; reclaim it too.
-    var deleted = await _deleteCacheFile(
-      File(p.join(_cacheDir(root), 'delta_$tileId.skt')),
-    );
-    deleted |= await _deleteCacheFile(
-      File(p.join(_cacheDir(root), 'delta_$tileId.nst')),
-    );
+    var deleted = false;
+    for (final path in atlasSidecarPaths(_cacheDir(root), 'delta_$tileId')) {
+      deleted |= await _deleteCacheFile(File(path));
+    }
     return deleted;
   }
 }
