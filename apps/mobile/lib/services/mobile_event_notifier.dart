@@ -252,6 +252,9 @@ class MobileEventNotifier {
       NotificationCategory.focusOffsetFailed ||
       NotificationCategory.deviceAnsweredLate ||
       NotificationCategory.checkpointFailed ||
+      NotificationCategory.switchChannelFailed ||
+      NotificationCategory.guiderStarting ||
+      NotificationCategory.exposureTimedOut ||
       NotificationCategory.custom => (false, _repeatWindow, null),
     };
     if (!enabled || send == null) return;

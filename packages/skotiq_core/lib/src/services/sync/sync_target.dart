@@ -56,7 +56,16 @@ enum SyncTargetErrorKind {
   network,
 
   /// Anything else (unexpected status code, malformed response, ...).
-  unknown,
+  unknown;
+
+  /// The kind of a failed request the server answered with HTTP [status].
+  static SyncTargetErrorKind ofStatus(int status) => switch (status) {
+    401 || 403 => auth,
+    404 => notFound,
+    405 || 409 || 423 => conflict,
+    >= 500 => server,
+    _ => unknown,
+  };
 }
 
 /// Thrown by [SyncTarget] implementations for any remote-side failure.
@@ -70,6 +79,11 @@ class SyncTargetException implements Exception {
     this.kind = SyncTargetErrorKind.unknown,
     this.statusCode,
   });
+
+  /// A failure before an HTTP status was received.
+  const SyncTargetException.network(this.message)
+    : kind = SyncTargetErrorKind.network,
+      statusCode = null;
 
   @override
   String toString() =>

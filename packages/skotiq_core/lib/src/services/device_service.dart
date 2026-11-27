@@ -45,7 +45,6 @@ import 'device_reconnect_coordinator.dart';
 import 'device_exceptions.dart';
 import 'mount_home_watcher.dart';
 import 'mount_slew_watcher.dart';
-import 'error_service.dart';
 import 'notification/event_classifier.dart' show ConnectingDevices;
 import 'notification/notification_router.dart' show NotificationRouter;
 import 'phd2_launcher.dart';
@@ -60,8 +59,8 @@ import '../providers/mount_site_provider.dart';
 import '../backend/network_backend.dart';
 import '../backend/roles/host_data/host_link.dart';
 import '../models/backend/backend_types.dart';
-import '../providers/error_service_provider.dart';
 import '../providers/logging_service_provider.dart';
+import '../utils/logging_service.dart' show LogLevel;
 import '../providers/mount_home_watcher_provider.dart';
 import '../providers/mount_slew_watcher_providers.dart';
 import '../providers/predictive_af_service_providers.dart';
@@ -257,13 +256,18 @@ class DeviceService {
   final NotificationRouter Function()? _notices;
 
   /// Tell the operator through the notification router, on [category]'s row.
+  ///
+  /// [runStep] marks a happening a run also makes as its own step, which the
+  /// run's screens show: it is not told while a run is going.
   void _tell(
     NotificationCategory category, {
     required String title,
     required String body,
     EventSeverity severity = EventSeverity.info,
     Set<AppScreen> quietOn = const {},
+    bool runStep = false,
   }) {
+    if (runStep && _ref.read(sequenceExecutionStateProvider).canStop) return;
     _notices?.call().routeRendered(
       category: category,
       title: title,
@@ -305,9 +309,7 @@ class DeviceService {
         ),
       );
     }
-    _phd2Launcher = Phd2Launcher(
-      notices: () => _ref.read(uiNotificationProvider.notifier),
-    );
+    _phd2Launcher = Phd2Launcher(notices: notices);
     _heartbeat = DeviceHeartbeatRouter(ref: _ref);
     _reconnectCoordinator = DeviceReconnectCoordinator(
       ref: _ref,
@@ -323,6 +325,7 @@ class DeviceService {
       ref: _ref,
       backend: _backend,
       hostDevices: hostDevices,
+      notices: notices,
     );
     DeviceServiceLifecycle.register(this);
     _initEventListening();

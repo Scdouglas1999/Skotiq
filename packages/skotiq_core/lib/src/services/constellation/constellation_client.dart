@@ -10,9 +10,8 @@
 // and the `order` query parameter pins the HEALPix tiling so a mismatched hub
 // is detected up front.
 //
-// Transport mirrors `webdav_sync_target.dart`: nothing but `package:http`, a
-// single `_send` choke point that maps `SocketException`/`ClientException`/
-// timeouts onto a typed [ConstellationException], and a `_throwForStatus` that
+// Every request goes through one [HttpExchange], which maps a failure before
+// an HTTP status onto a network [ConstellationException]; `_throwForStatus`
 // classifies the HTTP status. The client is deliberately stateless beyond its
 // base URL + token so one instance can be created per hub from a provider.
 
@@ -22,6 +21,7 @@ import 'dart:io' show File, FileSystemException, IOSink, SocketException;
 
 import 'package:http/http.dart' as http;
 
+import '../http_exchange.dart';
 import 'constellation_models.dart';
 part 'constellation_client/transport.dart';
 part 'constellation_client/io_cleanup.dart';
@@ -41,18 +41,25 @@ class ConstellationClient {
 
   final http.Client _client;
   final bool _ownsClient;
-  final Duration _timeout;
 
   /// [client] is injectable for tests (`package:http/testing.dart` MockClient).
   /// When omitted a real client is created and owned here ([close] disposes it).
+  /// A request fails when no bytes move for [timeout].
   ConstellationClient({
     required this.hubBaseUrl,
     required this.bearerToken,
     http.Client? client,
     Duration timeout = const Duration(seconds: 60),
   }) : _client = client ?? http.Client(),
-       _ownsClient = client == null,
-       _timeout = timeout;
+       _ownsClient = client == null {
+    _exchange = HttpExchange(
+      _client,
+      networkFailure: ConstellationException.network,
+      idleLimit: timeout,
+    );
+  }
+
+  late final HttpExchange _exchange;
 
   void close() {
     if (_ownsClient) _client.close();

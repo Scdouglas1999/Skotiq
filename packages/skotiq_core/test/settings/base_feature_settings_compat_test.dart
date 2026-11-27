@@ -1333,6 +1333,9 @@ const _addedCategories = {
   NotificationCategory.focusOffsetFailed,
   NotificationCategory.deviceAnsweredLate,
   NotificationCategory.checkpointFailed,
+  NotificationCategory.switchChannelFailed,
+  NotificationCategory.guiderStarting,
+  NotificationCategory.exposureTimedOut,
 };
 
 Object? _withAddedCategories(Object? value) {

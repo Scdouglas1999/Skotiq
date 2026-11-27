@@ -337,6 +337,27 @@ class NotificationPresentation {
       tone: NotificationTone.alert,
       inAppDuration: Duration(seconds: 12),
     ),
+    // Warning or error, as the message says.
+    NotificationCategory.switchChannelFailed => const NotificationPresentation(
+      title: 'Switch',
+      body: 'A switch channel failed.',
+      eventCategory: EventCategory.equipment,
+      tone: null,
+    ),
+    NotificationCategory.guiderStarting => const NotificationPresentation(
+      title: 'PHD2',
+      body: 'PHD2 not running: starting it.',
+      eventCategory: EventCategory.guiding,
+      inAppDuration: Duration(seconds: 5),
+    ),
+    NotificationCategory.exposureTimedOut => const NotificationPresentation(
+      title: 'Exposure Timeout',
+      body:
+          'Exposure event not received in time - checking for image. '
+          'Camera may be unresponsive.',
+      eventCategory: EventCategory.imaging,
+      tone: NotificationTone.caution,
+    ),
     NotificationCategory.triggerFired => const NotificationPresentation(
       title: 'Trigger fired',
       body: 'The \${trigger.name} trigger fired.',

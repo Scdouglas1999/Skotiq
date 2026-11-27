@@ -20,86 +20,26 @@ extension _ConstellationClientTransport on ConstellationClient {
     Uri uri, {
     Map<String, String>? headers,
     List<int>? bodyBytes,
-  }) async {
-    final request = http.Request(method, uri);
-    request.headers.addAll(_authHeaders);
-    if (headers != null) request.headers.addAll(headers);
-    if (bodyBytes != null) request.bodyBytes = bodyBytes;
-    try {
-      final streamed = await _client.send(request).timeout(_timeout);
-      // Bound body collection too: `.timeout` on send() only covers receiving
-      // the response headers, so a hub that sends headers then stalls mid-body
-      // would hang here forever. These are small JSON receipts, so a single
-      // request timeout on the whole exchange is appropriate.
-      return await http.Response.fromStream(streamed).timeout(_timeout);
-    } on ConstellationException {
-      rethrow;
-    } on SocketException catch (e) {
-      throw ConstellationException(
-        'Cannot reach ${uri.host}: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on http.ClientException catch (e) {
-      throw ConstellationException(
-        'Request to ${uri.host} failed: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on TimeoutException {
-      throw ConstellationException(
-        'Request to ${uri.host} timed out',
-        kind: ConstellationErrorKind.network,
-      );
-    }
-  }
+  }) => _exchange.send(
+    method,
+    uri,
+    headers: {..._authHeaders, ...?headers},
+    body: bodyBytes,
+  );
 
-  /// Stream a file's bytes as the request body (used for raw FITS subframes,
-  /// which can be far larger than a sums delta). Mirrors [_send]'s error
-  /// mapping but never holds the whole file in memory twice.
+  /// Stream [file] as the request body (raw FITS subframes, panel masters,
+  /// the mosaic output), never holding the whole file in memory.
   Future<http.Response> _sendFile(
     String method,
     Uri uri,
     File file, {
     Map<String, String>? headers,
-  }) async {
-    final length = await file.length();
-    final request = http.StreamedRequest(method, uri);
-    request.headers.addAll(_authHeaders);
-    if (headers != null) request.headers.addAll(headers);
-    request.contentLength = length;
-    // Pump the file into the request sink, then close it so the request body
-    // terminates. Errors on the read side surface through the `send` future.
-    unawaited(
-      file
-          .openRead()
-          .forEach(request.sink.add)
-          .whenComplete(request.sink.close),
-    );
-    try {
-      final streamed = await _client.send(request).timeout(_timeout);
-      // Bound body collection too: `.timeout` on send() only covers receiving
-      // the response headers, so a hub that sends headers then stalls mid-body
-      // would hang here forever. These are small JSON receipts, so a single
-      // request timeout on the whole exchange is appropriate.
-      return await http.Response.fromStream(streamed).timeout(_timeout);
-    } on ConstellationException {
-      rethrow;
-    } on SocketException catch (e) {
-      throw ConstellationException(
-        'Cannot reach ${uri.host}: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on http.ClientException catch (e) {
-      throw ConstellationException(
-        'Request to ${uri.host} failed: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on TimeoutException {
-      throw ConstellationException(
-        'Request to ${uri.host} timed out',
-        kind: ConstellationErrorKind.network,
-      );
-    }
-  }
+  }) => _exchange.send(
+    method,
+    uri,
+    headers: {..._authHeaders, ...?headers},
+    file: file,
+  );
 
   /// Stream a GET response body straight to [outPath] on disk, never
   /// materializing the whole blob in memory (the download mirror of [_sendFile]).
@@ -113,50 +53,24 @@ extension _ConstellationClientTransport on ConstellationClient {
     String outPath,
     String operation,
   ) async {
-    final request = http.Request(method, uri);
-    request.headers.addAll(_authHeaders);
-    try {
-      final streamed = await _client.send(request).timeout(_timeout);
-      if (streamed.statusCode != 200) {
-        _throwForStatus(await http.Response.fromStream(streamed), operation);
-      }
-      final out = File(outPath);
-      await out.parent.create(recursive: true);
-      final sink = out.openWrite();
-      try {
-        // Bound body collection too: `.timeout` on send() only covers receiving
-        // the response headers, so a hub that sends headers then stalls
-        // mid-body would hang here forever. These artifacts run to gigabytes,
-        // so the bound is on the IDLE gap between chunks — a deadline on the
-        // whole transfer would abort healthy slow links.
-        await sink.addStream(streamed.stream.timeout(_timeout));
-        await sink.close();
-      } on Object {
-        await _closeQuietly(sink);
-        // Never leave a truncated artifact behind: neither a retry nor the
-        // reader that opens it can tell a partial file from a complete one.
-        await _deleteQuietly(out);
-        rethrow;
-      }
-      return outPath;
-    } on ConstellationException {
-      rethrow;
-    } on SocketException catch (e) {
-      throw ConstellationException(
-        'Cannot reach ${uri.host}: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on http.ClientException catch (e) {
-      throw ConstellationException(
-        'Request to ${uri.host} failed: ${e.message}',
-        kind: ConstellationErrorKind.network,
-      );
-    } on TimeoutException {
-      throw ConstellationException(
-        'Request to ${uri.host} timed out',
-        kind: ConstellationErrorKind.network,
-      );
+    final streamed = await _exchange.open(method, uri, headers: _authHeaders);
+    if (streamed.statusCode != 200) {
+      _throwForStatus(await http.Response.fromStream(streamed), operation);
     }
+    final out = File(outPath);
+    await out.parent.create(recursive: true);
+    final sink = out.openWrite();
+    try {
+      await sink.addStream(streamed.stream);
+      await sink.close();
+    } on Object {
+      await _closeQuietly(sink);
+      // Never leave a truncated artifact behind: neither a retry nor the
+      // reader that opens it can tell a partial file from a complete one.
+      await _deleteQuietly(out);
+      rethrow;
+    }
+    return outPath;
   }
 
   Never _throwForStatus(http.Response response, String operation) {
@@ -169,9 +83,8 @@ extension _ConstellationClientTransport on ConstellationClient {
       409 => ConstellationErrorKind.geometryMismatch,
       405 || 423 => ConstellationErrorKind.conflict,
       // The hub rejected the REQUEST (bad params, an un-shareable license, a
-      // malformed body). Classifying it `unknown` made every caller report the
-      // appliance's own 5xx for a fault the caller must fix, inviting an
-      // identical retry that can never succeed. Matches SharedCalibrationClient.
+      // malformed body): a fault the caller must fix, which an identical
+      // retry can never get past.
       400 || 422 => ConstellationErrorKind.protocol,
       >= 500 => ConstellationErrorKind.server,
       _ => ConstellationErrorKind.unknown,

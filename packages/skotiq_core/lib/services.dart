@@ -86,7 +86,6 @@ export 'src/services/planning/forecast_planning_service.dart';
 export 'src/services/focus_model_service.dart';
 // Predictive autofocus persisted per-filter learning + drift detection.
 export 'src/services/predictive_af_service.dart';
-export 'src/services/error_service.dart';
 export 'src/services/flat_wizard_service.dart';
 export 'src/services/sky_brightness_tracker.dart';
 export 'src/services/flat_exposure_follower.dart';

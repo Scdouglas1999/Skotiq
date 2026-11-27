@@ -2,13 +2,10 @@
 ///
 /// ## Why this is shared rather than reimplemented per surface
 ///
-/// One happening reaches the operator from several producers whose copy differs
-/// only cosmetically — a failed connect of the built-in guider is rendered both
-/// by the Dart connect path via `ErrorService.log` and by the backend's error
-/// event via `errorNotificationBridgeProvider`, one of them with a trailing
-/// full stop. Not every surface goes through [NotificationRouter]: in-app
-/// toasts are published directly through `UiNotificationNotifier.showError`.
-/// So the rule lives here, and every surface that asks "have I already said
+/// One happening can reach the operator from more than one producer whose copy
+/// differs only cosmetically (a trailing full stop, case, spacing). The router
+/// de-duplicates what it sends and the toast overlay collapses what it shows,
+/// so the rule lives here and every surface that asks "have I already said
 /// this?" calls it.
 library;
 
