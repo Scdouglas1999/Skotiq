@@ -178,7 +178,7 @@ class TargetGroupProperties extends ConsumerWidget {
                       },
                 icon: LucideIcons.scanLine,
                 label: 'Frame target',
-                variant: ButtonVariant.outline,
+                variant: ButtonVariant.secondary,
                 size: ButtonSize.small,
               ),
             ),

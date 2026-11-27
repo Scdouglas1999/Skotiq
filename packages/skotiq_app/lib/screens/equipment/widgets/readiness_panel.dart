@@ -452,7 +452,7 @@ class _ReadinessRow extends StatelessWidget {
   Widget _fixButton(BuildContext context) {
     return SkotiqButton(
       label: item.fixLabel!,
-      variant: ButtonVariant.outline,
+      variant: ButtonVariant.secondary,
       size: ButtonSize.small,
       onPressed: () {
         context.go(item.fixRoute!);

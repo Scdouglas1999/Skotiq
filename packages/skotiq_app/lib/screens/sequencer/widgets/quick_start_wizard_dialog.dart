@@ -745,7 +745,7 @@ class _QuickStartWizardDialogState extends ConsumerState<QuickStartWizardDialog>
           action: SkotiqButton(
             label: 'Retry',
             icon: LucideIcons.refreshCw,
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             onPressed: _retryInitialization,
           ),
         ),

@@ -79,7 +79,7 @@ class _HardwarePresetPickerDialogState
         SkotiqButton(
           label: 'Add custom',
           icon: LucideIcons.plus,
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           onPressed: _addCustom,
         ),
         SkotiqButton(

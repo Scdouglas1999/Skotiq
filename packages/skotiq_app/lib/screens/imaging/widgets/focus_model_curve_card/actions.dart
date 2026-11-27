@@ -50,7 +50,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
           label: 'Add point',
           icon: LucideIcons.plus,
           size: ButtonSize.small,
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           onPressed: _busy ? null : () => _runAction('add'),
           isLoading: _busy,
         ),

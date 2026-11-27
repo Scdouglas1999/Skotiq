@@ -372,7 +372,7 @@ class _ActionsRow extends StatelessWidget {
           SkotiqButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             label: 'Cancel',
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             size: ButtonSize.small,
           ),
           SkotiqButton(
@@ -440,7 +440,7 @@ class _ActionsRow extends StatelessWidget {
                   label: 'Confirm',
                   icon: SkotiqIcons.check,
                   size: ButtonSize.small,
-                  variant: ButtonVariant.outline,
+                  variant: ButtonVariant.secondary,
                   onPressed: () => _triage(context, dismiss: false),
                 ),
         ),
@@ -473,7 +473,7 @@ class _ActionsRow extends StatelessWidget {
       label: 'Chase',
       icon: SkotiqIcons.crosshair,
       size: ButtonSize.small,
-      variant: ButtonVariant.outline,
+      variant: ButtonVariant.secondary,
       onPressed: () => _chase(context),
     );
 

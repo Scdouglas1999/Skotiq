@@ -238,7 +238,7 @@ void main() {
     const pad = 20.0;
 
     /// A transparent-fill variant is the case the ring must not swallow.
-    for (final variant in const [ButtonVariant.ghost, ButtonVariant.outline]) {
+    for (final variant in const [ButtonVariant.ghost, ButtonVariant.secondary]) {
       testWidgets('$variant keeps a transparent interior while focused', (
         tester,
       ) async {

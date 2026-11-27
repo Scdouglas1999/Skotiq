@@ -106,7 +106,7 @@ class FirstLightFlowDialog extends ConsumerWidget {
           if (_isConnectionFailure(state.errorMessage))
             SkotiqButton(
               label: 'Troubleshoot connection',
-              variant: ButtonVariant.outline,
+              variant: ButtonVariant.secondary,
               icon: LucideIcons.wrench,
               onPressed: () => _openTroubleshooter(context, ref, state),
             ),
@@ -129,7 +129,7 @@ class FirstLightFlowDialog extends ConsumerWidget {
         return [
           SkotiqButton(
             label: 'Stop capture',
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             icon: LucideIcons.x,
             onPressed: () =>
                 ref.read(firstLightControllerProvider.notifier).cancel(),

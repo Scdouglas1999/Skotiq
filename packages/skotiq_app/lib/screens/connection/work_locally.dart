@@ -50,7 +50,7 @@ Future<void> switchToLocalBackend(BuildContext context, WidgetRef ref) async {
 class WorkLocallyButton extends ConsumerStatefulWidget {
   const WorkLocallyButton({
     super.key,
-    this.variant = ButtonVariant.outline,
+    this.variant = ButtonVariant.secondary,
     this.icon,
     this.fullWidth = false,
   });

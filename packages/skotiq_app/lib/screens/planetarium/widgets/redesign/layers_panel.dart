@@ -450,7 +450,7 @@ class _DeepStarsSwitch extends ConsumerWidget {
             '${kHygFaintFloorMag.toStringAsFixed(1)} need a self-hosted tileset',
         trailing: SkotiqButton(
           label: 'Configure source...',
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           size: ButtonSize.small,
           onPressed: () => _openCatalogSettings(context, ref),
         ),

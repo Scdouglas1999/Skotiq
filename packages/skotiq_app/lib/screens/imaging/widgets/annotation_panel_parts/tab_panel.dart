@@ -204,7 +204,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
           SkotiqButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             label: 'Cancel',
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             size: ButtonSize.small,
           ),
           SkotiqButton(

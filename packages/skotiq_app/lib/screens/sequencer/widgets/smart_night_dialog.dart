@@ -342,7 +342,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
                   child: SkotiqButton(
                     label: 'Retry',
                     icon: LucideIcons.refreshCw,
-                    variant: ButtonVariant.outline,
+                    variant: ButtonVariant.secondary,
                     size: ButtonSize.small,
                     onPressed: () => ref.invalidate(appSettingsProvider),
                   ),

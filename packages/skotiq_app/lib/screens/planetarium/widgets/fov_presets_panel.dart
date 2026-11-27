@@ -91,7 +91,7 @@ class FovPresetsPanel extends ConsumerWidget {
           SkotiqButton(
             label: 'Add rig',
             icon: SkotiqIcons.add,
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             size: ButtonSize.small,
             onPressed: () => _showAddRigSheet(context, ref),
           ),
@@ -281,7 +281,7 @@ class _ActivePresetControls extends StatelessWidget {
               child: SkotiqButton(
                 label: preset.center == null ? 'Snap to target' : 'Re-snap',
                 icon: SkotiqIcons.target,
-                variant: ButtonVariant.outline,
+                variant: ButtonVariant.secondary,
                 size: ButtonSize.small,
                 onPressed: hasTarget ? onSnapToTarget : null,
               ),

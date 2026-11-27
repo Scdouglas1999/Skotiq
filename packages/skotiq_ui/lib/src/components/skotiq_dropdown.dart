@@ -54,7 +54,6 @@ class SkotiqDropdown extends StatefulWidget {
     this.itemDetails,
     this.onChanged,
     this.isExpanded = false,
-    // ignore: deprecated_member_use_from_same_package
     this.dense = false,
   });
 

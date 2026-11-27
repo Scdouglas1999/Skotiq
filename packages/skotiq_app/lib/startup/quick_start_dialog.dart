@@ -394,7 +394,7 @@ class QuickStartDialog extends ConsumerWidget {
                 child: SkotiqButton(
                   label: 'Start fresh',
                   icon: LucideIcons.refreshCw,
-                  variant: ButtonVariant.outline,
+                  variant: ButtonVariant.secondary,
                   size: ButtonSize.large,
                   onPressed: onStartFresh,
                 ),

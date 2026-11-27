@@ -205,7 +205,7 @@ class _MountSiteReconciliationCardState
         ),
         SkotiqButton(
           label: "Use the mount's",
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           onPressed: _busy || toComputerReason != null
               ? null
               : () => _apply(MountSiteSyncDirection.mountToComputer),

@@ -133,7 +133,7 @@ class _TriggerConfigurationDialogState
                 onPressed: _addTrigger,
                 icon: SkotiqIcons.add,
                 label: 'Add trigger',
-                variant: ButtonVariant.outline,
+                variant: ButtonVariant.secondary,
               ),
               const Spacer(),
               SkotiqButton(

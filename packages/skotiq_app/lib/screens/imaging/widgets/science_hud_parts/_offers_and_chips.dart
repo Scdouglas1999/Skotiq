@@ -240,7 +240,7 @@ class _OfferTile extends StatelessWidget {
             SkotiqButton(
               onPressed: onAccept,
               label: 'Enable',
-              variant: ButtonVariant.outline,
+              variant: ButtonVariant.secondary,
               size: ButtonSize.small,
             ),
           ],

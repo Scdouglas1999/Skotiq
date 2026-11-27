@@ -819,7 +819,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
           label: 'Skip',
           icon: LucideIcons.skipForward,
           size: ButtonSize.small,
-          variant: ButtonVariant.outline,
+          variant: ButtonVariant.secondary,
           isLoading: _skipBusy,
           onPressed: _skipBusy ? null : _skipNode,
         ),

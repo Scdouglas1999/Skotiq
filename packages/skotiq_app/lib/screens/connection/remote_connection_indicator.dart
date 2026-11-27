@@ -638,7 +638,7 @@ class _RemoteConnectionSheetState
                   onPressed: () => showShareSessionDialog(context),
                   icon: SkotiqIcons.share,
                   label: 'Share this session',
-                  variant: ButtonVariant.outline,
+                  variant: ButtonVariant.secondary,
                 ),
               ),
             ),

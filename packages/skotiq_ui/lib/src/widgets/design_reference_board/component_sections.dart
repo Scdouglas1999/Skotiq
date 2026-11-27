@@ -26,7 +26,7 @@ class _ComponentsSection extends StatelessWidget {
               SkotiqButton(
                 label: 'Settings',
                 icon: LucideIcons.settings,
-                variant: ButtonVariant.outline,
+                variant: ButtonVariant.secondary,
                 onPressed: _noop,
               ),
               SkotiqButton(

@@ -283,7 +283,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
                       SkotiqButton(
                         label: 'Close',
                         onPressed: _close,
-                        variant: ButtonVariant.outline,
+                        variant: ButtonVariant.secondary,
                       ),
                       SkotiqButton(
                         label: 'Start centering',

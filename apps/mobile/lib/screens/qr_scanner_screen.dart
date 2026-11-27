@@ -257,7 +257,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                       child: SkotiqButton(
                         onPressed: () => Navigator.of(context).pop(false),
                         label: 'Cancel',
-                        variant: ButtonVariant.outline,
+                        variant: ButtonVariant.secondary,
                       ),
                     ),
                     const SizedBox(width: SkotiqTokens.spaceMd),
@@ -481,7 +481,7 @@ class _CameraRecovery extends StatelessWidget {
                 if (showSettings)
                   SkotiqButton(
                     label: 'Open settings',
-                    variant: ButtonVariant.outline,
+                    variant: ButtonVariant.secondary,
                     onPressed: () => unawaited(openAppSettings()),
                   ),
               ],

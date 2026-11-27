@@ -228,7 +228,7 @@ class _TransientCardState extends State<TransientCard> {
             label: 'Framing',
             icon: SkotiqIcons.frame,
             size: ButtonSize.small,
-            variant: ButtonVariant.outline,
+            variant: ButtonVariant.secondary,
             onPressed: widget.onViewInFraming,
           ),
         ),
@@ -292,7 +292,7 @@ class _TransientCardState extends State<TransientCard> {
         label: 'Plan it',
         icon: SkotiqIcons.calendar,
         size: ButtonSize.small,
-        variant: ButtonVariant.outline,
+        variant: ButtonVariant.secondary,
         onPressed: widget.onPlan,
       );
     }
