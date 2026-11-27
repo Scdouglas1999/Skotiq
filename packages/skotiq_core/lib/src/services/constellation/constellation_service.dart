@@ -593,10 +593,20 @@ class ConstellationService {
             exposureSeconds: frame.exposureSeconds,
             instrument: instrumentFingerprint,
           );
+          if (!receipt.accepted) {
+            rejected[frame.capturedImageId] =
+                'Hub refused the raw frame (accepted=false)';
+            _logger.warning(
+              'contributeRawSubs(#$targetId): hub reported accepted=false for '
+              'frame ${frame.capturedImageId}; recorded as rejected.',
+              source: _logSource,
+            );
+            continue;
+          }
           // Key by capturedImageId so the outcome maps a frame to its receipt.
           accepted[frame.capturedImageId] = ContributionReceipt(
             contributionId: receipt.contributionId,
-            accepted: receipt.accepted,
+            accepted: true,
             trustApplied: 1.0,
             totalFramesAfter: 0,
             integrationSecondsAfter: 0,

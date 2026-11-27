@@ -254,4 +254,45 @@ void main() {
       expect(subPosts.first.queryParameters['capturedImageId'], isNotNull);
     },
   );
+
+  test(
+    'a raw frame the hub answers accepted=false counts as rejected',
+    () async {
+      final f1 = File('${tmp.path}/light1.fits')
+        ..writeAsBytesSync(utf8.encode('SIMPLE = T / frame one'));
+      final mock = MockClient((req) async {
+        final path = req.url.path;
+        if (path.endsWith('/v1/info')) return infoResp(acceptsRawSubs: true);
+        if (path.contains('/subframes')) {
+          return http.Response(
+            jsonEncode({
+              'contributionId': 'sub-1',
+              'accepted': false,
+              'storedBytes': 0,
+            }),
+            200,
+          );
+        }
+        return http.Response('unexpected $path', 500);
+      });
+      final service = serviceWith(
+        mock,
+        resolver: (_) async => [
+          RawSubframe(
+            filePath: f1.path,
+            capturedImageId: 11,
+            exposureSeconds: 60,
+          ),
+        ],
+      );
+
+      final outcome = await service.contributeTarget(
+        target.targetId,
+        privacy: ConstellationPrivacy.subs,
+      );
+
+      expect(outcome.acceptedCount, 0);
+      expect(outcome.rejected.keys, [11]);
+    },
+  );
 }
