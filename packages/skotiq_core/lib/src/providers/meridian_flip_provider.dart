@@ -158,21 +158,13 @@ class GlobalMeridianFlipSettingsNotifier
 
   /// Load settings from the imaging host in network mode, or the local DB on
   /// the host/desktop path.
+  ///
+  /// It writes the load state only after the read has come back, never while
+  /// the notifier (and the load-state provider that watches it) is built.
   Future<void> _loadSettings() async {
     if (!mounted) return;
     try {
-      final MeridianFlipSettings loaded;
-      if (_remote case final remote?) {
-        loaded = await remote.getMeridianFlipSettings();
-      } else {
-        final db = _database!;
-        final stored = await db.settingsDao.read(StoreSettings.meridianFlip);
-        loaded = stored == null
-            ? const MeridianFlipSettings()
-            : MeridianFlipSettings.fromJson(
-                jsonDecode(stored) as Map<String, dynamic>,
-              );
-      }
+      final loaded = await _readSettings();
       if (!mounted) return;
       state = loaded;
       _loadError = null;
@@ -190,6 +182,21 @@ class GlobalMeridianFlipSettingsNotifier
         stackTrace: stackTrace,
       );
     }
+  }
+
+  /// An async function, so a read that fails at once still fails as a future.
+  Future<MeridianFlipSettings> _readSettings() async {
+    if (_remote case final remote?) {
+      return remote.getMeridianFlipSettings();
+    }
+    final stored = await _database!.settingsDao.read(
+      StoreSettings.meridianFlip,
+    );
+    return stored == null
+        ? const MeridianFlipSettings()
+        : MeridianFlipSettings.fromJson(
+            jsonDecode(stored) as Map<String, dynamic>,
+          );
   }
 
   /// Update settings on the authoritative owner and publish the new in-memory

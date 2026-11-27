@@ -91,6 +91,41 @@ void main() {
       expect(saved.failureAction, FlipFailureAction.abortAndPark);
     });
 
+    test(
+      'a host that fails at once still leaves the load state an error',
+      () async {
+        final backend = _MockNetworkBackend();
+        when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
+        when(
+          backend.getMeridianFlipSettings,
+        ).thenThrow(StateError('host down'));
+
+        final container = ProviderContainer(
+          overrides: [
+            backendProvider.overrideWith(
+              (ref) => _FixedBackendNotifier(ref, backend),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // The load state is read first, so the notifier is built while the
+        // load-state provider is itself being built.
+        expect(
+          container.read(globalMeridianFlipSettingsLoadStateProvider),
+          isA<AsyncValue<void>>(),
+        );
+        await container
+            .read(globalMeridianFlipSettingsProvider.notifier)
+            .ensureLoaded()
+            .catchError((Object _) {});
+        expect(
+          container.read(globalMeridianFlipSettingsLoadStateProvider).hasError,
+          isTrue,
+        );
+      },
+    );
+
     test('remote clients never own the standalone automation timer', () async {
       final backend = _MockNetworkBackend();
       when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
