@@ -704,9 +704,6 @@ const _expected = <String, List<String>>{
     'toast info Autofocus failed: continuing',
     'push Autofocus failed: continuing [autofocusContinued]',
   ],
-  'hostGui frameCaptured defaults': [
-    'toast info Frame captured',
-  ],
   'hostGui frameRejected defaults': [
     'toast warning Frames being rejected',
   ],
@@ -836,9 +833,6 @@ const _expected = <String, List<String>>{
   'hostDaemon autofocusContinued defaults': [
     'toast info Autofocus failed: continuing',
     'push Autofocus failed: continuing [autofocusContinued]',
-  ],
-  'hostDaemon frameCaptured defaults': [
-    'toast info Frame captured',
   ],
   'hostDaemon frameRejected defaults': [
     'toast warning Frames being rejected',
@@ -1011,15 +1005,6 @@ const _expected = <String, List<String>>{
   ],
   'linkedDesktop autofocusContinued routingOff': [
     'toast info Autofocus failed: continuing',
-  ],
-  'linkedDesktop frameCaptured defaults': [
-    'toast info Frame captured',
-  ],
-  'linkedDesktop frameCaptured rowOff': [
-    'toast info Frame captured',
-  ],
-  'linkedDesktop frameCaptured routingOff': [
-    'toast info Frame captured',
   ],
   'linkedDesktop frameRejected defaults': [
     'toast warning Frames being rejected',
@@ -1293,15 +1278,6 @@ const _expected = <String, List<String>>{
   ],
   'linkedPhone autofocusContinued routingOff': [
     'toast info Autofocus failed: continuing',
-  ],
-  'linkedPhone frameCaptured defaults': [
-    'toast info Frame captured',
-  ],
-  'linkedPhone frameCaptured rowOff': [
-    'toast info Frame captured',
-  ],
-  'linkedPhone frameCaptured routingOff': [
-    'toast info Frame captured',
   ],
   'linkedPhone frameRejected defaults': [
     'toast warning Frames being rejected',

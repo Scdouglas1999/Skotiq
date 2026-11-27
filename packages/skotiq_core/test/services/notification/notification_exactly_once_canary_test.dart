@@ -518,14 +518,22 @@ void main() {
   });
 
   group('non-critical events do NOT escalate to mobile push by default', () {
-    test('a frameCaptured event fires in-app only, never systemPush', () async {
+    test('a frameCaptured event switched on fires in-app only, never '
+        'systemPush', () async {
       final push = PushNotificationService(
         config: const PushNotificationConfig(),
       );
       final inApp = _RecordingTransport(NotificationTransportKind.inApp);
+      final defaults = NotificationRoutingMatrix.defaults();
       final router = NotificationRouter(
         transports: [inApp, SystemPushTransport(push)],
-        matrix: NotificationRoutingMatrix.defaults(),
+        // The row starts off; the operator turned it on.
+        matrix: defaults.withRule(
+          NotificationCategory.frameCaptured,
+          defaults
+              .ruleFor(NotificationCategory.frameCaptured)
+              .copyWith(enabled: true),
+        ),
       );
       final pushes = <PushNotification>[];
       final sub = push.notifications.listen(pushes.add);

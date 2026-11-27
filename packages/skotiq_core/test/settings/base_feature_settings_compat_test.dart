@@ -1073,7 +1073,7 @@ void main() {
           recorded[probe.name] = result;
         } else {
           final base = probe.name == 'notification routing'
-              ? _withAddedCategories(_targetStartedOff(fixture[probe.name]))
+              ? _withAddedCategories(_offSinceBaseRows(fixture[probe.name]))
               : fixture[probe.name];
           expect(result, _withChanges(base, _changedOnPurpose[probe.name]));
         }
@@ -1310,16 +1310,20 @@ class _SameAs {
 /// The default routing row for "Target started" is off since 9.3.4: it
 /// toasted at every target of a run. Every default matrix the base build read
 /// or wrote, as a map or as the stored JSON text, has that one row turned off.
-Object? _targetStartedOff(Object? value) {
+/// The rows that start switched off since the base build: Target started
+/// (9.3.4) and Frame captured.
+const _offSinceBase = {'targetStarted', 'frameCaptured'};
+
+Object? _offSinceBaseRows(Object? value) {
   if (value is String && value.startsWith('{"enabled"')) {
-    return jsonEncode(_targetStartedOff(jsonDecode(value)));
+    return jsonEncode(_offSinceBaseRows(jsonDecode(value)));
   }
   if (value is Map) {
     return {
       for (final entry in value.entries)
-        entry.key: entry.key == 'targetStarted' && entry.value is Map
+        entry.key: _offSinceBase.contains(entry.key) && entry.value is Map
             ? {...entry.value as Map, 'enabled': false}
-            : _targetStartedOff(entry.value),
+            : _offSinceBaseRows(entry.value),
     };
   }
   return value;
