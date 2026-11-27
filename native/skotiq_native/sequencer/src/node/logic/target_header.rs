@@ -913,7 +913,7 @@ fn emit_end_when_met(
     let msg = format!(
         "Target {} end_when satisfied ({}); stopping",
         display_name,
-        end_when.label()
+        operator_trigger_label(end_when)
     );
     tracing::info!("{}", msg);
     let upd = ProgressUpdate::lifecycle(node_id.clone(), NodeStatus::Running, msg);
@@ -1802,6 +1802,31 @@ mod tests {
             trigger_name.contains("2026-01-15 21:00 UTC"),
             "the reason must say WHEN the window closed, not print a raw Unix \
              timestamp, got: {trigger_name}"
+        );
+    }
+
+    /// The run's line for an end condition met mid-target says when, as a
+    /// date, like every other place the condition is shown.
+    #[test]
+    fn the_end_condition_met_mid_target_is_dated() {
+        let ts = chrono::DateTime::parse_from_rfc3339("2026-01-15T21:00:00Z")
+            .unwrap()
+            .timestamp();
+        let lines: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+        let sink = lines.clone();
+        let mut ctx = ExecutionContext::new_for_test("target".to_string());
+        ctx.progress_callback = Some(std::sync::Arc::new(move |u: ProgressUpdate| {
+            sink.lock().unwrap().extend(u.legacy_message());
+        }));
+        emit_end_when_met(
+            &ctx,
+            &"target".to_string(),
+            "Dusk Field",
+            &TargetTrigger::TimeBefore(ts),
+        );
+        assert_eq!(
+            *lines.lock().unwrap(),
+            vec!["Target Dusk Field end_when satisfied (time < 2026-01-15 21:00 UTC); stopping"]
         );
     }
 
