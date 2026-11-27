@@ -150,19 +150,18 @@ class _TimeInputButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Clock stepClock = SystemClock();
     final dt = DateTime.fromMillisecondsSinceEpoch(unixSecs * 1000);
-    final hhmm =
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    final hhmm = stepClock.timeOfDay(dt);
     return GestureDetector(
       onTap: () async {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: TimeOfDay.fromDateTime(dt),
+        final picked = await pickStepTimeOfDay(
+          context,
+          stepClock,
+          initial: dt,
         );
         if (picked != null) {
-          final now = DateTime.now();
-          final target = nextLocalTimeOfDay(now, picked.hour, picked.minute);
-          onChanged(target.millisecondsSinceEpoch ~/ 1000);
+          onChanged(picked.millisecondsSinceEpoch ~/ 1000);
         }
       },
       child: Container(

@@ -43,6 +43,8 @@ import 'package:flutter/widgets.dart' show IconData;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart'
+    show Clock, ClockTimeOfDay, SystemClock;
 import '../../../utils/count_label.dart';
 
 /// The kind of property an [EditableFragment] edits inline.
@@ -211,6 +213,7 @@ List<SummaryFragment> nodeSummary(
   SequenceNode node, {
   String? globalAutofocusMethod,
   ExposureSensitivity sensitivity = const GainSensitivity(),
+  Clock clock = const SystemClock(),
 }) {
   return switch (node) {
     // Imaging — the lead row in most sequences. Count × duration + filter
@@ -327,7 +330,7 @@ List<SummaryFragment> nodeSummary(
     ) =>
       <SummaryFragment>[
         StaticFragment(
-          'until ${twilight != null ? '${twilight.name} twilight' : _fmtTime(until)}',
+          'until ${twilight != null ? '${twilight.name} twilight' : _fmtTime(clock, until)}',
           icon: LucideIcons.clock,
         ),
       ],
@@ -513,6 +516,7 @@ List<SummaryFragment> nodeSummary(
       integrationTimeTarget: final integrationTarget,
     ) =>
       _loopSummary(
+        clock,
         cond,
         repeatCount,
         repeatUntil,
@@ -611,6 +615,7 @@ List<SummaryFragment> nodeSummary(
 /// Build the Loop summary. Only the `count` condition yields an editable
 /// iteration count; every other condition is a static descriptor.
 List<SummaryFragment> _loopSummary(
+  Clock clock,
   LoopConditionType cond,
   int? repeatCount,
   DateTime? repeatUntil,
@@ -633,7 +638,7 @@ List<SummaryFragment> _loopSummary(
       return const <SummaryFragment>[StaticFragment('∞ while dark')];
     case LoopConditionType.untilTime:
       return <SummaryFragment>[
-        StaticFragment('until ${_fmtTime(repeatUntil)}'),
+        StaticFragment('until ${_fmtTime(clock, repeatUntil)}'),
       ];
     case LoopConditionType.untilAltitude:
       return <SummaryFragment>[
@@ -678,12 +683,11 @@ String _conditionalDescriptor(ConditionalType cond, double? threshold) {
   }
 }
 
-/// Format a wall-clock [DateTime] as `HH:MM` in its own zone. Returns
-/// `(unset)` when null so an unconfigured wait/loop reads explicitly rather
-/// than blank.
-String _fmtTime(DateTime? time) {
+/// [time] as `HH:MM` on [clock]. Returns `(unset)` when null so an
+/// unconfigured wait/loop reads explicitly rather than blank.
+String _fmtTime(Clock clock, DateTime? time) {
   if (time == null) return '(unset)';
-  return '${_pad2(time.hour)}:${_pad2(time.minute)}';
+  return clock.timeOfDay(time);
 }
 
 /// Strip directory components from a path, handling both `/` and `\`
@@ -696,8 +700,6 @@ String _basename(String path) {
   final idx = trimmed.lastIndexOf('/');
   return idx >= 0 ? trimmed.substring(idx + 1) : trimmed;
 }
-
-String _pad2(int value) => value.toString().padLeft(2, '0');
 
 /// The filters in [plans] whose rows are bound to a DepthLock goal, joined for
 /// the node summary, or null when none are.

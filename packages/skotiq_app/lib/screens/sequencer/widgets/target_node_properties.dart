@@ -9,6 +9,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/altitude_floor_rule.dart';
+import '../../../widgets/step_time_picker.dart';
 import 'framing_assistant_inline.dart';
 import 'node_property_widgets.dart';
 
@@ -47,6 +48,7 @@ class TargetGroupProperties extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    const Clock stepClock = SystemClock();
     // Belt-and-suspenders gate. The parent `_NodeEditor`
     // already wraps the editor body in IgnorePointer when
     // [canEditSequenceProvider] is false, but we also wrap our own subtree
@@ -260,17 +262,14 @@ class TargetGroupProperties extends ConsumerWidget {
                 Expanded(
                   child: GestureDetector(
                     onTap: () async {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.fromDateTime(
-                            node.startAfter ?? DateTime.now()),
+                      final picked = await pickStepTimeOfDay(
+                        context,
+                        stepClock,
+                        initial: node.startAfter,
                       );
-                      if (time != null) {
-                        final now = DateTime.now();
-                        final targetDate =
-                            nextLocalTimeOfDay(now, time.hour, time.minute);
+                      if (picked != null) {
                         ref.read(currentSequenceProvider.notifier).updateNode(
-                              node.copyWith(startAfter: targetDate),
+                              node.copyWith(startAfter: picked),
                             );
                       }
                     },
@@ -291,7 +290,7 @@ class TargetGroupProperties extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               node.startAfter != null
-                                  ? '${node.startAfter!.hour.toString().padLeft(2, '0')}:${node.startAfter!.minute.toString().padLeft(2, '0')}'
+                                  ? stepClock.timeOfDay(node.startAfter!)
                                   : 'Not set',
                               style: TextStyle(
                                 fontSize: SkotiqTypography.fontSize13,
@@ -326,17 +325,14 @@ class TargetGroupProperties extends ConsumerWidget {
                 Expanded(
                   child: GestureDetector(
                     onTap: () async {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.fromDateTime(
-                            node.endBefore ?? DateTime.now()),
+                      final picked = await pickStepTimeOfDay(
+                        context,
+                        stepClock,
+                        initial: node.endBefore,
                       );
-                      if (time != null) {
-                        final now = DateTime.now();
-                        final targetDate =
-                            nextLocalTimeOfDay(now, time.hour, time.minute);
+                      if (picked != null) {
                         ref.read(currentSequenceProvider.notifier).updateNode(
-                              node.copyWith(endBefore: targetDate),
+                              node.copyWith(endBefore: picked),
                             );
                       }
                     },
@@ -357,7 +353,7 @@ class TargetGroupProperties extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               node.endBefore != null
-                                  ? '${node.endBefore!.hour.toString().padLeft(2, '0')}:${node.endBefore!.minute.toString().padLeft(2, '0')}'
+                                  ? stepClock.timeOfDay(node.endBefore!)
                                   : 'Not set',
                               style: TextStyle(
                                 fontSize: SkotiqTypography.fontSize13,

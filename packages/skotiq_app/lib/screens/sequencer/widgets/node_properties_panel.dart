@@ -19,6 +19,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../../../widgets/altitude_floor_rule.dart';
 import '../../../widgets/sensitivity_field.dart';
+import '../../../widgets/step_time_picker.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
 import 'delete_node_confirmation.dart';
 import 'live_stacking_properties.dart';
