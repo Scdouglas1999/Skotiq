@@ -606,7 +606,7 @@ String _sequencerDetail(SequencerEvent v) {
       phase: final ph,
     ) =>
       '${custom?.isNotEmpty == true ? custom! : kind} · $ph '
-          '(${a == 0 ? "1st" : "${a + 1}th"} of $maxA)',
+          '(${_ordinal(a + 1)} of $maxA)',
     SequencerEvent_RecoveryCompleted(
       phase: kRecoveryHandedOffPhase,
       lastError: final reason,
@@ -922,4 +922,18 @@ String _filterSlot(int slot, String? name) {
   final trimmed = name?.trim() ?? '';
   if (trimmed.isNotEmpty) return trimmed;
   return slot < 0 ? 'unknown slot' : 'slot ${slot + 1}';
+}
+
+/// [n] as an English ordinal: 1st, 2nd, 3rd, 4th, 11th, 21st.
+String _ordinal(int n) {
+  final suffix = switch (n % 100) {
+    11 || 12 || 13 => 'th',
+    _ => switch (n % 10) {
+      1 => 'st',
+      2 => 'nd',
+      3 => 'rd',
+      _ => 'th',
+    },
+  };
+  return '$n$suffix';
 }
