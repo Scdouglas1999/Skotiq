@@ -2526,6 +2526,7 @@ function runWatchRunState(c) {
     }),
   });
   if ('pausedIdle' in c) snap.sequencer.pausedIdle = c.pausedIdle;
+  if ('heldByAction' in c) snap.sequencer.heldByAction = c.heldByAction;
   api.applySnapshot(snap);
   const badge = doc.getElementById('state-badge');
   const enabled = {};
@@ -2557,6 +2558,9 @@ const RUN_WATCH_RUN_STATE = {
   'cancelled over an idle executor': ['cancelled', 'badge-idle'],
   'completed over a running executor': ['completed', 'badge-completed'],
   'recovering executor over a running status': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
+  'paused, held by an action': ['paused', 'badge-paused', 'stop'],
+  'running, held by an action': ['running', 'badge-running', 'pause', 'skip', 'stop'],
+  'recovering, held by an action': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
 };
 
 test('run-watch shows each run state with its badge and controls', () => {

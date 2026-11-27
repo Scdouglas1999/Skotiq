@@ -3295,6 +3295,7 @@ function dashboardRunState(c) {
   ]);
   const status = { state: c.state, currentNodeName: 'Exposure L', progress: 0.5 };
   if ('pausedIdle' in c) status.pausedIdle = c.pausedIdle;
+  if ('heldByAction' in c) status.heldByAction = c.heldByAction;
   build(
     ['document', 'state', 'refusedControls', 'renderOpsSequencerLoadPanel',
       'runDataIsStale', 'clearElement'],
@@ -3337,6 +3338,9 @@ const DASHBOARD_RUN_STATE = {
   'cancelled over an idle executor': ['cancelled', 'badge-idle', 'start'],
   'completed over a running executor': ['completed', 'badge-completed', 'start'],
   'recovering executor over a running status': ['running', 'badge-running', 'pause', 'stop'],
+  'paused, held by an action': ['paused', 'badge-paused', 'stop'],
+  'running, held by an action': ['running', 'badge-running', 'pause', 'stop'],
+  'recovering, held by an action': ['recovering', 'badge-recovering', 'stop'],
 };
 
 test('the dashboard shows each run state with its badge and controls', () => {
