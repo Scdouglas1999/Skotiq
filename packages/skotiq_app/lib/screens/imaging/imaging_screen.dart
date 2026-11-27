@@ -223,9 +223,11 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                   ),
                 ),
               ],
-              // Below the breakpoint there is no instrument bar (04 §5), so the
-              // 28 px strip under the header is where the rig's state lives.
-              bottom: narrow ? const ImagingStatusStrip() : null,
+              // Where the shell has no instrument bar (04 §5), the 28 px strip
+              // under the header is where the rig's state lives.
+              bottom: ShellLayout.of(context).hasInstrumentBar
+                  ? null
+                  : const ImagingStatusStrip(),
             ),
 
             // Meridian-flip banner, for a flip that needs attention only

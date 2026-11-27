@@ -862,9 +862,9 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                               ),
                               // Only what the operator turned on, or what has
                               // no other place on screen: the science chip
-                              // rides with the science HUD, and below the shell
-                              // breakpoint the guiding RMS is in the status
-                              // strip over the frame, not on it.
+                              // rides with the science HUD, and without the
+                              // instrument bar the guiding RMS is in Imaging's
+                              // status strip, not on the frame.
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
@@ -879,7 +879,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                                       height: SkotiqTokens.spaceXs,
                                     ),
                                   ],
-                                  if (!ShellLayout.of(context).narrowWindow)
+                                  if (ShellLayout.of(context).hasInstrumentBar)
                                     const GuidingActiveChip(),
                                 ],
                               ),
