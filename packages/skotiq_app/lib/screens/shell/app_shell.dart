@@ -341,7 +341,10 @@ class _AppShellState extends ConsumerState<AppShell> {
                 final hostChange = ref.listenManual<SkotiqBackend>(
                   backendProvider,
                   (previous, next) {
-                    if (!identical(previous, next)) closePrompt();
+                    if (ref.read(remoteClientLaunchProvider) &&
+                        !identical(previous, next)) {
+                      closePrompt();
+                    }
                   },
                 );
                 try {
@@ -447,10 +450,11 @@ class _AppShellState extends ConsumerState<AppShell> {
     // and asks again each time it links after leaving its host.
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (!ref.read(remoteClientLaunchProvider)) return;
-      if (!next.hostPlace.isLinked) {
-        if (previous?.hostPlace.isLinked ?? false) _checkpointCheck = null;
-        return;
+      if (!identical(previous, next) &&
+          (previous?.hostPlace.isLinked ?? false)) {
+        _checkpointCheck = null;
       }
+      if (!next.hostPlace.isLinked) return;
       if (_checkpointCheck != null) return;
       // The listen callback can run before this widget's read of the
       // provider sees the new backend. The check has to run after that.

@@ -200,6 +200,14 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('Host M42'), findsOneWidget);
 
+      // A link replaced by another without a gap asks about the new one.
+      notifier.use(_hostWithCheckpoint(run: 'Host IC 434'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Host M42'), findsNothing);
+      expect(find.text('Host IC 434'), findsOneWidget);
+
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 20));
     });
