@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/format.dart';
+
 /// The tolerances of the dark selection rule (`selectDark`), which the live
 /// calibration path, the Darkroom and the coverage check all share.
 ///
@@ -93,6 +95,6 @@ class DarkLibraryMatchTolerances {
 
   @override
   String toString() =>
-      'DarkLibraryMatchTolerances(exposure=±${exposureSecs}s, '
+      'DarkLibraryMatchTolerances(exposure=±${QuantityFormat.exposure(exposureSecs, space: false)}, '
       'temperature=±$temperatureC°C)';
 }

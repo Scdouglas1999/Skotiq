@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/format.dart';
+
 import '../../sequence_models.dart';
 import '../validation_issue.dart';
 
@@ -32,7 +34,7 @@ class AdaptiveExposureBoundsRule implements SequenceValidator {
             category: ValidationCategory.exposures,
             title: 'Adaptive exposure min must be > 0',
             description:
-                'Exposure "${node.name}" has min_exposure_secs = ${cfg.minExposureSecs.toStringAsFixed(1)}s. '
+                'Exposure "${node.name}" has min_exposure_secs = ${QuantityFormat.exposure(cfg.minExposureSecs, space: false)}. '
                 'The minimum clamp must be positive.',
             affectedNodeId: node.id,
             resolutionHint:
@@ -47,7 +49,7 @@ class AdaptiveExposureBoundsRule implements SequenceValidator {
             category: ValidationCategory.exposures,
             title: 'Adaptive exposure max must be > 0',
             description:
-                'Exposure "${node.name}" has max_exposure_secs = ${cfg.maxExposureSecs.toStringAsFixed(1)}s. '
+                'Exposure "${node.name}" has max_exposure_secs = ${QuantityFormat.exposure(cfg.maxExposureSecs, space: false)}. '
                 'The maximum clamp must be positive.',
             affectedNodeId: node.id,
             resolutionHint:
@@ -62,8 +64,8 @@ class AdaptiveExposureBoundsRule implements SequenceValidator {
             category: ValidationCategory.exposures,
             title: 'Adaptive exposure bounds inverted',
             description:
-                'Exposure "${node.name}" has min_exposure_secs (${cfg.minExposureSecs.toStringAsFixed(1)}s) '
-                '> max_exposure_secs (${cfg.maxExposureSecs.toStringAsFixed(1)}s). '
+                'Exposure "${node.name}" has min_exposure_secs (${QuantityFormat.exposure(cfg.minExposureSecs, space: false)}) '
+                '> max_exposure_secs (${QuantityFormat.exposure(cfg.maxExposureSecs, space: false)}). '
                 'The clamp logic will pin every frame to the max value, defeating adaptation.',
             affectedNodeId: node.id,
             resolutionHint:

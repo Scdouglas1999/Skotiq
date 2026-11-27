@@ -309,7 +309,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               updateFilterCalibration(idx, exposure, adu);
               setStatusMessage(
                 '${filterSetting.label}: $status '
-                '(${exposure.toStringAsFixed(2)}s, ADU: ${adu.toStringAsFixed(0)})',
+                '(${QuantityFormat.exposure(exposure, space: false)}, ADU: ${adu.toStringAsFixed(0)})',
               );
             },
           );
@@ -331,7 +331,7 @@ extension FlatWizardRun on FlatWizardNotifier {
               updateFilterCalibration(idx, exposure, adu);
               setStatusMessage(
                 '${filterSetting.label}: Iteration $iteration '
-                '(${exposure.toStringAsFixed(2)}s, ADU: ${adu.toStringAsFixed(0)})',
+                '(${QuantityFormat.exposure(exposure, space: false)}, ADU: ${adu.toStringAsFixed(0)})',
               );
             },
           );
@@ -425,13 +425,13 @@ extension FlatWizardRun on FlatWizardNotifier {
               lightStop = tooDark
                   ? '${filterSetting.label}: the sky is now too dark '
                         'for flats. The target needs '
-                        '${neededExposure.toStringAsFixed(1)} s, over the '
-                        '${maxExp.toStringAsFixed(1)} s maximum exposure. '
+                        '${QuantityFormat.exposure(neededExposure)}, over the '
+                        '${QuantityFormat.exposure(maxExp)} maximum exposure. '
                         'Stopped with $savedCount of $frameCount frames.'
                   : '${filterSetting.label}: the sky is now too bright '
                         'for flats. The target needs '
-                        '${neededExposure.toStringAsFixed(3)} s, under the '
-                        '${minExp.toStringAsFixed(3)} s minimum exposure. '
+                        '${QuantityFormat.exposure(neededExposure)}, under the '
+                        '${QuantityFormat.exposure(minExp)} minimum exposure. '
                         'Stopped with $savedCount of $frameCount frames.';
           }
           if (lightStop != null) break;
@@ -514,7 +514,7 @@ extension FlatWizardRun on FlatWizardNotifier {
                 '${discarded == 1 ? '' : 's'} outside the '
                 '±${tolerance.toStringAsFixed(0)}% band not kept (last '
                 '${frameAdu.round()} ADU at '
-                '${frameExposure.toStringAsFixed(2)} s); adjusting the '
+                '${QuantityFormat.exposure(frameExposure)}); adjusting the '
                 'exposure.',
               );
               if (discardedInARow >= calibrationAttempts) {

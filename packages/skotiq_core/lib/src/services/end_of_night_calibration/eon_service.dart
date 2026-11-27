@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show observingNightWindow;
 
 import '../../database/database.dart' show DbCapturedImage;
@@ -881,7 +882,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     return [
       need.type == FrameType.bias
           ? 'Bias at'
-          : '${_seconds(need.exposureSecs)} s darks at',
+          : '${QuantityFormat.exposure(need.exposureSecs)} darks at',
       [
         need.gain == null ? 'no gain' : 'gain ${need.gain}',
         need.offset == null ? 'no offset' : 'offset ${need.offset}',
@@ -907,7 +908,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     return [
       s.type == FrameType.bias
           ? 'bias'
-          : '${calibrationMasterNameNumber(s.exposureSecs)} s darks',
+          : '${QuantityFormat.exposure(s.exposureSecs)} darks',
       gainOffsetLabel(s.gain, s.offset),
       'bin ${s.binX}x${s.binY}',
       if (s.readMode != null) 'read mode ${s.readMode}',
@@ -917,9 +918,6 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
             : '${_trimTemp(temp)} °C',
     ].join(', ');
   }
-
-  static String _seconds(double value) =>
-      value == value.roundToDouble() ? value.toStringAsFixed(0) : '$value';
 
   static String _trimTemp(double value) => value == value.roundToDouble()
       ? value.toStringAsFixed(0)

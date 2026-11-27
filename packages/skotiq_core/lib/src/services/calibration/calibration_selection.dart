@@ -2,6 +2,8 @@ import '../../database/database.dart';
 import '../../models/calibration/calibration_library_models.dart';
 import '../../models/calibration/dark_library_match_tolerances.dart';
 import 'package:skotiq_astro/filters.dart';
+import 'package:skotiq_astro/format.dart';
+
 import '../../models/imaging/integrated_master.dart';
 
 /// The dark chosen for a set of lights, and how far it is from an exact match.
@@ -73,8 +75,8 @@ LightDarkAndBias lightDarkAndBias({
       biasPath: biasPath,
       scaleDark: true,
       warning:
-          'The ${_seconds(darkSeconds)} s dark is scaled to '
-          '${_seconds(exposureSeconds)} s using the bias.',
+          'The ${QuantityFormat.exposure(darkSeconds)} dark is scaled to '
+          '${QuantityFormat.exposure(exposureSeconds)} using the bias.',
     );
   }
   return LightDarkAndBias(
@@ -84,9 +86,6 @@ LightDarkAndBias lightDarkAndBias({
         'no dark will be applied.',
   );
 }
-
-String _seconds(double v) =>
-    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 
 extension DarkLibraryEntryFile on DarkLibraryEntry {
   /// The file to subtract: the stacked master when the row has one.

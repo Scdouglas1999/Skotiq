@@ -1407,7 +1407,7 @@ abstract final class NodeKinds {
       final filter = (n.filter == null || n.filter!.isEmpty)
           ? 'Unfiltered'
           : n.filter!;
-      return 'Exposure ${n.durationSecs.toStringAsFixed(0)}s '
+      return 'Exposure ${QuantityFormat.exposure(n.durationSecs, space: false)} '
           'x${n.count} ($filter)';
     },
     diff: [
@@ -2075,7 +2075,7 @@ abstract final class NodeKinds {
     ),
     describe: (n) =>
         'Photometry (${n.targetDesignation}, ${n.filter}, '
-        '${n.count}x${n.exposureSecs.toStringAsFixed(0)}s)',
+        '${n.count}x${QuantityFormat.exposure(n.exposureSecs, space: false)})',
     diff: [
       NodeDiffLine.of(_scienceTarget, 'Target designation'),
       NodeDiffLine.of(_scienceFilter, 'Filter'),

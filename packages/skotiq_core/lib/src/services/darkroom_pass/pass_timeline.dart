@@ -10,6 +10,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:skotiq_astro/format.dart';
+
 import 'pass_log.dart';
 
 /// The stages of a pass, in the order they run.
@@ -719,7 +721,7 @@ class PassSnapshot {
       return (
         lane.referencePath,
         '${lane.lane} reference${ref == null ? '' : ', sub ${ref.index}'}'
-            '${exp == null ? '' : ' · one ${exp.round()} s exposure'}',
+            '${exp == null ? '' : ' · one ${QuantityFormat.exposure(exp)} exposure'}',
       );
     }
     // A lane that has not stacked anything yet shows the newest master an

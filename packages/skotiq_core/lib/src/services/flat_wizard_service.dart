@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
+
+import 'package:skotiq_astro/format.dart';
 import 'package:uuid/uuid.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/bridge_event_codec.dart' show imagingEventOf;
@@ -382,7 +384,7 @@ class FlatWizardService {
           // would hand back a STALE prior frame as if it were this exposure.
           Log.warning(
             'FlatWizardService: Exposure timed out after '
-            '${exposureTime + 30}s; aborting',
+            '${QuantityFormat.trimmed(overall.inMilliseconds / 1000)}s; aborting',
             source: 'FlatWizardService',
           );
           final quiescent = await abortAndSettle();
@@ -536,7 +538,7 @@ class FlatWizardService {
       'FlatWizardService: Starting calibration for filter "$filter"\n'
       '  Target ADU: ${targetAdu.toStringAsFixed(0)}\n'
       '  Tolerance: ±${tolerance.toStringAsFixed(1)}%\n'
-      '  Exposure range: ${minExposure.toStringAsFixed(3)}s - ${maxExposure.toStringAsFixed(3)}s',
+      '  Exposure range: ${QuantityFormat.exposure(minExposure, space: false)} - ${QuantityFormat.exposure(maxExposure, space: false)}',
       source: 'FlatWizardService',
     );
 
@@ -558,7 +560,7 @@ class FlatWizardService {
 
       Log.info(
         'FlatWizardService: Iteration $iteration/$attempts - '
-        'Testing exposure: ${exposure.toStringAsFixed(3)}s',
+        'Testing exposure: ${QuantityFormat.exposure(exposure, space: false)}',
         source: 'FlatWizardService',
       );
 
@@ -641,7 +643,7 @@ class FlatWizardService {
       if (error <= tolerance) {
         Log.info(
           'FlatWizardService: SUCCESS! Found optimal exposure: '
-          '${exposure.toStringAsFixed(3)}s (ADU: ${adu.toStringAsFixed(0)}, '
+          '${QuantityFormat.exposure(exposure, space: false)} (ADU: ${adu.toStringAsFixed(0)}, '
           'error: ${error.toStringAsFixed(2)}%)',
           source: 'FlatWizardService',
         );
@@ -666,7 +668,7 @@ class FlatWizardService {
       // change. Stop only when the next exposure cannot change.
       if ((nextExposure - exposure).abs() <= math.max(1e-9, exposure * 1e-6)) {
         Log.info(
-          'FlatWizardService: Converged at exposure: ${exposure.toStringAsFixed(3)}s '
+          'FlatWizardService: Converged at exposure: ${QuantityFormat.exposure(exposure, space: false)} '
           '(ADU: ${adu.toStringAsFixed(0)})',
           source: 'FlatWizardService',
         );
@@ -687,7 +689,7 @@ class FlatWizardService {
     // Max iterations reached
     Log.warning(
       'FlatWizardService: Max iterations reached. Best result: '
-      '${exposure.toStringAsFixed(3)}s (ADU: ${lastAdu?.toStringAsFixed(0) ?? "N/A"})',
+      '${QuantityFormat.exposure(exposure, space: false)} (ADU: ${lastAdu?.toStringAsFixed(0) ?? "N/A"})',
       source: 'FlatWizardService',
     );
     return FlatResult(
@@ -866,11 +868,11 @@ class FlatWizardService {
             iterations: iteration,
             errorMessage: tooDark
                 ? 'The sky is too dark for flats: the target needs '
-                      '${neededExposure.toStringAsFixed(1)} s, over the '
-                      '${maxExposure.toStringAsFixed(1)} s maximum exposure.'
+                      '${QuantityFormat.exposure(neededExposure)}, over the '
+                      '${QuantityFormat.exposure(maxExposure)} maximum exposure.'
                 : 'The sky is too bright for flats: the target needs '
-                      '${neededExposure.toStringAsFixed(3)} s, under the '
-                      '${minExposure.toStringAsFixed(3)} s minimum exposure.',
+                      '${QuantityFormat.exposure(neededExposure)}, under the '
+                      '${QuantityFormat.exposure(minExposure)} minimum exposure.',
           );
       }
 
@@ -1026,7 +1028,7 @@ class FlatWizardService {
       nodes.add(node);
       Log.info(
         'FlatWizardService: Generated sequence node - '
-        'Filter: ${cal.filter}, Exposure: ${cal.exposure.toStringAsFixed(3)}s, '
+        'Filter: ${cal.filter}, Exposure: ${QuantityFormat.exposure(cal.exposure, space: false)}, '
         'Count: $framesPerFilter',
         source: 'FlatWizardService',
       );

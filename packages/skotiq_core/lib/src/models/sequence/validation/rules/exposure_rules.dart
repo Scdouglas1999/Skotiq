@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/format.dart';
+
 import '../../sequence_models.dart';
 import '../validation_issue.dart';
 
@@ -21,7 +23,7 @@ class ExposureParamsRule implements SequenceValidator {
             category: ValidationCategory.exposures,
             title: 'Invalid Exposure Time',
             description:
-                'Exposure "${node.name}" has invalid duration: ${node.durationSecs}s',
+                'Exposure "${node.name}" has invalid duration: ${QuantityFormat.exposure(node.durationSecs, space: false)}',
             affectedNodeId: node.id,
             resolutionHint: 'Set a positive exposure duration.',
           ),

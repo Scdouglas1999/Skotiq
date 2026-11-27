@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:skotiq_astro/format.dart';
+
 import '../../models/import/canonical_sequence_node.dart';
 import '../../models/import/import_result.dart';
 
@@ -155,6 +157,9 @@ class SgpSequenceParser {
     for (final raw in events) {
       if (raw is! Map<String, dynamic>) continue;
       final exposureTime = _readDouble(raw['ExposureTime']);
+      final exposureLabel = exposureTime == null
+          ? 'no exposure'
+          : QuantityFormat.exposure(exposureTime, space: false);
       final count =
           _readInt(raw['NumExposures'] ?? raw['Repeat'] ?? raw['Count']) ?? 1;
       final filter = raw['Filter']?.toString();
@@ -169,7 +174,7 @@ class SgpSequenceParser {
         exposureChildren.add(
           CanonicalSequenceNode(
             kind: CanonicalKind.annotation,
-            name: 'Disabled event ($filter, ${exposureTime}s)',
+            name: 'Disabled event ($filter, $exposureLabel)',
             sourceType: 'SgpDisabledEvent',
             attributes: const {'reason': 'event disabled in source'},
           ),
@@ -191,7 +196,7 @@ class SgpSequenceParser {
       exposureChildren.add(
         CanonicalSequenceNode(
           kind: CanonicalKind.exposure,
-          name: '${filter ?? imageType} ${exposureTime}s x $count',
+          name: '${filter ?? imageType} $exposureLabel x $count',
           sourceType: 'SgpEvent',
           attributes: {
             'exposureTime': exposureTime,

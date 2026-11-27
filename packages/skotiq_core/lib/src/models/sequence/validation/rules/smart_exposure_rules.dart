@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/format.dart';
+
 import '../../sequence_models.dart';
 import '../validation_issue.dart';
 
@@ -70,7 +72,7 @@ class SmartExposureNegativeCountRule implements SequenceValidator {
               category: ValidationCategory.exposures,
               title: 'SmartExposure plan has invalid duration',
               description:
-                  'Smart Exposure "${node.name}": plan ${i + 1} ("${p.filterName}") has duration ${p.durationSecs}s.',
+                  'Smart Exposure "${node.name}": plan ${i + 1} ("${p.filterName}") has duration ${QuantityFormat.exposure(p.durationSecs, space: false)}.',
               affectedNodeId: node.id,
               resolutionHint: 'Set a positive sub-exposure duration.',
             ),

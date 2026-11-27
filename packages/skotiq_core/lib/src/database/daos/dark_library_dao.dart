@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../../models/calibration/dark_library_match_tolerances.dart';
 import '../../utils/logging_service.dart';
@@ -464,6 +465,6 @@ class DarkGroupKey {
 
   @override
   String toString() =>
-      'DarkGroupKey($frameType, ${exposureTime}s, gain=$gain, offset=$offset, '
+      'DarkGroupKey($frameType, ${QuantityFormat.exposure(exposureTime, space: false)}, gain=$gain, offset=$offset, '
       '${binX}x$binY)';
 }

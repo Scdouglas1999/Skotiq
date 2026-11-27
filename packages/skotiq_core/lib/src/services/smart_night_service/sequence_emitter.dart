@@ -405,7 +405,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
           ExposureNode(
             id: SmartNightService._uuid.v4(),
             name:
-                'Darks: ${req.durationSecs.toStringAsFixed(0)}s '
+                'Darks: ${QuantityFormat.exposure(req.durationSecs, space: false)} '
                 '@ ${context.sensitivity.describe(req.gain)} '
                 '($tempLabel, bin ${req.binX}x${req.binY})',
             durationSecs: req.durationSecs,
@@ -611,7 +611,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
             id: SmartNightService._uuid.v4(),
             name:
                 'Flats: ${smartNightFilterLabel(exposure.filterName)} '
-                '(${exposure.exposureSecs.toStringAsFixed(2)}s @ '
+                '(${QuantityFormat.exposure(exposure.exposureSecs, space: false)} @ '
                 '${exposure.histogramTargetPercent.toStringAsFixed(0)}% hist)',
             durationSecs: exposure.exposureSecs,
             count: settings.flatCountPerFilter,
@@ -910,7 +910,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       id: SmartNightService._uuid.v4(),
       name:
           'Exposures: ${plan.count} × '
-          '${plan.durationSecs.toStringAsFixed(0)}s (no filter)',
+          '${QuantityFormat.exposure(plan.durationSecs, space: false)} (no filter)',
       durationSecs: plan.durationSecs,
       gain: settings.gainOverride ?? defaults.gain,
       offset: settings.offsetOverride ?? defaults.offset,

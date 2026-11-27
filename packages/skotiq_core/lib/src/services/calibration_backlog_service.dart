@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/format.dart';
 
 import '../backend/roles/host_data/calibration_library.dart';
 import '../database/daos/settings_dao.dart';
@@ -121,7 +122,8 @@ class CalibrationBacklogGroup {
 
   /// What the master is, in a few words: "Dark 90 s", "Bias", "Flat Ha".
   String get title => switch (kind) {
-    CalibrationFrameKind.dark => 'Dark ${_trim(exposureSeconds)} s',
+    CalibrationFrameKind.dark =>
+      'Dark ${QuantityFormat.exposure(exposureSeconds)}',
     CalibrationFrameKind.bias => 'Bias',
     CalibrationFrameKind.flat => 'Flat ${filter ?? 'no filter'}',
   };
@@ -133,7 +135,8 @@ class CalibrationBacklogGroup {
     'bin ${binX}x$binY',
     if (readMode != null) readMode!,
     if (temperature != null) '${_trim(temperature!)} °C',
-    if (kind == CalibrationFrameKind.flat) '${_trim(exposureSeconds)} s',
+    if (kind == CalibrationFrameKind.flat)
+      QuantityFormat.exposure(exposureSeconds),
   ].join(' · ');
 
   bool get buildable =>
@@ -700,7 +703,7 @@ class CalibrationBacklogService {
       throw CalibrationBacklogException(
         'No master bias at ${[if (gain != null) 'gain $gain', if (offset != null) 'offset $offset', 'bin ${binX}x$binY'].join(', ')}. '
         'These are the settings recorded in the flats, independent of your light-frame preset. '
-        'Build bias frames at these settings, or a matching ${exposureSeconds.toStringAsPrecision(4)} s dark-flat, '
+        'Build bias frames at these settings, or a matching ${QuantityFormat.exposure(exposureSeconds)} dark-flat, '
         'then retry. Flats must have their pedestal removed before normalization. '
         'Selecting Night end schedules processing of these existing flats; it does not capture new flats.',
       );
