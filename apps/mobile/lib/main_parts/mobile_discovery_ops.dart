@@ -130,10 +130,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       );
       return paired.token;
     } on RigPairingFailure catch (failure) {
-      final message = _phonePairingError(
-        failure,
-        fallback: 'Pairing failed (${failure.statusCode ?? 'unknown'}).',
-      );
+      final message = pairingFailureText(failure, server);
       if (!mounted) return null;
       setState(() {
         _isDiscovering = false;
@@ -142,20 +139,6 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       });
       return null;
     }
-  }
-
-  /// The phone's words for a refused pairing. A request that never reached
-  /// the host is rethrown to the connect flow's own error handling.
-  String _phonePairingError(
-    RigPairingFailure failure, {
-    required String fallback,
-  }) {
-    final cause = failure.cause;
-    if (failure.kind == RigPairingFailureKind.fingerprintMismatch) {
-      return failure.message;
-    }
-    if (cause != null) throw cause;
-    return failure.hostMessage ?? fallback;
   }
 
   /// Prompt for a relay URL + appliance id, then dial through the relay.
@@ -313,10 +296,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         );
         authToken = paired.token;
       } on RigPairingFailure catch (failure) {
-        final message = _phonePairingError(
-          failure,
-          fallback: 'QR pairing failed.',
-        );
+        final message = pairingFailureText(failure, data.toDiscoveredServer());
         if (!mounted) return;
         setState(() {
           _isDiscovering = false;

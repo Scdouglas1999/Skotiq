@@ -232,4 +232,38 @@ void main() {
       expect(client.types.first, MobilePairingService.platformDeviceType());
     });
   });
+
+  group('a refused pairing reads as on the desktop', () {
+    setUp(() async {
+      server = _FakePairingServer();
+      await server.start();
+    });
+
+    test('a wrong code says it does not match', () {
+      const failure = RigPairingFailure(
+        RigPairingFailureKind.invalidCode,
+        'Invalid pairing code',
+        hostMessage: 'Invalid pairing code',
+        statusCode: 401,
+      );
+
+      expect(
+        pairingFailureText(failure, _rig),
+        "That code doesn't match the one rig shows. Check it and try again.",
+      );
+    });
+
+    test('a request that never reached the host names the address', () {
+      final failure = RigPairingFailure(
+        RigPairingFailureKind.unreachable,
+        'SocketException: refused',
+        cause: const SocketException('refused'),
+      );
+
+      expect(
+        pairingFailureText(failure, _rig),
+        "Can't reach rig at 192.168.1.50:8099.",
+      );
+    });
+  });
 }

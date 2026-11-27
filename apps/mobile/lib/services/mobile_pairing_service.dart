@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
@@ -82,3 +83,8 @@ class MobilePairingService {
     return 'mobile:$hex';
   }
 }
+
+/// What the phone shows when pairing with [host] failed: the same words as the
+/// desktop's link dialog.
+String pairingFailureText(RigPairingFailure failure, DiscoveredServer host) =>
+    describeRigPairingFailure(failure, host);
