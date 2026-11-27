@@ -337,16 +337,13 @@ class AutoSaveService {
     try {
       final sequences = _pendingSequences.values.toList();
       for (final sequence in sequences) {
-        final toSave = await withFreeNameForFirstSave(
-          sequenceRepository,
-          sequence,
-        );
-        final databaseId = await sequenceRepository.saveSequence(toSave);
+        final saved = await sequenceRepository.saveUnderFreeName(sequence);
+        final databaseId = saved.databaseId!;
         // A newer immutable snapshot may have arrived while this save was in
         // flight. Never remove or mark that newer edit as saved.
         if (identical(_pendingSequences[sequence.id], sequence)) {
           _pendingSequences.remove(sequence.id);
-          onSequenceSaved?.call(sequence, databaseId, toSave.name);
+          onSequenceSaved?.call(sequence, databaseId, saved.name);
         }
       }
 

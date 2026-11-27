@@ -25,7 +25,7 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
 import '../../services/live_stacking_broadcast_service.dart';
-import '../../services/sequence_repository.dart' show withFreeNameForFirstSave;
+import '../../services/sequence_repository.dart' show SequenceFirstSave;
 import '../meridian_flip_provider.dart';
 import '../rig_activity.dart';
 import '../imaging_service_providers.dart' show imagingServiceProvider;
@@ -607,19 +607,15 @@ class SequenceExecutor {
     if (notifier.activeOwner.isAutomated) return sequence;
     try {
       final repository = _ref.read(sequenceRepositoryProvider);
-      // A first save takes a name no saved plan uses, so a second plan built
-      // for the same target is not a second "NGC1313 Plan".
-      final named = await withFreeNameForFirstSave(repository, sequence);
-      final name = named.name;
-      final databaseId = await repository.saveSequence(named);
+      final saved = await repository.saveUnderFreeName(sequence);
       notifier.applyPersistedSave(
         savedFrom: sequence,
-        databaseId: databaseId,
-        name: name,
+        databaseId: saved.databaseId!,
+        name: saved.name,
         description: sequence.description,
         isTemplate: sequence.isTemplate,
       );
-      return named.copyWith(databaseId: databaseId);
+      return saved;
     } catch (e) {
       _logger.warning(
         'Could not persist "${sequence.name}" before running it: $e — the run '
