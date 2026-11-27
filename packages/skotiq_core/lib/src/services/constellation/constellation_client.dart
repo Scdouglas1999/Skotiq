@@ -363,8 +363,8 @@ class ConstellationClient {
       _hub.v1('handoff/$targetId/claim'),
     );
     if (response.statusCode == 404) return null;
-    // 409 here means another user holds the baton — surfaced as a conflict so
-    // the caller can fall back to the next dark target.
+    // A 409 `handoffHeld` (another site holds the baton) reads as a conflict,
+    // so the caller can fall back to the next dark target.
     if (response.statusCode != 200) {
       _hub.throwForStatus(response, 'Handoff claim $targetId');
     }

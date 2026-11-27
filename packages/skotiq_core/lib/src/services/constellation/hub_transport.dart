@@ -142,10 +142,26 @@ class HubTransport {
     }
   }
 
-  /// What a hub's HTTP [status] means to its clients.
-  static ConstellationErrorKind kindForStatus(int status) => switch (status) {
+  /// The hub's error codes for a tile whose geometry does not match its own
+  /// (`HubServer._isConflictCode` in `server/skotiq_hub`).
+  static const _geometryCodes = {
+    'geometryMismatch',
+    'orderMismatch',
+    'channelMismatch',
+    'idMismatch',
+  };
+
+  /// What a hub's HTTP [status] means to its clients. A 409 is a tiling
+  /// mismatch unless the hub's error [code] names a state conflict (a baton
+  /// another site holds, a closed session, a contribution it cannot retract).
+  static ConstellationErrorKind kindForStatus(
+    int status, {
+    String? code,
+  }) => switch (status) {
     401 || 403 => ConstellationErrorKind.auth,
     404 => ConstellationErrorKind.notFound,
+    409 when code != null && !_geometryCodes.contains(code) =>
+      ConstellationErrorKind.conflict,
     // The tiling on this hub does not match the local one, so the
     // contribution can never fuse.
     409 => ConstellationErrorKind.geometryMismatch,
@@ -160,7 +176,7 @@ class HubTransport {
 
   Never throwForStatus(http.Response response, String operation) {
     final status = response.statusCode;
-    final kind = kindForStatus(status);
+    final kind = kindForStatus(status, code: _errorCode(response.body));
     final detail = switch (kind) {
       ConstellationErrorKind.auth =>
         'authentication failed: token missing the required scope',
@@ -179,6 +195,19 @@ class HubTransport {
       kind: kind,
       statusCode: status,
     );
+  }
+
+  /// The `error.code` of the hub's error envelope, or null when the body is
+  /// not one.
+  static String? _errorCode(String body) {
+    try {
+      if (jsonDecode(body) case {'error': {'code': final String code}}) {
+        return code;
+      }
+    } on FormatException {
+      return null;
+    }
+    return null;
   }
 
   Map<String, dynamic> decodeJson(http.Response response, String operation) {

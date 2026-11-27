@@ -1,6 +1,8 @@
 // How the hub clients read a hub's HTTP status: the kind each status becomes
 // and the message the host forwards to a linked client.
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -85,5 +87,64 @@ void main() {
       'Delete calibration master m1 failed: the hub rejected this request '
       '(HTTP 422): refused',
     );
+  });
+
+  _hubErrorCodes();
+}
+
+http.Response _hubError(int status, String code, String message) =>
+    http.Response(
+      jsonEncode({
+        'error': {'code': code, 'message': message},
+        'requestId': 'r1',
+      }),
+      status,
+    );
+
+ConstellationClient _client(http.Response reply) => ConstellationClient(
+  hubBaseUrl: Uri.parse('https://hub.example.org'),
+  bearerToken: 'tok',
+  client: MockClient((_) async => reply),
+);
+
+void _hubErrorCodes() {
+  test('a follow-the-night claim another site holds is a state conflict, '
+      'not a tiling mismatch', () async {
+    final e = await _failure(
+      () => _client(
+        _hubError(409, 'handoffHeld', 'target 7 is held by another site'),
+      ).claimHandoff(7),
+    );
+    expect(e.kind, ConstellationErrorKind.conflict);
+    expect(e.statusCode, 409);
+    expect(e.message, isNot(contains('geometry')));
+    expect(e.message, contains('hub state conflict'));
+  });
+
+  test('every hub state-conflict 409 reads as a conflict', () async {
+    for (final code in [
+      'accountConflict',
+      'coimagingBatonHeld',
+      'coimagingSessionClosed',
+      'handoffHeld',
+      'mosaicNotAssembling',
+      'mosaicPanelHeld',
+      'notRetractable',
+    ]) {
+      final e = await _failure(_client(_hubError(409, code, 'no')).info);
+      expect(e.kind, ConstellationErrorKind.conflict, reason: code);
+    }
+  });
+
+  test('the hub geometry 409s still read as a tiling mismatch', () async {
+    for (final code in [
+      'geometryMismatch',
+      'orderMismatch',
+      'channelMismatch',
+      'idMismatch',
+    ]) {
+      final e = await _failure(_client(_hubError(409, code, 'no')).info);
+      expect(e.kind, ConstellationErrorKind.geometryMismatch, reason: code);
+    }
   });
 }
