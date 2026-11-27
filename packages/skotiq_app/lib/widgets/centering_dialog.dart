@@ -107,9 +107,11 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
   /// without changing both call sites in lockstep.
   static const double _minExposureSeconds = 0.01;
   static const double _maxExposureSeconds = 600.0;
-  static final String _exposureRange =
-      '${QuantityFormat.exposure(_minExposureSeconds)} and '
-      '${QuantityFormat.exposure(_maxExposureSeconds)}';
+
+  /// The bounds as the field takes them, in seconds.
+  static final String _secondsRange =
+      '${QuantityFormat.trimmed(_minExposureSeconds, maxDecimals: 2)} and '
+      '${QuantityFormat.trimmed(_maxExposureSeconds)}';
 
   /// Parse the "Solve exposure" field into a finite exposure in seconds inside
   /// the canonical [`_minExposureSeconds`, `_maxExposureSeconds`] bounds.
@@ -122,7 +124,8 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
   double? _parseValidExposureSeconds() {
     final raw = _exposureController.text.trim();
     if (raw.isEmpty) {
-      _setExposureError('Enter a solve exposure between $_exposureRange.');
+      _setExposureError(
+          'Enter a solve exposure between $_secondsRange seconds.');
       return null;
     }
     final parsed = double.tryParse(raw);
@@ -131,7 +134,8 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
       return null;
     }
     if (parsed < _minExposureSeconds || parsed > _maxExposureSeconds) {
-      _setExposureError('Solve exposure must be between $_exposureRange.');
+      _setExposureError(
+          'Solve exposure must be between $_secondsRange seconds.');
       return null;
     }
     return parsed;
