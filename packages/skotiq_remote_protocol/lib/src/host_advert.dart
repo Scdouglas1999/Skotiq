@@ -80,6 +80,10 @@ class HostAdvertRead {
     this.authRequired,
     this.authenticationMode,
     this.pairingSupported,
+    this.lanPairing,
+    this.tailscaleHost,
+    this.relayApplianceId,
+    this.platform,
   });
 
   factory HostAdvertRead.fromJson(Map<String, Object?> json) {
@@ -108,6 +112,10 @@ class HostAdvertRead {
       authRequired: flag('authRequired'),
       authenticationMode: text('authenticationMode'),
       pairingSupported: flag('pairingSupported'),
+      lanPairing: flag('lanPairing'),
+      tailscaleHost: text('tailscaleHost'),
+      relayApplianceId: text('relayApplianceId'),
+      platform: filled('platform'),
     );
   }
 
@@ -130,6 +138,18 @@ class HostAdvertRead {
   final bool? authRequired;
   final String? authenticationMode;
   final bool? pairingSupported;
+
+  /// The host accepts a one-tap pairing from its own LAN.
+  final bool? lanPairing;
+
+  /// The host's tailnet address, when its Tailscale uplink is up.
+  final String? tailscaleHost;
+
+  /// The host's relay appliance id, when its relay uplink is up.
+  final String? relayApplianceId;
+
+  /// The host's operating system, trimmed; null when blank.
+  final String? platform;
 }
 
 /// A `_skotiq._tcp` TXT record as read, before a reader applies its defaults.

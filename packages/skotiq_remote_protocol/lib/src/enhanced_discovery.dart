@@ -579,15 +579,13 @@ class EnhancedSkotiqDiscovery {
   static Map<String, String> _authHeaders(String? authToken) =>
       LinkVersion.hostHeaders(token: authToken);
 
-  static DiscoveredServer _mergeServerInfo(
+  /// Merge a parsed `/api/info` body into [seed]: each key the host sent
+  /// replaces the seed's, and a missing one keeps it.
+  static DiscoveredServer mergeServerInfo(
     DiscoveredServer seed,
     Map<String, dynamic> info,
   ) {
     final advert = HostAdvertRead.fromJson(info);
-    String? text(String key) => switch (info[key]) {
-      final String value => value,
-      _ => null,
-    };
     return seed.copyWith(
       name: advert.name ?? seed.name,
       version: advert.version ?? seed.version,
@@ -596,33 +594,15 @@ class EnhancedSkotiqDiscovery {
       authenticationMode: advert.authenticationMode ?? seed.authenticationMode,
       pairingSupported: advert.pairingSupported ?? seed.pairingSupported,
       fingerprint: advert.fingerprint ?? seed.fingerprint,
-      lanPairing: switch (info['lanPairing']) {
-        final bool value => value,
-        _ => seed.lanPairing,
-      },
+      lanPairing: advert.lanPairing ?? seed.lanPairing,
       scheme: advert.scheme ?? seed.scheme,
-      // /api/info advertises the rig's tailnet address and relay appliance id
-      // when those uplinks are up. Carry them through so the connect path can
-      // persist them into the saved-server row and the Tailscale/relay setup
-      // sheets prefill them on the next reconnect.
-      tailscaleHost: text('tailscaleHost') ?? seed.tailscaleHost,
-      relayApplianceId: text('relayApplianceId') ?? seed.relayApplianceId,
+      tailscaleHost: advert.tailscaleHost ?? seed.tailscaleHost,
+      relayApplianceId: advert.relayApplianceId ?? seed.relayApplianceId,
       hostName: advert.hostName ?? seed.hostName,
-      platform: _nonEmpty(info['platform']) ?? seed.platform,
+      platform: advert.platform ?? seed.platform,
       hostMode: advert.hostMode ?? seed.hostMode,
     );
   }
-
-  static String? _nonEmpty(Object? value) =>
-      value is String && value.trim().isNotEmpty ? value.trim() : null;
-
-  /// Merge a parsed `/api/info` body into [seed]. Public for the desktop
-  /// discovery, which fetches the info itself so it can keep the fingerprint
-  /// it pins.
-  static DiscoveredServer mergeServerInfo(
-    DiscoveredServer seed,
-    Map<String, dynamic> info,
-  ) => _mergeServerInfo(seed, info);
 
   /// Ask [server] who it is (`GET /api/info`) and merge the answer. The
   /// result says why this device cannot link to it, if it cannot
@@ -642,7 +622,7 @@ class EnhancedSkotiqDiscovery {
     );
     switch (read) {
       case HostInfoAnswer(:final info):
-        return ServerRead(_mergeServerInfo(server, info), read.problem);
+        return ServerRead(mergeServerInfo(server, info), read.problem);
       case HostInfoFailure(:final problem):
         _enhancedDiscoveryLog.warning(
           'No Skotiq host at ${server.host}:${server.webPort}: '

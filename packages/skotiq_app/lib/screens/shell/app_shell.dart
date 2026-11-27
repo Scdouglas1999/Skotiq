@@ -304,22 +304,33 @@ class _AppShellState extends ConsumerState<AppShell> {
                   return AppCheckpointRecoveryChoice.later;
                 }
                 if (!mounted) return null;
+                if (ref.read(restoredCheckpointProvider) != null) {
+                  return AppCheckpointRecoveryChoice.later;
+                }
                 final remoteHost = hostLink?.serverHost;
                 BuildContext? dialogContext;
+                void closePrompt() {
+                  final open = dialogContext;
+                  if (open != null && open.mounted) {
+                    Navigator.of(open).pop(AppCheckpointRecoveryChoice.later);
+                  }
+                }
+
                 // The prompt describes the checkpoint at the moment it
-                // opened. Once a run starts (on a linked client: on the host)
-                // the checkpoint is that run's, so the prompt closes itself
-                // and leaves it alone: Discard would delete the live run's
-                // resume point.
+                // opened. Once a run starts or another prompt restores it
+                // (on a linked client: on the host) the checkpoint is that
+                // run's, so the prompt closes itself and leaves it alone:
+                // Discard would delete the run's resume point.
                 final hostRun = ref.listenManual<SequenceExecutionState>(
                   sequenceExecutionStateProvider,
                   (_, next) {
-                    final open = dialogContext;
-                    if (!next.canStart && open != null && open.mounted) {
-                      Navigator.of(open).pop(
-                        AppCheckpointRecoveryChoice.later,
-                      );
-                    }
+                    if (!next.canStart) closePrompt();
+                  },
+                );
+                final restored = ref.listenManual<CheckpointInfo?>(
+                  restoredCheckpointProvider,
+                  (_, next) {
+                    if (next != null) closePrompt();
                   },
                 );
                 try {
@@ -338,6 +349,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   );
                 } finally {
                   hostRun.close();
+                  restored.close();
                 }
               },
               canRecover: () async =>

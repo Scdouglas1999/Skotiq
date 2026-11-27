@@ -445,58 +445,38 @@ class _PairedDevicesSection extends ConsumerWidget {
     );
   }
 
-  // The primary pairing path (mobile_pairing_service.pairWithCode) sends
-  // `defaultTargetPlatform.name`, so real rows carry 'android' / 'iOS' /
-  // 'windows' / 'macOS' / 'linux'. Only the lanClaim fallback sends 'mobile'.
-  IconData _getDeviceIcon(String deviceType) {
-    switch (deviceType.toLowerCase()) {
-      case 'mobile':
-      case 'android':
-      case 'ios':
-        return SkotiqIcons.phone;
-      case 'tablet':
-        return LucideIcons.tablet;
-      case 'desktop':
-      case 'windows':
-      case 'macos':
-      case 'linux':
-        return SkotiqIcons.device;
-      case 'browser':
-      case 'web':
-        return LucideIcons.globe;
-      default:
-        return SkotiqIcons.device;
-    }
-  }
+  IconData _getDeviceIcon(String deviceType) =>
+      switch (PairingDeviceType.parse(deviceType)) {
+        PairingDeviceType.mobile ||
+        PairingDeviceType.android ||
+        PairingDeviceType.ios =>
+          SkotiqIcons.phone,
+        PairingDeviceType.tablet => LucideIcons.tablet,
+        PairingDeviceType.browser || PairingDeviceType.web => LucideIcons.globe,
+        PairingDeviceType.desktop ||
+        PairingDeviceType.windows ||
+        PairingDeviceType.macos ||
+        PairingDeviceType.linux ||
+        null =>
+          SkotiqIcons.device,
+      };
 
-  String _deviceTypeLabel(String deviceType) {
-    switch (deviceType.toLowerCase()) {
-      case 'mobile':
-        return 'Phone';
-      case 'android':
-        return 'Android phone or tablet';
-      case 'ios':
-        return 'iPhone or iPad';
-      case 'tablet':
-        return 'Tablet';
-      case 'desktop':
-        return 'Computer';
-      case 'windows':
-        return 'Windows computer';
-      case 'macos':
-        return 'Mac';
-      case 'linux':
-        return 'Linux computer';
-      case 'browser':
-      case 'web':
-        return 'Browser';
-      default:
-        // Say we do not recognise it rather than asserting a category.
-        return deviceType.trim().isEmpty
+  String _deviceTypeLabel(String deviceType) =>
+      switch (PairingDeviceType.parse(deviceType)) {
+        PairingDeviceType.mobile => 'Phone',
+        PairingDeviceType.android => 'Android phone or tablet',
+        PairingDeviceType.ios => 'iPhone or iPad',
+        PairingDeviceType.tablet => 'Tablet',
+        PairingDeviceType.desktop => 'Computer',
+        PairingDeviceType.windows => 'Windows computer',
+        PairingDeviceType.macos => 'Mac',
+        PairingDeviceType.linux => 'Linux computer',
+        PairingDeviceType.browser || PairingDeviceType.web => 'Browser',
+        // Say we do not recognize it rather than asserting a category.
+        null => deviceType.trim().isEmpty
             ? 'Unknown device type'
-            : 'Unrecognized device type ($deviceType)';
-    }
-  }
+            : 'Unrecognized device type ($deviceType)',
+      };
 
   String _deviceStatus(PairedDevice device) {
     if (!device.isActive) {

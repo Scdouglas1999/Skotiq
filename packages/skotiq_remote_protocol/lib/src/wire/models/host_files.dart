@@ -1,5 +1,6 @@
 /// Files and folders on the host: the folders a client may pick
-/// (`GET /api/files/browse`) and the log files it may download
+/// (`GET /api/files/browse`), the host's answer about one folder
+/// (`POST /api/files/validate`) and the log files it may download
 /// (`GET /api/logs`).
 library;
 
@@ -23,6 +24,67 @@ class RemoteDirectoryEntry {
   }
 
   Map<String, dynamic> toJson() => {'name': name, 'path': path};
+}
+
+/// The host's answer about one folder (`POST /api/files/validate`).
+class HostDirectoryVerdict {
+  /// The folder passed every check that was asked for.
+  final bool valid;
+  final bool exists;
+  final bool writable;
+
+  /// Why the host refused the folder, in its words.
+  final String? error;
+
+  /// The host's canonical form of the folder, set when it checked one.
+  final String? normalizedPath;
+
+  const HostDirectoryVerdict({
+    required this.valid,
+    required this.exists,
+    required this.writable,
+    this.error,
+    this.normalizedPath,
+  });
+
+  /// A refusal before the host looked at the folder.
+  const HostDirectoryVerdict.refused(String this.error)
+    : valid = false,
+      exists = false,
+      writable = false,
+      normalizedPath = null;
+
+  factory HostDirectoryVerdict.fromJson(Map<String, dynamic> json) {
+    final error = json['error'];
+    final normalized = json['normalizedPath'];
+    return HostDirectoryVerdict(
+      valid: json['valid'] == true,
+      exists: json['exists'] == true,
+      writable: json['writable'] == true,
+      error: error is String ? error : null,
+      normalizedPath: normalized is String ? normalized : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'valid': valid,
+    'exists': exists,
+    'writable': writable,
+    if (error != null) 'error': error,
+    if (normalizedPath != null) 'normalizedPath': normalizedPath,
+  };
+
+  /// The host's reason, or null when it gave none.
+  String? get reason {
+    final text = error?.trim();
+    return text == null || text.isEmpty ? null : text;
+  }
+
+  /// The folder to keep: the host's canonical form, else [requested].
+  String pathOr(String requested) {
+    final normalized = normalizedPath?.trim();
+    return normalized == null || normalized.isEmpty ? requested : normalized;
+  }
 }
 
 class RemoteDirectoryListing {

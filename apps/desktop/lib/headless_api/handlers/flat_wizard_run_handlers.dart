@@ -113,16 +113,16 @@ extension FlatWizardRunHandlers on FlatWizardHandlers {
         throw HandlerFailure(
           code: 'path_not_allowed',
           statusCode: 403,
-          message: verdict.body['message'] as String,
+          message: verdict.verdict.error!,
         );
       }
-      if (verdict.body['valid'] != true) {
+      if (!verdict.verdict.valid) {
         throw BadRequestError(
           field: 'savePath',
           expected: 'writable host directory',
         );
       }
-      return verdict.body['normalizedPath'] as String;
+      return verdict.verdict.normalizedPath!;
     }
 
     if (chosen != null) return check(chosen.trim(), mustExist: true);

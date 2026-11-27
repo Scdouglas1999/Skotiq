@@ -171,7 +171,7 @@ Future<bool> configuredSavePathExists(
       mustExist: true,
       mustBeWritable: false,
     );
-    return validation['valid'] == true;
+    return validation.valid;
   }
   return Directory(savePath).exists();
 }

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/connection/link_mismatch_actions.dart';
 import 'package:skotiq_app/screens/connection/link_rig_dialog.dart';
+import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
 import 'package:skotiq_app/screens/connection/linked_rig_panel.dart';
 import 'package:skotiq_app/screens/connection/disconnected_backend_banner.dart';
 import 'package:skotiq_core/backend.dart';
@@ -36,6 +37,7 @@ class _FakeLinkService extends RigLinkService {
   Future<RigPairing> pairOneTap(
     DiscoveredServer host, {
     required String deviceName,
+    bool fullAccess = false,
   }) async {
     calls.add('oneTap:${host.host}:$deviceName');
     if (oneTapFailure != null) throw oneTapFailure!;

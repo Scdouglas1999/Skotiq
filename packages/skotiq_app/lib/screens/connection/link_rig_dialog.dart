@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
@@ -12,6 +11,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/settings.dart' show PortRange;
 
 import 'link_mismatch_actions.dart';
+import 'rig_pairing_text.dart';
 
 /// What the connect flow opens on.
 class LinkRigRequest {
@@ -288,7 +288,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
     } on RigPairingFailure catch (failure) {
       if (!mounted) return;
       final wantsCode = failure.kind == RigPairingFailureKind.oneTapUnavailable;
-      if (wantsCode && _hasNoScreen(host)) {
+      if (wantsCode && hostHasNoScreen(host)) {
         setState(() {
           _busy = false;
           _oneTapRefused = true;
@@ -298,15 +298,11 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       }
       setState(() {
         _busy = false;
-        _error = _describe(failure, host);
+        _error = describeRigPairingFailure(failure, host);
       });
       if (wantsCode) _codeFocus.requestFocus();
     }
   }
-
-  /// A headless host has no Remote access screen to show a code on.
-  static bool _hasNoScreen(DiscoveredServer host) =>
-      host.hostMode == 'headless';
 
   Future<void> _requestCode() async {
     final host = _host;
@@ -328,7 +324,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       if (!mounted) return;
       setState(() {
         _requestingCode = false;
-        _error = _describe(failure, host);
+        _error = describeRigPairingFailure(failure, host);
       });
     }
   }
@@ -358,7 +354,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = _describe(failure, host);
+        _error = describeRigPairingFailure(failure, host);
       });
     }
   }
@@ -383,33 +379,6 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
         await relauncher.relaunch(reason: 'Linked to ${rig.name}');
     if (!mounted) return;
     if (!restarted) setState(() => _phase = _Phase.linked);
-  }
-
-  String _describe(RigPairingFailure failure, DiscoveredServer host) {
-    final name = host.displayName;
-    switch (failure.kind) {
-      case RigPairingFailureKind.oneTapUnavailable:
-        return '$name asks for a pairing code. Type the code it shows below.';
-      case RigPairingFailureKind.invalidCode:
-        return "That code doesn't match the one $name shows. Check it and "
-            'try again.';
-      case RigPairingFailureKind.expiredCode:
-        return _hasNoScreen(host)
-            ? 'That code has expired or was already used. Press Get a new '
-                'code and type the one $name makes.'
-            : 'That code has expired or was already used. Start pairing '
-                'again on $name and type the new code.';
-      case RigPairingFailureKind.rateLimited:
-        return '$name paused pairing after several wrong codes. Wait a '
-            'minute and try again.';
-      case RigPairingFailureKind.fingerprintMismatch:
-        return 'The computer at ${host.host}:${host.webPort} is not the one '
-            'listed. Nothing was sent to it. Search again.';
-      case RigPairingFailureKind.unreachable:
-        return "Can't reach $name at ${host.host}:${host.webPort}.";
-      case RigPairingFailureKind.refused:
-        return '$name refused the pairing: ${failure.message}';
-    }
   }
 
   @override
@@ -709,7 +678,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
               ),
               const SizedBox(height: SkotiqTokens.spaceXs),
               Text(
-                _hasNoScreen(host)
+                hostHasNoScreen(host)
                     ? '$name has no screen, so it keeps the code on its own '
                         'disk and never sends it over the network. Press '
                         'Get a code, then type the code from $name here, '
@@ -722,7 +691,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
                   height: 1.4,
                 ),
               ),
-              if (_hasNoScreen(host)) ...[
+              if (hostHasNoScreen(host)) ...[
                 const SizedBox(height: SkotiqTokens.spaceMd),
                 SkotiqButton(
                   key: const ValueKey('link.requestCode'),
@@ -862,34 +831,6 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       RegExp(r'^([^:]+):(\d{1,5})$').firstMatch(text);
   if (match == null) return (host: text, port: null);
   return (host: match.group(1)!, port: int.parse(match.group(2)!));
-}
-
-/// Where a headless host put the code it made, for the person who has to go
-/// and read it: "home made a code, valid until 21:05. Read it from ...".
-@visibleForTesting
-String describeCodeWhereabouts(
-  String name,
-  RemotePairingStartResult made, {
-  required bool askedForCode,
-}) {
-  final until = ClockFormat.hm(made.expiresAt.toLocal());
-  final lead = askedForCode
-      ? '$name asks for a code before it links a computer. It made one, '
-          'valid until $until.'
-      : '$name made a code, valid until $until.';
-  final delivery = made.delivery;
-  if (delivery == null) return '$lead Read it on $name.';
-  final places = [
-    if (delivery.operatorFile)
-      'the file ${delivery.operatorFileName} in its Skotiq data folder (its '
-          'console names that folder when Skotiq starts)',
-    if (delivery.console) 'its console',
-  ];
-  if (places.isEmpty) {
-    return '$name made a code but could not save it anywhere you can read. '
-        'Start Skotiq there with --pairing-print-codes, then get a new code.';
-  }
-  return '$lead Read it on $name from ${places.join(', or from ')}.';
 }
 
 /// "Windows · Skotiq 8.2.1 · 192.168.1.50:8099"

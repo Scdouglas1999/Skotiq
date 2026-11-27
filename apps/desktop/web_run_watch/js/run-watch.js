@@ -759,7 +759,7 @@ function pairingErrorText(data, status) {
   if (raw.includes(WIRE_ERROR_CODES.pairingCodeAlreadyUsed)) {
     return 'That code has already been claimed. Request a new one.';
   }
-  if (status === 429 || raw.includes('temporarily locked')) {
+  if (status === 429) {
     return 'Too many failed attempts. Wait a moment before trying again.';
   }
   return raw || 'Pairing failed.';

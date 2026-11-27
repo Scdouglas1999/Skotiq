@@ -11,6 +11,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../localization/skotiq_localizations.dart';
 import '../image_preview/frame_overlay_controls.dart';
 import '../image_preview/preview_display_scale.dart';
+import '../frame_viewer_route.dart';
 import 'saved_frame_view.dart';
 import 'package:skotiq_core/models.dart';
 
@@ -57,18 +58,13 @@ class SavedFrameViewer extends ConsumerStatefulWidget {
     BuildContext context, {
     required List<SavedFrameEntry> frames,
     required int initialIndex,
-  }) {
-    return Navigator.of(context, rootNavigator: true).push<void>(
-      PageRouteBuilder<void>(
-        opaque: true,
+  }) =>
+      pushFrameViewer(
+        context,
         transitionDuration: SkotiqTokens.durationFast,
-        pageBuilder: (_, __, ___) =>
+        builder: (_) =>
             SavedFrameViewer(frames: frames, initialIndex: initialIndex),
-        transitionsBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
-      ),
-    );
-  }
+      );
 
   @override
   ConsumerState<SavedFrameViewer> createState() => _SavedFrameViewerState();
@@ -110,76 +106,71 @@ class _SavedFrameViewerState extends ConsumerState<SavedFrameViewer> {
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
     final entry = widget.frames[_index];
-    return CallbackShortcuts(
+    return FrameViewerKeys(
       bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.escape): () =>
-            Navigator.of(context).maybePop(),
         const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _step(-1),
         const SingleActivator(LogicalKeyboardKey.arrowRight): () => _step(1),
       },
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          backgroundColor: colors.isRedNight
-              ? colors.background
-              : SkotiqColors.dark.background,
-          body: SafeArea(
-            child: SkotiqImageSurface(
-              child: ClipRect(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final viewport = Size(
-                      constraints.maxWidth,
-                      constraints.maxHeight,
-                    );
-                    return Stack(
-                      children: <Widget>[
-                        Positioned.fill(
-                          child: SavedFrameView(
-                            frame: entry.frame,
-                            viewport: viewport,
-                            zoomLevel: _viewState.zoomLevel,
-                            panOffset: _viewState.panOffset,
-                            onPan: _view.pan,
-                            showStars: _viewState.showStarOverlay,
-                            showCatalog: ref.watch(
-                              catalogOverlayEnabledProvider,
-                            ),
-                            semanticsLabel: context.l10n.text(
-                              'nightCtrPreviewSemantics',
-                              params: <String, String>{'frame': entry.title},
-                            ),
+      child: Scaffold(
+        backgroundColor: colors.isRedNight
+            ? colors.background
+            : SkotiqColors.dark.background,
+        body: SafeArea(
+          child: SkotiqImageSurface(
+            child: ClipRect(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final viewport = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
+                  return Stack(
+                    children: <Widget>[
+                      Positioned.fill(
+                        child: SavedFrameView(
+                          frame: entry.frame,
+                          viewport: viewport,
+                          zoomLevel: _viewState.zoomLevel,
+                          panOffset: _viewState.panOffset,
+                          onPan: _view.pan,
+                          showStars: _viewState.showStarOverlay,
+                          showCatalog: ref.watch(
+                            catalogOverlayEnabledProvider,
+                          ),
+                          semanticsLabel: context.l10n.text(
+                            'nightCtrPreviewSemantics',
+                            params: <String, String>{'frame': entry.title},
                           ),
                         ),
-                        Positioned(
-                          left: _inset,
-                          right: _inset,
-                          top: _inset,
-                          child: _TopBar(
-                            entry: entry,
-                            position: _index + 1,
-                            count: widget.frames.length,
-                          ),
+                      ),
+                      Positioned(
+                        left: _inset,
+                        right: _inset,
+                        top: _inset,
+                        child: _TopBar(
+                          entry: entry,
+                          position: _index + 1,
+                          count: widget.frames.length,
                         ),
-                        Positioned(
-                          left: _inset,
-                          right: _inset,
-                          bottom: _inset,
-                          child: _BottomBar(
-                            entry: entry,
-                            viewport: viewport,
-                            view: _view,
-                            viewState: _viewState,
-                            onPrevious: _index > 0 ? () => _step(-1) : null,
-                            onNext: _index < widget.frames.length - 1
-                                ? () => _step(1)
-                                : null,
-                          ),
+                      ),
+                      Positioned(
+                        left: _inset,
+                        right: _inset,
+                        bottom: _inset,
+                        child: _BottomBar(
+                          entry: entry,
+                          viewport: viewport,
+                          view: _view,
+                          viewState: _viewState,
+                          onPrevious: _index > 0 ? () => _step(-1) : null,
+                          onNext: _index < widget.frames.length - 1
+                              ? () => _step(1)
+                              : null,
                         ),
-                      ],
-                    );
-                  },
-                ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),

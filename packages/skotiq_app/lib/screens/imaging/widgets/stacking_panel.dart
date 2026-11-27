@@ -55,11 +55,11 @@ Future<String?> _pickStackingMasterDestination(String suggestedName) async {
     label: 'Stacked master (FITS, or PNG render)',
     extensions: ['fits', 'fit', 'fts', 'png'],
   );
-  final location = await getSaveLocation(
+  final target = await chooseExportTarget(
     suggestedName: suggestedName,
     acceptedTypeGroups: [typeGroup],
   );
-  return location == null ? null : collapseDoubledExtension(location.path);
+  return target?.path;
 }
 
 final stackingMasterDestinationPickerProvider =
@@ -278,6 +278,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   /// Confirmation shown before Stop releases a stack that has frames in it.
   Future<_StopDecision> _askBeforeDiscardingStack(int frames) async {
     final colors = widget.colors;
+    final canSave = _canSaveMaster;
+    final onHost = ref.read(liveStackingServiceProvider).readsHost;
+    final count = frames == 1 ? '1 stacked frame' : '$frames stacked frames';
     final decision = await showDialog<_StopDecision>(
       context: context,
       builder: (dialogContext) => SkotiqDialog(
@@ -300,21 +303,33 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
             colors: colors,
             onTap: () => Navigator.of(dialogContext).pop(_StopDecision.discard),
           ),
-          const SizedBox(width: 8),
-          SmallButton(
-            label: 'Save master',
-            icon: SkotiqIcons.save,
-            colors: colors,
-            onTap: () =>
-                Navigator.of(dialogContext).pop(_StopDecision.saveMaster),
-          ),
+          if (canSave) ...[
+            const SizedBox(width: 8),
+            SmallButton(
+              label: 'Save master',
+              icon: SkotiqIcons.save,
+              colors: colors,
+              onTap: () =>
+                  Navigator.of(dialogContext).pop(_StopDecision.saveMaster),
+            ),
+          ],
         ],
         child: Text(
-          'Stopping releases the stacker, and the '
-          '${frames == 1 ? '1 stacked frame' : '$frames stacked frames'} '
-          'accumulated so far cannot be recovered afterwards. Save the '
-          'stacked master first. A FITS master carrying the integration time '
-          'and frame count, or discard it and stop.',
+          canSave && onHost
+              ? 'Stopping releases the imaging computer\'s stacker, and the '
+                  '$count accumulated so far cannot be recovered afterwards. '
+                  'This computer can save only a PNG of the render; the FITS '
+                  'master is saved on the imaging computer. Save the render '
+                  'first, or discard it and stop.'
+              : canSave
+                  ? 'Stopping releases the stacker, and the $count accumulated '
+                      'so far cannot be recovered afterwards. Save the stacked '
+                      'master first. A FITS master carrying the integration time '
+                      'and frame count, or discard it and stop.'
+                  : 'Stopping releases the stacker, and the $count accumulated '
+                      'so far cannot be recovered afterwards. This device cannot '
+                      'write the master; save it from the imaging computer, or '
+                      'discard it and stop.',
           style: SkotiqTypography.caption.copyWith(color: colors.textSecondary),
         ),
       ),
@@ -322,23 +337,20 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     return decision ?? _StopDecision.cancel;
   }
 
+  /// Writing a master needs the native library: the FITS master, the PNG
+  /// render and its stretch are all written by it.
+  bool get _canSaveMaster => ref.read(savedFrameDecodesOnDeviceProvider);
+
   /// Writes the accumulated master out. Returns true only when a file was
   /// actually written (so the caller knows it is safe to release the stack).
   Future<bool> _saveStackedMaster(int frames, {String? filterKey}) async {
-    final stamp = DateTime.now()
-        .toUtc()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .split('.')
-        .first;
-    final filterPart = filterKey != null &&
-            filterKey.isNotEmpty &&
-            filterKey != kDefaultLiveStackFilterKey
-        ? '${filterKey.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')}_'
-        : '';
-    final destination = await ref.read(
-      stackingMasterDestinationPickerProvider,
-    )('live_stack_$filterPart${stamp}Z_${frames}frames.fits');
+    final name = ref.read(liveStackingServiceProvider).masterFileName(
+          frames: frames,
+          filterKey: filterKey,
+          at: DateTime.now(),
+        );
+    final destination =
+        await ref.read(stackingMasterDestinationPickerProvider)(name);
     if (!mounted || destination == null || destination.trim().isEmpty) {
       return false;
     }
@@ -778,7 +790,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                             ? _stopStacking
                             : null,
                       ),
-                    if (isRunning && stats.stackedFrameCount > 0)
+                    if (isRunning &&
+                        stats.stackedFrameCount > 0 &&
+                        _canSaveMaster)
                       SkotiqButton(
                         key: const ValueKey('stacking_panel_save_master_btn'),
                         label: 'Export master',
@@ -809,8 +823,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
               colors: widget.colors,
               onSelect: (key) =>
                   ref.read(liveStackingProvider.notifier).selectFilter(key),
-              onSave: (key, frames) =>
-                  _saveStackedMaster(frames, filterKey: key),
+              onSave: _canSaveMaster
+                  ? (key, frames) => _saveStackedMaster(frames, filterKey: key)
+                  : null,
               onReset: (key) =>
                   ref.read(liveStackingProvider.notifier).resetFilter(key),
             ),
@@ -1143,7 +1158,7 @@ class _PerFilterStacksPanel extends StatelessWidget {
   final LiveStackingState stackState;
   final SkotiqColors colors;
   final ValueChanged<String> onSelect;
-  final void Function(String filterKey, int frames) onSave;
+  final void Function(String filterKey, int frames)? onSave;
   final ValueChanged<String> onReset;
 
   @override
@@ -1163,10 +1178,14 @@ class _PerFilterStacksPanel extends StatelessWidget {
               selected: filters[i] == stackState.selectedFilterKey,
               colors: colors,
               onSelect: () => onSelect(filters[i]),
-              onSave: () => onSave(
-                filters[i],
-                stackState.filterStacks[filters[i]]!.stats.stackedFrameCount,
-              ),
+              onSave: switch (onSave) {
+                final save? => () => save(
+                      filters[i],
+                      stackState
+                          .filterStacks[filters[i]]!.stats.stackedFrameCount,
+                    ),
+                null => null,
+              },
               onReset: () => onReset(filters[i]),
             ),
           ],
@@ -1192,7 +1211,7 @@ class _PerFilterRow extends StatelessWidget {
   final bool selected;
   final SkotiqColors colors;
   final VoidCallback onSelect;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
   final VoidCallback onReset;
 
   @override
@@ -1251,12 +1270,13 @@ class _PerFilterRow extends StatelessWidget {
                 ],
               ),
             ),
-            SkotiqIconButton(
-              icon: SkotiqIcons.save,
-              tooltip: 'Save $label master',
-              size: IconButtonSize.sm,
-              onPressed: frames > 0 ? onSave : null,
-            ),
+            if (onSave != null)
+              SkotiqIconButton(
+                icon: SkotiqIcons.save,
+                tooltip: 'Save $label master',
+                size: IconButtonSize.sm,
+                onPressed: frames > 0 ? onSave : null,
+              ),
             SkotiqIconButton(
               icon: SkotiqIcons.refresh,
               tooltip: 'Reset $label stack',

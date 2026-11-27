@@ -21,10 +21,14 @@ class _FakeClient extends RemotePairingClient {
   Future<RemotePairingVerifyResult?> lanClaim({
     required String deviceId,
     required String deviceName,
-    String deviceType = 'mobile',
+    PairingDeviceType deviceType = PairingDeviceType.mobile,
     String? requestedScope,
   }) async {
-    calls.add({'id': deviceId, 'name': deviceName, 'type': deviceType});
+    calls.add({
+      'id': deviceId,
+      'name': deviceName,
+      'type': deviceType.wireName,
+    });
     if (throwOnCall != null) throw throwOnCall!;
     return lanResult;
   }
@@ -34,10 +38,14 @@ class _FakeClient extends RemotePairingClient {
     required String code,
     required String deviceId,
     required String deviceName,
-    String deviceType = 'mobile',
+    PairingDeviceType deviceType = PairingDeviceType.mobile,
     String requestedScope = 'control',
   }) async {
-    calls.add({'code': code, 'type': deviceType, 'scope': requestedScope});
+    calls.add({
+      'code': code,
+      'type': deviceType.wireName,
+      'scope': requestedScope,
+    });
     if (throwOnCall != null) throw throwOnCall!;
     return verifyResult!;
   }

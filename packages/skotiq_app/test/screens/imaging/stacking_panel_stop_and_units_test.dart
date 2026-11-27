@@ -33,10 +33,15 @@ class _RecordingLiveStackingNotifier extends LiveStackingNotifier {
 }
 
 class _FakeLiveStackingService extends LiveStackingService {
-  _FakeLiveStackingService(super.logger);
+  _FakeLiveStackingService(super.logger, {this.onHost = false});
 
+  /// The stack accumulates on a linked imaging host.
+  final bool onHost;
   final saved = <String>[];
   bool failSave = false;
+
+  @override
+  bool get readsHost => onHost;
 
   @override
   Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
@@ -106,6 +111,8 @@ Future<_Harness> _pumpPanel(
   WidgetTester tester, {
   String? destination,
   bool failSave = false,
+  bool onHost = false,
+  bool nativeLibrary = true,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(420, 1600);
@@ -121,6 +128,7 @@ Future<_Harness> _pumpPanel(
       inMemoryDatabaseOverride(),
       isRemoteModeProvider.overrideWithValue(false),
       connectedCameraIdProvider.overrideWithValue(null),
+      savedFrameDecodesOnDeviceProvider.overrideWithValue(nativeLibrary),
       stackingMasterDestinationPickerProvider.overrideWithValue(
         (suggestedName) async {
           _log.add('pick:$suggestedName');
@@ -128,8 +136,10 @@ Future<_Harness> _pumpPanel(
         },
       ),
       liveStackingServiceProvider.overrideWith(
-        (ref) => _FakeLiveStackingService(ref.read(loggingServiceProvider))
-          ..failSave = failSave,
+        (ref) => _FakeLiveStackingService(
+          ref.read(loggingServiceProvider),
+          onHost: onHost,
+        )..failSave = failSave,
       ),
       // The library's own file reads and thumbnail writes are covered in the
       // core package; here the header and thumbnail are stand-ins.
@@ -289,6 +299,37 @@ void main() {
     expect(picked, contains('32frames'));
   });
 
+  testWidgets(
+      'on a linked client the suggested destination is the render it can '
+      'write', (tester) async {
+    final harness = await _pumpPanel(tester, onHost: true);
+
+    await tester
+        .tap(find.byKey(const ValueKey('stacking_panel_save_master_btn')));
+    await tester.pumpAndSettle();
+
+    final picked = _log.firstWhere((e) => e.startsWith('pick:'));
+    expect(picked, endsWith('.png'));
+    expect(harness.service.saved, isEmpty);
+  });
+
+  testWidgets(
+      'a device without the native library is not offered a master it '
+      'cannot write', (tester) async {
+    await _pumpPanel(tester, onHost: true, nativeLibrary: false);
+
+    expect(
+      find.byKey(const ValueKey('stacking_panel_save_master_btn')),
+      findsNothing,
+    );
+    await tester.tap(find.text('Stop'));
+    await tester.pumpAndSettle();
+    expect(find.text('Save master'), findsNothing);
+    expect(find.text('Discard'), findsOneWidget);
+    expect(find.textContaining('This device cannot write the master'),
+        findsOneWidget);
+  });
+
   testWidgets('a canceled destination leaves the stack running',
       (tester) async {
     final harness = await _pumpPanel(tester);
@@ -354,6 +395,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('FITS master'), findsOneWidget);
+  });
+
+  testWidgets(
+      'on a linked client the Stop prompt says only a PNG render is saved '
+      'here', (tester) async {
+    await _pumpPanel(tester, onHost: true);
+
+    await tester.tap(find.text('Stop'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('only a PNG of the render'), findsOneWidget);
+    expect(find.textContaining('A FITS master carrying'), findsNothing);
   });
 
   testWidgets('Statistics rows carry units for frames and for pixels',

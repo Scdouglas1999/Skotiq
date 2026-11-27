@@ -39,10 +39,10 @@ void main() {
         mustBeWritable: true,
       ),
     ).thenAnswer(
-      (_) async => const {
+      (_) async => HostDirectoryVerdict.fromJson({
         'valid': true,
         'normalizedPath': '/host/captures',
-      },
+      }),
     );
 
     await tester.pumpWidget(

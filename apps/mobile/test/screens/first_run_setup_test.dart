@@ -672,7 +672,7 @@ class _PathValidationBackend extends NetworkBackend {
   AppSettings? updatedSettings;
 
   @override
-  Future<Map<String, dynamic>> validateRemoteDirectory(
+  Future<HostDirectoryVerdict> validateRemoteDirectory(
     String path, {
     bool mustExist = false,
     bool mustBeWritable = false,
@@ -681,7 +681,7 @@ class _PathValidationBackend extends NetworkBackend {
     validatedPath = path;
     requiredExistingDirectory = mustExist;
     requiredWritableDirectory = mustBeWritable;
-    return validationResult;
+    return HostDirectoryVerdict.fromJson(validationResult);
   }
 
   @override

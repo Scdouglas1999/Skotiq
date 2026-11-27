@@ -1,3 +1,4 @@
+import 'pairing_device_type.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -263,7 +264,7 @@ class RemotePairingClient {
     required String code,
     required String deviceId,
     required String deviceName,
-    String deviceType = 'mobile',
+    PairingDeviceType deviceType = PairingDeviceType.mobile,
     String requestedScope = 'control',
   }) async {
     await _enforcePinning();
@@ -276,7 +277,7 @@ class RemotePairingClient {
             'code': code.trim(),
             'deviceId': deviceId,
             'deviceName': deviceName,
-            'deviceType': deviceType,
+            'deviceType': deviceType.wireName,
             'requestedScope': requestedScope,
           }),
         )
@@ -316,7 +317,7 @@ class RemotePairingClient {
   Future<RemotePairingVerifyResult?> lanClaim({
     required String deviceId,
     required String deviceName,
-    String deviceType = 'mobile',
+    PairingDeviceType deviceType = PairingDeviceType.mobile,
     String? requestedScope,
   }) async {
     await _enforcePinning();
@@ -328,7 +329,7 @@ class RemotePairingClient {
           body: jsonEncode({
             'deviceId': deviceId,
             'deviceName': deviceName,
-            'deviceType': deviceType,
+            'deviceType': deviceType.wireName,
             if (requestedScope != null) 'requestedScope': requestedScope,
           }),
         )

@@ -67,14 +67,12 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
   }
 
   @override
-  Future<String?> _pairWithServer({
-    required String host,
-    required int port,
-    String scheme = 'http',
-    String? pinnedFingerprint,
+  Future<String?> _pairWithServer(
+    DiscoveredServer server, {
     String? initialCode,
-    String? serverName,
   }) async {
+    final host = server.host;
+    final port = server.webPort;
     final uiContext = _connectionUiContext;
     if (uiContext == null || !uiContext.mounted) {
       setState(() {
@@ -96,8 +94,11 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       builder: (ctx) => PairingCodeDialog(
         host: host,
         port: port,
-        serverName: serverName,
+        serverName: server.name,
         initialCode: initialCode,
+        requestCode: hostHasNoScreen(server)
+            ? () => MobilePairingService.pairing().requestCode(server)
+            : null,
       ),
     );
 
@@ -124,52 +125,23 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       _statusMessage = 'Pairing with $host:$port...';
     });
 
-    final pairing = MobilePairingService(
-      host: host,
-      port: port,
-      // A TLS-fronted tailnet rig answers pairing only on https; speaking the
-      // wrong scheme returns 400. Carry the scheme learned from the saved
-      // server / discovery record.
-      scheme: scheme,
-      // When the server identity is already known (saved server, prior
-      // /api/info), enforce it BEFORE the pairing code is transmitted so a
-      // MITM cannot harvest the code. Null on a genuine first-pair where the
-      // fingerprint is not yet known (LAN trust establishes it out-of-band).
-      pinnedFingerprint: pinnedFingerprint,
-    );
-
-    final RemotePairingVerifyResult result;
     try {
-      result = await pairing.pairWithCode(
+      final paired = await MobilePairingService.pairWithCode(
+        server,
         code: pairingInput.code,
-        requestAdminScope: pairingInput.admin,
+        fullAccess: pairingInput.admin,
       );
-    } on RemotePairingFingerprintMismatch catch (e) {
-      // Fail-closed: the pre-flight identity check refused to send the code.
-      // Surface it loudly rather than letting it read as a generic failure.
+      return paired.token;
+    } on RigPairingFailure catch (failure) {
+      final message = pairingFailureText(failure, server);
       if (!mounted) return null;
       setState(() {
         _isDiscovering = false;
         _statusMessage = '';
-        _error = e.message;
+        _error = message;
       });
       return null;
     }
-
-    if (!mounted) return null;
-
-    if (!result.success || result.token == null || result.token!.isEmpty) {
-      setState(() {
-        _isDiscovering = false;
-        _statusMessage = '';
-        _error =
-            result.message ??
-            'Pairing failed (${result.statusCode ?? 'unknown'}).';
-      });
-      return null;
-    }
-
-    return result.token;
   }
 
   /// Prompt for a relay URL + appliance id, then dial through the relay.
@@ -318,40 +290,24 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     if ((authToken == null || authToken.isEmpty) &&
         data.pairingCode != null &&
         data.pairingCode!.isNotEmpty) {
-      final pairing = MobilePairingService(
-        host: data.host,
-        port: data.webPort,
-        // Speak the scheme the QR advertised (https for a TLS-fronted tailnet
-        // rig, which answers pairing only over https).
-        scheme: data.scheme,
-        // Verify the server's identity BEFORE the pairing code leaves the
-        // device. This runs the /api/info pre-flight inside the pairing
-        // client; a hostile node presenting its own pairing endpoint cannot
-        // harvest the code because the pin won't match.
-        pinnedFingerprint: data.fingerprint,
-      );
-      final RemotePairingVerifyResult result;
       try {
-        result = await pairing.pairWithCode(code: data.pairingCode!);
-      } on RemotePairingFingerprintMismatch catch (e) {
+        // The QR's fingerprint is checked before the code leaves the phone.
+        final paired = await MobilePairingService.pairWithCode(
+          data.toDiscoveredServer(),
+          code: data.pairingCode!,
+          fullAccess: true,
+        );
+        authToken = paired.token;
+      } on RigPairingFailure catch (failure) {
+        final message = pairingFailureText(failure, data.toDiscoveredServer());
         if (!mounted) return;
         setState(() {
           _isDiscovering = false;
           _statusMessage = '';
-          _error = e.message;
+          _error = message;
         });
         return;
       }
-      if (!mounted) return;
-      if (!result.success || result.token == null) {
-        setState(() {
-          _isDiscovering = false;
-          _statusMessage = '';
-          _error = result.message ?? 'QR pairing failed.';
-        });
-        return;
-      }
-      authToken = result.token;
     }
 
     final server = data.toDiscoveredServer().copyWith(authToken: authToken);
@@ -665,12 +621,16 @@ class PairingCodeDialog extends StatefulWidget {
   /// which one it is pairing with.
   final String? serverName;
 
+  /// Set for a host with no screen to show a code on: asks it to make one.
+  final Future<RemotePairingStartResult> Function()? requestCode;
+
   const PairingCodeDialog({
     super.key,
     required this.host,
     required this.port,
     this.initialCode,
     this.serverName,
+    this.requestCode,
   });
 
   @override
@@ -684,6 +644,41 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
   /// Inline validation message for the code field. An empty code must say why
   /// rather than no-op behind an enabled-looking "Pair" button.
   String? _codeError;
+
+  RemotePairingStartResult? _codeMade;
+  String? _codeRequestError;
+  bool _requestingCode = false;
+
+  DiscoveredServer get _server => DiscoveredServer(
+    host: widget.host,
+    webPort: widget.port,
+    name: widget.serverName ?? widget.host,
+    hostMode: 'headless',
+  );
+
+  Future<void> _requestCode() async {
+    final request = widget.requestCode;
+    if (request == null || _requestingCode) return;
+    setState(() {
+      _requestingCode = true;
+      _codeRequestError = null;
+    });
+    try {
+      final made = await request();
+      if (!mounted) return;
+      setState(() {
+        _requestingCode = false;
+        _codeMade = made;
+        _codeController.clear();
+      });
+    } on RigPairingFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _requestingCode = false;
+        _codeRequestError = describeRigPairingFailure(failure, _server);
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -796,19 +791,61 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
             onChanged: (value) => setState(() => _requestAdmin = value),
           ),
           const SizedBox(height: 12),
-          Text(
-            // The page at /pair never shows a code, and on the same Wi-Fi
-            // this dialog does not come up at all: the phone pairs in one
-            // tap. It is here for a rig reached from away or set to require
-            // a code, where the code sits in a file on that computer.
-            'No screen on the imaging computer? On its Wi-Fi this phone '
-            'pairs without a code. From elsewhere, the code is in '
-            'pairing-code.txt in Skotiq\'s data folder on that computer.',
-            style: TextStyle(
-              fontSize: SkotiqTypography.fontSize13,
-              color: colors.textSecondary,
+          if (widget.requestCode == null)
+            Text(
+              // The page at /pair never shows a code, and on the same Wi-Fi
+              // this dialog does not come up at all: the phone pairs in one
+              // tap.
+              'No screen on the imaging computer? On its Wi-Fi this phone '
+              'pairs without a code.',
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize13,
+                color: colors.textSecondary,
+              ),
+            )
+          else ...[
+            Text(
+              'No screen on the imaging computer? Ask it for a code, then '
+              'read the code where it says it put it.',
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize13,
+                color: colors.textSecondary,
+              ),
             ),
-          ),
+            const SizedBox(height: SkotiqTokens.spaceSm),
+            SkotiqButton(
+              onPressed: _requestingCode ? null : _requestCode,
+              isLoading: _requestingCode,
+              label: _codeMade == null ? 'Get a code' : 'Get a new code',
+              icon: LucideIcons.keyRound,
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+            ),
+            if (_codeMade case final made?) ...[
+              const SizedBox(height: SkotiqTokens.spaceSm),
+              Text(
+                describeCodeWhereabouts(
+                  _server.displayName,
+                  made,
+                  askedForCode: false,
+                ),
+                style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize13,
+                  color: colors.textPrimary,
+                ),
+              ),
+            ],
+            if (_codeRequestError case final error?) ...[
+              const SizedBox(height: SkotiqTokens.spaceSm),
+              Text(
+                error,
+                style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize13,
+                  color: colors.error,
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );

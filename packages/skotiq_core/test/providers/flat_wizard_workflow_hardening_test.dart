@@ -242,12 +242,13 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
   Stream<Map<String, dynamic>> get polarAlignmentEvents => const Stream.empty();
 
   @override
-  Future<Map<String, dynamic>> validateRemoteDirectory(
+  Future<HostDirectoryVerdict> validateRemoteDirectory(
     String path, {
     bool mustExist = false,
     bool mustBeWritable = false,
     bool create = false,
-  }) async => {'valid': true, 'normalizedPath': path};
+  }) async =>
+      HostDirectoryVerdict.fromJson({'valid': true, 'normalizedPath': path});
 
   @override
   Future<List<RemoteFlatHistoryEntry>> listFlats({

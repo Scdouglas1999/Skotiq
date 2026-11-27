@@ -327,7 +327,7 @@ class LinkedHostFolders extends HostFolders {
   Future<FolderCheck> check(String path) async {
     final folder = path.trim();
     if (folder.isEmpty) return const FolderRefused('Enter a folder.');
-    final Map<String, dynamic> result;
+    final HostDirectoryVerdict result;
     try {
       result = await _files.validateRemoteDirectory(
         folder,
@@ -340,23 +340,43 @@ class LinkedHostFolders extends HostFolders {
         '${userFacingError(error)}',
       );
     }
-    if (result['valid'] == true) return const FolderUsable();
-    if (result['exists'] == false && result['error'] == null) {
-      return const FolderMissing();
-    }
-    final reason = result['error'];
-    return FolderRefused(
-      reason is String && reason.trim().isNotEmpty
-          ? reason.trim()
-          : result['exists'] == true
-              ? 'The imaging host cannot write to this folder.'
-              : 'The imaging host refused this folder.',
-    );
+    return folderCheckOf(result);
   }
 
-  /// The host makes no folder on request from a client, so this is [check].
+  /// The host makes a missing folder inside its allowed folders, as the
+  /// folder browser's New folder does.
   @override
-  Future<FolderCheck> prepare(String path) => check(path);
+  Future<FolderCheck> prepare(String path) async {
+    final verdict = await check(path);
+    if (verdict is! FolderMissing) return verdict;
+    try {
+      return folderCheckOf(
+        await _files.validateRemoteDirectory(
+          path.trim(),
+          mustExist: true,
+          mustBeWritable: true,
+          create: true,
+        ),
+      );
+    } catch (error) {
+      return FolderUnchecked(
+        'Could not ask the imaging host to make this folder: '
+        '${userFacingError(error)}',
+      );
+    }
+  }
+}
+
+/// What the host's answer about a folder means for the folder pickers.
+FolderCheck folderCheckOf(HostDirectoryVerdict verdict) {
+  if (verdict.valid) return const FolderUsable();
+  if (!verdict.exists && verdict.error == null) return const FolderMissing();
+  return FolderRefused(
+    verdict.reason ??
+        (verdict.exists
+            ? 'The imaging host cannot write to this folder.'
+            : 'The imaging host refused this folder.'),
+  );
 }
 
 /// The one line a failed write probe shows. [FileSystemException.message] is

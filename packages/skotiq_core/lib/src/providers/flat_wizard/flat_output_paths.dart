@@ -34,16 +34,15 @@ Future<String> validateRemoteFlatOutputDirectory(
     mustExist: true,
     mustBeWritable: true,
   );
-  if (validation['valid'] != true) {
+  if (!validation.valid) {
     final detail =
-        validation['error'] ??
-        (validation['exists'] == false
+        validation.error ??
+        (!validation.exists
             ? 'the directory does not exist on the host'
             : 'the directory is not writable on the host');
     throw StateError('Invalid host flat-frame folder: $detail');
   }
-  final normalized = validation['normalizedPath'];
-  return normalized is String && normalized.isNotEmpty ? normalized : path;
+  return validation.pathOr(path);
 }
 
 /// Provider for sky brightness tracker (sky flats mode)

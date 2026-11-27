@@ -828,12 +828,13 @@ class _AutoNetworkBackend extends Mock implements NetworkBackend {
       });
 
   @override
-  Future<Map<String, dynamic>> validateRemoteDirectory(
+  Future<HostDirectoryVerdict> validateRemoteDirectory(
     String path, {
     bool mustExist = false,
     bool mustBeWritable = false,
     bool create = false,
-  }) async => {'valid': true, 'normalizedPath': path};
+  }) async =>
+      HostDirectoryVerdict.fromJson({'valid': true, 'normalizedPath': path});
 
   // Remote client seeds suggestions from the master; empty history here.
   @override

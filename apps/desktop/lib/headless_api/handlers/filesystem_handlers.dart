@@ -151,7 +151,7 @@ class FileSystemHandlers implements RouteSource {
   /// The check `POST /api/files/validate` answers. Other host handlers that
   /// accept a folder before writing there call this rather than growing a
   /// second allow-list.
-  Future<({int statusCode, Map<String, dynamic> body})> checkHostDirectory(
+  Future<({int statusCode, HostDirectoryVerdict verdict})> checkHostDirectory(
     String path, {
     required bool mustExist,
     required bool mustBeWritable,
@@ -160,12 +160,7 @@ class FileSystemHandlers implements RouteSource {
     if (path.trim().isEmpty) {
       return (
         statusCode: 200,
-        body: {
-          'valid': false,
-          'exists': false,
-          'writable': false,
-          'error': 'Path is required',
-        },
+        verdict: const HostDirectoryVerdict.refused('Path is required'),
       );
     }
 
@@ -197,16 +192,11 @@ class FileSystemHandlers implements RouteSource {
       // about the one folder it was asked about.
       return (
         statusCode: 403,
-        body: {
-          'error': 'path_not_allowed',
-          'message':
-              'The imaging host lets a linked computer use only folders inside '
-              'its Documents, backup, capture, sequence and log folders, and '
-              'any added with SKOTIQ_BROWSE_ROOTS.',
-          'valid': false,
-          'exists': false,
-          'writable': false,
-        },
+        verdict: const HostDirectoryVerdict.refused(
+          'The imaging host lets a linked computer use only folders inside '
+          'its Documents, backup, capture, sequence and log folders, and '
+          'any added with SKOTIQ_BROWSE_ROOTS.',
+        ),
       );
     }
 
@@ -219,12 +209,9 @@ class FileSystemHandlers implements RouteSource {
         _logError('[API] Validate could not create $canonicalRequested: $e');
         return (
           statusCode: 200,
-          body: {
-            'valid': false,
-            'exists': false,
-            'writable': false,
-            'error': 'The imaging host could not create that folder.',
-          },
+          verdict: const HostDirectoryVerdict.refused(
+            'The imaging host could not create that folder.',
+          ),
         );
       }
     }
@@ -236,12 +223,12 @@ class FileSystemHandlers implements RouteSource {
 
     return (
       statusCode: 200,
-      body: {
-        'valid': valid,
-        'exists': exists,
-        'writable': writable,
-        'normalizedPath': canonicalRequested,
-      },
+      verdict: HostDirectoryVerdict(
+        valid: valid,
+        exists: exists,
+        writable: writable,
+        normalizedPath: canonicalRequested,
+      ),
     );
   }
 
@@ -259,8 +246,16 @@ class FileSystemHandlers implements RouteSource {
       mustBeWritable: mustBeWritable,
       create: create,
     );
-    if (verdict.statusCode == 403) return jsonForbidden(verdict.body);
-    return jsonOk(verdict.body);
+    final body = verdict.verdict.toJson();
+    if (verdict.statusCode == 403) {
+      // The refusal carries its code beside the verdict's flags.
+      return jsonForbidden({
+        ...body,
+        'error': 'path_not_allowed',
+        'message': verdict.verdict.error,
+      });
+    }
+    return jsonOk(body);
   }
 
   /// Allow-listed roots the caller may browse under.

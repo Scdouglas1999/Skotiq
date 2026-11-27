@@ -137,15 +137,8 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
 
   /// Implemented by the discovery / pairing ops mixin. The reconnect flows
   /// invoke it when a fetched server requires a code. The concrete override
-  /// adds the `initialCode` prefill parameter; this contract declares only
-  /// the parameters the reconnect group supplies.
-  Future<String?> _pairWithServer({
-    required String host,
-    required int port,
-    String scheme = 'http',
-    String? pinnedFingerprint,
-    String? serverName,
-  });
+  /// adds the `initialCode` prefill parameter.
+  Future<String?> _pairWithServer(DiscoveredServer server);
 
   void _stopConnectionMonitor() {
     _connectionStateSubscription?.cancel();

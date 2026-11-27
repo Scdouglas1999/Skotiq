@@ -2,38 +2,17 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
-/// Persists a stable device identity and performs REST pairing against the
-/// desktop headless API.
-///
-/// [scheme] selects the transport (`http` default, `https` for a TLS-fronted
-/// tailnet rig). A TLS rig answers pairing only on `https`, so a wrong scheme
-/// here breaks pairing-over-Tailscale outright — callers must pass the scheme
-/// they learned from the QR payload / saved-server record.
-///
-/// [pinnedFingerprint], when set, makes [RemotePairingClient] run a pre-flight
-/// `/api/info` identity check and refuse to transmit the pairing code unless
-/// the live server's fingerprint matches. This closes the MITM window on the
-/// Tailscale / Internet-reachable path where the phone is no longer protected
-/// by sharing a trusted LAN segment with the rig.
+/// This phone's pairing identity (a stable device id and its name) and the
+/// core [RigPairingService] that pairs with it.
 class MobilePairingService {
+  MobilePairingService._();
+
   static const _deviceIdKey = 'skotiq_mobile_device_id';
-
-  final RemotePairingClient _client;
-
-  MobilePairingService({
-    required String host,
-    required int port,
-    String scheme = 'http',
-    String? pinnedFingerprint,
-  }) : _client = RemotePairingClient(
-         host: host,
-         port: port,
-         scheme: scheme,
-         pinnedFingerprint: pinnedFingerprint,
-       );
 
   static Future<String> deviceId() async {
     final prefs = await SharedPreferences.getInstance();
@@ -56,46 +35,46 @@ class MobilePairingService {
     return 'Mobile companion';
   }
 
-  /// Pair using a code from the desktop UI or QR payload.
-  Future<RemotePairingVerifyResult> pairWithCode({
+  /// The pairing type this phone names when it pairs.
+  static PairingDeviceType platformDeviceType() =>
+      PairingDeviceType.parse(defaultTargetPlatform.name) ??
+      PairingDeviceType.mobile;
+
+  /// Pairs this phone with a host. A TLS-fronted tailnet rig answers pairing
+  /// only on `https`, so the host record must carry the scheme learned from
+  /// the QR payload or saved server; its fingerprint, when known, is checked
+  /// before any code leaves the phone.
+  static RigPairingService pairing({
+    RemotePairingClient Function(DiscoveredServer host)? clientFactory,
+  }) => RigPairingService(
+    deviceId: deviceId,
+    deviceType: platformDeviceType(),
+    timeout: const Duration(seconds: 15),
+    clientFactory: clientFactory,
+  );
+
+  /// Pairs with the code the host shows or the QR carries.
+  static Future<RigPairing> pairWithCode(
+    DiscoveredServer host, {
     required String code,
-    bool requestAdminScope = true,
-  }) async {
-    final id = await deviceId();
-    return _client.verify(
-      code: code,
-      deviceId: id,
-      deviceName: deviceName(),
-      deviceType: defaultTargetPlatform.name,
-      requestedScope: requestAdminScope ? 'admin' : 'control',
-    );
-  }
+    required bool fullAccess,
+    RemotePairingClient Function(DiscoveredServer host)? clientFactory,
+  }) => pairing(clientFactory: clientFactory).pairWithCode(
+    host,
+    code: code,
+    deviceName: deviceName(),
+    fullAccess: fullAccess,
+  );
 
-  /// Attempts one-tap LAN pairing against `POST /api/pairing/lan-claim`.
-  ///
-  /// Returns a success [RemotePairingVerifyResult] (with a token) when the
-  /// appliance grants it — no code, because the request came from a trusted
-  /// private-LAN source and the appliance is in `lan-open` mode. Returns
-  /// `null` when one-tap pairing is unavailable for this connection (server in
-  /// `code-required` mode, or reached over tailnet/relay so the source is not a
-  /// trusted LAN address, or an older server without the endpoint) — the caller
-  /// should fall back to [pairWithCode]. Honours [pinnedFingerprint] the same
-  /// way [pairWithCode] does: when a pin is set the server identity is verified
-  /// before the minted token is trusted.
-  Future<RemotePairingVerifyResult?> lanClaim() async {
-    final id = await deviceId();
-    // Full control, as the code dialog pairs by default: a headless rig has
-    // no other screen to choose its capture folder, solver or backups on.
-    return _client.lanClaim(
-      deviceId: id,
-      deviceName: deviceName(),
-      deviceType: 'mobile',
-      requestedScope: 'admin',
-    );
-  }
-
-  /// Opens a pairing session on the host (code is shown on desktop / QR).
-  Future<RemotePairingStartResult> startRemoteSession() => _client.start();
+  /// One-tap pairing on the host's own network, with full access: a headless
+  /// rig has no other screen to choose its capture folder, solver or backups
+  /// on.
+  static Future<RigPairing> pairOneTap(
+    DiscoveredServer host, {
+    RemotePairingClient Function(DiscoveredServer host)? clientFactory,
+  }) => pairing(
+    clientFactory: clientFactory,
+  ).pairOneTap(host, deviceName: deviceName(), fullAccess: true);
 
   static String _generateDeviceId() {
     final rng = Random.secure();
@@ -104,3 +83,8 @@ class MobilePairingService {
     return 'mobile:$hex';
   }
 }
+
+/// What the phone shows when pairing with [host] failed: the same words as the
+/// desktop's link dialog.
+String pairingFailureText(RigPairingFailure failure, DiscoveredServer host) =>
+    describeRigPairingFailure(failure, host);
