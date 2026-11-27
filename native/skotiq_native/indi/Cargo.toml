@@ -16,7 +16,7 @@ tracing.workspace = true
 chrono.workspace = true
 
 # XML parsing for INDI protocol
-quick-xml = { version = "0.31", features = ["async-tokio"] }
+quick-xml = { version = "0.42", features = ["async-tokio"] }
 base64.workspace = true
 # Frames a server sends zlib-compressed (`.fits.z`, `.bin.z`).
 flate2 = "1.1"
