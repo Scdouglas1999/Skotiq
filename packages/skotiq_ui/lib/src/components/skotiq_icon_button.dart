@@ -140,9 +140,7 @@ class _SkotiqIconButtonState extends State<SkotiqIconButton> {
     // 32 / 28 / 36 are desktop pointer sizes (03 §3.3). On a touch platform a
     // finger needs 48, so the INTERACTIVE box grows to it while the painted
     // square — the fill, the hover, the focus ring — stays the size the sheet
-    // specifies. `SkotiqButton` already does exactly this; this control
-    // was the one that did not, and it failed the Android tap-target
-    // guideline on every screen that adopted it.
+    // specifies. `SkotiqButton` already does exactly this.
     final double box = math.max(
       widget.extent,
       SkotiqTouchTarget.minExtent(context),

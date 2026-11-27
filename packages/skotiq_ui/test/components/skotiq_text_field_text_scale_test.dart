@@ -1,8 +1,4 @@
 // A single-line field keeps its whole line at a larger text size.
-//
-// The value's slot was a fixed 14 px box (the unscaled font size), so at
-// 1.3x text the 18 px line, the placeholder included, was cut off at the
-// bottom inside the well.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

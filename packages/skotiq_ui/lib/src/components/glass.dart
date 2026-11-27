@@ -38,7 +38,7 @@ class Glass extends StatelessWidget {
     // The RepaintBoundary is OUTSIDE everything that could gate an animation.
     // A boundary placed INSIDE an animation gate silently stops the animation
     // and reads as a free performance win; the order here is the fix, not an
-    // accident (see memory: animation-gate-repaint-boundary-order).
+    // accident.
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: SkotiqTokens.borderRadiusLg,

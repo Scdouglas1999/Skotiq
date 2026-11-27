@@ -1,5 +1,5 @@
 // Every info banner is blue (`colors.info`) and keeps the red family for
-// problems (P15-5).
+// problems.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

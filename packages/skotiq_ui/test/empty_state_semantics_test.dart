@@ -113,8 +113,7 @@ void main() {
       expect(data.hasFlag(SemanticsFlag.isButton), isFalse);
     }
 
-    // And the control's node covers the control, not the screen: an activation
-    // used to land on a node whose extents were everything.
+    // And the control's node covers the control, not the screen.
     expect(
       tester.getSemantics(find.byType(SkotiqButton)).rect.size,
       tester.getSize(find.byType(SkotiqButton)),

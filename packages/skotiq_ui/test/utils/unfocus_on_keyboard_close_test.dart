@@ -5,8 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
-  // Mobile rework I8: after Back closed the keyboard, the exposure field kept
-  // its caret and stayed mid-edit.
   testWidgets('a field loses focus when the keyboard closes', (tester) async {
     final focus = FocusNode();
     addTearDown(focus.dispose);
@@ -48,8 +46,6 @@ void main() {
     expect(focus.hasFocus, isTrue);
   });
 
-  // Mobile rework P2-45: closing a dialog gave focus back to the field and
-  // reopened the keyboard.
   Future<bool> refocusedAfterDialog(
     WidgetTester tester,
     TargetPlatform platform,

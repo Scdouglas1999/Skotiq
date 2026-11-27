@@ -51,8 +51,7 @@ class _UnfocusOnKeyboardCloseState extends State<UnfocusOnKeyboardClose>
 
 /// On a phone or tablet, ends text editing when a dialog or sheet opens over
 /// a focused field. Flutter gives focus back to the field when the dialog
-/// closes, and with it the soft keyboard the operator had put away (mobile
-/// rework P2-45). A desktop keeps the restore: a keyboard user expects to
+/// closes, and with it the soft keyboard the operator had put away. A desktop keeps the restore: a keyboard user expects to
 /// land where they were.
 class UnfocusTextOnPopupObserver extends NavigatorObserver {
   @override

@@ -132,9 +132,6 @@ void main() {
       // The frames below must ADVANCE TIME. A zero-duration pump ticks the
       // controller without moving it, so nothing repaints, and the gate — which
       // decides on painting — correctly concludes the bar is still invisible.
-      // This test used to pump zero-duration frames and pass anyway, because a
-      // freshly built ThemeData put MaterialApp's own AnimatedTheme on screen:
-      // the frame counter was reading Material's ticker, not this bar's.
       // One frame to paint, one post-frame callback to resume the controller.
       await tester.pump(const Duration(milliseconds: 16));
       await tester.pump(const Duration(milliseconds: 16));
