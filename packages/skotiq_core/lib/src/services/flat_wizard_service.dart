@@ -14,7 +14,6 @@ import '../backend/bridge_events.dart'
         ImagingEvent_ExposureCompletedWithFrame,
         ImagingEvent_ExposureFailed,
         ImagingEvent_ExposureFailedOld;
-import '../backend/network_backend.dart';
 import '../models/flat_wizard/flat_capture_config.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
 import '../models/sequence/sequence_models.dart';
@@ -79,7 +78,7 @@ class FlatWizardService {
   /// backend command, the FITS header, and the DB record so they cannot drift.
   ///
   /// Host authority: [backend.getCameraStatus] and
-  /// [backend.getCameraCapabilities] route to the master on a [NetworkBackend],
+  /// [backend.getCameraCapabilities] route to the master on a `NetworkBackend`,
   /// so the host — not the phone — defines the range and capability limits. Both
   /// Calls are best-effort so the UI can still render a disconnected/partial
   /// preview, but the returned [FlatCaptureConfig.rangeKnown] tells capture
