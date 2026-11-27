@@ -296,7 +296,7 @@ pub(crate) struct LegFailure {
 impl LegFailure {
     /// How many pulses the walk back toward the start sends.
     pub(crate) fn walk_back_pulses(&self) -> u32 {
-        CALIBRATION_MAX_PULSES
+        self.pulses_sent
     }
 }
 
@@ -406,6 +406,19 @@ mod calibration_leg_tests {
     fn a_leg_goes_on_until_the_star_has_clearly_moved() {
         assert!(!calibration_leg_done(5, 2.0, 1));
         assert!(calibration_leg_done(5, CALIBRATION_TARGET_PX, 1));
+    }
+
+    /// A leg that fails part way walks back the pulses it sent, not a full leg:
+    /// a full leg would leave the mount up to 15 pulses past where it started.
+    #[test]
+    fn a_failed_leg_walks_back_only_the_pulses_it_sent() {
+        for sent in [0, 1, 4, CALIBRATION_MAX_PULSES] {
+            let failure = LegFailure {
+                pulses_sent: sent,
+                error: SkotiqError::OperationFailed("star lost".into()),
+            };
+            assert_eq!(failure.walk_back_pulses(), sent);
+        }
     }
 
     #[test]
