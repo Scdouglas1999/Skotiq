@@ -107,6 +107,14 @@ class FilePathSettings extends ConsumerWidget {
     super.key,
   });
 
+  /// Whether [setting] cannot be changed from here. The paths are the
+  /// imaging host's: a client launch changes only those the linked host's
+  /// settings carry (the others, and any while not linked, would be saved
+  /// where nothing reads them).
+  bool _refusedHere(WidgetRef ref, HostPathSetting setting) =>
+      ref.read(isRemoteClientProvider) &&
+      !(ref.read(isRemoteModeProvider) && setting.editableWhenLinked);
+
   Future<void> _selectPath(
     BuildContext context,
     WidgetRef ref,
@@ -115,12 +123,7 @@ class FilePathSettings extends ConsumerWidget {
   ) async {
     final host = ref.backendScope();
     final isRemoteMode = ref.read(isRemoteModeProvider);
-    // Only `image_output_path` is carried by the remote wire model; the three
-    // infra paths (sequences/database/logs) are excluded from partial
-    // persistence and setting them throws UnsupportedError. Block the picker
-    // up-front in remote mode so the user gets a clear message instead of an
-    // unhandled exception.
-    if (isRemoteMode && !setting.editableWhenLinked) {
+    if (_refusedHere(ref, setting)) {
       context.showWarningSnackBar(
           'This path can only be changed on the host machine.');
       return;
@@ -185,7 +188,7 @@ class FilePathSettings extends ConsumerWidget {
       );
       return;
     }
-    if (isRemoteMode && !setting.editableWhenLinked) {
+    if (_refusedHere(ref, setting)) {
       context.showWarningSnackBar(
         'This path can only be changed on the host machine.',
       );

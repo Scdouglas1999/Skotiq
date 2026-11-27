@@ -2,11 +2,15 @@
 // on the client role, not only while linked: a desktop started with
 // `--remote-host` that has not reached its host (or lost it) would otherwise
 // save alert destinations, phone pushes, Home Assistant and plugin settings
-// into its own database, where nothing ever sends them.
+// and the host's storage paths into its own database, where nothing reads
+// them.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/integrations_settings.dart';
+import 'package:skotiq_app/screens/settings/widgets/file_path_settings.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_app/screens/settings/widgets/notification_routing_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/notification_settings.dart';
 import 'package:skotiq_core/providers.dart';
@@ -64,6 +68,46 @@ void main() {
           find.textContaining('phones paired with this computer'),
           findsNothing,
           reason: 'the local push editor saves into this database',
+        );
+      });
+
+      testWidgets('cannot store a host storage path in its own database', (
+        tester,
+      ) async {
+        final handle = await pumpAppScreen(
+          tester,
+          const SettingsFormScope(
+            narrow: false,
+            embedded: true,
+            child: FilePathSettings(),
+          ),
+          size: const Size(1280, 1000),
+          extraOverrides: [
+            launchRoleProvider.overrideWithValue(role),
+            localFoldersProvider.overrideWithValue(FakeHostFolders()),
+          ],
+          settle: false,
+        );
+        await tester.pump();
+        await tester.pump();
+
+        final field = find.descendant(
+          of: find.byType(SettingsPathInput).first,
+          matching: find.byType(TextField),
+        );
+        await tester.ensureVisible(field);
+        await tester.enterText(field, '/mnt/nas/lights');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(
+          handle.container.read(appSettingsProvider).value!.imageOutputPath,
+          isEmpty,
+        );
+        expect(
+          find.text('This path can only be changed on the host machine.'),
+          findsOneWidget,
         );
       });
 
