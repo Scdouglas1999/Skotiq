@@ -13,8 +13,12 @@ import 'package:skotiq_mobile/widgets/phone_standalone_app.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _Settings extends AppSettingsNotifier {
+  _Settings([this.state0 = const AppSettingsState()]);
+
+  final AppSettingsState state0;
+
   @override
-  Future<AppSettingsState> build() async => const AppSettingsState();
+  Future<AppSettingsState> build() async => state0;
 }
 
 void main() {
@@ -70,5 +74,38 @@ void main() {
         .margin!
         .resolve(TextDirection.ltr);
     expect(margin.bottom, 10 + ShellChromeMetrics.statusBarHeight);
+  });
+
+  testWidgets('speaks the chosen language at the chosen font size', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    late Locale locale;
+    late TextScaler scaler;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appSettingsProvider.overrideWith(
+            () => _Settings(
+              const AppSettingsState(language: 'es', fontSize: 'Large'),
+            ),
+          ),
+        ],
+        child: PhoneStandaloneApp(
+          home: Builder(
+            builder: (context) {
+              locale = Localizations.localeOf(context);
+              scaler = MediaQuery.textScalerOf(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(locale, const Locale('es'));
+    expect(scaler, const TextScaler.linear(1.15));
   });
 }
