@@ -17,7 +17,7 @@ import 'package:skotiq_app/services/night_session/night_session_events.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
-import 'package:skotiq_app/screens/shell/widgets/android_notifications_banner.dart';
+import 'package:skotiq_app/services/android_alert_permission.dart';
 import 'package:skotiq_app/utils/guide_distance.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';

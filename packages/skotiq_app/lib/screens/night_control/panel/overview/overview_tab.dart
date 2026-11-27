@@ -5,7 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shell/widgets/android_notifications_banner.dart';
+import '../../../../services/android_alert_permission.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/models.dart' show TargetHeaderNode;
 import 'package:skotiq_core/providers.dart'
@@ -161,10 +161,7 @@ class NightOverviewTab extends ConsumerWidget {
       return;
     }
     if (item.id == ChecklistItemId.alerts) {
-      final request = ref.read(androidNotificationsRequestProvider);
-      if (request == null) return;
-      final granted = await request();
-      ref.read(androidNotificationsAuthorizedProvider.notifier).state = granted;
+      await requestAndroidAlerts(ref);
       return;
     }
     final route = item.route;
