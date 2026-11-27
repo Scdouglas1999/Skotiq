@@ -150,14 +150,9 @@ impl ResumeRecord {
     }
 
     /// Seconds of integration the steps inside the loop `id` have collected
-    /// in its current run.
-    pub fn loop_integration(&self, id: &str) -> f64 {
-        self.0
-            .read()
-            .loop_integration
-            .get(id)
-            .copied()
-            .unwrap_or(0.0)
+    /// in its current run; `None` before any of them was credited.
+    pub fn loop_integration(&self, id: &str) -> Option<f64> {
+        self.0.read().loop_integration.get(id).copied()
     }
 
     /// Steps inside `loops` collected `secs` of integration.
@@ -208,14 +203,15 @@ fn loop_integration_from_frames(
         in_pass: &HashMap<NodeId, u32>,
     ) -> f64 {
         let own = match node.node_type() {
-            NodeType::TakeExposure(config) => {
-                let finished = in_plan
-                    .get(node.id())
-                    .copied()
-                    .unwrap_or(0)
-                    .saturating_sub(in_pass.get(node.id()).copied().unwrap_or(0));
-                config.duration_secs * f64::from(finished)
-            }
+            NodeType::TakeExposure(config) => match in_plan.get(node.id()) {
+                Some(done) => {
+                    let finished = in_pass
+                        .get(node.id())
+                        .map_or(*done, |cut| done.saturating_sub(*cut));
+                    config.duration_secs * f64::from(finished)
+                }
+                None => 0.0,
+            },
             _ => 0.0,
         };
         own + node

@@ -27,16 +27,18 @@ fn effective_altitude_floor(
     }
 }
 
-pub async fn execute_loop(
+/// [`execute_loop`] with an integration-time loop's id on the context for
+/// its subtree, so the steps inside credit it.
+pub async fn execute_loop_node(
     node: &mut RuntimeNode,
     config: LoopConfig,
     context: &mut ExecutionContext,
 ) -> NodeStatus {
     if config.condition != LoopCondition::IntegrationTime {
-        return run_loop(node, config, context).await;
+        return execute_loop(node, config, context).await;
     }
     context.integration_loops.push(node.id().clone());
-    let status = run_loop(node, config, context).await;
+    let status = execute_loop(node, config, context).await;
     context.integration_loops.pop();
     if status != NodeStatus::Cancelled {
         context.resume.loop_ended(node.id());
@@ -44,7 +46,7 @@ pub async fn execute_loop(
     status
 }
 
-async fn run_loop(
+pub async fn execute_loop(
     node: &mut RuntimeNode,
     config: LoopConfig,
     context: &mut ExecutionContext,
@@ -161,7 +163,10 @@ async fn run_loop(
             }
             LoopCondition::IntegrationTime => {
                 if let Some(target_secs) = config.condition_value {
-                    context.resume.loop_integration(node.id()) < target_secs
+                    context
+                        .resume
+                        .loop_integration(node.id())
+                        .is_none_or(|secs| secs < target_secs)
                 } else {
                     false
                 }
