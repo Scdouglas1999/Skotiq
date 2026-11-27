@@ -552,7 +552,7 @@ void main() {
       expect(dawn.detail!.key, 'nightSessionCheckDawnPark');
       expect(
         dawn.detail!.params['time'],
-        ClockFormat.hm((const SystemClock()).fromUtc(expected.toUtc())),
+        ClockFormat.hm((const SystemClock()).wallClockOf(expected)),
       );
     });
 

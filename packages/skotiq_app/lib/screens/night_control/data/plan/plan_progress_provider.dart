@@ -168,6 +168,6 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     integrated: integrated,
     openEnded: planOpenEnded,
     planned: planOpenEnded ? null : timing?.total,
-    eta: eta == null ? null : clock.toNightClock(eta),
+    eta: eta == null ? null : clock.wallClockOf(eta),
   );
 });

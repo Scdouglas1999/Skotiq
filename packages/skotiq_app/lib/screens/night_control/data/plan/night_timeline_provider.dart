@@ -126,15 +126,15 @@ final nightTimelineProvider = Provider<NightTimelineVm?>((ref) {
   return NightTimelineVm(
     sunset: night.sunset,
     sunrise: night.sunrise,
-    now: clock.toNightClock(ref.watch(nightNowProvider)),
+    now: clock.wallClockOf(ref.watch(nightNowProvider)),
     astroDark: night.astroDark,
     astroDawn: night.astroDawn,
     windows: <TimelineWindowVm>[
       for (final window in windows)
         TimelineWindowVm(
           name: window.target.displayName,
-          start: clock.toNightClock(window.start),
-          end: clock.toNightClock(window.end),
+          start: clock.wallClockOf(window.start),
+          end: clock.wallClockOf(window.end),
           estimated: window.estimated,
           state: window.state,
         ),

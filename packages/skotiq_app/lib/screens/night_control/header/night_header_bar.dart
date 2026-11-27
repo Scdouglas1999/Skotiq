@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/providers.dart' show clockProvider;
+import 'package:skotiq_core/providers.dart' show ClockTimeOfDay, clockProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -24,7 +24,6 @@ import '../../../services/night_actions/manual_action_gating.dart'
     show manualActionKey;
 import '../../../services/night_actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
-import '../data/plan/night_plan_inputs.dart' show NightClockTimes;
 import '../data/plan/night_timeline_provider.dart';
 import '../left/night_time_format.dart';
 import '../night_control_contracts.dart';
@@ -428,7 +427,7 @@ class NightHeaderBar extends ConsumerWidget {
     final l10n = SkotiqLocalizations.of(context);
     final dark = ref.read(nightAstroDarkProvider);
     final darkOnClock =
-        dark == null ? null : ref.read(clockProvider).toNightClock(dark);
+        dark == null ? null : ref.read(clockProvider).wallClockOf(dark);
     return showDialog<void>(
       context: context,
       builder: (_) => PreFlightValidationDialog(

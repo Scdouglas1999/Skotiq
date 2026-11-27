@@ -107,7 +107,7 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
     return estimate == null
         ? null
         : StepWhenPlanned(
-            clock.toNightClock(estimate.estimatedStart.add(shift)),
+            clock.wallClockOf(estimate.estimatedStart.add(shift)),
           );
   }
 
@@ -144,7 +144,7 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
             // An estimate for a step that already ran reads as a time still
             // to come; a client that joined later has no event for it.
             when = finished != null
-                ? StepWhenActual(clock.toNightClock(finished))
+                ? StepWhenActual(clock.wallClockOf(finished))
                 : null;
           case PlanStepStatus.pending:
             when = planned(id, shift: lag);

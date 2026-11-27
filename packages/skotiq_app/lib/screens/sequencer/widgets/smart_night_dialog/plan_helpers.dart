@@ -121,7 +121,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       if (!overlaps) {
         context.showWarningSnackBar(
           'Your chosen window falls outside tonight\'s dark window '
-          '(${ClockFormat.dateHm(clock.wallClockOf(twiStart))} – ${ClockFormat.dateHm(clock.wallClockOf(twiEnd))}). '
+          '(${clock.dateHm(twiStart)} – ${clock.dateHm(twiEnd)}). '
           'Exposures will be in twilight or daylight.',
         );
       }

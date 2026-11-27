@@ -288,7 +288,7 @@ class TargetGroupProperties extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               node.startAfter != null
-                                  ? stepClock.timeOfDay(node.startAfter!)
+                                  ? stepClock.hm(node.startAfter!)
                                   : 'Not set',
                               style: TextStyle(
                                 fontSize: SkotiqTypography.fontSize13,
@@ -351,7 +351,7 @@ class TargetGroupProperties extends ConsumerWidget {
                           Expanded(
                             child: Text(
                               node.endBefore != null
-                                  ? stepClock.timeOfDay(node.endBefore!)
+                                  ? stepClock.hm(node.endBefore!)
                                   : 'Not set',
                               style: TextStyle(
                                 fontSize: SkotiqTypography.fontSize13,

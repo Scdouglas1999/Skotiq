@@ -101,7 +101,13 @@ extension ClockTimeOfDay on Clock {
   DateTime wallClockOf(DateTime instant) => fromUtc(instant.toUtc());
 
   /// [instant] as `HH:MM` on this clock.
-  String timeOfDay(DateTime instant) => ClockFormat.hm(wallClockOf(instant));
+  String hm(DateTime instant) => ClockFormat.hm(wallClockOf(instant));
+
+  /// [instant] as `HH:MM:SS` on this clock.
+  String hms(DateTime instant) => ClockFormat.hms(wallClockOf(instant));
+
+  /// [instant] as `YYYY-MM-DD HH:MM` on this clock.
+  String dateHm(DateTime instant) => ClockFormat.dateHm(wallClockOf(instant));
 
   /// The true instant behind [onClock], a time already on this clock.
   ///

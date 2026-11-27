@@ -172,7 +172,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                       Icon(LucideIcons.sunset, size: 16, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'Start: ${ClockFormat.dateHm(clock.wallClockOf(start))}',
+                        'Start: ${clock.dateHm(start)}',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: SkotiqTypography.fontSize13,
@@ -195,7 +195,7 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
                           size: 16, color: colors.primary),
                       const SizedBox(width: 8),
                       Text(
-                        'End: ${ClockFormat.dateHm(clock.wallClockOf(end))}',
+                        'End: ${clock.dateHm(end)}',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontSize: SkotiqTypography.fontSize13,

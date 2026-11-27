@@ -28,7 +28,7 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
   final phase = ref.watch(nightRunPhaseProvider);
   final night = ref.watch(tonightNightProvider);
   final clock = ref.watch(clockProvider);
-  final now = clock.toNightClock(ref.watch(nightNowProvider));
+  final now = clock.wallClockOf(ref.watch(nightNowProvider));
   final flipAt = ref.watch(nightTargetProvider.select((t) => t?.flipAt));
   final holdAt = ref.watch(nightTargetProvider.select((t) => t?.holdAt));
 
@@ -110,7 +110,7 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
 
   final nextTarget = _nextTarget(ref);
   final switchAt =
-      nextTarget == null ? null : clock.toNightClock(nextTarget.start);
+      nextTarget == null ? null : clock.wallClockOf(nextTarget.start);
   // The current target sinking matters only while the run is still on it.
   final lowMatters = belowLimit != null &&
       (switchAt == null || belowLimit.isBefore(switchAt)) &&

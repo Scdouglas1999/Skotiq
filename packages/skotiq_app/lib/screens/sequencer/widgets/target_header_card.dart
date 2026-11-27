@@ -428,7 +428,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.startAfter != null)
             _ConstraintChip(
               icon: LucideIcons.clock,
-              label: 'Start: ${stepClock.timeOfDay(node.startAfter!)}',
+              label: 'Start: ${stepClock.hm(node.startAfter!)}',
               colors: widget.colors,
             ),
           if (node.startAfter != null && node.endBefore != null)
@@ -436,7 +436,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           if (node.endBefore != null)
             _ConstraintChip(
               icon: LucideIcons.timer,
-              label: 'End: ${stepClock.timeOfDay(node.endBefore!)}',
+              label: 'End: ${stepClock.hm(node.endBefore!)}',
               colors: widget.colors,
             ),
           if (node.hasTimeConstraints && node.hasAltitudeConstraints)

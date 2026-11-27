@@ -4,7 +4,6 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/screens/night_control/data/tonight_night.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/services/run_control/run_control.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/services/run_dashboard_providers.dart';
@@ -42,7 +41,7 @@ DateTime bostonClockTime(int year, int month, int day,
 /// the app holds are the operator's clock renderings).
 TonightNight bostonNight([Clock clock = const SystemClock()]) {
   DateTime at(int day, int hour, int minute) =>
-      clock.toNightClock(bostonTime(2026, 10, day, hour, minute));
+      clock.wallClockOf(bostonTime(2026, 10, day, hour, minute));
   return TonightNight(
     sunset: at(19, 18, 18),
     astroDark: at(19, 19, 48),

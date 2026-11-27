@@ -10,7 +10,6 @@ import 'package:skotiq_core/providers.dart';
 // keeps canonical; it comes from the core's typed-event seam.
 import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
-import 'night_plan_inputs.dart';
 import '../../../../services/night_session/night_scheduler_picks.dart';
 
 /// One pick of the Target Scheduler.
@@ -73,7 +72,7 @@ SchedulerDecisionView? _schedulerDecision(
   final sequencer = payload.field0;
   if (sequencer is! SequencerEvent_SchedulerDecision) return null;
   return SchedulerDecisionView(
-    time: clock.toNightClock(
+    time: clock.wallClockOf(
       DateTime.fromMillisecondsSinceEpoch(event.timestamp.toInt()),
     ),
     decisionCounter: sequencer.decisionCounter,

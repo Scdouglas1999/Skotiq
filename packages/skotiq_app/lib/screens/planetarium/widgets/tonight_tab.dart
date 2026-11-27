@@ -5,7 +5,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import '../../../services/observing_site.dart';
@@ -143,29 +142,25 @@ class TonightTab extends ConsumerWidget {
                   if (twilight.sunset != null)
                     TwilightRow(
                       label: 'Sunset',
-                      time: ClockFormat.hm(
-                          clock.fromUtc(twilight.sunset!.toUtc())),
+                      time: clock.hm(twilight.sunset!),
                       colors: colors,
                     ),
                   if (twilight.civilDusk != null)
                     TwilightRow(
                       label: 'Civil dusk',
-                      time: ClockFormat.hm(
-                          clock.fromUtc(twilight.civilDusk!.toUtc())),
+                      time: clock.hm(twilight.civilDusk!),
                       colors: colors,
                     ),
                   if (twilight.nauticalDusk != null)
                     TwilightRow(
                       label: 'Nautical dusk',
-                      time: ClockFormat.hm(
-                          clock.fromUtc(twilight.nauticalDusk!.toUtc())),
+                      time: clock.hm(twilight.nauticalDusk!),
                       colors: colors,
                     ),
                   if (twilight.astronomicalDusk != null)
                     TwilightRow(
                       label: 'Astro dusk',
-                      time: ClockFormat.hm(
-                          clock.fromUtc(twilight.astronomicalDusk!.toUtc())),
+                      time: clock.hm(twilight.astronomicalDusk!),
                       isPrimary: true,
                       colors: colors,
                     ),
@@ -190,30 +185,26 @@ class TonightTab extends ConsumerWidget {
                   if (twilight.astronomicalDawn != null)
                     TwilightRow(
                       label: 'Astro dawn',
-                      time: ClockFormat.hm(
-                          clock.fromUtc(twilight.astronomicalDawn!.toUtc())),
+                      time: clock.hm(twilight.astronomicalDawn!),
                       isPrimary: true,
                       colors: colors,
                     ),
                   if (twilight.nauticalDawn != null)
                     TwilightRow(
                       label: 'Nautical dawn',
-                      time: ClockFormat.hm(
-                          clock.fromUtc(twilight.nauticalDawn!.toUtc())),
+                      time: clock.hm(twilight.nauticalDawn!),
                       colors: colors,
                     ),
                   if (twilight.civilDawn != null)
                     TwilightRow(
                       label: 'Civil dawn',
-                      time: ClockFormat.hm(
-                          clock.fromUtc(twilight.civilDawn!.toUtc())),
+                      time: clock.hm(twilight.civilDawn!),
                       colors: colors,
                     ),
                   if (twilight.sunrise != null)
                     TwilightRow(
                       label: 'Sunrise',
-                      time: ClockFormat.hm(
-                          clock.fromUtc(twilight.sunrise!.toUtc())),
+                      time: clock.hm(twilight.sunrise!),
                       colors: colors,
                     ),
                 ],
@@ -271,15 +262,13 @@ class TonightTab extends ConsumerWidget {
                 if (moonTimes?.moonrise != null)
                   TwilightRow(
                     label: 'Moonrise',
-                    time: ClockFormat.hm(
-                        clock.fromUtc(moonTimes!.moonrise!.toUtc())),
+                    time: clock.hm(moonTimes!.moonrise!),
                     colors: colors,
                   ),
                 if (moonTimes?.moonset != null)
                   TwilightRow(
                     label: 'Moonset',
-                    time: ClockFormat.hm(
-                        clock.fromUtc(moonTimes!.moonset!.toUtc())),
+                    time: clock.hm(moonTimes!.moonset!),
                     colors: colors,
                   ),
               ],
@@ -384,9 +373,8 @@ class TonightTab extends ConsumerWidget {
                     // culminates while the sun is up names an hour nobody can
                     // use, and which was exactly what let daylight targets
                     // head this list.
-                    final peakTime = item.peakTime != null
-                        ? ClockFormat.hm(clock.fromUtc(item.peakTime!.toUtc()))
-                        : '-';
+                    final peakTime =
+                        item.peakTime != null ? clock.hm(item.peakTime!) : '-';
                     return TargetCard(
                       name: displayName,
                       catalog: catalogTag,
@@ -686,7 +674,7 @@ class _SatellitePassCard extends StatelessWidget {
             children: [
               _PassTimeLabel(
                 label: 'Rise',
-                time: ClockFormat.hm(clock.fromUtc(pass.riseTime.toUtc())),
+                time: clock.hm(pass.riseTime),
                 az: '${pass.riseAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),
@@ -695,8 +683,7 @@ class _SatellitePassCard extends StatelessWidget {
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Max',
-                time: ClockFormat.hm(
-                    clock.fromUtc(pass.maxElevationTime.toUtc())),
+                time: clock.hm(pass.maxElevationTime),
                 az: '${pass.maxElevationAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),
@@ -705,7 +692,7 @@ class _SatellitePassCard extends StatelessWidget {
               const SizedBox(width: 8),
               _PassTimeLabel(
                 label: 'Set',
-                time: ClockFormat.hm(clock.fromUtc(pass.setTime.toUtc())),
+                time: clock.hm(pass.setTime),
                 az: '${pass.setAzimuth.toStringAsFixed(0)}\u00b0',
                 colors: colors,
               ),

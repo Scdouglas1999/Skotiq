@@ -18,7 +18,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../../localization/skotiq_localizations.dart';
 import '../../../../services/night_actions/manual_action_gating.dart';
 import '../../../../services/night_actions/night_action_controller.dart';
-import '../../data/plan/night_plan_inputs.dart';
 import '../../night_control_contracts.dart';
 import '../../../../services/run_dashboard_providers.dart';
 import '../panel_widgets.dart';
@@ -98,7 +97,7 @@ class _LastSolveSection extends ConsumerWidget {
     } else if (runSolve != null) {
       status = [
         l10n.text('nightScopeSolveSolved'),
-        ClockFormat.hm(clock.toNightClock(runSolve.at)),
+        clock.hm(runSolve.at),
       ].join(' · ');
       statusTone = MetricGridTone.good;
     } else if (inputs.solverMissing) {
@@ -110,8 +109,7 @@ class _LastSolveSection extends ConsumerWidget {
     } else {
       final parts = <String>[
         l10n.text(solved ? 'nightScopeSolveSolved' : 'nightScopeSolveFailed'),
-        if (lastRecord != null)
-          ClockFormat.hm(clock.toNightClock(lastRecord.at)),
+        if (lastRecord != null) clock.hm(lastRecord.at),
         if (duration != null)
           '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s',
       ];

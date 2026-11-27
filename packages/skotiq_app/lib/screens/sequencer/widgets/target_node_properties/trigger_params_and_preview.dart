@@ -152,7 +152,7 @@ class _TimeInputButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stepClock = ref.watch(clockProvider);
     final dt = DateTime.fromMillisecondsSinceEpoch(unixSecs * 1000);
-    final hhmm = stepClock.timeOfDay(dt);
+    final hhmm = stepClock.hm(dt);
     return GestureDetector(
       onTap: () async {
         final picked = await pickStepTimeOfDay(
