@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/utils/exported_file_reveal.dart';
@@ -29,7 +27,7 @@ void main() {
 
     expect(find.textContaining('/tmp/skotiq/export.csv'), findsOneWidget);
     expect(find.textContaining('Exported to'), findsOneWidget);
-  }, skip: Platform.isAndroid || Platform.isIOS);
+  });
 
   testWidgets('desktop: honors a custom desktopMessage', (tester) async {
     late BuildContext ctx;
@@ -54,7 +52,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Logs exported to: /tmp/logs.txt'), findsOneWidget);
-  }, skip: Platform.isAndroid || Platform.isIOS);
+  });
 
   test('the export reveal shares on the hosts with a share sheet', () {
     expect(hostHasShareSheet('android'), isTrue);

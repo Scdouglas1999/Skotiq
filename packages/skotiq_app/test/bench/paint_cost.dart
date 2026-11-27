@@ -2,7 +2,7 @@
 // widget (custom painters, fl_chart render objects, text) is painted into a
 // fresh picture, many times, and the median is reported.
 //
-// Run by hand: flutter test test/bench/chart_paint_cost_test.dart
+// Run by hand: SKOTIQ_PAINT_BENCH=1 flutter test test/bench/chart_paint_cost_test.dart
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';

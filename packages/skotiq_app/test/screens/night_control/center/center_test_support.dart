@@ -143,6 +143,7 @@ List<Override> centerOverrides(
   NightGuiderIdleVm? guider,
   NightSeriesVm? coolerHistory,
   FrameFileDecoder? decoder,
+  Clock clock = const SystemClock(),
 }) {
   final backend = MockBackend();
   when(() => backend.getImageThumbnail(any()))
@@ -180,7 +181,7 @@ List<Override> centerOverrides(
           ),
     ),
     stretchedImageProvider.overrideWith((ref) async => null),
-    clockProvider.overrideWithValue(const SystemClock()),
+    clockProvider.overrideWithValue(clock),
     imagingBackendProvider.overrideWithValue(backend),
     isRemoteModeProvider.overrideWithValue(false),
     frameFileDecoderProvider.overrideWithValue(

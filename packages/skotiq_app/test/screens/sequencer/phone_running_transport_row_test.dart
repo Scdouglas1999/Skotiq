@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_toolbar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_core/models.dart';
@@ -64,13 +63,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
 
     final bar = find.byType(SequenceToolbar);
-    expect(
-      find.descendant(of: bar, matching: find.byType(MobilePlaybackBar)),
-      findsOneWidget,
-    );
-    expect(find.byType(MobilePlaybackBar), findsOneWidget);
-    expect(find.byTooltip('Pause'), findsOneWidget);
-    expect(find.byTooltip('Skip'), findsOneWidget);
+    final row = tester.getRect(bar);
+    for (final control in ['Pause', 'Skip']) {
+      expect(find.byTooltip(control), findsOneWidget);
+      final rect = tester.getRect(find.byTooltip(control));
+      expect(
+        rect.top >= row.top && rect.bottom <= row.bottom,
+        isTrue,
+        reason: '$control sits in the plan row ($row), not a row of its own '
+            '($rect)',
+      );
+    }
     // The add button was an unlabeled control to a screen reader.
     expect(find.byTooltip('Add a step'), findsOneWidget);
     expect(

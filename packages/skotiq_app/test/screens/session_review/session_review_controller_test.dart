@@ -18,6 +18,7 @@ import 'package:skotiq_core/services.dart' as seam;
 
 import '../../harness/mock_database.dart';
 import '../../harness/temporary_data_directory.dart';
+import 'settled_review.dart';
 
 class _FakeSeam implements PostSessionSeam {
   /// The args of every deconvolution call, so the tests can assert the seam
@@ -188,13 +189,7 @@ void main() {
   // The night report is computed and written after the sub list is shown, so
   // a test that ended at the first paint would leave it writing into the
   // temporary data folder the tear-down deletes.
-  Future<void> waitUntilLoaded() async {
-    for (var i = 0;
-        i < 500 && (state().loading || state().loadingSmartData);
-        i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-  }
+  Future<void> waitUntilLoaded() => settledReview(state);
 
   test('loads the session subs and counts acceptance', () async {
     controller();

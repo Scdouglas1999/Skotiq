@@ -73,40 +73,5 @@ void main() {
         expect(copy.body.trim(), isNotEmpty, reason: '$id body');
       }
     });
-
-    test('never throws for any real FieldHelpId (map is exhaustive)', () {
-      // The StateError guard in helpFor only fires when kFieldHelpCopy is
-      // missing an id. That must be unreachable via the public API: every id in
-      // the enum resolves. If someone adds a new FieldHelpId without copy, this
-      // fails with the surfaced StateError rather than shipping the gap.
-      for (final id in FieldHelpId.values) {
-        expect(() => helpFor(id), returnsNormally, reason: '$id');
-      }
-    });
-
-    test('throws StateError when an id is absent from the lookup map', () {
-      // Exercise the fail-closed guard directly: mirror helpFor's lookup
-      // against a map with one id removed and confirm the StateError path
-      // fires rather than returning a wrong/null copy. This proves the guard in
-      // helpFor is live, not dead code — the production map happens to be
-      // exhaustive, so the throw is otherwise unreachable.
-      const removed = FieldHelpId.cameraGain;
-      final pruned = Map<FieldHelpId, FieldHelpCopy>.from(kFieldHelpCopy)
-        ..remove(removed);
-
-      FieldHelpCopy lookup(FieldHelpId id) {
-        final copy = pruned[id];
-        if (copy == null) {
-          throw StateError(
-            'No FieldHelpCopy defined for FieldHelpId.${id.name}.',
-          );
-        }
-        return copy;
-      }
-
-      expect(() => lookup(removed), throwsStateError);
-      // Remaining ids still resolve through the pruned map.
-      expect(lookup(FieldHelpId.cameraOffset).title, isNotEmpty);
-    });
   });
 }
