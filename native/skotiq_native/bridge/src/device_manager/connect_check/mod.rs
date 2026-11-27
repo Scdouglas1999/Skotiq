@@ -33,14 +33,14 @@ use verdicts::TrackingVerdict;
 
 /// The field words the `Unverified` property names, comma-separated.
 pub(crate) mod field {
-    pub(crate) const POSITION: &str = "position";
-    pub(crate) const COOLER: &str = "cooler";
-    pub(crate) const TRACKING: &str = "tracking";
-    pub(crate) const PIER_SIDE: &str = "pier side";
-    pub(crate) const CLOCK: &str = "clock";
-    pub(crate) const SITE: &str = "site";
-    #[cfg(test)]
-    pub(crate) const ALL: [&str; 6] = [POSITION, COOLER, TRACKING, PIER_SIDE, CLOCK, SITE];
+    word_consts! {
+        POSITION = "position";
+        COOLER = "cooler";
+        TRACKING = "tracking";
+        PIER_SIDE = "pier side";
+        CLOCK = "clock";
+        SITE = "site";
+    }
 }
 
 /// One thing a check found: the field and the sentence naming both sources.

@@ -578,3 +578,26 @@ impl CalibratorState {
         }
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::DeviceType::ALL,
+            [
+                super::DeviceType::Camera,
+                super::DeviceType::Mount,
+                super::DeviceType::Focuser,
+                super::DeviceType::FilterWheel,
+                super::DeviceType::Guider,
+                super::DeviceType::Dome,
+                super::DeviceType::Rotator,
+                super::DeviceType::Weather,
+                super::DeviceType::SafetyMonitor,
+                super::DeviceType::Switch,
+                super::DeviceType::CoverCalibrator
+            ]
+        );
+    }
+}

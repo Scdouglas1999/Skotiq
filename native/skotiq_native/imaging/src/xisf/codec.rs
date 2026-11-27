@@ -546,3 +546,33 @@ mod tests {
         assert_eq!(encode_hex(&[0, 171, 255]), "00abff");
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::XisfCodec::ALL,
+            [
+                super::XisfCodec::Zlib,
+                super::XisfCodec::Lz4,
+                super::XisfCodec::Lz4Hc,
+                super::XisfCodec::Zstd
+            ]
+        );
+    }
+
+    #[test]
+    fn checksum_all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::ChecksumAlgorithm::ALL,
+            [
+                super::ChecksumAlgorithm::Sha1,
+                super::ChecksumAlgorithm::Sha256,
+                super::ChecksumAlgorithm::Sha512,
+                super::ChecksumAlgorithm::Sha3_256,
+                super::ChecksumAlgorithm::Sha3_512
+            ]
+        );
+    }
+}

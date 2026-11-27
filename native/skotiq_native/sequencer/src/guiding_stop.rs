@@ -426,3 +426,25 @@ mod tests {
         assert_eq!(guider.stops(), 1);
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::GuidingStopReason::ALL,
+            [
+                super::GuidingStopReason::Autofocus,
+                super::GuidingStopReason::MeridianFlip,
+                super::GuidingStopReason::TrackingLimitHold,
+                super::GuidingStopReason::MountMove,
+                super::GuidingStopReason::PreMeridianHold,
+                super::GuidingStopReason::SequenceStep,
+                super::GuidingStopReason::DitherSettle,
+                super::GuidingStopReason::RunStopped,
+                super::GuidingStopReason::Operator,
+                super::GuidingStopReason::MountFault
+            ]
+        );
+    }
+}

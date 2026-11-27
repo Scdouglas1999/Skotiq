@@ -937,10 +937,7 @@ fn a_frame_file_that_cannot_be_read_is_raised_as_unreadable() {
         .starts_with("Image error: Failed to read frame image: "));
 }
 
-const TOO_FEW_STARS_FIXTURE: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json"
-);
+const TOO_FEW_STARS_FIXTURE: &str = "ffi_replies/live_stack_too_few_reference_stars.json";
 
 /// `test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json`: the
 /// refusal a reference with too few stars is raised as, with the counts its
@@ -965,18 +962,10 @@ fn a_reference_with_too_few_stars_is_refused_with_both_counts() {
         "detectedStars": 3,
         "requiredStars": 8,
     });
-    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-        let mut text = serde_json::to_string_pretty(&sample).expect("pretty");
-        text.push('\n');
-        std::fs::write(TOO_FEW_STARS_FIXTURE, text).expect("write fixture");
-        return;
-    }
-    let committed: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(TOO_FEW_STARS_FIXTURE).expect("fixture"))
-            .expect("JSON");
-    assert_eq!(
-        committed, sample,
-        "the too-few-stars refusal changed; regenerate the fixture and update the app's reader"
+    skotiq_wire_fixtures::pin_json(
+        TOO_FEW_STARS_FIXTURE,
+        &sample,
+        "the too-few-stars refusal changed; regenerate the fixture and update the app's reader",
     );
     assert_eq!(
         error.to_string(),

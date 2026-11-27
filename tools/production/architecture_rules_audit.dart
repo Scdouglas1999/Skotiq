@@ -214,26 +214,39 @@ const _dartPackages = <String, _DartPackage>{
 
 /// The layering of the Rust workspace (`native/skotiq_native`), lowest first.
 const _rustCrates = <String, Set<String>>{
+  // Test support only (a dev-dependency): the fixture pins the crates' tests
+  // share with the app's tests.
+  'skotiq_wire_fixtures': {},
   // The frame vocabulary: the color filter array a camera reports and the
   // imaging code demosaics, and the filter-name rule, one crate below both.
-  'skotiq_frame': {},
-  'skotiq_device': {'skotiq_frame'},
-  'skotiq_imaging': {'skotiq_frame'},
+  'skotiq_frame': {'skotiq_wire_fixtures'},
+  'skotiq_device': {'skotiq_frame', 'skotiq_wire_fixtures'},
+  'skotiq_imaging': {'skotiq_frame', 'skotiq_wire_fixtures'},
   'skotiq_phd2': {},
   'skotiq_updater': {},
   'skotiq_platesolve': {'skotiq_imaging'},
-  'skotiq_processing': {'skotiq_imaging', 'skotiq_platesolve'},
+  'skotiq_processing': {
+    'skotiq_imaging',
+    'skotiq_platesolve',
+    'skotiq_wire_fixtures',
+  },
   'skotiq_alpaca': {'skotiq_device'},
   'skotiq_ascom': {'skotiq_device'},
   // An INDI camera sends its frames as FITS or XISF files, which the imaging
   // crate alone decodes, as the native drivers' camera raw files.
   'skotiq_indi': {'skotiq_device', 'skotiq_imaging'},
-  'skotiq_native': {'skotiq_frame', 'skotiq_device', 'skotiq_imaging'},
+  'skotiq_native': {
+    'skotiq_frame',
+    'skotiq_device',
+    'skotiq_imaging',
+    'skotiq_wire_fixtures',
+  },
   'skotiq_sequencer': {
     'skotiq_frame',
     'skotiq_device',
     'skotiq_imaging',
     'skotiq_platesolve',
+    'skotiq_wire_fixtures',
   },
   'skotiq_bridge': {
     'skotiq_alpaca',
@@ -247,6 +260,7 @@ const _rustCrates = <String, Set<String>>{
     'skotiq_platesolve',
     'skotiq_processing',
     'skotiq_sequencer',
+    'skotiq_wire_fixtures',
   },
 };
 

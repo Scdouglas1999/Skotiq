@@ -13,11 +13,6 @@
 use serde::de::{self, DeserializeOwned, DeserializeSeed, IntoDeserializer, Visitor};
 use serde_json::{Map, Value};
 
-const DIR: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../../test_fixtures/ffi_args"
-);
-
 /// Nesting past which a struct is not traced further (a type that holds
 /// itself).
 const MAX_DEPTH: usize = 12;
@@ -25,20 +20,12 @@ const MAX_DEPTH: usize = 12;
 /// Write the key schema of `T` as the fixture `name` (with
 /// `SKOTIQ_WRITE_FIXTURES`), or check that the committed fixture is it.
 pub(crate) fn check_or_write_args<T: DeserializeOwned>(name: &str) {
-    let value = key_schema::<T>();
-    let path = format!("{DIR}/{name}.json");
-    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-        std::fs::create_dir_all(DIR).expect("fixture dir");
-        let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-        text.push('\n');
-        std::fs::write(&path, text).expect("write fixture");
-        return;
-    }
-    let committed = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
-    let committed: Value = serde_json::from_str(&committed).expect("fixture JSON");
-    assert_eq!(
-        committed, value,
-        "the {name} request keys changed; regenerate the fixture and update the app's builder"
+    skotiq_wire_fixtures::pin_json(
+        &format!("ffi_args/{name}.json"),
+        &key_schema::<T>(),
+        &format!(
+            "the {name} request keys changed; regenerate the fixture and update the app's builder"
+        ),
     );
 }
 

@@ -226,20 +226,9 @@ impl RunState {
 mod tests {
     use super::*;
 
-    const ALL_EXECUTOR_STATES: [ExecutorState; 8] = [
-        ExecutorState::Idle,
-        ExecutorState::Running,
-        ExecutorState::Paused,
-        ExecutorState::Stopping,
-        ExecutorState::Cancelled,
-        ExecutorState::Completed,
-        ExecutorState::Failed,
-        ExecutorState::Recovering,
-    ];
-
     #[test]
     fn only_a_live_run_has_a_mode() {
-        for executor in ALL_EXECUTOR_STATES {
+        for executor in ExecutorState::ALL {
             for hold in [
                 None,
                 Some(RunHold::PreMeridian),

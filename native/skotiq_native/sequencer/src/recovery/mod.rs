@@ -461,10 +461,7 @@ impl RecoveryHistoryEntry {
 
 #[cfg(test)]
 mod tests {
-    const PHASES_FIXTURE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../test_fixtures/wire_words/recovery_phases.json"
-    );
+    const PHASES_FIXTURE: &str = "wire_words/recovery_phases.json";
 
     /// `test_fixtures/wire_words/recovery_phases.json`: every recovery
     /// phase's wire word, which the app's recovery status reads. Regenerate
@@ -483,18 +480,10 @@ mod tests {
             })
             .collect();
         let value = serde_json::json!(words);
-        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-            text.push('\n');
-            std::fs::write(PHASES_FIXTURE, text).expect("write fixture");
-            return;
-        }
-        let committed: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(PHASES_FIXTURE).expect("fixture"))
-                .expect("JSON");
-        assert_eq!(
-            committed, value,
-            "a recovery phase changed; regenerate the fixture and update the app"
+        skotiq_wire_fixtures::pin_json(
+            PHASES_FIXTURE,
+            &value,
+            "a recovery phase changed; regenerate the fixture and update the app",
         );
     }
 
@@ -688,10 +677,7 @@ mod tests {
 mod reply_fixture_tests {
     use super::*;
 
-    const FIXTURE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../test_fixtures/ffi_replies/recovery_history.json"
-    );
+    const FIXTURE: &str = "ffi_replies/recovery_history.json";
 
     fn every_cause() -> Vec<RecoveryCause> {
         let causes = vec![
@@ -764,20 +750,26 @@ mod reply_fixture_tests {
     #[test]
     fn recovery_history_fixture() {
         let value = serde_json::to_value(history()).expect("serialize");
-        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-            std::fs::create_dir_all(std::path::Path::new(FIXTURE).parent().expect("dir"))
-                .expect("fixture dir");
-            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-            text.push('\n');
-            std::fs::write(FIXTURE, text).expect("write fixture");
-            return;
-        }
-        let committed: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(FIXTURE).expect("fixture"))
-                .expect("JSON");
-        assert_eq!(
-            committed, value,
-            "the recovery reply changed; regenerate the fixture and update the app's decoder"
+        skotiq_wire_fixtures::pin_json(
+            FIXTURE,
+            &value,
+            "the recovery reply changed; regenerate the fixture and update the app's decoder",
+        );
+    }
+}
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::RecoveryPhase::ALL,
+            [
+                super::RecoveryPhase::Waiting,
+                super::RecoveryPhase::Attempting,
+                super::RecoveryPhase::Recovered,
+                super::RecoveryPhase::GaveUp
+            ]
         );
     }
 }

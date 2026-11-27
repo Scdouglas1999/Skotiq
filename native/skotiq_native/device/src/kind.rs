@@ -32,3 +32,26 @@ impl DeviceKind {
         DeviceKind::CoverCalibrator,
     ];
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::DeviceKind::ALL,
+            [
+                super::DeviceKind::Camera,
+                super::DeviceKind::Mount,
+                super::DeviceKind::Focuser,
+                super::DeviceKind::FilterWheel,
+                super::DeviceKind::Guider,
+                super::DeviceKind::Dome,
+                super::DeviceKind::Rotator,
+                super::DeviceKind::Weather,
+                super::DeviceKind::SafetyMonitor,
+                super::DeviceKind::Switch,
+                super::DeviceKind::CoverCalibrator
+            ]
+        );
+    }
+}

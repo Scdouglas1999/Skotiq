@@ -603,28 +603,17 @@ pub const PHOTOMETRIC_FILTER_BANDS: [&str; 17] = [
 
 #[cfg(test)]
 mod photometric_bands_fixture_tests {
-    const FIXTURE: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../test_fixtures/wire_words/photometric_bands.json"
-    );
+    const FIXTURE: &str = "wire_words/photometric_bands.json";
 
     /// Regenerate with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer
     /// photometric_bands_fixture`.
     #[test]
     fn photometric_bands_fixture() {
         let value = serde_json::json!(super::PHOTOMETRIC_FILTER_BANDS);
-        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
-            text.push('\n');
-            std::fs::write(FIXTURE, text).expect("write fixture");
-            return;
-        }
-        let committed: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(FIXTURE).expect("fixture"))
-                .expect("JSON");
-        assert_eq!(
-            committed, value,
-            "the photometric bands changed; regenerate the fixture and update the app"
+        skotiq_wire_fixtures::pin_json(
+            FIXTURE,
+            &value,
+            "the photometric bands changed; regenerate the fixture and update the app",
         );
     }
 }

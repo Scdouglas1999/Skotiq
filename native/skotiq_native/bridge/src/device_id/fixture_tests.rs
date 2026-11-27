@@ -34,7 +34,7 @@ fn the_bridge_parses_every_fixture_id_as_recorded() {
     let text = std::fs::read_to_string(FIXTURE).expect("fixture");
     let mut cases: Vec<Value> = serde_json::from_str(&text).expect("fixture JSON");
     assert!(!cases.is_empty());
-    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+    if skotiq_wire_fixtures::writing_fixtures() {
         for case in &mut cases {
             let id = case["id"].as_str().expect("id").to_string();
             case["bridge"] = bridge_answer(&id);

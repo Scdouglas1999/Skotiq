@@ -5,6 +5,17 @@
 //! device type). The per-protocol connect and health-check helpers live in
 //! `crate::dispatch`.
 
+/// One `pub(crate) const NAME: &str` per word, and (in tests) `ALL`, every
+/// `(NAME, word)` pair in declaration order, so the fixture the app's tests
+/// read is built from the same list and cannot leave a word out.
+macro_rules! word_consts {
+    ($($(#[$meta:meta])* $name:ident = $word:literal;)+) => {
+        $($(#[$meta])* pub(crate) const $name: &str = $word;)+
+        #[cfg(test)]
+        pub(crate) const ALL: &[(&str, &str)] = &[$((stringify!($name), $word)),+];
+    };
+}
+
 pub(crate) mod accessory;
 pub(crate) mod busy;
 pub(crate) mod capture;

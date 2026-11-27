@@ -185,6 +185,25 @@ mod tests {
     ];
 
     #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            ALL,
+            [
+                AscomDeviceType::Camera,
+                AscomDeviceType::CoverCalibrator,
+                AscomDeviceType::Dome,
+                AscomDeviceType::FilterWheel,
+                AscomDeviceType::Focuser,
+                AscomDeviceType::ObservingConditions,
+                AscomDeviceType::Rotator,
+                AscomDeviceType::SafetyMonitor,
+                AscomDeviceType::Switch,
+                AscomDeviceType::Telescope
+            ]
+        );
+    }
+
+    #[test]
     fn every_type_has_one_row() {
         for device_type in ALL {
             let rows = TYPES.iter().filter(|r| r.device_type == device_type);

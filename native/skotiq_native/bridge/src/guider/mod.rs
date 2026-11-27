@@ -440,10 +440,7 @@ mod tests {
         );
     }
 
-    const GUIDER_STATE_WORDS: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../test_fixtures/guider_state/words.json"
-    );
+    const GUIDER_STATE_WORDS: &str = "guider_state/words.json";
 
     /// The word the app gives each state on the headless API and decodes
     /// again (the words the status carried as a string before the field was
@@ -495,24 +492,10 @@ mod tests {
     /// carries with its word; the app's word table is held to it.
     #[test]
     fn the_guider_state_fixture_matches_the_states() {
-        let mut text = serde_json::to_string_pretty(&words_contract()).expect("serialize");
-        text.push('\n');
-        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
-            std::fs::create_dir_all(
-                std::path::Path::new(GUIDER_STATE_WORDS)
-                    .parent()
-                    .expect("dir"),
-            )
-            .expect("fixture dir");
-            std::fs::write(GUIDER_STATE_WORDS, &text).expect("write fixture");
-            return;
-        }
-        let committed = std::fs::read_to_string(GUIDER_STATE_WORDS).expect("fixture");
-        let committed: serde_json::Value = serde_json::from_str(&committed).expect("fixture JSON");
-        assert_eq!(
-            committed,
-            words_contract(),
-            "the guider states changed; regenerate the fixture and update the app's word table"
+        skotiq_wire_fixtures::pin_json(
+            GUIDER_STATE_WORDS,
+            &words_contract(),
+            "the guider states changed; regenerate the fixture and update the app's word table",
         );
     }
 

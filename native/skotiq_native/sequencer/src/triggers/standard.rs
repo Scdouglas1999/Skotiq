@@ -469,3 +469,30 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::StandardTrigger::ALL,
+            [
+                super::StandardTrigger::HfrDegraded,
+                super::StandardTrigger::MeridianFlip,
+                super::StandardTrigger::GuidingFailed,
+                super::StandardTrigger::AltitudeLimit,
+                super::StandardTrigger::WeatherUnsafe,
+                super::StandardTrigger::TemperatureShift,
+                super::StandardTrigger::FilterChange,
+                super::StandardTrigger::DawnApproaching,
+                super::StandardTrigger::MountTrackingLost,
+                super::StandardTrigger::DomeShutterNotOpen,
+                super::StandardTrigger::GuideStarLost,
+                super::StandardTrigger::FocusDrift,
+                super::StandardTrigger::DriftLimit,
+                super::StandardTrigger::DitherInterval,
+                super::StandardTrigger::AutofocusInterval
+            ]
+        );
+    }
+}

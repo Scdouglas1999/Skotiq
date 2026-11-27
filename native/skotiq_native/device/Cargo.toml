@@ -17,3 +17,4 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+skotiq_wire_fixtures = { path = "../wire_fixtures" }

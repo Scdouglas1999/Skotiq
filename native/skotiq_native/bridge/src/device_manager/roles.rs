@@ -266,3 +266,26 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::RigRole::ALL,
+            [
+                super::RigRole::RunSafety,
+                super::RigRole::FramePointingMount,
+                super::RigRole::SolveDiagnosticsMount,
+                super::RigRole::RecoveryCamera,
+                super::RigRole::RecoveryWheel,
+                super::RigRole::RunDome,
+                super::RigRole::RunCoverCalibrator,
+                super::RigRole::GuiderImagingCamera,
+                super::RigRole::GuiderMount,
+                super::RigRole::PolarCamera,
+                super::RigRole::PolarMount
+            ]
+        );
+    }
+}

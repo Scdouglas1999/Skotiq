@@ -201,3 +201,21 @@ mod tests {
         assert!(!FrameType::DarkFlat.opens_shutter());
     }
 }
+
+#[cfg(test)]
+mod all_list_tests {
+    #[test]
+    fn all_names_every_variant() {
+        skotiq_wire_fixtures::assert_lists_every_variant!(
+            super::FrameType::ALL,
+            [
+                super::FrameType::Light,
+                super::FrameType::Dark,
+                super::FrameType::Flat,
+                super::FrameType::Bias,
+                super::FrameType::DarkFlat,
+                super::FrameType::Snapshot
+            ]
+        );
+    }
+}
