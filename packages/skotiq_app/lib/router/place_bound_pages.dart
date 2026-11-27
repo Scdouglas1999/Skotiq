@@ -6,9 +6,9 @@ import 'package:go_router/go_router.dart';
 ///
 /// Such a page belongs to the place it was opened over. The shell's routed
 /// pages carry no key, so a move between places updates the routed page
-/// beneath in place and keeps every page pushed over it: the rail showed the
-/// new place while the old page stayed on screen. Dialogs, sheets and menus
-/// are not pages and are left to their own code.
+/// beneath in place and keeps every page pushed over it; this observer closes
+/// them instead. Dialogs, sheets and menus are not pages and are left to their
+/// own code.
 class PlaceBoundPages extends NavigatorObserver {
   PlaceBoundPages(this._placeNow);
 

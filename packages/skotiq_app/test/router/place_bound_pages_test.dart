@@ -47,6 +47,8 @@ GoRouter _shellRouter() {
                     TextButton(
                       onPressed: () => showDialog<void>(
                         context: context,
+                        // The shell's navigator, where its observer sees it.
+                        useRootNavigator: false,
                         builder: (_) => const Text('a dialog'),
                       ),
                       child: const Text('open dialog'),
