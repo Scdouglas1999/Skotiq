@@ -47,14 +47,13 @@ class _TimedWalk {
 /// walk. With [tonight] (the sequence walked from now at the site), a node's
 /// own cost is what that walk gives it; without it, a "loop until stopped"
 /// block cannot be bounded and is marked open-ended. A loop that runs until a
-/// time lasts from [now] (this machine's clock when not given) to that time.
+/// time lasts from [now] to that time.
 NodeRollups computeNodeRollups(
   Sequence sequence,
   SequenceTimeEstimator estimator, {
   List<NodeTiming>? tonight,
-  DateTime? now,
+  required DateTime now,
 }) {
-  final at = now ?? DateTime.now();
   final walk = tonight == null ? null : _TimedWalk(tonight);
   final secsById = <String, double>{};
   final openEnds = <String, NodeOpenEnd>{};
@@ -64,7 +63,7 @@ NodeRollups computeNodeRollups(
       sequence.rootNodeId!,
       estimator,
       secsById,
-      now: at,
+      now: now,
       openEnds: openEnds,
       walk: walk,
     );
@@ -79,7 +78,7 @@ NodeRollups computeNodeRollups(
         id,
         estimator,
         secsById,
-        now: at,
+        now: now,
         openEnds: openEnds,
         walk: walk,
       );
@@ -108,9 +107,8 @@ String formatNodeRollup(Duration duration, NodeOpenEnd? openEnd) =>
 double sequenceRollupSecs(
   Sequence sequence, {
   SequenceTimeEstimator estimator = const SequenceTimeEstimator(),
-  DateTime? now,
+  required DateTime now,
 }) {
-  final at = now ?? DateTime.now();
   final out = <String, double>{};
   final openEnds = <String, NodeOpenEnd>{};
   final rootId = sequence.rootNodeId;
@@ -127,7 +125,7 @@ double sequenceRollupSecs(
       id,
       estimator,
       out,
-      now: at,
+      now: now,
       openEnds: openEnds,
     );
     if (openEnds.containsKey(id)) return 0;

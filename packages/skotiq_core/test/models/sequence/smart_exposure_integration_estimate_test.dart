@@ -165,7 +165,7 @@ void main() {
         final row = await database.sequencesDao.getSequenceById(id);
         expect(
           row!.estimatedDurationMins,
-          (sequenceRollupSecs(sequence) / 60).ceil(),
+          (sequenceRollupSecs(sequence, now: DateTime.now()) / 60).ceil(),
         );
         expect(row.estimatedDurationMins, greaterThanOrEqualTo(20));
 

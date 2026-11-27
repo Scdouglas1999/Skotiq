@@ -248,6 +248,7 @@ void main() {
           computeNodeRollups(
             sequence,
             _estimator,
+            now: now,
           ).durations['loop']!.inMilliseconds /
           1000.0;
       final estimate = sequence.estimateIntegrationSecs(referenceTime: now);
