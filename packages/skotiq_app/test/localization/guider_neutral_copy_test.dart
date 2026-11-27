@@ -16,10 +16,10 @@ const _guiderClaims = <String>[
 void main() {
   test('app and core text does not name PHD2 as the guider', () {
     final offenders = [
-      for (final literal in sourceLiterals(['lib', '../skotiq_core/lib']))
-        if (!literal.path.toLowerCase().contains('phd2') &&
-            _guiderClaims.any(literal.text.contains))
-          '${literal.path}:${literal.line}: ${literal.text}',
+      for (final line in sourceLines(['lib', '../skotiq_core/lib']))
+        if (!line.path.toLowerCase().contains('phd2') &&
+            _guiderClaims.any(line.text.contains))
+          '${line.path}:${line.line}: ${line.text}',
     ];
     expect(offenders, isEmpty);
   });
