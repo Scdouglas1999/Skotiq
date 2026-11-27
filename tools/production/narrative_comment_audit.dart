@@ -20,6 +20,8 @@
 //   dart run tools/production/narrative_comment_audit.dart
 //   dart run tools/production/narrative_comment_audit.dart --out-hits .narrative_hits.txt
 //   dart run tools/production/narrative_comment_audit.dart --max <N>   # exit 1 if > N
+//   (without --max the count may not exceed the one in $_defaultBaselinePath;
+//   lower that number when findings go away, never raise it to pass)
 //   dart run tools/production/narrative_comment_audit.dart --self-test <dir>
 
 import 'dart:convert';
@@ -27,19 +29,11 @@ import 'dart:io';
 
 const _scanRoots = <String>['apps', 'packages'];
 const _defaultHitsPath = '.narrative_hits.txt';
+const _defaultBaselinePath = 'tools/production/narrative_comment_baseline.txt';
 const _defaultAllowlistPath =
     'docs/production-readiness/narrative-comment-allowlist.txt';
 
-// Sequencer + sequence subsystems are owned by a concurrent workflow; never
-// scan them here so the two workflows do not fight over the same findings.
 const _excludedSubstrings = <String>[
-  '/screens/sequencer/',
-  '/providers/sequence/',
-  'scheduler',
-  'import_service',
-  'sequence_repository',
-  'sequence_diff',
-  'sequence_file',
   '/frb_generated.',
   '.g.dart',
   '.freezed.dart',
@@ -144,7 +138,7 @@ void main(List<String> args) {
 
   final hitsPath = _argValue(args, '--out-hits') ?? _defaultHitsPath;
   final allowlistPath = _argValue(args, '--allowlist') ?? _defaultAllowlistPath;
-  final maxArg = _argValue(args, '--max');
+  final maxArg = _argValue(args, '--max') ?? _readBaseline();
 
   final allowlist = _loadAllowlist(allowlistPath);
   final workspaceRoot = _normalize(Directory.current.absolute.path);
@@ -198,10 +192,21 @@ void main(List<String> args) {
       exit(2);
     }
     if (kept.length > max) {
-      stderr.writeln('Narrative findings ${kept.length} exceed --max $max');
+      stderr.writeln(
+        'Narrative findings ${kept.length} exceed $max: remove the new ones '
+        '(see the hits file) rather than raising the baseline.',
+      );
       exit(1);
     }
   }
+}
+
+/// The finding count the tree may not exceed, from [_defaultBaselinePath].
+/// Null when the file is absent (a self-test tree or another checkout).
+String? _readBaseline() {
+  final file = File(_defaultBaselinePath);
+  if (!file.existsSync()) return null;
+  return file.readAsStringSync().trim();
 }
 
 void _scanFile(File file, String rel, List<_Finding> out) {
