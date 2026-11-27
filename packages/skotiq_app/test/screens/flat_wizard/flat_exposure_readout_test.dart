@@ -45,7 +45,7 @@ void main() {
     expect(find.textContaining('1.5'), findsWidgets);
     expect(find.textContaining('ms'), findsWidgets);
     expect(find.textContaining('0.00'), findsNothing);
-    expect(find.textContaining('12.3 s', skipOffstage: false), findsOneWidget);
+    expect(find.textContaining('12.34 s', skipOffstage: false), findsOneWidget);
     expect(find.textContaining('12.3400', skipOffstage: false), findsNothing);
   });
 }

@@ -3,10 +3,10 @@
 library;
 
 abstract final class QuantityFormat {
-  /// An exposure length to three significant digits, trailing zeros dropped:
-  /// "300 s", "12.5 s", "2.5 s", "1.25 s", "0.25 s", and milliseconds below a
-  /// tenth of a second ("5 ms", "0.032 ms"), so a short frame never reads
-  /// "0 s". From 10 s it keeps one decimal ("300.5 s").
+  /// An exposure length to the millisecond, trailing zeros dropped: "300 s",
+  /// "2.5 s", "1.234 s", "0.25 s", and milliseconds below a tenth of a second
+  /// ("5 ms", "0.032 ms"), so a short frame never reads "0 s". Two exposures a
+  /// dark match tells apart (1 ms) never read the same.
   /// [space] puts a space before "s" ("2.5 s") or not ("2.5s").
   static String exposure(double seconds, {bool space = true}) {
     final (:value, :unit) = exposureParts(seconds);
@@ -17,23 +17,9 @@ abstract final class QuantityFormat {
   /// sets the unit apart.
   static ({String value, String unit}) exposureParts(double seconds) {
     if (seconds > 0 && seconds < 0.1) {
-      final ms = seconds * 1000;
-      return (
-        value: trimmed(ms, maxDecimals: _exposureDecimals(ms)),
-        unit: 'ms',
-      );
+      return (value: trimmed(seconds * 1000, maxDecimals: 3), unit: 'ms');
     }
-    return (
-      value: trimmed(seconds, maxDecimals: _exposureDecimals(seconds)),
-      unit: 's',
-    );
-  }
-
-  static int _exposureDecimals(double value) {
-    final magnitude = value.abs();
-    if (magnitude >= 10) return 1;
-    if (magnitude >= 1) return 2;
-    return 3;
+    return (value: trimmed(seconds, maxDecimals: 3), unit: 's');
   }
 
   /// [value] with up to [maxDecimals] places and no trailing zeros: `30`,
