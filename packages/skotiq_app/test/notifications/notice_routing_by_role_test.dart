@@ -742,11 +742,7 @@ const _expected = <String, List<String>>{
     'push Weather unsafe',
   ],
   'hostGui weatherUnsafe rowOff': [
-    'toast error Safety Error',
     'push Critical · Safety',
-  ],
-  'hostGui weatherUnsafe routingOff': [
-    'toast error Safety Error',
   ],
   'hostGui weatherSafeAgain defaults': [
     'toast success Weather safe again',
@@ -756,11 +752,7 @@ const _expected = <String, List<String>>{
     'push Mount fault',
   ],
   'hostGui mountFault rowOff': [
-    'toast error Critical: Safety Error',
     'push Critical · Safety',
-  ],
-  'hostGui mountFault routingOff': [
-    'toast error Critical: Safety Error',
   ],
   'hostGui diskSpaceLow defaults': [
     'toast error Disk space low',

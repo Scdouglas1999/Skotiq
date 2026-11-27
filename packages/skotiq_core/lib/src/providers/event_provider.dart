@@ -29,7 +29,6 @@ import '../services/notification/notification_router.dart'
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
-import 'notification_router_provider.dart' show notificationRouterProvider;
 import 'ui_notification_provider.dart';
 
 /// The typed event stream: every sequencer, device, imaging, guiding and
@@ -235,14 +234,7 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
 
       // What the notification router tells (a failed run, an operator's
       // Stop, a failed exposure, a mount fault) is not told twice here.
-      if (NotificationRouter.tellsInApp(
-        event,
-        router: ref.exists(notificationRouterProvider)
-            ? ref.read(notificationRouterProvider)
-            : null,
-      )) {
-        return;
-      }
+      if (NotificationRouter.tellsInApp(event)) return;
 
       // A failed step is told by the run's end, whose notice carries this
       // reason, or by recovery's own notices when recovery saves the run.
