@@ -78,7 +78,7 @@
         "reason": "Holds a Riverpod Ref; reads backendProvider, currentImageProvider, lastImageStatsProvider. Remains: Other services import it (imaging_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/centering_service.dart": {
-        "count": 4,
+        "count": 3,
         "reason": "Holds a Riverpod Ref; reads coImagingSessionServiceProvider, deviceBackendProvider, exposureSettingsProvider. Remains: Other services import it (manual_centering.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/darkroom_build_jobs.dart": {
@@ -90,11 +90,11 @@
         "reason": "Holds a Riverpod Ref; reads deviceHeartbeatHealthProvider, loggingServiceProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/device_reconnect_coordinator.dart": {
-        "count": 5,
+        "count": 4,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, loggingServiceProvider, mountStateProvider, notificationServiceProvider, sequenceExecutionStateProvider, uiNotificationProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/device_service.dart": {
-        "count": 24,
+        "count": 23,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider. Remains: Other services import it (device_commands.dart, device_service_lifecycle.dart, profile_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
       "services/frame_identity.dart": {
