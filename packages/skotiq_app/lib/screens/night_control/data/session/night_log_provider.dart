@@ -37,6 +37,7 @@ import 'package:skotiq_core/bridge_events.dart' as sk_events;
 import '../../../../services/run_dashboard_providers.dart'
     show
         RunDashboardEvent,
+        RunDashboardRowKind,
         RunDashboardEventSeverity,
         isUserFacingRunEvent,
         runDashboardFeedRows;
@@ -51,26 +52,40 @@ const int kNightLogFeedLimit = 400;
 /// How many lines the log keeps, oldest dropped first.
 const int kNightLogMaxEntries = 200;
 
-/// Feed rows the log leaves out, by the title the shared event display
-/// helper gives them: per-frame rows the session rows replace, and
-/// telemetry that is not an event of the night.
-const Set<String> _feedTitlesLeftOut = <String>{
-  'Frame accepted',
-  'Frame rejected',
-  'Exposure complete',
-  'Exposure progress',
-  // A per-frame "keep the planned length" decision; a real adjustment stays.
-  'Exposure unchanged',
-  'Progress',
-  'Instruction progress',
-  'Camera temperature',
-  'Guiding correction',
-  'Guide stats',
-  'PHD2 state',
-};
-
-bool nightLogKeepsFeedRow(RunDashboardEvent event) =>
-    !_feedTitlesLeftOut.contains(event.title);
+/// Feed events the log leaves out: per-frame rows the session rows replace,
+/// and telemetry that is not an event of the night.
+bool _leftOutOfNightLog(sk_events.SkotiqEvent event) => switch (event.payload) {
+      sk_events.EventPayload_Sequencer(
+        field0: sk_events.SequencerEvent_FrameAccepted() ||
+            sk_events.SequencerEvent_FrameRejected() ||
+            sk_events.SequencerEvent_ExposureCompleted() ||
+            sk_events.SequencerEvent_Progress() ||
+            sk_events.SequencerEvent_InstructionProgress() ||
+            // A per-frame "keep the planned length" decision; a real
+            // adjustment stays.
+            sk_events.SequencerEvent_ExposureAdjusted(unchanged: true)
+      ) =>
+        true,
+      sk_events.EventPayload_Imaging(
+        field0: sk_events.ImagingEvent_ExposureCompleted() ||
+            sk_events.ImagingEvent_ExposureCompletedWithFrame() ||
+            sk_events.ImagingEvent_ExposureComplete() ||
+            sk_events.ImagingEvent_ExposureProgress() ||
+            sk_events.ImagingEvent_TemperatureChanged()
+      ) =>
+        true,
+      sk_events.EventPayload_Equipment(
+        field0: sk_events.EquipmentEvent_CameraTemperatureChanged()
+      ) =>
+        true,
+      sk_events.EventPayload_Guiding(
+        field0: sk_events.GuidingEvent_Correction() ||
+            sk_events.GuidingEvent_GuideStats() ||
+            sk_events.GuidingEvent_AppState()
+      ) =>
+        true,
+      _ => false,
+    };
 
 /// The feed events the log keeps, newest first, recorded as they reach
 /// `eventHistoryProvider` and held after that history has moved on.
@@ -94,10 +109,7 @@ class NightLogFeedRecorder extends Notifier<List<sk_events.SkotiqEvent>> {
     Iterable<sk_events.SkotiqEvent> events,
   ) =>
       events.where(
-        (event) =>
-            isUserFacingRunEvent(event) &&
-            !_feedTitlesLeftOut
-                .contains(sk_events.skotiqEventDisplayTitle(event)),
+        (event) => isUserFacingRunEvent(event) && !_leftOutOfNightLog(event),
       );
 
   /// The history only ever gains events at its front; the ones not in
@@ -170,22 +182,16 @@ final nightLogProvider = Provider<List<NightLogEntryVm>>((ref) {
   // above "Guiding stopped because the run was stopped" said it twice.
   final reasonedStops = <DateTime>[
     for (final event in feed)
-      // "Guiding stopped because …", "Guiding stopped: the mount moved …",
-      // "Guiding stopped (…)".
-      if ((event.title.startsWith('Guiding stopped') &&
-              event.title != 'Guiding stopped') ||
-          (event.title == 'Guiding stopped' && event.message.isNotEmpty))
-        event.time,
+      if (event.kind == RunDashboardRowKind.guidingStopReason) event.time,
   ];
   bool saidWithReason(RunDashboardEvent event) =>
-      event.title == 'Guiding stopped' &&
-      event.message.isEmpty &&
+      event.kind == RunDashboardRowKind.guidingStopped &&
       reasonedStops.any(
         (at) => at.difference(event.time).abs() <= const Duration(seconds: 5),
       );
   final entries = <NightLogEntryVm>[
     for (final event in feed)
-      if (nightLogKeepsFeedRow(event) && !saidWithReason(event))
+      if (!saidWithReason(event))
         NightLogEntryVm(
           at: event.time,
           message: NightText.literal(_feedLine(event, names)),

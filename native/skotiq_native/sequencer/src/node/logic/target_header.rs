@@ -491,13 +491,10 @@ fn needs_observer_site(trigger: &TargetTrigger) -> bool {
 fn no_observer_site_reason(trigger: &TargetTrigger, role: TriggerRole) -> String {
     let clause = match role {
         TriggerRole::StartWhen => {
-            format!(
-                "This target waits for {} before it starts",
-                operator_trigger_label(trigger)
-            )
+            format!("This target waits for {} before it starts", trigger.label())
         }
         TriggerRole::EndWhen => {
-            format!("This target stops when {}", operator_trigger_label(trigger))
+            format!("This target stops when {}", trigger.label())
         }
     };
     format!(
@@ -585,32 +582,29 @@ fn waits_for_floor(start: &TargetTrigger) -> bool {
 /// The instruction name a target step's waiting reading is published under.
 const TARGET_WAIT_INSTRUCTION: &str = "Target";
 
-/// How every [`waiting_message`] begins; `kTargetWaitMessagePrefix` in the
-/// app reads a step's reading as "waiting" by it.
-pub const TARGET_WAIT_MESSAGE_PREFIX: &str = "Waiting for ";
-
 /// What the run says while a target waits to start: the floor it is held
 /// behind, with its altitude and the floor's in that direction, when that is
 /// what holds it; otherwise the condition it waits for.
-fn waiting_message(
+fn waiting_detail(
     target: &str,
     start: &TargetTrigger,
     label: &str,
     observer: &TriggerObserverContext,
-) -> String {
-    if waits_for_floor(start) {
-        if let Some(floor) = observer.altitude_floor.as_ref() {
+) -> ProgressDetail {
+    let held_by_floor = observer
+        .altitude_floor
+        .as_ref()
+        .filter(|_| waits_for_floor(start))
+        .and_then(|floor| {
             let (altitude, azimuth) = observer.floor_target().alt_az(observer.now);
-            if !floor.clears(altitude, azimuth) {
-                return format!(
-                    "{TARGET_WAIT_MESSAGE_PREFIX}{target} to clear the altitude floor: \
-                     {altitude:.0}° up, floor {:.0}° in that direction",
-                    floor.at_azimuth(azimuth)
-                );
-            }
-        }
+            (!floor.clears(altitude, azimuth)).then(|| (altitude, floor.at_azimuth(azimuth)))
+        });
+    ProgressDetail::TargetWaiting {
+        target: target.to_string(),
+        condition: label.to_string(),
+        altitude_deg: held_by_floor.map(|(altitude, _)| altitude),
+        floor_deg: held_by_floor.map(|(_, floor)| floor),
     }
-    format!("{TARGET_WAIT_MESSAGE_PREFIX}{target}: {label}")
 }
 
 /// Whether `start` waits for the altitude floor and the target does not clear
@@ -736,7 +730,7 @@ async fn wait_for_trigger(
     }
 
     // Shown to the operator: times as a date, not as Unix seconds.
-    let label = operator_trigger_label(trigger);
+    let label = trigger.label();
     let mut emitted_initial = false;
     let poll = std::time::Duration::from_secs(u64::from(poll_secs));
 
@@ -783,21 +777,17 @@ async fn wait_for_trigger(
 
         if !emitted_initial {
             emitted_initial = true;
-            let message = waiting_message(&target_label, trigger, &label, &trig_ctx);
-            tracing::info!("{message}");
-            // The operator sees why the target has not started: on the
-            // step (its reading) and as the run's message.
-            context.send_progress(ProgressUpdate::instruction_progress(
-                node_id.clone(),
-                TARGET_WAIT_INSTRUCTION,
-                0.0,
-                ProgressDetail::Generic(message.clone()),
-            ));
-            context.send_progress(ProgressUpdate::lifecycle(
-                node_id.clone(),
-                NodeStatus::Running,
-                message,
-            ));
+            let detail = waiting_detail(&target_label, trigger, &label, &trig_ctx);
+            tracing::info!("{}", detail.detail_text());
+            context.send_progress(
+                ProgressUpdate::instruction_progress(
+                    node_id.clone(),
+                    TARGET_WAIT_INSTRUCTION,
+                    0.0,
+                    detail,
+                )
+                .with_bare_status_line(),
+            );
         }
 
         tokio::time::sleep(poll).await;
@@ -847,7 +837,7 @@ fn emit_end_when_skipped_at_entry(
     let trigger_name = format!(
         "The end condition on \"{}\" ({})",
         display_name,
-        operator_trigger_label(end_when)
+        end_when.label()
     );
     tracing::warn!(
         "{} was already satisfied at entry; skipping the target without imaging",
@@ -871,45 +861,6 @@ fn emit_end_when_skipped_at_entry(
     ));
 }
 
-/// [`TargetTrigger::label`], with the time-bearing leaves rendered as a UTC
-/// instant instead of a raw Unix timestamp.
-///
-/// `label()` is the engine's own vocabulary and prints `time ≥ 1786970284`,
-/// which is exact and unreadable. Every consumer that only logs it keeps that
-/// form; the operator-facing copy composed here does not, because "the end
-/// condition was already met" is useless without knowing WHEN it was met.
-fn operator_trigger_label(trigger: &TargetTrigger) -> String {
-    fn instant(ts: i64) -> String {
-        match chrono::DateTime::<chrono::Utc>::from_timestamp(ts, 0) {
-            Some(dt) => dt.format("%Y-%m-%d %H:%M UTC").to_string(),
-            // The timestamp is outside the representable range; the raw value
-            // is the only true thing left to say about it.
-            None => ts.to_string(),
-        }
-    }
-    match trigger {
-        TargetTrigger::TimeAfter(ts) => format!("time ≥ {}", instant(*ts)),
-        TargetTrigger::TimeBefore(ts) => format!("time < {}", instant(*ts)),
-        TargetTrigger::And(terms) => format!(
-            "({})",
-            terms
-                .iter()
-                .map(operator_trigger_label)
-                .collect::<Vec<_>>()
-                .join(" AND ")
-        ),
-        TargetTrigger::Or(terms) => format!(
-            "({})",
-            terms
-                .iter()
-                .map(operator_trigger_label)
-                .collect::<Vec<_>>()
-                .join(" OR ")
-        ),
-        other => other.label(),
-    }
-}
-
 /// Lifecycle event emitted when `end_when` fires.
 fn emit_end_when_met(
     context: &ExecutionContext,
@@ -923,8 +874,9 @@ fn emit_end_when_met(
         end_when.label()
     );
     tracing::info!("{}", msg);
-    let upd = ProgressUpdate::lifecycle(node_id.clone(), NodeStatus::Running, msg);
-    context.send_progress(upd);
+    context.send_progress(
+        ProgressUpdate::status(node_id.clone(), "Target", msg).with_bare_status_line(),
+    );
 }
 
 /// Mark every child from index `start` onward as Skipped because
@@ -1812,30 +1764,33 @@ mod tests {
         );
     }
 
-    /// The operator-facing rendering keeps the engine's vocabulary for
-    /// everything except the time leaves, which `label()` prints as raw epoch
-    /// seconds.
+    /// The run's line for an end condition met mid-target says when, as a
+    /// date, like every other place the condition is shown.
     #[test]
-    fn operator_trigger_label_renders_instants() {
+    fn the_end_condition_met_mid_target_is_dated() {
         let ts = chrono::DateTime::parse_from_rfc3339("2026-01-15T21:00:00Z")
             .unwrap()
             .timestamp();
-        assert_eq!(
-            operator_trigger_label(&TargetTrigger::TimeAfter(ts)),
-            "time ≥ 2026-01-15 21:00 UTC"
+        let lines: std::sync::Arc<std::sync::Mutex<Vec<String>>> = Default::default();
+        let sink = lines.clone();
+        let mut ctx = ExecutionContext::new_for_test("target".to_string());
+        ctx.progress_callback = Some(std::sync::Arc::new(move |u: ProgressUpdate| {
+            assert_eq!(
+                u.instruction.as_deref(),
+                Some("Target"),
+                "the step's report"
+            );
+            sink.lock().unwrap().extend(u.legacy_message());
+        }));
+        emit_end_when_met(
+            &ctx,
+            &"target".to_string(),
+            "Dusk Field",
+            &TargetTrigger::TimeBefore(ts),
         );
         assert_eq!(
-            operator_trigger_label(&TargetTrigger::AltitudeAbove(35.0)),
-            TargetTrigger::AltitudeAbove(35.0).label(),
-            "non-time leaves keep the engine's own label"
-        );
-        assert_eq!(
-            operator_trigger_label(&TargetTrigger::And(vec![
-                TargetTrigger::TimeAfter(ts),
-                TargetTrigger::AltitudeBelow(20.0),
-            ])),
-            "(time ≥ 2026-01-15 21:00 UTC AND altitude ≤ 20.0°)",
-            "a compound renders its time leaves too"
+            *lines.lock().unwrap(),
+            vec!["Target Dusk Field end_when satisfied (time < 2026-01-15 21:00 UTC); stopping"]
         );
     }
 
@@ -2249,15 +2204,17 @@ mod site_floor_tests {
         let start = start_when_with_site_floor(&eastern(), &ctx).unwrap();
         let observer =
             trigger_observer_ctx(&eastern(), &ctx, &start, TriggerRole::StartWhen).unwrap();
-        let message = waiting_message("East", &start, &start.label(), &observer);
+        let message = waiting_detail("East", &start, &start.label(), &observer).detail_text();
         assert!(
             message.starts_with("Waiting for East to clear the altitude floor: ")
                 && message.ends_with("° up, floor 40° in that direction"),
             "{message}"
         );
         let timed = TargetTrigger::TimeAfter(0);
-        assert!(waiting_message("East", &timed, &timed.label(), &observer)
-            .starts_with(TARGET_WAIT_MESSAGE_PREFIX));
+        assert_eq!(
+            waiting_detail("East", &timed, "time ≥ 0", &observer).detail_text(),
+            "Waiting for East: time ≥ 0"
+        );
     }
 
     /// A target above the floor now, with a start time after it has set for

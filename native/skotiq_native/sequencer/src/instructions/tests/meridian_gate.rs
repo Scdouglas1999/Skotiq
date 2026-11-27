@@ -804,10 +804,8 @@ async fn the_flip_step_reads_the_runs_site() {
     );
 }
 
-/// The flip hold reaches clients as the step's progress. Sent as a bare
-/// lifecycle message it landed in the native status and nowhere else, so a
-/// phone showed a run sitting at its next frame for two minutes with no
-/// reason given.
+/// The flip hold is the step's report, as its own kind: the executor
+/// publishes every report to clients.
 #[tokio::test]
 async fn the_flip_hold_is_reported_as_the_steps_progress() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
@@ -865,15 +863,8 @@ async fn the_flip_hold_is_reported_as_the_steps_progress() {
     let updates = updates.lock().unwrap();
     let hold = updates
         .iter()
-        .find(|u| {
-            u.detail
-                .as_ref()
-                .is_some_and(|d| d.detail_text().starts_with("Waiting for the meridian flip"))
-        })
+        .find(|u| matches!(u.detail, Some(crate::ProgressDetail::FlipHold { .. })))
         .expect("the hold is reported");
     assert_eq!(hold.node_id, "hold-node");
-    assert!(
-        hold.instruction.is_some() && hold.progress_percent.is_some(),
-        "only instruction progress becomes an event a client receives"
-    );
+    assert_eq!(hold.instruction.as_deref(), Some("Exposure"));
 }

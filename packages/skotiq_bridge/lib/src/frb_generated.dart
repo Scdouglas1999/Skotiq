@@ -14452,6 +14452,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return SequencerEvent_NodeStarted(
           nodeId: dco_decode_String(raw[1]),
           nodeType: dco_decode_String(raw[2]),
+          frameType: dco_decode_opt_String(raw[3]),
         );
       case 7:
         return SequencerEvent_NodeCompleted(
@@ -14600,6 +14601,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           skyBrightnessMag: dco_decode_opt_box_autoadd_f_64(raw[4]),
           filter: dco_decode_opt_String(raw[5]),
           reason: dco_decode_String(raw[6]),
+          unchanged: dco_decode_bool(raw[7]),
         );
       case 25:
         return SequencerEvent_PhotometryFrame(
@@ -20108,9 +20110,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 6:
         var var_nodeId = sse_decode_String(deserializer);
         var var_nodeType = sse_decode_String(deserializer);
+        var var_frameType = sse_decode_opt_String(deserializer);
         return SequencerEvent_NodeStarted(
           nodeId: var_nodeId,
           nodeType: var_nodeType,
+          frameType: var_frameType,
         );
       case 7:
         var var_nodeId = sse_decode_String(deserializer);
@@ -20357,6 +20361,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
         var var_filter = sse_decode_opt_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
+        var var_unchanged = sse_decode_bool(deserializer);
         return SequencerEvent_ExposureAdjusted(
           nodeId: var_nodeId,
           adaptedSecs: var_adaptedSecs,
@@ -20364,6 +20369,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           skyBrightnessMag: var_skyBrightnessMag,
           filter: var_filter,
           reason: var_reason,
+          unchanged: var_unchanged,
         );
       case 25:
         var var_nodeId = sse_decode_String(deserializer);
@@ -25397,10 +25403,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case SequencerEvent_NodeStarted(
         nodeId: final nodeId,
         nodeType: final nodeType,
+        frameType: final frameType,
       ):
         sse_encode_i_32(6, serializer);
         sse_encode_String(nodeId, serializer);
         sse_encode_String(nodeType, serializer);
+        sse_encode_opt_String(frameType, serializer);
       case SequencerEvent_NodeCompleted(
         nodeId: final nodeId,
         status: final status,
@@ -25628,6 +25636,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         skyBrightnessMag: final skyBrightnessMag,
         filter: final filter,
         reason: final reason,
+        unchanged: final unchanged,
       ):
         sse_encode_i_32(24, serializer);
         sse_encode_String(nodeId, serializer);
@@ -25636,6 +25645,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_opt_box_autoadd_f_64(skyBrightnessMag, serializer);
         sse_encode_opt_String(filter, serializer);
         sse_encode_String(reason, serializer);
+        sse_encode_bool(unchanged, serializer);
       case SequencerEvent_PhotometryFrame(
         nodeId: final nodeId,
         targetDesignation: final targetDesignation,

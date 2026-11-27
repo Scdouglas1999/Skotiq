@@ -49,7 +49,7 @@ class _ExecutorSequenceSink
     final executor = _ref.read(sequenceExecutorProvider);
     // The autopilot is not the operator: the origin keeps its stop from
     // being recorded as (and rendered as) "Stopped by request".
-    await executor.stop(origin: 'scheduler');
+    await executor.stop(origin: RunStopOrigin.scheduler);
   }
 
   @override
@@ -130,7 +130,7 @@ class _ExecutorSequenceSink
         // origin; anything it cannot attribute stays conservative and asks
         // the human.
         final endOrigin = _ref.read(sequenceExecutorProvider).lastRunEndOrigin;
-        if (endOrigin == 'safety') {
+        if (endOrigin == RunStopOrigin.safety) {
           return SchedulerRunEnding.failed;
         }
         return SchedulerRunEnding.stoppedByOperator;

@@ -201,7 +201,7 @@ void main() {
       });
     });
 
-    await executor.stop(origin: 'scheduler');
+    await executor.stop(origin: RunStopOrigin.scheduler);
     await executor.terminalCleanupSettledForTest;
 
     expect(origins, ['scheduler']);
@@ -232,7 +232,10 @@ void main() {
       });
 
       // Autopilot stops; the native stop throws; the drive settles stopFailed.
-      await expectLater(executor.stop(origin: 'scheduler'), throwsStateError);
+      await expectLater(
+        executor.stop(origin: RunStopOrigin.scheduler),
+        throwsStateError,
+      );
       expect(
         container.read(sequenceExecutionStateProvider),
         SequenceExecutionState.stopFailed,
@@ -263,7 +266,7 @@ void main() {
 
       await executor.stop();
       await executor.terminalCleanupSettledForTest;
-      expect(executor.lastRunEndOrigin, 'operator');
+      expect(executor.lastRunEndOrigin, RunStopOrigin.operator);
       expect(container, isNotNull);
     },
   );
@@ -276,7 +279,7 @@ void main() {
 
     executor.handleSequencerEventForTest(event('Stopped', {}));
     await executor.terminalCleanupSettledForTest;
-    expect(executor.lastRunEndOrigin, 'safety');
+    expect(executor.lastRunEndOrigin, RunStopOrigin.safety);
     expect(container, isNotNull);
   });
 }

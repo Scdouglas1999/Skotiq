@@ -2,6 +2,8 @@ import 'dart:async';
 
 import '../../../models/sequence/sequence_models.dart';
 import '../../../models/sequence/sequence_run_status.dart';
+import '../../../models/sequence/run_stop_classification.dart'
+    show RunStopOrigin;
 import 'stop_confirmation.dart';
 
 /// The immutable intent + mutable progress of the ONE per-run finalization
@@ -50,14 +52,13 @@ class RunFinalization implements NativeStopConfirmationTarget {
   /// Whether the operator asked to keep the checkpoint (a UI Stop).
   final bool preserveCheckpoint;
 
-  /// WHO asked for the stop — `null`/`'operator'` for a human,
-  /// `'scheduler'` for the autopilot, `'rollback'` for a failed-launch
-  /// rollback. Threaded to the native stop so the executor records a
+  /// WHO asked for the stop — null or [RunStopOrigin.operator] for a human.
+  /// Threaded to the native stop so the executor records a
   /// non-operator stop as a system event instead of operator evidence (an
   /// unattended stop must never render as "Stopped by request"). Mutable
   /// for exactly one transition: a RETRY by a human upgrades a system
   /// origin to the operator's — that press is real and must be recorded.
-  String? stopOrigin;
+  RunStopOrigin? stopOrigin;
 
   /// Whether a `sequencerStop()` must be issued/confirmed before cleanup. False
   /// for a natural terminal (the hardware already terminated authoritatively)

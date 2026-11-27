@@ -205,15 +205,15 @@ impl TargetTrigger {
         }
     }
 
-    /// Human-friendly label used for tracing/logging when the runtime emits
-    /// a "still waiting for…" lifecycle event.
+    /// The condition in words, instants as UTC minutes, for the run's lines
+    /// and the logs.
     pub fn label(&self) -> String {
         match self {
             TargetTrigger::AltitudeAbove(n) => format!("altitude ≥ {:.1}°", n),
             TargetTrigger::AltitudeBelow(n) => format!("altitude ≤ {:.1}°", n),
             TargetTrigger::AboveAltitudeFloor => "above the site's altitude floor".to_string(),
-            TargetTrigger::TimeAfter(ts) => format!("time ≥ {}", ts),
-            TargetTrigger::TimeBefore(ts) => format!("time < {}", ts),
+            TargetTrigger::TimeAfter(ts) => format!("time ≥ {}", utc_instant(*ts)),
+            TargetTrigger::TimeBefore(ts) => format!("time < {}", utc_instant(*ts)),
             TargetTrigger::And(v) => format!(
                 "({})",
                 v.iter().map(Self::label).collect::<Vec<_>>().join(" AND ")
@@ -226,6 +226,15 @@ impl TargetTrigger {
                 format!("{min_ha:.2}h ≤ HA ≤ {max_ha:.2}h")
             }
         }
+    }
+}
+
+/// A Unix instant as a UTC minute; the raw seconds when the value is outside
+/// the representable range.
+fn utc_instant(ts: i64) -> String {
+    match chrono::DateTime::<chrono::Utc>::from_timestamp(ts, 0) {
+        Some(dt) => dt.format("%Y-%m-%d %H:%M UTC").to_string(),
+        None => ts.to_string(),
     }
 }
 
@@ -273,6 +282,26 @@ pub fn legacy_to_triggers(
 mod tests {
     use super::*;
     use chrono::TimeZone;
+
+    #[test]
+    fn label_renders_instants_as_utc_minutes() {
+        let ts = Utc
+            .with_ymd_and_hms(2026, 1, 15, 21, 0, 0)
+            .unwrap()
+            .timestamp();
+        assert_eq!(
+            TargetTrigger::TimeAfter(ts).label(),
+            "time ≥ 2026-01-15 21:00 UTC"
+        );
+        assert_eq!(
+            TargetTrigger::And(vec![
+                TargetTrigger::TimeAfter(ts),
+                TargetTrigger::AltitudeBelow(20.0),
+            ])
+            .label(),
+            "(time ≥ 2026-01-15 21:00 UTC AND altitude ≤ 20.0°)"
+        );
+    }
 
     fn ctx_for(now: DateTime<Utc>) -> TriggerObserverContext {
         TriggerObserverContext {

@@ -1,8 +1,17 @@
 import 'package:equatable/equatable.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
-    show wireInt, wireDouble, wireMap, wireOptDouble, wireOptInt, wireString;
+    show
+        wireBool,
+        wireInt,
+        wireDouble,
+        wireMap,
+        wireOptDouble,
+        wireOptInt,
+        wireOptString,
+        wireString;
 
 import '../meridian_flip_event.dart';
+import 'adaptive_exposure_event.dart' show AdaptiveExposureReason;
 
 /// What a running step reports about itself, as the sequencer's
 /// `ProgressDetail` sends it: the variant's name and its fields.
@@ -25,6 +34,10 @@ sealed class InstructionProgressDetail extends Equatable {
   /// The kind and fields as the sequencer sends them, which
   /// [InstructionProgressDetail.fromStructuredData] reads back.
   ({String detailKind, Map<String, Object?> detailJson}) get wire;
+
+  /// Whether this report is a reading of the step (frames, a sweep point, a
+  /// temperature) rather than words about what holds it.
+  bool get isReading => true;
 
   factory InstructionProgressDetail.fromStructuredData({
     required String detailKind,
@@ -83,6 +96,29 @@ sealed class InstructionProgressDetail extends Equatable {
             failedAttempt: wireInt(json, 'failed_attempt'),
             maxAttempts: wireInt(json, 'max_attempts'),
             retryInSecs: wireDouble(json, 'retry_in_secs'),
+          );
+        case 'TargetWaiting':
+          return TargetWaitingProgressDetail(
+            target: wireString(json, 'target'),
+            condition: wireString(json, 'condition'),
+            altitudeDeg: wireOptDouble(json, 'altitude_deg'),
+            floorDeg: wireOptDouble(json, 'floor_deg'),
+          );
+        case 'FlipHold':
+          return FlipHoldProgressDetail(
+            exposureSecs: wireDouble(json, 'exposure_secs'),
+            firesInSecs: wireDouble(json, 'fires_in_secs'),
+            hourAngleHours: wireDouble(json, 'hour_angle_hours'),
+            thresholdMin: wireDouble(json, 'threshold_min'),
+          );
+        case 'ExposureAdjusted':
+          return ExposureAdjustedProgressDetail(
+            adaptedSecs: wireDouble(json, 'adapted_secs'),
+            nominalSecs: wireDouble(json, 'nominal_secs'),
+            skyBrightnessMag: wireOptDouble(json, 'sky_brightness_mag'),
+            filter: wireOptString(json, 'filter'),
+            reasonWire: wireString(json, 'reason'),
+            unchanged: wireBool(json, 'unchanged'),
           );
       }
     } on FormatException {
@@ -235,6 +271,126 @@ class MeridianFlipRetryProgressDetail extends InstructionProgressDetail {
   List<Object?> get props => [failedAttempt, maxAttempts, retryInSecs];
 }
 
+/// A target waiting to start: for [condition], or, when [altitudeDeg] and
+/// [floorDeg] are set, to clear the site's altitude floor in its direction.
+class TargetWaitingProgressDetail extends InstructionProgressDetail {
+  final String target;
+  final String condition;
+  final double? altitudeDeg;
+  final double? floorDeg;
+
+  const TargetWaitingProgressDetail({
+    required this.target,
+    required this.condition,
+    this.altitudeDeg,
+    this.floorDeg,
+  });
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'TargetWaiting',
+    detailJson: {
+      'target': target,
+      'condition': condition,
+      'altitude_deg': altitudeDeg,
+      'floor_deg': floorDeg,
+    },
+  );
+
+  @override
+  bool get isReading => false;
+
+  @override
+  List<Object?> get props => [target, condition, altitudeDeg, floorDeg];
+}
+
+/// The next exposure is held for a meridian flip that would cut it short.
+/// [firesInSecs] is negative for a flip that is already due.
+class FlipHoldProgressDetail extends InstructionProgressDetail {
+  final double exposureSecs;
+  final double firesInSecs;
+  final double hourAngleHours;
+  final double thresholdMin;
+
+  const FlipHoldProgressDetail({
+    required this.exposureSecs,
+    required this.firesInSecs,
+    required this.hourAngleHours,
+    required this.thresholdMin,
+  });
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'FlipHold',
+    detailJson: {
+      'exposure_secs': exposureSecs,
+      'fires_in_secs': firesInSecs,
+      'hour_angle_hours': hourAngleHours,
+      'threshold_min': thresholdMin,
+    },
+  );
+
+  @override
+  bool get isReading => false;
+
+  @override
+  List<Object?> get props => [
+    exposureSecs,
+    firesInSecs,
+    hourAngleHours,
+    thresholdMin,
+  ];
+}
+
+/// The adaptive exposure decision a burst starts with.
+class ExposureAdjustedProgressDetail extends InstructionProgressDetail {
+  final double adaptedSecs;
+  final double nominalSecs;
+  final double? skyBrightnessMag;
+  final String? filter;
+
+  /// The reason's wire word, kept as sent.
+  final String reasonWire;
+
+  /// The burst is taken at its planned length.
+  final bool unchanged;
+
+  const ExposureAdjustedProgressDetail({
+    required this.adaptedSecs,
+    required this.nominalSecs,
+    this.skyBrightnessMag,
+    this.filter,
+    required this.reasonWire,
+    required this.unchanged,
+  });
+
+  AdaptiveExposureReason get reason =>
+      AdaptiveExposureReason.fromWire(reasonWire);
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'ExposureAdjusted',
+    detailJson: {
+      'adapted_secs': adaptedSecs,
+      'nominal_secs': nominalSecs,
+      'sky_brightness_mag': skyBrightnessMag,
+      'filter': filter,
+      'reason': reasonWire,
+      'unchanged': unchanged,
+    },
+  );
+
+  @override
+  List<Object?> get props => [
+    adaptedSecs,
+    nominalSecs,
+    skyBrightnessMag,
+    filter,
+    reasonWire,
+    unchanged,
+  ];
+}
+
 /// The filter the wheel is on, once a step has put it there.
 class FilterInstructionProgressDetail extends InstructionProgressDetail {
   final String name;
@@ -321,6 +477,9 @@ class UnknownInstructionProgressDetail extends InstructionProgressDetail {
   @override
   ({String detailKind, Map<String, Object?> detailJson}) get wire =>
       (detailKind: kind, detailJson: rawJson);
+
+  @override
+  bool get isReading => kind != kGenericProgressDetailKind;
 
   @override
   List<Object?> get props => [kind, rawJson];

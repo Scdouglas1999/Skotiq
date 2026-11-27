@@ -228,6 +228,10 @@ sealed class SequencerEvent with _$SequencerEvent {
   const factory SequencerEvent.nodeStarted({
     required String nodeId,
     required String nodeType,
+
+    /// What an exposure node's frames are (`Light`, `Dark`, ... as the
+    /// FITS `IMAGETYP` spells it); `None` for any other node.
+    String? frameType,
   }) = SequencerEvent_NodeStarted;
   const factory SequencerEvent.nodeCompleted({
     required String nodeId,
@@ -521,9 +525,12 @@ sealed class SequencerEvent with _$SequencerEvent {
     /// filter wheel rigs.
     String? filter,
 
-    /// Lowercase tag: `adapted`, `clamped_min`, `clamped_max`,
-    /// `unavailable`, `disabled`, `out_of_nominal_bounds`.
+    /// The reason's wire word, as
+    /// `test_fixtures/wire_words/adaptive_exposure_reasons.json` lists them.
     required String reason,
+
+    /// The burst is taken at its planned length.
+    required bool unchanged,
   }) = SequencerEvent_ExposureAdjusted;
 
   /// Science: per-frame photometry payload from the

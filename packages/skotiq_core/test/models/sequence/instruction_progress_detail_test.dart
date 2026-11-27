@@ -81,6 +81,35 @@ void main() {
         ),
       );
       expect(
+        decode('TargetWaiting'),
+        const TargetWaitingProgressDetail(
+          target: 'M31',
+          condition: 'altitude ≥ 30.0°',
+          altitudeDeg: 12,
+          floorDeg: 25,
+        ),
+      );
+      expect(
+        decode('FlipHold'),
+        const FlipHoldProgressDetail(
+          exposureSecs: 300,
+          firesInSecs: 120,
+          hourAngleHours: -0.05,
+          thresholdMin: 5,
+        ),
+      );
+      expect(
+        decode('ExposureAdjusted'),
+        const ExposureAdjustedProgressDetail(
+          adaptedSecs: 302,
+          nominalSecs: 300,
+          skyBrightnessMag: 19.2,
+          filter: 'L',
+          reasonWire: 'adapted',
+          unchanged: false,
+        ),
+      );
+      expect(
         kinds.keys.map(decode),
         everyElement(isNot(isA<UnknownInstructionProgressDetail>())),
       );

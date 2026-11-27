@@ -17,5 +17,25 @@
     "total_plans": 3,
     "frame_in_plan": 7,
     "total_frames": 20
+  },
+  "TargetWaiting": {
+    "target": "M31",
+    "condition": "altitude ≥ 30.0°",
+    "altitude_deg": 12.0,
+    "floor_deg": 25.0
+  },
+  "FlipHold": {
+    "exposure_secs": 300.0,
+    "fires_in_secs": 120.0,
+    "hour_angle_hours": -0.05,
+    "threshold_min": 5.0
+  },
+  "ExposureAdjusted": {
+    "adapted_secs": 302.0,
+    "nominal_secs": 300.0,
+    "sky_brightness_mag": 19.2,
+    "filter": "L",
+    "reason": "adapted",
+    "unchanged": false
   }
 }

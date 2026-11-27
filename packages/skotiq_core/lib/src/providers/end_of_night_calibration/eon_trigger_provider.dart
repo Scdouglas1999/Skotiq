@@ -28,7 +28,7 @@ final endOfNightCalibrationCoordinatorProvider =
             ref.read(currentSequenceProvider.notifier).activeOwner,
         stopEvidence: () => ref.read(sequenceStopEvidenceProvider),
         lastRunEndOrigin: () =>
-            ref.read(sequenceExecutorProvider).lastRunEndOrigin,
+            ref.read(sequenceExecutorProvider).lastRunEndOrigin?.wire,
         log: () => ref.read(loggingServiceProvider),
         takeDeferredWarmUp: () {
           final deferred = ref.read(shutdownWarmUpDeferredProvider);

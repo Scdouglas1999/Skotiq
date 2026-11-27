@@ -12,7 +12,7 @@ RunFinalization _finalization(
   RunLifecycle lifecycle, {
   SequenceRunStatus runStatus = SequenceRunStatus.completed,
   bool nativeStopRequired = false,
-  String? stopOrigin,
+  RunStopOrigin? stopOrigin,
 }) => RunFinalization(
   generation: lifecycle.nextGeneration(),
   runStatus: runStatus,
@@ -124,7 +124,7 @@ void main() {
 
   test('a drive is joined while in flight, retained when it fails, and '
       'settles the run when it succeeds', () {
-    final f = _finalization(lifecycle, stopOrigin: 'scheduler');
+    final f = _finalization(lifecycle, stopOrigin: RunStopOrigin.scheduler);
     lifecycle.claim(f);
     final first = Completer<void>().future;
     lifecycle.driveStarted(f, first);
@@ -142,7 +142,7 @@ void main() {
 
     final retry = Completer<void>().future;
     lifecycle.driveStarted(f, retry);
-    lifecycle.settle(f, endOrigin: 'scheduler');
+    lifecycle.settle(f, endOrigin: RunStopOrigin.scheduler);
     expect(
       lifecycle.phase,
       isA<RunSettled>().having(
@@ -151,7 +151,7 @@ void main() {
         SequenceRunStatus.completed,
       ),
     );
-    expect(lifecycle.lastRunEndOrigin, 'scheduler');
+    expect(lifecycle.lastRunEndOrigin, RunStopOrigin.scheduler);
     // The drive's completion after it settled the run changes nothing.
     lifecycle.driveEnded(f, retry);
     expect(lifecycle.phase, isA<RunSettled>());
@@ -188,10 +188,10 @@ void main() {
       final f = _finalization(lifecycle, nativeStopRequired: true);
       lifecycle
         ..claim(f)
-        ..settle(f, endOrigin: 'operator')
+        ..settle(f, endOrigin: RunStopOrigin.operator)
         ..beginLaunch();
       expect(lifecycle.phase, isA<RunLaunching>());
-      expect(lifecycle.lastRunEndOrigin, 'operator');
+      expect(lifecycle.lastRunEndOrigin, RunStopOrigin.operator);
     },
   );
 

@@ -807,7 +807,11 @@ WireEvent _encodeSequencerEvent(SequencerEvent event) => switch (event) {
   ),
   SequencerEvent_NodeStarted() => (
     'NodeStarted',
-    <String, Object?>{'node_id': event.nodeId, 'node_type': event.nodeType},
+    <String, Object?>{
+      'node_id': event.nodeId,
+      'node_type': event.nodeType,
+      'frame_type': event.frameType,
+    },
   ),
   SequencerEvent_NodeCompleted() => (
     'NodeCompleted',
@@ -973,6 +977,7 @@ WireEvent _encodeSequencerEvent(SequencerEvent event) => switch (event) {
       'sky_brightness_mag': event.skyBrightnessMag,
       'filter': event.filter,
       'reason': event.reason,
+      'unchanged': event.unchanged,
     },
   ),
   SequencerEvent_PhotometryFrame() => (
@@ -1132,6 +1137,7 @@ SequencerEvent? _decodeSequencerEvent(
       return SequencerEvent.nodeStarted(
         nodeId: wireString(d, 'node_id'),
         nodeType: wireString(d, 'node_type'),
+        frameType: wireOptString(d, 'frame_type'),
       );
     case 'NodeCompleted':
       return SequencerEvent.nodeCompleted(
@@ -1280,6 +1286,7 @@ SequencerEvent? _decodeSequencerEvent(
         skyBrightnessMag: wireOptDouble(d, 'sky_brightness_mag'),
         filter: wireOptString(d, 'filter'),
         reason: wireString(d, 'reason'),
+        unchanged: wireBool(d, 'unchanged'),
       );
     case 'PhotometryFrame':
       return SequencerEvent.photometryFrame(

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/models.dart' show RunStopOrigin;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
@@ -68,7 +69,9 @@ Future<StreamSubscription<DiskSpaceWatchdogEvent>?> startDiskSpaceWatchdog({
             // A disk-full abort is nobody's press: the origin keeps the
             // executor from recording (unsilenceably) 'Operator: stop' on
             // an appliance where nobody is at the keyboard.
-            await backend.sequencerStop(origin: 'disk-watchdog');
+            await backend.sequencerStop(
+              origin: RunStopOrigin.diskWatchdog.wire,
+            );
             logger.info(
               '[disk-watchdog] Sequencer stop command issued successfully',
               source: _headlessLogSource,

@@ -32,6 +32,25 @@ pub enum ProgressDetail {
     },
     /// The filter the wheel is on, once a step has put it there.
     Filter { name: String, position: Option<i32> },
+    /// A target waits to start: for its start condition, or, when
+    /// `altitude_deg` and `floor_deg` are set, to clear the site's altitude
+    /// floor in its direction.
+    TargetWaiting {
+        target: String,
+        condition: String,
+        #[serde(default)]
+        altitude_deg: Option<f64>,
+        #[serde(default)]
+        floor_deg: Option<f64>,
+    },
+    /// The next exposure is held for a meridian flip that would cut it short.
+    /// `fires_in_secs` is negative for a flip that is already due.
+    FlipHold {
+        exposure_secs: f64,
+        fires_in_secs: f64,
+        hour_angle_hours: f64,
+        threshold_min: f64,
+    },
     /// Plate-solve + center attempt.
     Center {
         attempt: u32,
@@ -212,11 +231,9 @@ pub enum ProgressDetail {
         #[serde(default)]
         capture: crate::scheduling::FrameCaptureMetadata,
     },
-    /// sky-brightness adaptive exposure decision.
-    /// Emitted by `expose.rs` immediately before a burst starts whenever
-    /// the adaptive-exposure adapter has been consulted (regardless of
-    /// whether the adapter actually changed the duration). Drives the
-    /// dashboard's "Adapted exposure: 142s (nominal 60s)" surface.
+    /// Sky-brightness adaptive exposure decision, sent before a burst starts
+    /// whenever the adapter was consulted, whether or not it changed the
+    /// length.
     ExposureAdjusted {
         /// The exposure time we will actually use for this burst (seconds).
         adapted_secs: f64,
@@ -228,10 +245,10 @@ pub enum ProgressDetail {
         /// Filter the burst is being captured through; surfaces in the UI
         /// so the user can see e.g. "L adapted; RGB fixed".
         filter: Option<String>,
-        /// Human-readable reason tag — one of `Adapted`, `ClampedMin`,
-        /// `ClampedMax`, `Unavailable`, `Disabled`, `OutOfNominalBounds`.
-        /// Mirrors `crate::scheduling::AdaptiveExposureReason::label`.
-        reason: String,
+        reason: crate::scheduling::AdaptiveExposureReason,
+        /// The burst is taken at its planned length (within
+        /// [`crate::scheduling::ADAPTED_UNCHANGED_SECS`]).
+        unchanged: bool,
     },
     /// live progress payload from a plugin-dispatched
     /// `NodeType::PluginNode`. `detail` is an opaque JSON value the
@@ -313,6 +330,36 @@ impl ProgressDetail {
                 Some(p) => format!("{} (pos {})", name, p),
                 None => name.clone(),
             },
+            ProgressDetail::TargetWaiting {
+                target,
+                condition,
+                altitude_deg,
+                floor_deg,
+            } => match (altitude_deg, floor_deg) {
+                (Some(altitude), Some(floor)) => format!(
+                    "Waiting for {target} to clear the altitude floor: \
+                     {altitude:.0}° up, floor {floor:.0}° in that direction"
+                ),
+                _ => format!("Waiting for {target}: {condition}"),
+            },
+            ProgressDetail::FlipHold {
+                exposure_secs,
+                fires_in_secs,
+                hour_angle_hours,
+                threshold_min,
+            } => {
+                let when = if *fires_in_secs >= 0.0 {
+                    format!("fires in ~{:.0}s", fires_in_secs)
+                } else {
+                    format!("became due {:.0}s ago", -fires_in_secs)
+                };
+                format!(
+                    "Waiting for the meridian flip before the next {:.0}s exposure: the flip \
+                     {} (hour angle {:+.2}h, threshold {:.0} min past meridian) \
+                     and would interrupt the frame",
+                    exposure_secs, when, hour_angle_hours, threshold_min
+                )
+            }
             ProgressDetail::Center {
                 attempt,
                 max_attempts,
@@ -457,12 +504,11 @@ impl ProgressDetail {
                 nominal_secs,
                 sky_brightness_mag,
                 reason,
+                unchanged,
                 ..
             } => {
-                // Read by the operator on the plan's progress line: the
-                // length the frames are taken at, and why it differs from the
-                // plan only when it does. `reason` is the wire token
-                // (`disabled`, `clamped_min`, ...), not prose.
+                // The length the frames are taken at, and why it differs from
+                // the plan only when it does.
                 let secs = |s: &f64| {
                     let rounded = (s * 10.0).round() / 10.0;
                     if rounded.fract() == 0.0 {
@@ -472,12 +518,13 @@ impl ProgressDetail {
                     }
                 };
                 let adapted = secs(adapted_secs);
-                if (adapted_secs - nominal_secs).abs() < 0.05 {
+                if *unchanged {
                     format!("{adapted} exposures")
                 } else {
-                    let why = match reason.as_str() {
-                        "clamped_min" => ", the shortest allowed".to_string(),
-                        "clamped_max" => ", the longest allowed".to_string(),
+                    use crate::scheduling::AdaptiveExposureReason as Reason;
+                    let why = match reason {
+                        Reason::ClampedMin => ", the shortest allowed".to_string(),
+                        Reason::ClampedMax => ", the longest allowed".to_string(),
                         _ => match sky_brightness_mag {
                             Some(mag) => {
                                 format!(" for the sky ({mag:.1} mag/arcsec²)")
@@ -587,6 +634,12 @@ impl From<String> for ProgressDetail {
     }
 }
 
+impl From<&str> for ProgressDetail {
+    fn from(text: &str) -> Self {
+        Self::Generic(text.to_string())
+    }
+}
+
 impl From<crate::instructions::ThermalReading> for ProgressDetail {
     fn from(reading: crate::instructions::ThermalReading) -> Self {
         Self::Thermal {
@@ -599,10 +652,12 @@ impl From<crate::instructions::ThermalReading> for ProgressDetail {
 
 /// Progress update emitted by a node during execution.
 ///
-/// `message` is auto-derived from `instruction` + `detail` + `progress_percent`
-/// in the legacy format the bridge / Dart consumers expect (`"Filter: name (50%)"`).
-/// Producers should populate the structured fields; the executor callback
-/// reads the structured payload directly and does NOT parse `message`.
+/// An update with an `instruction` and a `detail` is the step's report: the
+/// executor publishes it to every client as the node's progress. An update
+/// with only a `message` ([`ProgressUpdate::lifecycle`]) reaches the log and
+/// the native status line, never a client's view of the step, so anything
+/// the operator should read goes out as a report
+/// ([`ProgressUpdate::instruction_progress`] or [`ProgressUpdate::status`]).
 #[derive(Debug, Clone)]
 pub struct ProgressUpdate {
     pub node_id: NodeId,
@@ -616,11 +671,10 @@ pub struct ProgressUpdate {
     pub progress_percent: Option<f64>,
     /// Structured payload. `None` for container/logic life-cycle events.
     pub detail: Option<ProgressDetail>,
-    /// Free-form fallback message. Populated by container/logic nodes that
-    /// have no instruction-level detail (e.g. "Loop iteration 3",
-    /// "Step 2/5: Slew To Target"). For instruction nodes this is normally
-    /// `None` — the executor derives the legacy message from the structured
-    /// fields via [`ProgressUpdate::legacy_message`].
+    /// The native status line's words for this update. Set by container and
+    /// logic nodes ("Loop iteration 3", "Step 2/5: Slew To Target"); `None`
+    /// for a report, whose line is derived from its fields by
+    /// [`ProgressUpdate::legacy_message`].
     pub message: Option<String>,
     pub current_frame: Option<u32>,
     pub total_frames: Option<u32>,
@@ -646,12 +700,12 @@ pub struct ProgressUpdate {
 }
 
 impl ProgressUpdate {
-    /// Build the legacy progress message string the bridge layer publishes.
-    /// Format matches the consumer regex: `"<instruction>: <detail> (<NN>%)"`.
-    /// Returns `message` verbatim when no structured fields are populated
-    /// (the container/logic life-cycle case).
+    /// The native status line for this update: `message` when set, otherwise
+    /// `"<instruction>: <detail> (<NN>%)"` for a report with a percent.
     pub fn legacy_message(&self) -> Option<String> {
-        // Instruction-progress event: synthesize "Foo: detail (NN%)".
+        if self.message.is_some() {
+            return self.message.clone();
+        }
         if let (Some(instruction), Some(percent)) =
             (self.instruction.as_ref(), self.progress_percent)
         {
@@ -665,8 +719,7 @@ impl ProgressUpdate {
                 instruction, detail_text, percent
             ));
         }
-        // Life-cycle event: pass `message` through unchanged.
-        self.message.clone()
+        None
     }
 
     /// Construct a life-cycle update (NodeStarted, NodeCompleted, etc.).
@@ -698,6 +751,26 @@ impl ProgressUpdate {
             node_name: Some(name),
             ..Self::lifecycle(node_id, NodeStatus::Running, String::new())
         }
+    }
+
+    /// A report that says what the step is doing without moving its
+    /// progress: the executor publishes it at the step's last percent.
+    pub fn status(
+        node_id: NodeId,
+        instruction: impl Into<String>,
+        detail: impl Into<ProgressDetail>,
+    ) -> Self {
+        Self {
+            progress_percent: None,
+            ..Self::instruction_progress(node_id, instruction, 0.0, detail.into())
+        }
+    }
+
+    /// This update's native status line is the report's own words, without
+    /// the instruction and percent around them.
+    pub fn with_bare_status_line(mut self) -> Self {
+        self.message = self.detail.as_ref().map(ProgressDetail::detail_text);
+        self
     }
 
     /// Construct an instruction progress update with structured detail.
@@ -800,6 +873,26 @@ mod tests {
                 total_plans: 3,
                 frame_in_plan: 7,
                 total_frames: 20,
+            },
+            ProgressDetail::TargetWaiting {
+                target: "M31".to_string(),
+                condition: "altitude ≥ 30.0°".to_string(),
+                altitude_deg: Some(12.0),
+                floor_deg: Some(25.0),
+            },
+            ProgressDetail::FlipHold {
+                exposure_secs: 300.0,
+                fires_in_secs: 120.0,
+                hour_angle_hours: -0.05,
+                threshold_min: 5.0,
+            },
+            ProgressDetail::ExposureAdjusted {
+                adapted_secs: 302.0,
+                nominal_secs: 300.0,
+                sky_brightness_mag: Some(19.2),
+                filter: Some("L".to_string()),
+                reason: crate::scheduling::AdaptiveExposureReason::Adapted,
+                unchanged: false,
             },
         ];
         let mut kinds = serde_json::Map::new();

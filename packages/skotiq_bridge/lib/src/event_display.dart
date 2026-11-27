@@ -16,6 +16,11 @@ import 'dart:convert';
 
 import 'event.dart';
 
+/// The recovery phase a completed recovery reports when it handed the run to
+/// the meridian flip instead of recovering it: the `RecoveryPhase` wire word
+/// `Waiting` (`test_fixtures/wire_words/recovery_phases.json`).
+const String kRecoveryHandedOffPhase = 'Waiting';
+
 /// Returns a short headline-style title for the event suitable for the
 /// trigger feed row. Examples:
 ///   * `EquipmentEvent_Connected(deviceType: ZWO, ...)` → `"Connected"`
@@ -469,19 +474,14 @@ String _sequencerTitle(SequencerEvent v) {
     // generic Object.toString().
     SequencerEvent_RecoveryStarted() => 'Recovery started',
     SequencerEvent_RecoveryProgress() => 'Recovery in progress',
-    SequencerEvent_RecoveryCompleted(phase: 'Waiting') => 'Recovery handed off',
+    SequencerEvent_RecoveryCompleted(phase: kRecoveryHandedOffPhase) =>
+      'Recovery handed off',
     SequencerEvent_RecoveryCompleted() => 'Recovery complete',
     SequencerEvent_RecoveryGaveUp(abortedByUser: final aborted) =>
       aborted ? 'Recovery aborted' : 'Recovery exhausted',
-    // Adaptive exposure ("ExposureAdjusted") and any
-    // other adaptive-exposure events that haven't been wired into this
-    // label switch yet. Fallback to the generic class-name discriminant
-    // until each is given a hand-written label.
-    // The run reports a decision for every frame, adaptive exposure off
+    // The run reports a decision for every burst, adaptive exposure off
     // included; one that leaves the length as planned is not an adjustment.
-    SequencerEvent_ExposureAdjusted(nominalSecs: final o, adaptedSecs: final a)
-        when (a - o).abs() < 0.05 =>
-      'Exposure unchanged',
+    SequencerEvent_ExposureAdjusted(unchanged: true) => 'Exposure unchanged',
     SequencerEvent_ExposureAdjusted() => 'Exposure adjusted',
     SequencerEvent_PluginNodeRequested() => 'Plugin node requested',
     SequencerEvent_PluginNodeProgress() => 'Plugin node progress',
@@ -621,7 +621,7 @@ String _sequencerDetail(SequencerEvent v) {
       '${custom?.isNotEmpty == true ? custom! : kind} · $ph '
           '(${a == 0 ? "1st" : "${a + 1}th"} of $maxA)',
     SequencerEvent_RecoveryCompleted(
-      phase: 'Waiting',
+      phase: kRecoveryHandedOffPhase,
       lastError: final reason,
     ) =>
       reason ?? 'Recovery handed to the meridian flip controller',

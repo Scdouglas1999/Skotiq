@@ -12512,9 +12512,11 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
             6 => {
                 let mut var_nodeId = <String>::sse_decode(deserializer);
                 let mut var_nodeType = <String>::sse_decode(deserializer);
+                let mut var_frameType = <Option<String>>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerEvent::NodeStarted {
                     node_id: var_nodeId,
                     node_type: var_nodeType,
+                    frame_type: var_frameType,
                 };
             }
             7 => {
@@ -12776,6 +12778,7 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
                 let mut var_skyBrightnessMag = <Option<f64>>::sse_decode(deserializer);
                 let mut var_filter = <Option<String>>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
+                let mut var_unchanged = <bool>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerEvent::ExposureAdjusted {
                     node_id: var_nodeId,
                     adapted_secs: var_adaptedSecs,
@@ -12783,6 +12786,7 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
                     sky_brightness_mag: var_skyBrightnessMag,
                     filter: var_filter,
                     reason: var_reason,
+                    unchanged: var_unchanged,
                 };
             }
             25 => {
@@ -17663,10 +17667,15 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
             crate::event::sequencer::SequencerEvent::Failed { error } => {
                 [5.into_dart(), error.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::sequencer::SequencerEvent::NodeStarted { node_id, node_type } => [
+            crate::event::sequencer::SequencerEvent::NodeStarted {
+                node_id,
+                node_type,
+                frame_type,
+            } => [
                 6.into_dart(),
                 node_id.into_into_dart().into_dart(),
                 node_type.into_into_dart().into_dart(),
+                frame_type.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::sequencer::SequencerEvent::NodeCompleted { node_id, status } => [
@@ -17920,6 +17929,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
                 sky_brightness_mag,
                 filter,
                 reason,
+                unchanged,
             } => [
                 24.into_dart(),
                 node_id.into_into_dart().into_dart(),
@@ -17928,6 +17938,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
                 sky_brightness_mag.into_into_dart().into_dart(),
                 filter.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
+                unchanged.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::sequencer::SequencerEvent::PhotometryFrame {
@@ -22383,10 +22394,15 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
                 <i32>::sse_encode(5, serializer);
                 <String>::sse_encode(error, serializer);
             }
-            crate::event::sequencer::SequencerEvent::NodeStarted { node_id, node_type } => {
+            crate::event::sequencer::SequencerEvent::NodeStarted {
+                node_id,
+                node_type,
+                frame_type,
+            } => {
                 <i32>::sse_encode(6, serializer);
                 <String>::sse_encode(node_id, serializer);
                 <String>::sse_encode(node_type, serializer);
+                <Option<String>>::sse_encode(frame_type, serializer);
             }
             crate::event::sequencer::SequencerEvent::NodeCompleted { node_id, status } => {
                 <i32>::sse_encode(7, serializer);
@@ -22628,6 +22644,7 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
                 sky_brightness_mag,
                 filter,
                 reason,
+                unchanged,
             } => {
                 <i32>::sse_encode(24, serializer);
                 <String>::sse_encode(node_id, serializer);
@@ -22636,6 +22653,7 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
                 <Option<f64>>::sse_encode(sky_brightness_mag, serializer);
                 <Option<String>>::sse_encode(filter, serializer);
                 <String>::sse_encode(reason, serializer);
+                <bool>::sse_encode(unchanged, serializer);
             }
             crate::event::sequencer::SequencerEvent::PhotometryFrame {
                 node_id,
@@ -26900,6 +26918,7 @@ mod io {
                     crate::event::sequencer::SequencerEvent::NodeStarted {
                         node_id: ans.node_id.cst_decode(),
                         node_type: ans.node_type.cst_decode(),
+                        frame_type: ans.frame_type.cst_decode(),
                     }
                 }
                 7 => {
@@ -27084,6 +27103,7 @@ mod io {
                         sky_brightness_mag: ans.sky_brightness_mag.cst_decode(),
                         filter: ans.filter.cst_decode(),
                         reason: ans.reason.cst_decode(),
+                        unchanged: ans.unchanged.cst_decode(),
                     }
                 }
                 25 => {
@@ -36258,6 +36278,7 @@ mod io {
     pub struct wire_cst_SequencerEvent_NodeStarted {
         node_id: *mut wire_cst_list_prim_u_8_strict,
         node_type: *mut wire_cst_list_prim_u_8_strict,
+        frame_type: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -36424,6 +36445,7 @@ mod io {
         sky_brightness_mag: *mut f64,
         filter: *mut wire_cst_list_prim_u_8_strict,
         reason: *mut wire_cst_list_prim_u_8_strict,
+        unchanged: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

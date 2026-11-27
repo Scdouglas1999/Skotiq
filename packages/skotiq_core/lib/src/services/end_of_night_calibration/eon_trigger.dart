@@ -93,9 +93,10 @@ EonEndReason? classifyRunEnd({
   if (!runStatus.endedByStop) return null;
   final reason = _nightEndReason(nightEnd);
   if (reason != null) return reason;
+  // A trigger's stop carries the trigger's id as its origin.
   final safetyStop =
       stopOrigin == 'weather_unsafe' ||
-      stopOrigin == 'safety' ||
+      stopOrigin == RunStopOrigin.safety.wire ||
       stopOrigin == null;
   if (safetyStop && nightEnding) return EonEndReason.dawn;
   return null;
@@ -187,7 +188,7 @@ class EndOfNightCalibrationCoordinator {
         : _activeOwner();
     final evidence = _stopEvidence();
     final origin = switch (evidence?.author) {
-      SequenceStopAuthor.operatorPress => 'operator',
+      SequenceStopAuthor.operatorPress => RunStopOrigin.operator.wire,
       SequenceStopAuthor.autopilot => 'autopilot',
       SequenceStopAuthor.system => evidence?.origin,
       null =>
@@ -243,7 +244,9 @@ class EndOfNightCalibrationCoordinator {
       // The run left its Warm camera step to the calibration. When none ran,
       // for whatever reason the run ended, the warm-up is owed now. After the
       // operator's own Stop the run puts nothing away, so neither does this.
-      if (deferredWarmUp && !calibrated && stopOrigin != 'operator') {
+      if (deferredWarmUp &&
+          !calibrated &&
+          stopOrigin != RunStopOrigin.operator.wire) {
         await _calibration().warmUpDeferredCamera(
           'End-of-night calibration did not run, so the camera is '
           'warmed now',

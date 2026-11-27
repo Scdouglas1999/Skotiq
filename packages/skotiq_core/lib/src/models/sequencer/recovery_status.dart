@@ -10,37 +10,24 @@ library;
 
 import 'package:equatable/equatable.dart';
 
-/// Sub-phase of an in-flight recovery loop. Mirrors the Rust
-/// `RecoveryPhase` enum field-by-field; the wire keys match the Rust
-/// `Debug` formatting so the Dart side never needs `switch`-with-default.
+/// Sub-phase of an in-flight recovery loop, by the Rust `RecoveryPhase` wire
+/// word (`test_fixtures/wire_words/recovery_phases.json`).
 enum RecoveryPhase {
   /// Waiting between retry attempts; countdown ticking.
-  waiting,
+  waiting('Waiting'),
 
   /// Currently re-executing the failed operation.
-  attempting,
+  attempting('Attempting'),
 
   /// Recovery succeeded — executor will resume the sequence.
-  recovered,
+  recovered('Recovered'),
 
   /// Recovery exhausted attempts / time / was aborted by the user.
-  gaveUp,
-}
+  gaveUp('GaveUp');
 
-/// Stable string keys for each [RecoveryPhase] — used by JSON
-/// deserialisation. Matches the Rust `Debug` output (which is also the
-/// serialised string for serde_json on a unit variant).
-String _phaseWireKey(RecoveryPhase p) {
-  switch (p) {
-    case RecoveryPhase.waiting:
-      return 'Waiting';
-    case RecoveryPhase.attempting:
-      return 'Attempting';
-    case RecoveryPhase.recovered:
-      return 'Recovered';
-    case RecoveryPhase.gaveUp:
-      return 'GaveUp';
-  }
+  const RecoveryPhase(this.wire);
+
+  final String wire;
 }
 
 RecoveryPhase _phaseFromWire(dynamic raw) =>
@@ -49,13 +36,9 @@ RecoveryPhase _phaseFromWire(dynamic raw) =>
 /// The [RecoveryPhase] a Rust `RecoveryPhase` wire word names. Anything else
 /// is a protocol contract violation: throwing keeps a mis-shaped payload from
 /// resolving to a default phase the recovery UI would then report as real.
-RecoveryPhase recoveryPhaseFromWire(String wire) => switch (wire) {
-  'Waiting' => RecoveryPhase.waiting,
-  'Attempting' => RecoveryPhase.attempting,
-  'Recovered' => RecoveryPhase.recovered,
-  'GaveUp' => RecoveryPhase.gaveUp,
-  _ => throw FormatException('Unknown RecoveryPhase wire value: $wire'),
-};
+RecoveryPhase recoveryPhaseFromWire(String wire) =>
+    RecoveryPhase.values.where((phase) => phase.wire == wire).firstOrNull ??
+    (throw FormatException('Unknown RecoveryPhase wire value: $wire'));
 
 /// Stable string keys for the [RecoveryCause] discriminant. Matches the
 /// Rust `serde` representation for unit variants. The [RecoveryCause.custom]
@@ -280,7 +263,7 @@ class RecoveryStatus extends Equatable {
     'max_attempts': maxAttempts,
     'retry_interval_secs': retryIntervalSecs,
     'max_duration_secs': maxDurationSecs,
-    'phase': _phaseWireKey(phase),
+    'phase': phase.wire,
     'last_error': lastError,
   };
 

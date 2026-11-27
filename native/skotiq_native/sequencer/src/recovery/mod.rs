@@ -102,6 +102,26 @@ pub enum RecoveryPhase {
     GaveUp,
 }
 
+impl RecoveryPhase {
+    pub const ALL: [Self; 4] = [
+        Self::Waiting,
+        Self::Attempting,
+        Self::Recovered,
+        Self::GaveUp,
+    ];
+
+    /// The phase's wire word, which is also its serde form. The app reads it
+    /// by `test_fixtures/wire_words/recovery_phases.json`.
+    pub fn as_wire(self) -> &'static str {
+        match self {
+            Self::Waiting => "Waiting",
+            Self::Attempting => "Attempting",
+            Self::Recovered => "Recovered",
+            Self::GaveUp => "GaveUp",
+        }
+    }
+}
+
 /// Snapshot of a live recovery loop. Cloned cheaply (small POD-ish struct)
 /// for the executor event payload so the UI can render the banner without
 /// reaching back into the executor for every redraw.
@@ -441,6 +461,43 @@ impl RecoveryHistoryEntry {
 
 #[cfg(test)]
 mod tests {
+    const PHASES_FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/wire_words/recovery_phases.json"
+    );
+
+    /// `test_fixtures/wire_words/recovery_phases.json`: every recovery
+    /// phase's wire word, which the app's recovery status reads. Regenerate
+    /// with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer recovery_phases_fixture`.
+    #[test]
+    fn recovery_phases_fixture() {
+        let words: Vec<&str> = super::RecoveryPhase::ALL
+            .iter()
+            .map(|phase| {
+                assert_eq!(
+                    serde_json::to_value(phase).unwrap(),
+                    serde_json::json!(phase.as_wire()),
+                    "the serde form is the wire word"
+                );
+                phase.as_wire()
+            })
+            .collect();
+        let value = serde_json::json!(words);
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+            text.push('\n');
+            std::fs::write(PHASES_FIXTURE, text).expect("write fixture");
+            return;
+        }
+        let committed: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(PHASES_FIXTURE).expect("fixture"))
+                .expect("JSON");
+        assert_eq!(
+            committed, value,
+            "a recovery phase changed; regenerate the fixture and update the app"
+        );
+    }
+
     use super::*;
 
     #[test]

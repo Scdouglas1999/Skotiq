@@ -339,6 +339,9 @@ pub enum ExecutorEvent {
     NodeStarted {
         id: NodeId,
         name: String,
+        /// What the node's frames are, for an exposure node.
+        #[serde(default)]
+        frame_type: Option<crate::FrameType>,
     },
     NodeCompleted {
         id: NodeId,

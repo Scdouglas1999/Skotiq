@@ -1,4 +1,6 @@
 import '../../../models/sequence/sequence_run_status.dart';
+import '../../../models/sequence/run_stop_classification.dart'
+    show RunStopOrigin;
 import 'run_finalization.dart';
 
 /// Where the run this executor owns is in its life.
@@ -110,12 +112,12 @@ class RunLifecycle {
   /// A new, never-reused id for the next [RunFinalization].
   int nextGeneration() => ++_generation;
 
-  String? _lastRunEndOrigin;
+  RunStopOrigin? _lastRunEndOrigin;
 
-  /// How the most recently settled run ended: `operator` / `scheduler` /
-  /// `rollback` / `safety` (a native abort no stop() commanded), or null
-  /// (completed, failed, or nothing settled yet). Kept across later launches.
-  String? get lastRunEndOrigin => _lastRunEndOrigin;
+  /// Who ended the most recently settled run ([RunStopOrigin.safety] for a
+  /// native abort no stop() commanded), or null (completed, failed, or
+  /// nothing settled yet). Kept across later launches.
+  RunStopOrigin? get lastRunEndOrigin => _lastRunEndOrigin;
 
   /// The claimed finalization, in flight or retained, if any.
   RunFinalization? get finalization => switch (_phase) {
@@ -237,7 +239,7 @@ class RunLifecycle {
   }
 
   /// Finalizing([f]) -> Settled. [endOrigin] becomes [lastRunEndOrigin].
-  void settle(RunFinalization f, {String? endOrigin}) {
+  void settle(RunFinalization f, {RunStopOrigin? endOrigin}) {
     switch (_phase) {
       case RunFinalizing(:final finalization) when identical(finalization, f):
         _phase = RunSettled(f.runStatus);

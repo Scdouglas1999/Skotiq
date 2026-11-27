@@ -228,12 +228,17 @@ pub(crate) async fn run_sequencer_event_loop(
                         payload_json: event.payload_json(),
                     }),
                 )),
-                ExecutorEvent::NodeStarted { id, name } => Some(create_event_auto_id(
+                ExecutorEvent::NodeStarted {
+                    id,
+                    name,
+                    frame_type,
+                } => Some(create_event_auto_id(
                     EventSeverity::Info,
                     EventCategory::Sequencer,
                     EventPayload::Sequencer(SequencerEvent::NodeStarted {
                         node_id: id.clone(),
                         node_type: name.clone(),
+                        frame_type: frame_type.map(|frame_type| frame_type.as_str().to_string()),
                     }),
                 )),
                 ExecutorEvent::NodeCompleted { id, status } => {

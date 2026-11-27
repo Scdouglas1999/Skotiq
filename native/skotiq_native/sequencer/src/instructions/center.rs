@@ -1003,23 +1003,14 @@ async fn wait_for_flip(
             return None;
         }
         if !announced {
-            // Say which side of the fire time we are on. Clamping a negative
-            // `fire_in_secs` to zero reported "fires in ~0s" for a flip that
-            // was already due, which reads as "any second now" when the real
-            // state is "should have happened and has not".
-            let when = if fire_in_secs >= 0.0 {
-                format!("fires in ~{:.0}s", fire_in_secs)
-            } else {
-                format!("became due {:.0}s ago", -fire_in_secs)
+            let hold = crate::ProgressDetail::FlipHold {
+                exposure_secs,
+                fires_in_secs: fire_in_secs,
+                hour_angle_hours: ha,
+                threshold_min,
             };
-            let message = format!(
-                "Waiting for the meridian flip before the next {:.0}s exposure: the flip \
-                 {} (hour angle {:+.2}h, threshold {:.0} min past meridian) \
-                 and would interrupt the frame",
-                exposure_secs, when, ha, threshold_min
-            );
-            tracing::info!("{}", message);
-            control.report(&message);
+            tracing::info!("{}", hold.detail_text());
+            control.report_detail(hold);
             announced = true;
         }
         tokio::select! {

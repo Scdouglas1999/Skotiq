@@ -128,12 +128,12 @@ fn spawn_monitor(
 
 fn collect_messages() -> (
     Arc<Mutex<Vec<String>>>,
-    impl Fn(&str) + Send + Sync + 'static,
+    impl Fn(crate::ProgressDetail) + Send + Sync + 'static,
 ) {
     let messages = Arc::new(Mutex::new(Vec::new()));
     let sink = messages.clone();
-    (messages, move |message: &str| {
-        sink.lock().unwrap().push(message.to_string())
+    (messages, move |detail: crate::ProgressDetail| {
+        sink.lock().unwrap().push(detail.detail_text())
     })
 }
 

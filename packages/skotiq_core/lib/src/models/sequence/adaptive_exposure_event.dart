@@ -1,69 +1,32 @@
-/// Typed wrapper for the
-/// `SequencerEvent::ExposureAdjusted` event. The dashboard quality
-/// panel reads the latest decision from this model to render
-/// "L 142s (nominal 60s, sky 19.2 mag/arcsec²)".
-///
-/// An earlier build relied on parsing `InstructionProgress.detail`
-/// strings; this typed payload follows the same model as
-/// `FrameGradeEvent` and keeps the dashboard free of string parsing.
+/// An adaptive exposure decision as the sequencer's `ExposureAdjusted` event
+/// reports it, which the night panel reads.
 library;
 
-/// Reason tag mirroring the Rust `AdaptiveExposureReason`. Plain enum
-/// with a `fromWire` builder so we don't drag in freezed for a five-
-/// variant tag.
 import 'package:skotiq_bridge/skotiq_bridge.dart'
     show SequencerEvent_ExposureAdjusted;
 
+/// Why the adapter chose a length, by the Rust `AdaptiveExposureReason` wire
+/// word (`test_fixtures/wire_words/adaptive_exposure_reasons.json`).
 enum AdaptiveExposureReason {
-  adapted,
-  clampedMin,
-  clampedMax,
-  unavailable,
-  disabled,
-  outOfNominalBounds,
-  unknown;
+  adapted('adapted'),
+  clampedMin('clamped_min'),
+  clampedMax('clamped_max'),
+  unavailable('unavailable'),
+  disabled('disabled'),
+  outOfNominalBounds('out_of_nominal_bounds'),
 
-  /// Build from the lowercase wire-format string emitted by Rust.
-  /// Unknown strings map to [unknown] so a future bridge variant
-  /// doesn't crash the dashboard.
-  static AdaptiveExposureReason fromWire(String s) {
-    switch (s) {
-      case 'adapted':
-        return AdaptiveExposureReason.adapted;
-      case 'clamped_min':
-        return AdaptiveExposureReason.clampedMin;
-      case 'clamped_max':
-        return AdaptiveExposureReason.clampedMax;
-      case 'unavailable':
-        return AdaptiveExposureReason.unavailable;
-      case 'disabled':
-        return AdaptiveExposureReason.disabled;
-      case 'out_of_nominal_bounds':
-        return AdaptiveExposureReason.outOfNominalBounds;
-      default:
-        return AdaptiveExposureReason.unknown;
-    }
-  }
+  /// A word this build does not know.
+  unknown('');
 
-  /// Human-readable label for the dashboard.
-  String get label {
-    switch (this) {
-      case AdaptiveExposureReason.adapted:
-        return 'adapted';
-      case AdaptiveExposureReason.clampedMin:
-        return 'clamped to min';
-      case AdaptiveExposureReason.clampedMax:
-        return 'clamped to max';
-      case AdaptiveExposureReason.unavailable:
-        return 'sky brightness unavailable';
-      case AdaptiveExposureReason.disabled:
-        return 'disabled';
-      case AdaptiveExposureReason.outOfNominalBounds:
-        return 'nominal out of bounds';
-      case AdaptiveExposureReason.unknown:
-        return 'unknown';
-    }
-  }
+  const AdaptiveExposureReason(this.wire);
+
+  final String wire;
+
+  static AdaptiveExposureReason fromWire(String s) =>
+      values
+          .where((reason) => reason != unknown && reason.wire == s)
+          .firstOrNull ??
+      unknown;
 }
 
 /// Typed payload for the sky-brightness adaptive exposure event.
@@ -88,6 +51,9 @@ class AdaptiveExposureEvent {
   /// Tag describing why the value was chosen.
   final AdaptiveExposureReason reason;
 
+  /// The burst is taken at its planned length, as the sequencer decided.
+  final bool unchanged;
+
   /// Wall-clock receipt timestamp (used to expire stale snapshots in
   /// the dashboard).
   final DateTime receivedAt;
@@ -99,6 +65,7 @@ class AdaptiveExposureEvent {
     required this.skyBrightnessMag,
     required this.filter,
     required this.reason,
+    required this.unchanged,
     required this.receivedAt,
   });
 
@@ -112,18 +79,7 @@ class AdaptiveExposureEvent {
     skyBrightnessMag: event.skyBrightnessMag,
     filter: event.filter,
     reason: AdaptiveExposureReason.fromWire(event.reason),
+    unchanged: event.unchanged,
     receivedAt: DateTime.now(),
   );
-
-  /// Percent change from nominal. Positive => stretched (sky brighter
-  /// than reference), negative => shortened.
-  double get changePercent {
-    if (nominalSecs <= 0) return 0;
-    return ((adaptedSecs - nominalSecs) / nominalSecs) * 100;
-  }
-
-  /// Whether this decision actually changed the exposure duration
-  /// noticeably (>1 % delta — anything smaller is rounding noise on
-  /// the pipeline).
-  bool get isNontrivialAdjustment => changePercent.abs() > 1.0;
 }

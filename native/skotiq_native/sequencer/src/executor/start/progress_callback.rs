@@ -3,8 +3,16 @@
 
 use super::*;
 
+/// What an exposure node of the plan takes.
+#[derive(Debug, Clone)]
+pub(crate) struct ExposureNodePlan {
+    pub planned_secs: f64,
+    pub filter: Option<String>,
+    pub frame_type: crate::FrameType,
+}
+
 pub(super) struct ProgressCallbackArgs {
-    pub exposure_node_metadata: Arc<HashMap<NodeId, (f64, Option<String>)>>,
+    pub exposure_node_metadata: Arc<HashMap<NodeId, ExposureNodePlan>>,
     pub node_frame_progress: Arc<StdRwLock<HashMap<NodeId, u32>>>,
     pub node_integration_credited: Arc<StdRwLock<HashMap<NodeId, f64>>>,
     pub node_names: Arc<StdRwLock<HashMap<NodeId, String>>>,
@@ -28,7 +36,34 @@ pub(super) fn build_progress_callback(
         target_node_metadata,
     } = args;
     let event_tx_clone = run_state.events().clone();
-    Arc::new(move |update: ProgressUpdate| {
+    // The percent each running node last reported, which a status report
+    // that does not move the step is published at. A report from a node the
+    // run never entered is not a step's progress and is not published.
+    let node_percent: StdRwLock<HashMap<NodeId, f64>> = StdRwLock::new(HashMap::new());
+    // The words of the status report each running node last published. A
+    // step that repeats itself (a poll restating the same wait) goes out to
+    // clients once.
+    let node_last_status: StdRwLock<HashMap<NodeId, String>> = StdRwLock::new(HashMap::new());
+    Arc::new(move |mut update: ProgressUpdate| {
+        let mut repeated_status = false;
+        if let (Some(instruction), Some(detail)) = (&update.instruction, &update.detail) {
+            let mut percents = node_percent.write();
+            let mut last_status = node_last_status.write();
+            match update.progress_percent {
+                Some(percent) => {
+                    percents.insert(update.node_id.clone(), percent);
+                    last_status.remove(&update.node_id);
+                }
+                None => {
+                    update.progress_percent = percents.get(&update.node_id).copied();
+                    let words = format!("{instruction}\n{}", detail.detail_text());
+                    repeated_status = last_status
+                        .get(&update.node_id)
+                        .is_some_and(|last| *last == words);
+                    last_status.insert(update.node_id.clone(), words);
+                }
+            }
+        }
         run_state.update_progress(|prog| {
             prog.current_node_id = Some(update.node_id.clone());
             // Move the name with the id (see `node_names` above). Unknown
@@ -51,6 +86,9 @@ pub(super) fn build_progress_callback(
                 let mut started = started_nodes.write();
                 if !started.contains(&update.node_id) {
                     started.insert(update.node_id.clone());
+                    // A step starts at 0 %, which its status reports go out at
+                    // until it reports a percent of its own.
+                    node_percent.write().insert(update.node_id.clone(), 0.0);
                     // A node names itself on its entry update. A message-less
                     // update names nothing: the seeded map holds the authored
                     // name, so a name is only ever confirmed, never replaced
@@ -81,6 +119,9 @@ pub(super) fn build_progress_callback(
                     let _ = event_tx_clone.send(ExecutorEvent::NodeStarted {
                         id: update.node_id.clone(),
                         name: node_name,
+                        frame_type: exposure_node_metadata
+                            .get(&update.node_id)
+                            .map(|plan| plan.frame_type),
                     });
                     // Entering a target's subtree IS the target change.
                     // Emitted from the same one-shot entry branch as
@@ -121,6 +162,8 @@ pub(super) fn build_progress_callback(
                 // is checkpointed, so a resumed run believed it had
                 // already taken twice the frames it had. The reset now
                 // happens after the frame block.
+                node_percent.write().remove(&update.node_id);
+                node_last_status.write().remove(&update.node_id);
                 let mut started = started_nodes.write();
                 let was_started = started.remove(&update.node_id);
                 // Announce the node's terminal status, exactly once, and only
@@ -203,7 +246,7 @@ pub(super) fn build_progress_callback(
                     // surface and `1m 0s` on three others.
                     let recorded_secs = update
                         .frame_exposure_secs
-                        .or_else(|| metadata.as_ref().map(|(planned, _)| *planned));
+                        .or_else(|| metadata.as_ref().map(|plan| plan.planned_secs));
                     if let Some(secs) = recorded_secs {
                         let credited = f64::from(current - previous) * secs;
                         prog.completed_integration_secs += credited;
@@ -213,12 +256,12 @@ pub(super) fn build_progress_callback(
                             .or_insert(0.0) += credited;
                     }
 
-                    if let Some((planned_secs, filter)) = metadata {
-                        let duration_secs = recorded_secs.unwrap_or(planned_secs);
+                    if let Some(plan) = metadata {
+                        let duration_secs = recorded_secs.unwrap_or(plan.planned_secs);
                         exposure_started_event = Some(ExecutorEvent::ExposureStarted {
                             frame: current,
                             total,
-                            filter,
+                            filter: plan.filter,
                             duration_secs,
                         });
                         // Completion is synthesized from the SAME sighting
@@ -319,7 +362,8 @@ pub(super) fn build_progress_callback(
                 prog.estimated_remaining_secs = None;
             }
 
-            if let (Some(instruction), Some(percent), Some(detail)) = (
+            if let (false, Some(instruction), Some(percent), Some(detail)) = (
+                repeated_status,
                 update.instruction.as_ref(),
                 update.progress_percent,
                 update.detail.as_ref(),
@@ -540,6 +584,77 @@ mod tests {
                 .iter()
                 .any(|e| matches!(e, ExecutorEvent::NodeCompleted { .. })),
             "a duplicate terminal update must not emit a second completion"
+        );
+    }
+
+    /// A report that does not move the step goes out as the step's progress
+    /// at the percent the step last reported, so its bar does not drop.
+    #[test]
+    fn a_status_report_is_published_at_the_steps_last_percent() {
+        let (cb, mut rx, _started) = callback_with_channel();
+        cb(ProgressUpdate::node_entry(
+            "burst".to_string(),
+            "Take Exposures",
+        ));
+        cb(ProgressUpdate::instruction_progress(
+            "burst".to_string(),
+            "Exposure",
+            40.0,
+            ProgressDetail::Generic("frame 2".to_string()),
+        ));
+        drain(&mut rx);
+        cb(ProgressUpdate::status(
+            "burst".to_string(),
+            "Exposure",
+            "Holding the next exposure",
+        ));
+        let published: Vec<f64> = drain(&mut rx)
+            .iter()
+            .filter_map(|e| match e {
+                ExecutorEvent::NodeProgress {
+                    node_id,
+                    progress_percent,
+                    ..
+                } if node_id == "burst" => Some(*progress_percent),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(published, vec![40.0]);
+    }
+
+    /// A step that restates the same status goes out once; a new status, or
+    /// the same one after a reading, goes out again.
+    #[test]
+    fn a_repeated_status_report_is_published_once() {
+        let (cb, mut rx, _started) = callback_with_channel();
+        cb(ProgressUpdate::node_entry("tgt".to_string(), "Target"));
+        drain(&mut rx);
+        let say = |words: &str| cb(ProgressUpdate::status("tgt".to_string(), "Target", words));
+        say("Waiting for M 31: time ≥ 21:00");
+        say("Waiting for M 31: time ≥ 21:00");
+        say("Waiting for M 31 to clear the altitude floor");
+        cb(ProgressUpdate::instruction_progress(
+            "tgt".to_string(),
+            "Target",
+            10.0,
+            ProgressDetail::Generic("Slewing".to_string()),
+        ));
+        say("Waiting for M 31 to clear the altitude floor");
+        let published: Vec<String> = drain(&mut rx)
+            .iter()
+            .filter_map(|e| match e {
+                ExecutorEvent::NodeProgress { detail, .. } => Some(detail.detail_text()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            published,
+            vec![
+                "Waiting for M 31: time ≥ 21:00",
+                "Waiting for M 31 to clear the altitude floor",
+                "Slewing",
+                "Waiting for M 31 to clear the altitude floor",
+            ]
         );
     }
 }

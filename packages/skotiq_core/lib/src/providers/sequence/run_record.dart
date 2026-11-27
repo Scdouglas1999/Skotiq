@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/backend/sequencer_status.dart' show CheckpointInfo;
 import '../../models/sequence/instruction_progress_detail.dart';
+import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
 import '../sequence_stats_provider.dart'
@@ -276,13 +277,27 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
             estimatedRemainingSecs ?? current.estimatedRemainingSecs,
         currentTarget: currentTarget ?? current.currentTarget,
         currentFilter: currentFilter ?? current.currentFilter,
+        currentFrameType: current.currentFrameType,
         message: message ?? current.message,
         nodeStatuses: current.nodeStatuses,
         nodeProgressPercent: current.nodeProgressPercent,
         nodeProgressDetail: current.nodeProgressDetail,
         nodeProgressStructuredDetail: current.nodeProgressStructuredDetail,
+        nodeLatestReport: current.nodeLatestReport,
       ),
     );
+  }
+
+  /// A step started, taking [frameType] frames (null for a step that takes
+  /// none).
+  void beginStep(String nodeId, String nodeType, FrameType? frameType) {
+    updateProgress(
+      currentNodeId: nodeId,
+      currentNodeName: nodeType,
+      currentNodeStatus: NodeStatus.running,
+    );
+    _setProgress(state.progress.copyWith(currentFrameType: frameType));
+    updateNodeStatus(nodeId, NodeStatus.running);
   }
 
   void updateNodeStatus(String nodeId, NodeStatus status) {
@@ -316,12 +331,12 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
     InstructionProgressDetail detail,
   ) {
     final progress = state.progress;
+    final report = detail;
     // A step's words between two readings (an autofocus moving to its next
-    // point) carry no fields; the node keeps its last reading until the next.
+    // point, a hold) are not a reading; the node keeps its last reading until
+    // the next.
     final previous = progress.nodeProgressStructuredDetail[nodeId];
-    if (previous != null &&
-        detail is UnknownInstructionProgressDetail &&
-        detail.kind == kGenericProgressDetailKind) {
+    if (previous != null && !detail.isReading) {
       detail = previous;
     }
     _setProgress(
@@ -334,6 +349,7 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
           ...progress.nodeProgressStructuredDetail,
           nodeId: detail,
         },
+        nodeLatestReport: {...progress.nodeLatestReport, nodeId: report},
       ),
     );
   }

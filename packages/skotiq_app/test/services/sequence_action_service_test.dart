@@ -79,7 +79,10 @@ class _RecordingExecutor extends SequenceExecutor {
   }
 
   @override
-  Future<void> stop({bool preserveCheckpoint = false, String? origin}) async {
+  Future<void> stop({
+    bool preserveCheckpoint = false,
+    RunStopOrigin? origin,
+  }) async {
     stopCount++;
     lastStopPreserveCheckpoint = preserveCheckpoint;
     if (stopGate != null) await stopGate!.future;
