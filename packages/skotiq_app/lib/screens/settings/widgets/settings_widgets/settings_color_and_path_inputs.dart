@@ -250,6 +250,9 @@ class SettingsPathInput extends StatefulWidget {
   /// invalidates an in-flight picker and immediately unlocks this control.
   final Object? authorityKey;
 
+  /// What the box says while no path is saved.
+  final String emptyLabel;
+
   const SettingsPathInput({
     super.key,
     required this.path,
@@ -257,6 +260,7 @@ class SettingsPathInput extends StatefulWidget {
     this.onPathEntered,
     this.fillWhenNarrow = false,
     this.authorityKey,
+    this.emptyLabel = 'Not set',
   });
 
   @override
@@ -413,7 +417,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
                 isDense: true,
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
-                hintText: 'Not set',
+                hintText: widget.emptyLabel,
                 hintStyle: textStyle.copyWith(color: colors.textMuted),
               ),
               onSubmitted: (_) => _commit(),
@@ -427,7 +431,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
               vertical: verticalPadding + 1,
             ),
             child: Text(
-              widget.path.isEmpty ? 'Not set' : widget.path,
+              widget.path.isEmpty ? widget.emptyLabel : widget.path,
               style: textStyle,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
