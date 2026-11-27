@@ -162,20 +162,19 @@ class RunningSequenceMiniBar extends ConsumerWidget {
               // Stop — hold-to-confirm to avoid accidental aborts. Enabled
               // wherever a stop is meaningful, including a retry from
               // stopFailed / cleanupFailed.
-              HoldToConfirmButton(
+              HoldToStop(
                 enabled: transport.stop?.enabled == true,
                 holdColor: colors.error,
                 confirmText: 'Hold to stop',
                 semanticsLabel: 'Stop the sequence',
                 onConfirmed: stopSequence,
-                child: IgnorePointer(
-                  child: _MiniControlButton(
-                    colors: colors,
-                    icon: LucideIcons.square,
-                    tooltip: 'Stop',
-                    isEnabled: transport.stop?.enabled == true,
-                    onPressed: stopSequence,
-                  ),
+                faceSemantics: true,
+                face: (onPressed) => _MiniControlButton(
+                  colors: colors,
+                  icon: LucideIcons.square,
+                  tooltip: 'Stop',
+                  isEnabled: transport.stop?.enabled == true,
+                  onPressed: onPressed ?? stopSequence,
                 ),
               ),
               const SizedBox(width: 6),

@@ -868,29 +868,25 @@ class _StopControl extends _Control {
             control: control,
             child: Semantics(
               hint: _ReasonTooltip.reasonOf(context, control),
-              child: HoldToConfirmButton(
+              child: HoldToStop(
                 enabled: control.enabled,
                 holdColor: colors.error,
                 confirmText: l10n.text('nightCtlStopHold'),
                 semanticsLabel: l10n.text('nightCtlStopSemantics'),
                 onConfirmed: onConfirmed,
-                child: IgnorePointer(
-                  child: ExcludeSemantics(
-                    child: iconOnly
-                        ? SkotiqIconButton(
-                            icon: LucideIcons.square,
-                            tooltip: label,
-                            color: control.enabled ? colors.error : null,
-                            onPressed: control.enabled ? () {} : null,
-                          )
-                        : SkotiqButton(
-                            label: label,
-                            size: ButtonSize.small,
-                            variant: ButtonVariant.destructive,
-                            onPressed: control.enabled ? () {} : null,
-                          ),
-                  ),
-                ),
+                face: (onPressed) => iconOnly
+                    ? SkotiqIconButton(
+                        icon: LucideIcons.square,
+                        tooltip: label,
+                        color: control.enabled ? colors.error : null,
+                        onPressed: onPressed,
+                      )
+                    : SkotiqButton(
+                        label: label,
+                        size: ButtonSize.small,
+                        variant: ButtonVariant.destructive,
+                        onPressed: onPressed,
+                      ),
               ),
             ),
           );

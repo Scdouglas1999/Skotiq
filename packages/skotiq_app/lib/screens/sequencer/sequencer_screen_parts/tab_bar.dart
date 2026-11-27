@@ -226,22 +226,18 @@ class _SequencerPageHeader extends ConsumerWidget {
       // Hold to confirm, as the Tonight header does: a stray tap on a Fold or
       // tablet must not end an overnight run.
       Builder(
-        builder: (context) => HoldToConfirmButton(
+        builder: (context) => HoldToStop(
           key: TourTarget.sequencerTransport.key,
           enabled: transport.stop?.enabled == true,
           holdColor: context.skotiqColors.error,
           confirmText: 'Hold to stop',
           semanticsLabel: 'Stop the sequence',
           onConfirmed: onStop,
-          child: IgnorePointer(
-            child: ExcludeSemantics(
-              child: SkotiqButton(
-                label: 'Stop',
-                icon: LucideIcons.square,
-                variant: ButtonVariant.destructive,
-                onPressed: transport.stop?.enabled == true ? () {} : null,
-              ),
-            ),
+          face: (onPressed) => SkotiqButton(
+            label: 'Stop',
+            icon: LucideIcons.square,
+            variant: ButtonVariant.destructive,
+            onPressed: onPressed,
           ),
         ),
       ),

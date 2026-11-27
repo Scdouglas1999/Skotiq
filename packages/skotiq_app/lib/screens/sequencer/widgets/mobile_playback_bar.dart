@@ -58,25 +58,20 @@ class MobilePlaybackBar extends ConsumerWidget {
         // Stop button — hold-to-confirm so a thumb-slip during an
         // overnight session can't abort the run. Enabled wherever a stop
         // is meaningful, including a retry from stopFailed / cleanupFailed.
-        HoldToConfirmButton(
+        HoldToStop(
           enabled: canStop,
           holdColor: colors.error,
           confirmText: 'Hold to stop',
           semanticsLabel: 'Stop the sequence',
           onConfirmed: stopSequence,
-          // IgnorePointer so the inner InkWell does not consume the
-          // long-press event; gestures are owned exclusively by the
-          // surrounding [HoldToConfirmButton]. The visual styling is
-          // preserved so the affordance still reads as "Stop".
-          child: IgnorePointer(
-            child: _MobilePlaybackButton(
-              colors: colors,
-              icon: LucideIcons.square,
-              label: 'Stop',
-              isEnabled: canStop,
-              isCompact: true,
-              onPressed: stopSequence,
-            ),
+          faceSemantics: true,
+          face: (onPressed) => _MobilePlaybackButton(
+            colors: colors,
+            icon: LucideIcons.square,
+            label: 'Stop',
+            isEnabled: canStop,
+            isCompact: true,
+            onPressed: onPressed ?? stopSequence,
           ),
         ),
 
