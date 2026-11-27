@@ -73,9 +73,7 @@ void main() {
       expect(ApiErrorBody.tryParse({'status': 'ok'}), isNull);
     });
 
-    // The host merges details into the top level; a client read only a
-    // `details` key, so every detail was lost on the way (the missing capture
-    // folder's kind, the guider's reason).
+    // The host merges details into the top level.
     test('details the host writes come back to the client', () {
       for (final layout in [
         ApiErrorLayout.codeAsError,
