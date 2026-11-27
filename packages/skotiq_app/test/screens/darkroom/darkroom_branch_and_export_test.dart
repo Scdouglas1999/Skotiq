@@ -37,6 +37,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'package:go_router/go_router.dart';
 
+import 'darkroom_decode.dart';
 import 'darkroom_scratch.dart';
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
@@ -934,19 +935,6 @@ void main() {
     }
   }
 
-  /// Let the panes' pixel decodes finish.
-  ///
-  /// `decodeImageFromPixels` answers from the engine, which the fake clock
-  /// inside `testWidgets` never reaches — so without real time the surfaces
-  /// stay on their first-frame spinner and never build the viewer that carries
-  /// the transform.
-  Future<void> decodeFrames(WidgetTester tester) async {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 50)),
-    );
-    await tester.pump();
-  }
-
   testWidgets('both compare panes share ONE transform controller', (
     tester,
   ) async {
@@ -958,7 +946,7 @@ void main() {
     );
     await pump(tester, root);
     await enterCompare(tester);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
 
     final viewers = tester
         .widgetList<InteractiveViewer>(find.byType(InteractiveViewer))
@@ -2228,7 +2216,7 @@ void main() {
     await pump(tester, root);
     final handle = tester.ensureSemantics();
     await enterCompare(tester);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
 
     // The single-recipe viewport publishes a rich image node; the two panes
@@ -2273,7 +2261,7 @@ void main() {
 
     final handle = tester.ensureSemantics();
     await enterCompare(tester);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
 
     // One strip per VISIBLE SURFACE, which at this width is one: the desktop
@@ -2314,7 +2302,7 @@ void main() {
     );
     await pump(tester, root);
     await enterCompare(tester);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
 
     // 1:1 is the magnification an A/B noise comparison is for, and compare

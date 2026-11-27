@@ -27,6 +27,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'darkroom_decode.dart';
 import 'darkroom_scratch.dart';
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
@@ -1309,10 +1310,7 @@ void main() {
     final handle = await pump(tester, scope);
 
     // The first frame has to be decoded before "kept" means anything.
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 50)),
-    );
-    await tester.pump();
+    await awaitDecodedFrames(tester);
     expect(find.byType(InteractiveViewer), findsOneWidget);
 
     // A second render lands with a buffer the surface has not decoded yet.
@@ -1326,10 +1324,7 @@ void main() {
     // parameter drag strobe.
     expect(find.byType(InteractiveViewer), findsOneWidget);
     expect(find.text('New frame…'), findsOneWidget);
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 50)),
-    );
-    await tester.pump();
+    await awaitDecodedFrames(tester);
     expect(find.text('New frame…'), findsNothing);
     expect(find.byType(InteractiveViewer), findsOneWidget);
     await drain(tester);

@@ -44,6 +44,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import 'darkroom_decode.dart';
 import 'darkroom_scratch.dart';
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
@@ -286,17 +287,6 @@ void main() {
     }
   }
 
-  /// Let `decodeImageFromPixels` answer: it runs on the engine, which the fake
-  /// clock inside `testWidgets` never reaches, so without real time the surface
-  /// stays on its first-frame spinner and never fits anything.
-  Future<void> decodeFrames(WidgetTester tester) async {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 80)),
-    );
-    await tester.pump();
-    await tester.pump();
-  }
-
   /// The percentage the toolbar prints, as an integer.
   int readout(WidgetTester tester) {
     final text = tester
@@ -349,7 +339,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.widgetWithText(SkotiqCard, target));
     await settle(tester);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
   }
 
@@ -358,7 +348,7 @@ void main() {
   ) async {
     final root = await seedRecipe();
     await pump(tester, root);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
 
     // The picture is laid out fitted — well under 1:1 for a 1600x1200 render in
@@ -376,7 +366,7 @@ void main() {
   ) async {
     final root = await seedRecipe();
     await pump(tester, root);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
 
     final fit = fitScale(tester);
@@ -397,7 +387,7 @@ void main() {
   ) async {
     final root = await seedRecipe();
     await pump(tester, root);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
     // The view it starts from has to be the fit it is actually at, or the press
     // below proves nothing: a readout stuck on 100 makes 1:1 look reached from
@@ -431,7 +421,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.widgetWithText(SkotiqCard, 'Warmer'));
     await settle(tester);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
 
     // Two panes, half the width each, so the fit is further below 1:1 than the
@@ -599,7 +589,7 @@ void main() {
     final handle = tester.ensureSemantics();
     final root = await seedRecipe();
     await pump(tester, root, statesLevel: false);
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
 
     // Pixels are there and they move, so three of the four stay live; only the
@@ -639,7 +629,7 @@ void main() {
       height: frameHeight.toInt(),
       surface: const Size(640, 900),
     );
-    await decodeFrames(tester);
+    await awaitDecodedFrames(tester);
     await settle(tester);
 
     final surface = find.byKey(kDarkroomPreviewSurfaceKey);
