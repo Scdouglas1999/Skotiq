@@ -219,7 +219,9 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   /// A companion that has not reached its host has no checkpoint to offer.
   /// Asking the disconnected backend fails the check, and the local database
-  /// is not the host's run. Leave the check unconsumed until the link exists.
+  /// is not the host's run. The check waits for the link, and its turn in the
+  /// start-up queue is passed meanwhile so the prompts after it are not held
+  /// by a link that may never come; the link asks for the turn again.
   bool _checkpointWaitsForHost() =>
       ref.read(remoteClientLaunchProvider) &&
       !ref.read(backendProvider).hostPlace.isLinked;
@@ -228,6 +230,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     bool linked = false,
   }) {
     if (!linked && _checkpointWaitsForHost()) {
+      _startupQueue.pass(StartupSurface.checkpointRecovery);
       return Future.value(AppStartupCheckpointOutcome.deferred);
     }
     return _checkpointCheck ??= _performCheckpointCheck().whenComplete(() {
@@ -441,6 +444,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _checkpointCheck != null) return;
         if (!_checkpointWaitsForHost()) {
+          _startupQueue.expect(StartupSurface.checkpointRecovery);
           unawaited(_checkCheckpointIfNeeded(linked: true));
         }
       });
