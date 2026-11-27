@@ -4,11 +4,6 @@ import 'package:test/test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// A star catalog that fails to parse must not be reported as an empty sky.
-///
-/// The failure path used to `return []` without touching `_usingFallback` and
-/// without caching anything, so the app drew a black chart, the "catalog not
-/// installed" warning stayed silent because the flag was still false, and every
-/// subsequent rebuild re-ran the whole 120k-row parse to fail again.
 void main() {
   late Directory tempDir;
 

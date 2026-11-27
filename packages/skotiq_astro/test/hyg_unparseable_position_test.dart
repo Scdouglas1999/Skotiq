@@ -1,13 +1,5 @@
 // A HYG row whose ra/dec column will not parse must be SKIPPED, never loaded
 // at RA 0h / Dec 0.
-//
-// The parser used to coerce an unparseable coordinate to 0, which is a real
-// place on the sky in Pisces — the very position the id-0 Sun row is dropped
-// for (see hyg_sun_row_test.dart). A truncated export, an encoding glitch or an
-// upstream column reorder therefore did not lose a star, it INVENTED one: a
-// named entry with a real magnitude sitting at 0h/0°, answering
-// brightest-object-in-view queries over that region and offering itself as a
-// slew target.
 import 'dart:io';
 
 import 'package:test/test.dart';
