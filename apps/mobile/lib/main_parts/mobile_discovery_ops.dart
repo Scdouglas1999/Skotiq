@@ -96,6 +96,9 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         port: port,
         serverName: server.name,
         initialCode: initialCode,
+        requestCode: hostHasNoScreen(server)
+            ? () => MobilePairingService.pairing().requestCode(server)
+            : null,
       ),
     );
 
@@ -618,12 +621,16 @@ class PairingCodeDialog extends StatefulWidget {
   /// which one it is pairing with.
   final String? serverName;
 
+  /// Set for a host with no screen to show a code on: asks it to make one.
+  final Future<RemotePairingStartResult> Function()? requestCode;
+
   const PairingCodeDialog({
     super.key,
     required this.host,
     required this.port,
     this.initialCode,
     this.serverName,
+    this.requestCode,
   });
 
   @override
@@ -637,6 +644,41 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
   /// Inline validation message for the code field. An empty code must say why
   /// rather than no-op behind an enabled-looking "Pair" button.
   String? _codeError;
+
+  RemotePairingStartResult? _codeMade;
+  String? _codeRequestError;
+  bool _requestingCode = false;
+
+  DiscoveredServer get _server => DiscoveredServer(
+    host: widget.host,
+    webPort: widget.port,
+    name: widget.serverName ?? widget.host,
+    hostMode: 'headless',
+  );
+
+  Future<void> _requestCode() async {
+    final request = widget.requestCode;
+    if (request == null || _requestingCode) return;
+    setState(() {
+      _requestingCode = true;
+      _codeRequestError = null;
+    });
+    try {
+      final made = await request();
+      if (!mounted) return;
+      setState(() {
+        _requestingCode = false;
+        _codeMade = made;
+        _codeController.clear();
+      });
+    } on RigPairingFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _requestingCode = false;
+        _codeRequestError = describeRigPairingFailure(failure, _server);
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -749,19 +791,61 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
             onChanged: (value) => setState(() => _requestAdmin = value),
           ),
           const SizedBox(height: 12),
-          Text(
-            // The page at /pair never shows a code, and on the same Wi-Fi
-            // this dialog does not come up at all: the phone pairs in one
-            // tap. It is here for a rig reached from away or set to require
-            // a code, where the code sits in a file on that computer.
-            'No screen on the imaging computer? On its Wi-Fi this phone '
-            'pairs without a code. From elsewhere, the code is in '
-            'pairing-code.txt in Skotiq\'s data folder on that computer.',
-            style: TextStyle(
-              fontSize: SkotiqTypography.fontSize13,
-              color: colors.textSecondary,
+          if (widget.requestCode == null)
+            Text(
+              // The page at /pair never shows a code, and on the same Wi-Fi
+              // this dialog does not come up at all: the phone pairs in one
+              // tap.
+              'No screen on the imaging computer? On its Wi-Fi this phone '
+              'pairs without a code.',
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize13,
+                color: colors.textSecondary,
+              ),
+            )
+          else ...[
+            Text(
+              'No screen on the imaging computer? Ask it for a code, then '
+              'read the code where it says it put it.',
+              style: TextStyle(
+                fontSize: SkotiqTypography.fontSize13,
+                color: colors.textSecondary,
+              ),
             ),
-          ),
+            const SizedBox(height: SkotiqTokens.spaceSm),
+            SkotiqButton(
+              onPressed: _requestingCode ? null : _requestCode,
+              isLoading: _requestingCode,
+              label: _codeMade == null ? 'Get a code' : 'Get a new code',
+              icon: LucideIcons.keyRound,
+              variant: ButtonVariant.secondary,
+              size: ButtonSize.small,
+            ),
+            if (_codeMade case final made?) ...[
+              const SizedBox(height: SkotiqTokens.spaceSm),
+              Text(
+                describeCodeWhereabouts(
+                  _server.displayName,
+                  made,
+                  askedForCode: false,
+                ),
+                style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize13,
+                  color: colors.textPrimary,
+                ),
+              ),
+            ],
+            if (_codeRequestError case final error?) ...[
+              const SizedBox(height: SkotiqTokens.spaceSm),
+              Text(
+                error,
+                style: TextStyle(
+                  fontSize: SkotiqTypography.fontSize13,
+                  color: colors.error,
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );

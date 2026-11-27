@@ -14,6 +14,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_mobile/main.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Pumps the dialog inside a route so `Navigator.pop` has somewhere to go, and
@@ -234,5 +235,65 @@ void main() {
     expect(node.label, 'Pairing code');
     expect(node.flagsCollection.isTextField, isTrue);
     semantics.dispose();
+  });
+
+  group('a host with no screen', () {
+    Future<void> pump(
+      WidgetTester tester, {
+      Future<RemotePairingStartResult> Function()? requestCode,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Scaffold(
+            body: PairingCodeDialog(
+              host: '192.168.1.32',
+              port: 8080,
+              serverName: 'pier',
+              requestCode: requestCode,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the phone asks it for a code and says where it is', (
+      tester,
+    ) async {
+      var asked = 0;
+      await pump(
+        tester,
+        requestCode: () async {
+          asked++;
+          return RemotePairingStartResult(
+            expiresAt: DateTime(2026, 11, 27, 1, 5),
+            expiresInSeconds: 300,
+            delivery: const PairingCodeDelivery(
+              operatorFile: true,
+              operatorFileName: 'pairing-code.txt',
+              console: false,
+            ),
+          );
+        },
+      );
+
+      final getCode = find.widgetWithText(SkotiqButton, 'Get a code');
+      await tester.ensureVisible(getCode);
+      await tester.pumpAndSettle();
+      await tester.tap(getCode);
+      await tester.pumpAndSettle();
+
+      expect(asked, 1);
+      expect(find.textContaining('pairing-code.txt'), findsOneWidget);
+      expect(find.textContaining('made a code, valid until'), findsOneWidget);
+      expect(find.widgetWithText(SkotiqButton, 'Get a new code'), findsOne);
+    });
+
+    testWidgets('a host with a screen is not asked', (tester) async {
+      await pump(tester);
+
+      expect(find.widgetWithText(SkotiqButton, 'Get a code'), findsNothing);
+    });
   });
 }

@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/skotiq_app.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/connection/link_mismatch_actions.dart';
+import 'package:skotiq_app/screens/connection/rig_pairing_text.dart';
 import 'package:skotiq_app/screens/shell/checkpoint_recovery_rule.dart';
 import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
