@@ -17,6 +17,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -129,6 +130,36 @@ class VoiceControlLifecycleController {
     // Siri / Assistant give the canonical "no sequence" answer instead
     // of stale state from yesterday's run.
     if (sequence == null && execState == SequenceExecutionState.idle) {
+      await _publish(null);
+      return;
+    }
+
+    await _publish(
+      SequenceStatusSnapshot(
+        sequenceId: sequence?.id ?? '',
+        sequenceName: sequence?.name ?? '',
+        targetName: progress.currentTarget?.trim().isNotEmpty == true
+            ? progress.currentTarget!
+            : (sequence?.name ?? ''),
+        executionState: _executionStateWireValue(execState),
+        framesCompleted: progress.completedExposures,
+        framesTotal: progress.totalExposures,
+        elapsedSeconds: progress.elapsedSecs.round(),
+        estimatedRemainingSeconds: progress.estimatedRemainingSecs?.round(),
+        currentFilter: progress.currentFilter ?? '',
+        currentNodeName: progress.currentNodeName ?? '',
+        updatedAtMillis: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  /// Publishes [snapshot], or clears the cache when it is null.
+  @visibleForTesting
+  Future<void> publishForTest(SequenceStatusSnapshot? snapshot) =>
+      _publish(snapshot);
+
+  Future<void> _publish(SequenceStatusSnapshot? snapshot) async {
+    if (snapshot == null) {
       try {
         await _service.clearStatus();
         _lastPublishedAt = DateTime.now();
@@ -142,22 +173,6 @@ class VoiceControlLifecycleController {
       }
       return;
     }
-
-    final snapshot = SequenceStatusSnapshot(
-      sequenceId: sequence?.id ?? '',
-      sequenceName: sequence?.name ?? '',
-      targetName: progress.currentTarget?.trim().isNotEmpty == true
-          ? progress.currentTarget!
-          : (sequence?.name ?? ''),
-      executionState: _executionStateWireValue(execState),
-      framesCompleted: progress.completedExposures,
-      framesTotal: progress.totalExposures,
-      elapsedSeconds: progress.elapsedSecs.round(),
-      estimatedRemainingSeconds: progress.estimatedRemainingSecs?.round(),
-      currentFilter: progress.currentFilter ?? '',
-      currentNodeName: progress.currentNodeName ?? '',
-      updatedAtMillis: DateTime.now().millisecondsSinceEpoch,
-    );
 
     try {
       await _service.publishSequenceStatus(snapshot);
