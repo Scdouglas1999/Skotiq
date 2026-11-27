@@ -591,19 +591,26 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
     final base = ref.watch(
             ledgerColumnsMapProvider.select((columns) => columns[node.id])) ??
         LedgerColumns.empty;
-    final eta =
+    final status = widget.nodeStatus;
+    // A projection for a step that has finished would print a time for
+    // something that already happened, and one that moves with the run's
+    // lateness: without its observed start the column says nothing.
+    final projectedPast = status != null &&
+        status != NodeStatus.pending &&
+        status != NodeStatus.running;
+    final watched =
         ref.watch(ledgerEtaProvider.select((starts) => starts[node.id]));
+    final eta =
+        watched != null && !watched.isActual && projectedPast ? null : watched;
     final columns = LedgerColumns(
       filterExp: base.filterExp,
       count: base.count,
       duration: base.duration,
       eta: ledgerEtaText(ref.watch(clockProvider), eta),
     );
-    // A projected ETA for a node the run has already passed is stale — once
-    // the run's NodeStarted events arrive they replace the projection, but
-    // before they do the column shows the prediction muted rather than as
-    // fact.
-    final status = widget.nodeStatus;
+    // A projected ETA for the step the run is on is stale: once its
+    // NodeStarted event arrives it replaces the projection, but before it
+    // does the column shows the prediction muted rather than as fact.
     final etaMuted = eta != null &&
         !eta.isActual &&
         status != null &&
