@@ -109,8 +109,8 @@ class NightReportPanel extends StatelessWidget {
   }
 }
 
-/// Maps a [NightFindingSeverity] to the matching semantic colour + icon, per
-/// the brief (info→info, warn→warning, critical→error).
+/// Maps a [NightFindingSeverity] to the matching semantic colour + icon
+/// (info→info, warn→warning, critical→error).
 class _SeverityStyle {
   final Color color;
   final IconData icon;

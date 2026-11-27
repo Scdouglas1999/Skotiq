@@ -87,8 +87,7 @@ class TargetGroupProperties extends ConsumerWidget {
               },
             ),
           ),
-          // One field per row: side by side in the inspector each field was
-          // about 30 px wide and showed "02" for 2.702.
+          // One field per row.
           NodePropertyField(
             colors: colors,
             label: 'RA',
@@ -157,8 +156,7 @@ class TargetGroupProperties extends ConsumerWidget {
           // sky. Disabled while the sequencer is running (the wrapping
           // IgnorePointer above the whole TargetGroupProperties handles
           // that case for us), and disabled while the coordinates are the
-          // 0h/+0° default — framing a target the app cannot locate showed
-          // an unrelated patch of Pisces under the target's name.
+          // 0h/+0° default.
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: SizedBox(

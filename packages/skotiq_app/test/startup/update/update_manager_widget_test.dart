@@ -46,8 +46,6 @@ void main() {
     await tester.pump();
   });
 
-  // ux walk-2 F1: the first thing a new user offline saw was a red toast
-  // "UpdateException: Network error: Connection failed".
   testWidgets('a check that cannot reach its source raises no toast', (
     tester,
   ) async {

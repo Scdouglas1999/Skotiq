@@ -111,10 +111,8 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
   /// Why the control the operator just pressed is unavailable.
   ///
   /// A disabled button explains itself on HOVER, which is no explanation at
-  /// all to the operator who clicked it: Pause under the built-in guider ate
-  /// the click, nothing moved, and the log said nothing — the exact silence
-  /// pause exists to break. Pressing an unavailable control now states the
-  /// reason where the operator is already looking.
+  /// all to the operator who clicked it. Pressing an unavailable control
+  /// states the reason where the operator is already looking.
   String? _noticeText;
 
   bool get _positiveBusy => _positiveInFlight != null || _stopInFlight;
@@ -251,13 +249,11 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
                 : null,
           ),
           // Outline, not a fill: 05 §5 gives a view ONE primary, and Start
-          // owns it here. Loop exposures, Auto select and Deselect were all
-          // painted as fills, so the panel read as three primaries stacked.
+          // owns it here.
           // "Loop" fits a third of the panel; the tooltip and the semantics
           // label keep the full name.
           // While looping, Stop owns the first slot, so this one starts
-          // guiding from the loop; otherwise the operator had to stop the
-          // loop before guiding could start.
+          // guiding from the loop.
           if (connected && state == Phd2GuidingState.looping)
             _buildControlButton(
               id: 'guide',
@@ -585,10 +581,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
     final isDisabled = action == null || laneBusy;
 
     // These are the controls that start and stop guiding, so they must publish
-    // a button role and their enabled state. Without this wrapper the bare
-    // Material > InkWell reached assistive tech as an unnamed generic node
-    // ("panel: Start") that never carried DISABLED, so a screen-reader user was
-    // never told Start was unavailable while PHD2 was disconnected. The tap
+    // a button role and their enabled state. The tap
     // action is republished here because excludeSemantics drops the InkWell's
     // own gesture semantics along with the duplicate label node.
     final button = Semantics(
@@ -605,9 +598,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
           borderRadius: SkotiqTokens.borderRadiusLg,
           child: ConstrainedBox(
             // The standard control height on desktop; the platform minimum
-            // touch target on a touch device. These were 44px everywhere,
-            // which on a desktop side panel made five buttons the height of
-            // a column of cards.
+            // touch target on a touch device.
             constraints: BoxConstraints(
               minHeight: SkotiqTouchTarget.minExtent(
                 context,

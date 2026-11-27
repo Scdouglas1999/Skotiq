@@ -1,8 +1,5 @@
 // The first-run site step finds a site by place name, as Settings > Location
 // does.
-//
-// Walk-2 F19: Settings had "Search place" and read DMS; the onboarding step
-// had neither, so the same data had two different editors.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/site_step.dart';

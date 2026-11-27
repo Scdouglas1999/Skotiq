@@ -187,10 +187,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
   /// One control row above both panes: the mode controls this view owns, then
   /// the SAME zoom controls the single-recipe viewport carries.
   ///
-  /// Compare used to build its own chrome and drop the toolbar entirely, so the
-  /// comparator had no zoom control, no percentage readout and no way to reach
-  /// 1:1 — the magnification an A/B noise comparison is for — with the mouse
-  /// wheel as the only way to change the view at all. The controls drive the
+  /// The controls drive the
   /// one shared transform, so both panes stay locked exactly as the picker
   /// promises.
   ///
@@ -323,11 +320,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
 
   /// Blink keeps BOTH panes mounted and paints one of them.
   ///
-  /// Building only the showing side tore the other one down on every tick, so
-  /// each swap re-mounted a pane with no decoded frame and the comparator
-  /// showed a blank for roughly half of each 700 ms cycle — destroying the
-  /// afterimage that is the entire reason to blink rather than look side by
-  /// side. Two mounted panes hold their own decoded frames, so the swap is a
+  /// Two mounted panes hold their own decoded frames, so the swap is a
   /// buffer change with nothing in between.
   ///
   /// [IndexedStack] rather than opacity or offstage: it lays both out, paints

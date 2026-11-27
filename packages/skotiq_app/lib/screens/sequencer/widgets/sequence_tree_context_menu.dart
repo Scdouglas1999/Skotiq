@@ -104,10 +104,7 @@ class SequenceTreeContextMenu extends ConsumerWidget {
       // [position] is the GLOBAL pointer position and `showMenu` measures its
       // insets against the nested Navigator's overlay, which starts at the
       // shell's content edge. It has to be converted, or the overlay's origin
-      // is counted twice: this used to claim it opened "exactly under the
-      // cursor" while landing a nav-rail plus a title-bar away from it —
-      // measured live, 147 px right and 32 px down of the cursor with the rail
-      // expanded, and 43 px right with it collapsed.
+      // is counted twice.
       position: menuPositionFromPoint(context, position),
       color: colors.surfaceElevated,
       shape: RoundedRectangleBorder(

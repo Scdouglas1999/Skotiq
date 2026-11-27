@@ -47,8 +47,6 @@ void main() {
     await _closeEditor(tester);
   });
 
-  // qa-surfaces S12: a new profile with no camera chosen showed "IMAGE SCALE
-  // at 3.76µm", the connected camera's pixel size.
   testWidgets('a new profile with no camera shows no camera pixel size',
       (tester) async {
     tester.view.physicalSize = const Size(1024, 900);

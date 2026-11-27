@@ -236,9 +236,7 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
 
   /// Whether the region holds content past its top and bottom edges.
   ///
-  /// The panel's only cue that it scrolled was a 2-pixel scrollbar thumb, so a
-  /// paragraph sliced clean through the glyphs at the fold read as broken
-  /// rendering rather than as text that continues. These drive a fade at
+  /// These drive a fade at
   /// whichever edge has more behind it: a line that dims out is a line the
   /// reader knows to scroll for.
   bool _moreAbove = false;

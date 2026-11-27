@@ -41,7 +41,6 @@ import 'shell_navigation.dart';
 import 'phone_bar_status.dart';
 import 'widgets/skotiq_bottom_navigation.dart';
 
-// Conditional import for window_manager (desktop only)
 import 'app_shell_stub.dart' if (dart.library.io) 'app_shell_desktop.dart'
     as window_impl;
 import 'package:skotiq_core/utils.dart';
@@ -432,7 +431,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _getCurrentIndex(BuildContext context) {
     final location = _getCurrentLocation(context);
 
-    // Update current screen provider for smart notifications
     // Use Future.microtask to avoid modification during build
     final screen = AppRoute.of(location)?.screen ?? AppScreen.unknown;
     Future.microtask(() {
@@ -715,8 +713,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                         .polarAlignmentRun,
                                                   ))
                                                     const PolarAlignmentRunOverlay(),
-                                                  // Toast notifications -
-                                                  // always on top
                                                   const NotificationToastOverlay(),
                                                 ],
                                               ),
@@ -845,13 +841,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 /// "drop everything painted before me" flag UP through every ancestor render
 /// object that is not itself a semantics boundary. Unbounded, it escaped the
 /// overlay, the navigator and this content column, wiped the [SideNavigation]
-/// out of the shell Row and then the [ShellTopBand] out of the shell Column:
-/// on the Linux bundle the AT-SPI tree carried the routed screen and the
-/// status strip but not one rail destination, not Collapse and not one
-/// top-band action, so assistive tech could not reach Settings or any other
-/// desktop
-/// entry point. The phone chrome lost its gear strip the same way, and kept
-/// its bottom bar only because that paints after the content.
+/// out of the shell Row and then the [ShellTopBand] out of the shell Column.
 ///
 /// `container: true` is the load-bearing flag: it makes this an explicit
 /// semantics boundary, which is where the upward propagation stops. Modals

@@ -1,4 +1,4 @@
-// Night test 2026-11-26: a dark step read "10 × 55 s" in Tonight's Steps
+// A dark step read "10 × 55 s" in Tonight's Steps
 // list, like an unfiltered light, while the header called it "Dark 55 s".
 
 import 'package:flutter_test/flutter_test.dart';

@@ -312,10 +312,7 @@ class ObservationReportService {
   /// The summary table, in the two accountings a night actually has.
   ///
   /// The top row is the CAMERA's: how many exposures the run asked for and how
-  /// many came back. The second half of it used to end in a "Success Rate"
-  /// computed from those two numbers alone, which on a night the grader threw
-  /// out entirely printed 100.0% — in a signed observation report, above a
-  /// filter breakdown listing no frames at all. [grading] is the culling's
+  /// many came back. [grading] is the culling's
   /// verdict over the same night's light frames, and it is what "kept" means.
   pw.Widget _buildSessionSummarySection(
       ImagingSession session, SessionFrameGrading grading) {

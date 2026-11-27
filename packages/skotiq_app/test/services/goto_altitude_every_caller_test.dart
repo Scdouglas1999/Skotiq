@@ -1,5 +1,5 @@
 // Every GoTo the app sends goes through MountCommandService.slewTo, whose
-// altitude question (P7-1) is then met by every caller: the planetarium, the
+// altitude question is then met by every caller: the planetarium, the
 // info tab, Tonight, the sequencer toolbar, First Light, the slew button and
 // the gyroscope pointing. A new path that slewed past it would be a GoTo
 // that never asks.

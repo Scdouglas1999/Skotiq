@@ -95,8 +95,6 @@ void main() {
     expect(find.text('Folder is writable.'), findsOneWidget);
   });
 
-  // Night test 2026-11-25 (F6): Continue with no folder gave no hint that
-  // every run would then be refused.
   testWidgets('with no folder the step says runs will not start',
       (tester) async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());

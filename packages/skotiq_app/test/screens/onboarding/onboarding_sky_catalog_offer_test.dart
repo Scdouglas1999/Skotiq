@@ -1,8 +1,5 @@
 // First-run setup offers the sky catalogs, with their size, and does not
 // download them unless asked.
-//
-// Walk-2 F8: thirteen steps never mentioned catalogs, and the planner the user
-// landed on afterwards was empty until a 60 MB download found in Settings.
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

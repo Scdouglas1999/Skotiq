@@ -381,7 +381,6 @@ void main() {
   });
 
   group('the compare owner banner', () {
-    // D3UI-4.
     testWidgets('renders once on a desktop, where both panels are visible', (
       tester,
     ) async {
@@ -423,7 +422,6 @@ void main() {
   });
 
   group('the way out of a load failure goes where its label says', () {
-    // D3UI-3.
     testWidgets('a master with no session offers the image list', (
       tester,
     ) async {

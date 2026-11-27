@@ -478,9 +478,7 @@ class _AutofocusProgressOverlayState
     AutofocusOverlayState overlayState,
   ) {
     if (overlayState.isRunning) {
-      // Cancel stops the sweep; the X only puts the panel away. A run whose
-      // end never reached this window used to leave Cancel as the panel's
-      // only control, so it could not be closed at all.
+      // Cancel stops the sweep; the X only puts the panel away.
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [

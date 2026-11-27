@@ -216,9 +216,8 @@ class FramingEquipmentFOVOverlayPainter extends CustomPainter {
   final double fovHeight;
   final double zoom;
 
-  /// Shared astrometric geometry supplying on-screen pixels-per-degree. This
-  /// replaces the painter's former `size.width / previewFov * zoom` scale, which
-  /// was a third, divergent mapping. The equipment rectangle is now consistent
+  /// Shared astrometric geometry supplying on-screen pixels-per-degree. The
+  /// equipment rectangle is consistent
   /// with both the survey background and the FOV / mosaic painters.
   final FramingPlateScale plateScale;
 

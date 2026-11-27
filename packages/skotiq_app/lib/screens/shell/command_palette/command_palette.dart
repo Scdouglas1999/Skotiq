@@ -391,11 +391,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
 
 /// One result row.
 ///
-/// Hover is a HOVER, not a selection. The row used to move the palette's
-/// selection on `onEnter`, so a pointer resting anywhere over the list stole
-/// the Enter target from the keyboard: Ctrl+K, "weath", Enter opened "Weather
-/// safety" — the fifth row, the one under the cursor — instead of the first
-/// result. 04 §7 gives the arrows the selection and nothing else moves it.
+/// Hover is a HOVER, not a selection. 04 §7 gives the arrows the selection and
+/// nothing else moves it.
 ///
 /// The two states are therefore drawn differently, because they mean
 /// different things and one of them is what Enter will run: the selected row

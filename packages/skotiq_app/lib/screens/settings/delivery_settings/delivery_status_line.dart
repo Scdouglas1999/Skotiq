@@ -190,9 +190,8 @@ class DeliveryStatusLine {
         switch (view.folder) {
           case WatchedFolderState.absent:
             // The same refusal the editor's write probe gives, kept alive on
-            // the row after the dialog closed. An operator who saved past that
-            // refusal used to get a row that said nothing at all about the
-            // folder, and an unmounted share looks exactly like this.
+            // the row after the dialog closed. An unmounted share looks
+            // exactly like this.
             return 'There is no directory at $path. Delivery never creates '
                 'one, so nothing can be written there.';
           case WatchedFolderState.unreadable:

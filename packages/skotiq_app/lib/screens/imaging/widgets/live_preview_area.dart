@@ -759,8 +759,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                     // Top-left: the one frame-info pill (Imaging.dc.html) —
                     // what the frame is, when it landed, HFR and stars, and the
                     // badges that qualify the same frame: the raw-load state,
-                    // calibration, and the accept / reject verdict. They used to
-                    // be four separate glass boxes spread over three corners.
+                    // calibration, and the accept / reject verdict.
                     if (currentImage != null)
                       Positioned(
                         top: _hudInset,
@@ -821,9 +820,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
 
                     // Bottom-left: the science calibration chip over the live
                     // "Guiding" indicator. Both self-gate on their own
-                    // providers, so on most frames this corner is empty. The
-                    // accept / reject verdict that used to lead this stack now
-                    // rides in the frame-info pill, beside the frame it grades.
+                    // providers, so on most frames this corner is empty.
                     //
                     // Deliberately NOT wrapped in IgnorePointer: the children
                     // expose hover tooltips (GuidingActiveChip's RMS-units note)

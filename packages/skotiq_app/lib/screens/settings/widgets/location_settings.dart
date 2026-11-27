@@ -177,11 +177,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                 // A fresh profile seeds observer_latitude/longitude/elevation
                 // at 0.0 before the user has been asked anything, so these
                 // three editors open reading "0 °", "0 °", "0 m" — a settled
-                // position, in the same type as a site somebody typed. The
-                // Dashboard one click away says "Set an observing location",
-                // and Weather and Plan Tonight both say "Location not
-                // configured", so this page was the one surface still
-                // presenting the placeholder as fact.
+                // position, in the same type as a site somebody typed.
                 //
                 // Say so, in the app's warning colour, the way the Sequencer's
                 // target card says "Not set" over its 0h/+0° placeholder
@@ -238,10 +234,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   //
                   // Without keys, the rebuild right after "Detect location"
                   // showed the latitude in the Longitude field and the
-                  // longitude in Elevation. The stored values were always
-                  // correct and navigating away and back cleared it, so the
-                  // only moment it was visible was the one where the operator
-                  // checks what was just detected. Two siblings above these
+                  // longitude in Elevation. Two siblings above these
                   // rows are conditional — the "observing site not set" banner
                   // and the place-search results — so setting a site shrinks
                   // the list by one and these three identical SettingRows can

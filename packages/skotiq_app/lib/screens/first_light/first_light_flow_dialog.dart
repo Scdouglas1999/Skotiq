@@ -637,7 +637,7 @@ class _AnnotationSummary extends ConsumerWidget {
 
     // No solve → the only legitimate non-error reason is "solver not
     // configured" (the orchestrator's positive early-out). Surface the warning
-    // banner + the setup link the brief specifies.
+    // banner + the setup link.
     if (state.solveResult == null) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.center,

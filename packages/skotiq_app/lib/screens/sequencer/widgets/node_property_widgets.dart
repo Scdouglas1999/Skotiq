@@ -473,9 +473,7 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
                         ? widget.colors.textSecondary
                         : widget.colors.textPrimary,
                   ),
-                  // The unit rides inside the field. As a Flexible beside the
-                  // Expanded field it took half the row, so a 290 px inspector
-                  // showed "02" for an RA of 2.702.
+                  // The unit rides inside the field.
                   decoration: InputDecoration(
                     // The container draws the field's one outline; the theme's
                     // enabled/focused borders would draw a second inside it.

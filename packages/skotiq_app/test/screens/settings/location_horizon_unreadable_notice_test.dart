@@ -1,6 +1,6 @@
 // A stored horizon that is not valid JSON is read for what it holds, or as a
 // flat horizon, which lowers every plan's altitude floor. Location settings
-// says so (P13-4); a readable horizon shows no notice.
+// says so; a readable horizon shows no notice.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/location_settings.dart';

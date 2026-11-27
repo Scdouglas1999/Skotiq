@@ -1,4 +1,4 @@
-// Widget tests for the equipment-onboarding wizard (F4-ONBOARDING-WIZARD).
+// Widget tests for the equipment-onboarding wizard.
 //
 // We test each step body in isolation by wrapping it in a Scaffold with
 // real Riverpod providers backed by an in-memory Drift database. This

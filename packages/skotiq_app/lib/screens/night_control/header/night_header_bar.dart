@@ -70,8 +70,7 @@ class NightHeaderBar extends ConsumerWidget {
     final density = NightControlDensity.maybeOf(context);
 
     // A phone gives the header one row: the run's state and plan on the
-    // left, the controls as glyphs on the right. Labelled, they took a row
-    // of their own under a title the bottom bar already shows. An armed
+    // left, the controls as glyphs on the right. An armed
     // start keeps its "Starts at 19:48 · Cancel" words.
     final phone =
         Responsive.isPhone(context) && header.phase != NightRunPhase.armed;

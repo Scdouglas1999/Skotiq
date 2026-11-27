@@ -182,7 +182,7 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
-  // F21(d): a run started with Image tonight imaged M31 while Plan > Targets
+  // A run started with Image tonight imaged M31 while Plan > Targets
   // listed M31 as "Ready" (only the autopilot's own target read as imaging).
   for (final live in [true, false]) {
     testWidgets(

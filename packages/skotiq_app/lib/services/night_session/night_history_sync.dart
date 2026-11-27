@@ -2,9 +2,7 @@
 //
 // Tonight's guide chart, its autofocus, dither and flip marks, the Solve
 // tab's recent solves and the cooler history are gathered from live events by whichever app shows
-// them, so a client that connected after the run started (or restarted
-// during it) showed "No guide data yet" and "No autofocus run yet" while the
-// host showed the night's. The host serves what it gathered
+// them. The host serves what it gathered
 // (`GET /api/runtime/night-history`); a client adds the part from before it
 // connected and keeps its own live events from then on.
 

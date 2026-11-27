@@ -4,8 +4,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
-  // Night test 2026-11-26: the Weather chip said "Not monitored" while the
-  // rig's safety monitor was connected, reporting Safe and guarding the run.
   group('the header chip with weather monitoring off', () {
     for (final (monitor, label, tone)
         in <(SafetySourceReading, String, ChipTone)>[

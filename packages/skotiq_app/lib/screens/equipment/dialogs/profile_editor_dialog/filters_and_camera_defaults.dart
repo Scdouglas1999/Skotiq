@@ -454,8 +454,7 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
   }
 
   Widget _buildRecRow(String label, int? value, SkotiqColors colors) {
-    // No padding of its own: the caption's line height is the row rhythm, and
-    // the sub-4px gap this used to carry has no place on the 4px grid.
+    // No padding of its own: the caption's line height is the row rhythm.
     return Row(
       children: [
         SizedBox(

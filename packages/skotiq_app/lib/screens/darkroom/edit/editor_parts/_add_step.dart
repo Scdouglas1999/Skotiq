@@ -176,10 +176,7 @@ class _DarkroomAddStepDialog extends StatelessWidget {
     final placement = at == null ? null : _placement(op, at);
     final measured = _measuredNote(op);
     // Every sentence this card shows, in the order it shows them, on the node
-    // that IS the card. The button used to carry the placement rule in its name
-    // while the captions beside it published that same sentence again as loose
-    // text, so a reader walking nine operations to reach the one they wanted
-    // heard every placement rule and every refusal twice. This is the shape
+    // that IS the card. This is the shape
     // `darkroom_screen.dart` already uses for its Back control and its compare
     // ownership strip: one node with the whole sentence, `excludeSemantics` over
     // the children that paint it.

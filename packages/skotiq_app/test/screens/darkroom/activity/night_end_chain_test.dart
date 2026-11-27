@@ -192,8 +192,6 @@ void main() {
     expect(native.built, ['Ha']);
   });
 
-  // UX walk 2, F31: after the target was built by hand the night-end history
-  // still said "Calibration needed" and offered "Retry after calibration".
   test(
       'a night held for calibration is settled by a later build by hand, '
       'also across a restart', () async {

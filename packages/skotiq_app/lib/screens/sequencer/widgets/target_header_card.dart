@@ -463,11 +463,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
   /// Unified progress row: shows the plan summary when idle, and the
   /// live progress bar + completed/planned counters when running.
   ///
-  /// Why merged: the earlier implementation rendered a separate
-  /// `_buildExecutionProgressBar()` block above this row during a run,
-  /// so the card showed two indicators stacked (a frame counter on top
-  /// of a status line below). The audit flagged that as confusing — a
-  /// user can only act on one "current state" at a time. This row now
+  /// A user can only act on one "current state" at a time. This row
   /// adapts: idle shows the static plan summary, running shows the
   /// progress bar with the same per-target stats from
   /// [targetExecutionProgressProvider].
@@ -593,11 +589,8 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     // Live run: progress bar with counters above.
     //
     // Whole minutes are the wrong unit for the first minute of a run and for
-    // any short sequence: measured live, a 4x3s target read "0/4 done · 0m / 1m"
-    // seven seconds in, and "2/4 done · 1m / 1m" at forty — while the panel
-    // directly above it in the same card read "~34s". The estimate beside it
-    // uses the shared compact duration format, so this uses it too and the two
-    // halves of one card finally quote the same unit.
+    // any short sequence. The estimate beside it uses the shared compact
+    // duration format, so this uses it too.
     final completedElapsed = DurationFormat.seconds(
         stats.completedIntegrationSecs,
         style: DurationStyle.coarse);

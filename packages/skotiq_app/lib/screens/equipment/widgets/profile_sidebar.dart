@@ -30,10 +30,7 @@ class ProfileSidebar extends ConsumerWidget {
   final ValueChanged<EquipmentProfileModel> onSetDefault;
 
   /// Make [profile] the profile the rest of the app is pointed at, WITHOUT
-  /// touching which profile launches at startup. Before this existed the only
-  /// route to a different active rig was right-click → "Set as Default", which
-  /// also rewrote the startup choice — so switching scopes for one night
-  /// silently changed every night after it.
+  /// touching which profile launches at startup.
   final ValueChanged<EquipmentProfileModel> onActivateProfile;
   final ValueChanged<int> onDuplicateProfile;
   final ValueChanged<int> onDeleteProfile;

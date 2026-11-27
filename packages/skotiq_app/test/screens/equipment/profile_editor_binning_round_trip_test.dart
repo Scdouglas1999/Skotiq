@@ -1,4 +1,4 @@
-// The profile editor shows and saves both binning axes (P17-2): a 2x1
+// The profile editor shows and saves both binning axes: a 2x1
 // profile from onboarding or an import, opened and saved for any other change,
 // stays 2x1 instead of becoming 2x2.
 

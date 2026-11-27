@@ -155,11 +155,8 @@ class ReadinessPanel extends ConsumerWidget {
     // keep the count so the footer can offer to restore them.
     //
     // Blocked rows are never hidden, even if their id is in the dismissed set:
-    // hiding a hard blocker put the panel's own summary at odds with its list
-    // ("2 items are blocking first light" over a single blocking row), and a
-    // blocker is by definition the thing the operator cannot defer. Only
-    // caution rows are dismissable — which is what the ✕ was added for
-    // (plate solver, dark library, …).
+    // a blocker is by definition the thing the operator cannot defer. Only
+    // caution rows are dismissable (plate solver, dark library, …).
     final dismissed =
         dismissible ? ref.watch(dismissedReadinessItemsProvider) : null;
     final allItems = dismissed == null
@@ -361,10 +358,7 @@ class _ReadinessRow extends StatelessWidget {
           // recovery. `urgent` is a repeating pulse, and a repeating controller
           // re-schedules a frame on every vsync for as long as it is painted, so
           // an always-blocked checklist made the Equipment screen's status rail
-          // produce frames forever: measured at 231-251% CPU with the rail open
-          // versus 22-23% with it collapsed, on a static "No devices connected"
-          // screen with nothing visibly moving (the pulse is a slow opacity fade
-          // on a 7 px dot, invisible in a screenshot). `attention` gives a single
+          // produce frames forever. `attention` gives a single
           // 400 ms flash when an item's severity CHANGES and is silent
           // otherwise — which is the actual signal, since a cue that never stops
           // carries no information.

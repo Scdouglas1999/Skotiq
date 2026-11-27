@@ -151,11 +151,8 @@ class DeliveryDestinationView {
 /// What the page reads: every destination it can render, and every row it
 /// cannot.
 ///
-/// Two lists rather than one throw. A single `delivery_targets` row this build
-/// cannot decode used to abort the whole read, so the page rendered its error
-/// state — no destination list, no Add buttons, no way to reach the row that
-/// caused it — while the destinations either side of it were perfectly
-/// readable. The unreadable row belongs on the page as itself.
+/// Two lists rather than one throw. The unreadable row belongs on the page as
+/// itself.
 class DeliveryDestinations {
   /// The destinations, in configuration order.
   final List<DeliveryDestinationView> views;

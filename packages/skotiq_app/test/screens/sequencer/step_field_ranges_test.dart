@@ -1,4 +1,4 @@
-// A step field takes one range in every editor that sets it (P3-1): a value
+// A step field takes one range in every editor that sets it: a value
 // the inline popover or a Start Guiding step accepts survives a commit in the
 // inspector instead of being clamped to a narrower range there.
 

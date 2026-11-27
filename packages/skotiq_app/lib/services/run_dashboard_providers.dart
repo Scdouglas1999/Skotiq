@@ -1318,7 +1318,7 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
         final row = _toDashboardEvent(event);
         // A mount guard fault has its own banner above this one, with the
         // operator's actions, until the mount is checked: listed here as
-        // well it read twice (mobile rework P2-14). It still sounds below.
+        // well it read twice. It still sounds below.
         if (!_isMountGuardFault(event)) {
           ref.read(runDashboardCriticalEventsProvider.notifier).add(row);
         }

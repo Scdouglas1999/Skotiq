@@ -1,5 +1,5 @@
 // The palette's "Start sequence" goes through pre-flight like every other
-// interactive Start (P3-3): it opens the pre-flight dialog instead of
+// interactive Start: it opens the pre-flight dialog instead of
 // starting the run.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

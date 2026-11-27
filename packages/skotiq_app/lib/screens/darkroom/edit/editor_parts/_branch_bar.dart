@@ -502,11 +502,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
             onPressed: () => widget.onCompareWith(null),
           )
         else if (compareTargets.isEmpty)
-          // Disabled AND explained. The button's own semantics node published
-          // an enabled push button while the paint said otherwise, so the only
-          // statement of "there is nothing to compare against" was a hover
-          // tooltip — invisible to the keyboard, to a screen reader, and to
-          // anyone who simply pressed it. The reason rides on the accessible
+          // Disabled AND explained. The reason rides on the accessible
           // name and the node is excluded below so one honest node is published
           // rather than two contradicting ones.
           Tooltip(
@@ -671,8 +667,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
         '${childLabels.length == 1 ? 'branch' : 'branches'}';
     // A branch with branches of its own cannot be deleted on its own, and this
     // dialog knows it — it is quoting the very children the engine will refuse
-    // over. Offering "Delete" here made the operator perform a step whose only
-    // possible outcome was a refusal, and only THEN offered the whole line. So
+    // over. So
     // the choice that can actually be carried out is the one on the button,
     // named in full, and the other one plainly says the branches stay.
     // Dismissible, like every other modal in this app: Escape and a tap on the
@@ -878,11 +873,7 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
 
   /// One branch to compare against, as a row that LOOKS like a choice.
   ///
-  /// The picker used to list its options as centred label text inside a hairline
-  /// outline, in a dialog whose only element painted as a control was Cancel:
-  /// the accessible names were right and the eye had nothing to aim at, so the
-  /// obvious click — the middle of the row — did nothing unless it landed on the
-  /// text itself. This is the card the step cards and the rest of the app's rows
+  /// This is the card the step cards and the rest of the app's rows
   /// already use: a surface that lifts on hover, the author's glyph, the name
   /// left-aligned, and a chevron saying the row leads somewhere. The whole card
   /// takes the tap.

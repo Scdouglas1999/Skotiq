@@ -86,9 +86,7 @@ class TargetSearchNotifier extends StateNotifier<TargetSearchState> {
   /// What Enter on [query] should do.
   ///
   /// Ranks the query itself rather than reading [state], which can still hold
-  /// the previous keystroke's results (or none, while the catalog loads):
-  /// Enter used to fall through to SIMBAD in that window and take whatever
-  /// substring match came back first.
+  /// the previous keystroke's results (or none, while the catalog loads).
   ///
   /// A single object named exactly by the query is selected. Several exact
   /// matches, or only partial ones, leave the list open to pick from. With no

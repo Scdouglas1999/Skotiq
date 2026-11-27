@@ -16,7 +16,7 @@
 //     resulting Sequence rather than by simulating a real pointer
 //     gesture, which is unreliable in Flutter widget tests).
 //
-// Coverage map → self-audit checklist in the brief:
+// Coverage map:
 //   - Drag-drop test: target_queue_panel_test.dart and
 //     sequence_tree_queue_drop_test.dart.
 //   - canEditSequenceProvider honoured: pins the drag handle is

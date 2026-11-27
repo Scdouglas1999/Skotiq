@@ -84,7 +84,6 @@ void main() {
     );
   });
 
-  // UX walk 2, F33: on 80-px tiles the HFR badge covered "NEEDS RE…".
   testWidgets('the verdict and HFR badges sit side by side inside the tile',
       (tester) async {
     await tester.pumpWidget(

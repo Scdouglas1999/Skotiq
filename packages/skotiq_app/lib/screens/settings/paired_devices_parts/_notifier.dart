@@ -179,7 +179,6 @@ class PairingNotifier extends StateNotifier<PairingState> {
   }
 
   void _startCountdownTimers() {
-    // Set expiration timer
     _expirationTimer?.cancel();
     _expirationTimer = Timer(const Duration(minutes: 5), () {
       if (!mounted) return;

@@ -233,9 +233,7 @@ mixin _GuidingMobileSections
     Phd2State phd2State,
   ) {
     // The controls and the calibration stack at their own heights and the
-    // tab scrolls. They used to share the pane 3 : 2 in fixed boxes, which
-    // left the controls scrolling inside their box and the calibration's box
-    // mostly empty.
+    // tab scrolls.
     return SingleChildScrollView(
       padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
       child: Column(

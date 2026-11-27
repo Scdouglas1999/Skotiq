@@ -56,8 +56,6 @@ void main() {
     expect(find.text('Waiting for weather data'), findsNothing);
   });
 
-  // qa-surfaces S37: "Waiting for weather data" sat under a populated 85%
-  // cloud reading.
   testWidgets('a reading on screen is not "waiting"', (tester) async {
     await _pumpCard(
       tester,
@@ -73,8 +71,6 @@ void main() {
     expect(find.text('Waiting for weather data'), findsNothing);
   });
 
-  // ux walk-2 F37: offline, the card said a green "Clear" and "Updated 3 sec
-  // ago" under a "Weather data unavailable" banner.
   testWidgets('no data and a failed fetch never claims a condition',
       (tester) async {
     await _pumpCard(tester, fetchFailed: true);

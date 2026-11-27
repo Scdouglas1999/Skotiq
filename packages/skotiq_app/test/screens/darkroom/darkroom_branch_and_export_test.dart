@@ -2345,7 +2345,7 @@ void main() {
     await drain(tester);
   });
 
-  // The two cases the Phase D critique measured over AT-SPI as out of order.
+  // The two cases measured over AT-SPI as out of order.
   //
   // Flutter's own traversal sort is what a `sortKey` or a structural change
   // could move, and both cases below show it already following visual order —

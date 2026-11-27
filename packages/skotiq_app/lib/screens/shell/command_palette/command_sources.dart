@@ -100,9 +100,7 @@ List<CommandEntry> buildSettingEntries(BuildContext context, String query) {
     for (final term in terms) {
       if (!term.toLowerCase().contains(query)) continue;
       // A row's description is indexed so it can be FOUND by, but it names
-      // the same setting as the row's title; listing both showed "Polar
-      // alignment stale after" and "If the last polar alignment is older
-      // than" as two results for one control.
+      // the same setting as the row's title.
       final label = rowTitles[term] ?? term;
       if (!listed.add(label.toLowerCase())) continue;
       // The section's own title is already a Screens row; a duplicate here

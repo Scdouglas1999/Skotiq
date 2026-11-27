@@ -144,9 +144,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
 
     // The alerts ride INSIDE the scrolling region rather than above it. They
     // carry sentences the engine wrote, so their height is not this screen's to
-    // predict: a long refusal in a short panel used to push the Column past its
-    // own box, and Flutter renders that as a striped overflow bar over text
-    // nobody can scroll to.
+    // predict.
     final alerts = _alerts(state);
 
     return Column(
@@ -730,11 +728,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
           tint = colors.textMuted;
           label = 'Off, and left out of the render. This build cannot run it';
         } else if (state.failureReasonFor(index) case final reason?) {
-          // The card of the step the failure NAMED. It used to carry the same
-          // "nothing is reported for this step" sentence as every step that
-          // merely never ran, so the banner named a culprit precisely and the
-          // stack marked none of its four cards — leaving the operator to count
-          // steps against a number the engine wrote about a different list.
+          // The card of the step the failure NAMED.
           icon = SkotiqIcons.imageOff;
           tint = colors.error;
           label = 'This step failed the render: $reason';

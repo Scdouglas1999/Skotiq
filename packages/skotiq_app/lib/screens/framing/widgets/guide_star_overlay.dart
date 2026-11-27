@@ -1,4 +1,4 @@
-// The framing "guide-star finder" overlay (Phase G quick win).
+// The framing "guide-star finder" overlay.
 //
 // Drop it into the framing canvas `Stack` above the FOV reticle. When the
 // `Guide Stars` toggle is on and a target is framed, it highlights the bright

@@ -767,8 +767,7 @@ class _AnnotationTabPanelState extends ConsumerState<AnnotationTabPanel> {
         Divider(height: 1, color: widget.colors.border),
 
         // The section's status block: the ONE catalog banner, the live
-        // annotation status and the re-annotate suggestion. All three used to
-        // float over the frame; they belong beside the list they describe.
+        // annotation status and the re-annotate suggestion.
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: SkotiqTokens.spaceSm,

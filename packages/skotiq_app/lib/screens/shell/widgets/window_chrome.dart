@@ -152,8 +152,7 @@ class WindowControls extends StatelessWidget {
 
 /// One caption button. A real control — button semantics, focus ring, keyboard
 /// activation — because the window controls are the one chrome assistive tech
-/// must always reach, and the old Semantics+GestureDetector pair published no
-/// enabled state and no focus highlight at all.
+/// must always reach.
 class _WindowButton extends StatefulWidget {
   final IconData icon;
   final String label;

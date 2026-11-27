@@ -111,9 +111,7 @@ String _lookupKey(String value) =>
 
 /// Name-resolution affordance for the Target editor.
 ///
-/// Before this existed the editor had no way at all to turn a typed name into
-/// coordinates, so "M31" plus the 0h/+0° placeholder was a reachable — and
-/// silently runnable — state. The section shows an explicit warning while the
+/// The section shows an explicit warning while the
 /// coordinates are unset and offers a lookup against the target library and
 /// the installed catalogs.
 class _CoordinateLookupSection extends ConsumerStatefulWidget {

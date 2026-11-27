@@ -94,8 +94,7 @@ class _RemoteConnectionIndicatorState
     if (hostLink != null) {
       _trackedLink = hostLink;
       _latency = hostLink.lastLatency;
-      // The socket state alone said "Live" through a two-minute stall on a
-      // failing Wi-Fi link: the connection stayed open while answers took
+      // On a failing Wi-Fi link the connection stays open while answers take
       // seconds to tens of seconds. Look at the heartbeat every second.
       _unansweredSeconds = unansweredSecondsFor(hostLink);
       _answerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -199,8 +198,7 @@ class _RemoteConnectionIndicatorState
   /// A small "Demo" badge in place of the dot or the icon: a dot's color
   /// alone would not tell a screenshot of the demo rig from a real one.
   ///
-  /// On a phone the word is dropped: beside a status chip and two buttons it
-  /// cut the Guiding title to "G…". The tinted flask still sets it apart.
+  /// On a phone the word is dropped. The tinted flask still sets it apart.
   Widget _buildDemoBadge(BuildContext context) {
     final color =
         LinkStatusLook.of(RemoteConnectionStatus.demoRig).color(context);

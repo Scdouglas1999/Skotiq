@@ -200,10 +200,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
         if (!mounted) return;
         if (recipe == null) {
           // Nothing about the master: `recipes.master_id` is ON DELETE SET
-          // NULL, so deleting a master cannot take a recipe row with it, and
-          // this sentence used to blame a master that was still on disk and
-          // still openable — beside a delete dialog that had just said the
-          // linear master survives.
+          // NULL, so deleting a master cannot take a recipe row with it.
           _fail(
             'Recipe $recipeId no longer has a row. Deleting a branch removes '
             'the recipe and nothing else, so whichever linear master it was '
@@ -853,9 +850,7 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
       state = state.copyWith(
         offerBusy: false,
         // The fault in the file's own terms, then what to do about it, and only
-        // then the reader's words — attributed. This refusal used to END on the
-        // Dart JSON parser's fragment ("…: Unexpected character."), which is
-        // about no file the operator chose and offers nothing to try.
+        // then the reader's words — attributed.
         offerError: '${p.basename(pick.path)} was not imported: '
             '${error.message}. $kDarkroomImportNextStep'
             '${detail == null ? '' : ' $detail'}',

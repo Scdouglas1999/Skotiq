@@ -20,10 +20,6 @@ int settingsMatchRank(SettingsSectionDef section, String query) {
 }
 
 /// A section that answered the query, plus the rows inside it that did.
-///
-/// The row titles were being computed and thrown away: the sidebar showed
-/// "Connection" for a query of "Alpaca" and left the operator to find the
-/// Alpaca row on a long page by eye.
 class SettingsSearchResult {
   const SettingsSearchResult(this.section, this.rows);
 

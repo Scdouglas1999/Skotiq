@@ -576,10 +576,8 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
   /// [ExcludeSemantics] drops the chip's own node so exactly one node comes out
   /// rather than a bare "PNG" nested under the sentence.
   ///
-  /// **Enabled options take the same shape as refused ones.** They used to take
-  /// the hint, so the only statement of what FITS writes, or of what "After a
-  /// step" produces, was a hover tooltip: nothing at all from a keyboard, from
-  /// a screen reader, or on a touch screen. An available choice needs its
+  /// **Enabled options take the same shape as refused ones.** An available
+  /// choice needs its
   /// reason as much as an unavailable one — that is what makes it a choice.
   ///
   /// The name is the reason's only assistive-tech channel, never its only
@@ -1095,9 +1093,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
   /// control is never a bare, reasonless "Export" over a bridge that publishes
   /// only a node's name. The master failure leads, then the chosen stage, then
   /// the two selections a stage leaves open: a step not yet picked, and a
-  /// raster format still selected for a stage that cannot write one. The last
-  /// two used to disable the button with no reason at all — `_stageBlocked` is
-  /// null for both, so the button fell through to its plain, unlabelled form.
+  /// raster format still selected for a stage that cannot write one.
   String? _exportRefusal(bool rasterAllowed) {
     final master = _masterFailure;
     if (master != null) return master;
@@ -1187,11 +1183,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
     final darkroom = ref.read(darkroomSeamProvider);
 
     // The save chooser answers first and the engine is asked nothing until it
-    // does, so the sheet enters the CHOOSING phase here. Entering the rendering
-    // phase at this point is what had the sheet announce a full-resolution
-    // render, publish a Stop for a render id that named nothing, and refuse an
-    // Escape by naming an engine that was idle — all while the only thing
-    // happening was a file dialog waiting for a name.
+    // does, so the sheet enters the CHOOSING phase here.
     setState(() {
       _phase = _DarkroomExportPhase.choosingFile;
       _cancelRequested = false;

@@ -5,8 +5,6 @@ import 'package:skotiq_app/widgets/image_preview/frame_overlay_controls.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
-  // Mobile rework SM1 / night test 2026-11-26: on a phone the exposing pill
-  // read "#77 exposing Dark 55 s 2…", cutting the countdown.
   testWidgets('a narrow pill shortens its words, not its value',
       (tester) async {
     await tester.pumpWidget(

@@ -1,11 +1,4 @@
 // A protocol the user does not run is not an error.
-//
-// Walk-2 F2: on every device step a ZWO-native user saw red "Alpaca (0)" and
-// "INDI (0)" chips and two red "nothing answered" lines, five times over,
-// because the Drivers step ticks Alpaca and INDI by default and nothing listens
-// on localhost. A refused connection now reads as a muted note with a way to
-// point the scan at the server the user does run; a server that is configured
-// but does not answer still warns.
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -1,4 +1,4 @@
-// qa-rig RIG-22 / qa-surfaces S34: the Quick captures bucket read Duration
+// The Quick captures bucket read Duration
 // "—", and its time axes ran to "3682h54m" for captures spread over months.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/session_elapsed.dart';

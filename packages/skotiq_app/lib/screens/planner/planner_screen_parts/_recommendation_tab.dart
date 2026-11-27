@@ -342,8 +342,7 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       );
       if (!context.mounted) return;
       // An open plan gets the target added, as the Targets tab's Build
-      // sequence does (one Undo takes it back out). It used to be replaced,
-      // so the same button did two different things depending on the tab.
+      // sequence does (one Undo takes it back out).
       final appended = ref.read(currentSequenceProvider) != null;
       final loaded = await loadPlanTonightSequenceIntoEditor(
         context: context,

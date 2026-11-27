@@ -185,7 +185,7 @@ void main() {
     expect(container.read(nightTargetProvider)!.flipAt, isNull);
   });
 
-  // F32: the run had just started and the mount still pointed near the pole
+  // The run had just started and the mount still pointed near the pole
   // from an earlier move; the chart said "flip 04:59" for a target whose flip
   // came at 02:16.
   test('before the run slews to its target the flip is the target\'s', () {

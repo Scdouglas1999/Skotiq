@@ -391,9 +391,7 @@ class _DepthLockRegionButton extends ConsumerWidget {
 
   static const String _label = 'Mark region';
 
-  /// A dashed selection box. The crosshair it used to share with the
-  /// Crosshair toggle two buttons along could not tell the two apart once the
-  /// narrow bar dropped the words.
+  /// A dashed selection box.
   static const IconData _icon = LucideIcons.boxSelect;
 
   @override

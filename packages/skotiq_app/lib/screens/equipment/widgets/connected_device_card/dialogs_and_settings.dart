@@ -609,8 +609,7 @@ extension _ConnectedDeviceDialogsAndSettings on _ConnectedDeviceCardState {
   /// Throws on any failure (missing device id or a backend error) so the
   /// caller — the awaited calibrator dialog — can keep the dialog open, show
   /// the failure inline, and offer a retry. It deliberately shows NO snackbar
-  /// of its own: the dialog owns the single success/failure surface, avoiding
-  /// the double-snackbar the old fire-and-forget handler produced.
+  /// of its own: the dialog owns the single success/failure surface.
   Future<void> _applyCalibratorBrightness(int brightness) async {
     final deviceId = ref.read(coverCalibratorStateProvider).deviceId;
     if (deviceId == null || deviceId.isEmpty) {

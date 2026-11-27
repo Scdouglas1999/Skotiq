@@ -2,8 +2,7 @@
 library;
 
 // Golden (review-artifact) capture of the imaging GuidingPanel with the
-// built-in multi-star guider active and seeded per-star data (Phase F,
-// guider-ui).
+// built-in multi-star guider active and seeded per-star data.
 //
 // Before this work the built-in guider only exported aggregate PHD2-style
 // stats, so the panel showed an empty graph and no star list when the internal

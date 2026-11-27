@@ -4,9 +4,7 @@ extension _CenterPanel on _PolarAlignmentScreenState {
   /// The idle guide: the first unmet prerequisite, then the setup checklist.
   ///
   /// It heads the settings column rather than filling a centre column of its
-  /// own. As a centre column it was a 560px card floating over an empty band,
-  /// beside a settings column that was empty below its three groups, and its
-  /// "set the options on the left" step pointed across the screen at them.
+  /// own.
   Widget _buildIdleGuide(SkotiqColors colors) {
     final first = _startBlockers().firstOrNull;
     return Column(

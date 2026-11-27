@@ -1,7 +1,7 @@
 // Widget tests for comprehensive canEdit gating and
 // typed-exception catches across the sequencer UI.
 //
-// Coverage targets from the brief:
+// Coverage targets:
 //   (a) toolbar buttons disabled when running → covered indirectly via
 //       canEditSequenceProvider semantics + the unit test that
 //       SequenceLockedException is thrown.

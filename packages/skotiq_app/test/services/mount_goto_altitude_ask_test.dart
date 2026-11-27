@@ -1,5 +1,5 @@
 // Every GoTo asks once before it points below the horizon or the site's
-// altitude floor, and never above it (P7-1). The question is the mount
+// altitude floor, and never above it. The question is the mount
 // service's, so every interactive caller of slewTo meets it.
 
 import 'package:flutter/material.dart';

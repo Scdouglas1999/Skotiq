@@ -96,8 +96,6 @@ void main() {
       expect(stops, 1);
     });
 
-    // qa-surfaces S38: while looping only Stop was offered; guiding needed
-    // Stop first, then Start.
     testWidgets('looping offers Guide, which starts guiding', (tester) async {
       var starts = 0;
       await _pumpPanel(

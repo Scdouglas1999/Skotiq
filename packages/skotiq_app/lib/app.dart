@@ -99,7 +99,6 @@ class SkotiqApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
-    // Get settings
     final settingsAsync = ref.watch(appSettingsProvider);
     final settings = settingsAsync.valueOrNull;
     final themeSetting = settings?.theme ?? 'dark';

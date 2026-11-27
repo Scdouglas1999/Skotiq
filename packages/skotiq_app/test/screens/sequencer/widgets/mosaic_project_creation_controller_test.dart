@@ -1,4 +1,4 @@
-// Mosaic M3 — planner-wiring: the persist contract.
+// The mosaic project persist contract.
 //
 // The "Create mosaic project" action snapshots the wizard's on-screen design
 // (centre RA/Dec + rows × cols + overlap + position angle + per-panel FOV) and

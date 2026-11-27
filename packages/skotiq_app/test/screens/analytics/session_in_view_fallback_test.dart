@@ -1,5 +1,5 @@
-// Analytics' Session and Science tabs pick the session in view by one rule
-// (P7-3): the operator's pick, else the live session, else the session the
+// Analytics' Session and Science tabs pick the session in view by one rule:
+// the operator's pick, else the live session, else the session the
 // Science tab opens on, else the newest session. With no science default the
 // Session tab shows the newest session, as the Science tab does, instead of
 // the quick captures.

@@ -1,7 +1,6 @@
-// Mosaic M3 — planner-wiring: persist the wizard's current mosaic design as a
-// durable [MosaicProject].
+// Persist the wizard's current mosaic design as a durable [MosaicProject].
 //
-// This is the thin glue the brief asks for: it does NOT re-derive any geometry
+// This is thin glue: it does NOT re-derive any geometry
 // (the per-panel centres come from `MosaicService.generatePanels` inside
 // [MosaicProjectService.createProject]); it only takes the design the wizard
 // already holds — target centre RA/Dec, rows × cols, overlap %, position angle,
