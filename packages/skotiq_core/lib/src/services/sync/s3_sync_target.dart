@@ -33,14 +33,13 @@
 // thrown [SyncTargetException] messages reference only the request host
 // and the operation name — never the access key, secret, or signature.
 
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show SocketException;
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
+import '../http_exchange.dart';
 import 'sync_target.dart';
 import 'sync_xml.dart';
 
@@ -96,7 +95,8 @@ class S3SyncTarget implements SyncTarget {
 
   /// [client] is injectable for tests (e.g. `package:http/testing.dart`
   /// MockClient). When omitted a real client is created and owned by this
-  /// instance ([close] disposes it).
+  /// instance ([close] disposes it). [timeout] bounds each request the way
+  /// [WebDavSyncTarget]'s does.
   S3SyncTarget({
     required this.endpoint,
     required this.region,
@@ -105,8 +105,18 @@ class S3SyncTarget implements SyncTarget {
     required this.secretKey,
     this.pathStyle = false,
     http.Client? client,
+    Duration timeout = const Duration(minutes: 5),
   }) : _client = client ?? http.Client(),
-       _ownsClient = client == null;
+       _ownsClient = client == null {
+    _exchange = HttpExchange(
+      _client,
+      networkFailure: SyncTargetException.network,
+      headerDeadline: timeout,
+      bodyDeadline: timeout,
+    );
+  }
+
+  late final HttpExchange _exchange;
 
   void close() {
     if (_ownsClient) _client.close();
@@ -279,8 +289,8 @@ class S3SyncTarget implements SyncTarget {
   /// Sign and send [method] [uri]. [extraHeaders] (e.g. `Content-Type`)
   /// are transmitted but intentionally not signed — S3 only requires the
   /// declared SignedHeaders (host, x-amz-date, x-amz-content-sha256) to
-  /// match. Network-layer failures are mapped to
-  /// [SyncTargetErrorKind.network].
+  /// match. A failure before an HTTP status arrived is a
+  /// [SyncTargetErrorKind.network] [SyncTargetException].
   Future<http.Response> _send(
     String method,
     Uri uri, {
@@ -308,34 +318,17 @@ class S3SyncTarget implements SyncTarget {
       time: now,
     );
 
-    final request = http.Request(method, uri);
-    request.headers['x-amz-date'] = amzDate;
-    request.headers['x-amz-content-sha256'] = payloadHash;
-    request.headers['Authorization'] = signature.authorization;
-    if (extraHeaders != null) request.headers.addAll(extraHeaders);
-    if (bodyBytes != null) request.bodyBytes = bodyBytes;
-
-    try {
-      final streamed = await _client.send(request);
-      return http.Response.fromStream(streamed);
-    } on SyncTargetException {
-      rethrow;
-    } on SocketException catch (e) {
-      throw SyncTargetException(
-        'Cannot reach ${uri.host}: ${e.message}',
-        kind: SyncTargetErrorKind.network,
-      );
-    } on http.ClientException catch (e) {
-      throw SyncTargetException(
-        'Request to ${uri.host} failed: ${e.message}',
-        kind: SyncTargetErrorKind.network,
-      );
-    } on TimeoutException {
-      throw SyncTargetException(
-        'Request to ${uri.host} timed out',
-        kind: SyncTargetErrorKind.network,
-      );
-    }
+    return _exchange.send(
+      method,
+      uri,
+      headers: {
+        'x-amz-date': amzDate,
+        'x-amz-content-sha256': payloadHash,
+        'Authorization': signature.authorization,
+        ...?extraHeaders,
+      },
+      body: bodyBytes,
+    );
   }
 
   Never _throwForStatus(http.Response response, String operation) {
