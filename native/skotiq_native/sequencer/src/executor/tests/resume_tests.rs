@@ -304,6 +304,32 @@ fn a_resume_runs_a_finished_script_step_again() {
     assert!(!kept.contains("wait"));
 }
 
+/// A crash or a power cut can leave the camera warm, so a finished Cool Camera
+/// step is not kept by a resume: it runs again before the frames it guards.
+#[test]
+fn a_resume_runs_a_finished_cool_step_again() {
+    let mut plan = app_built_plan(1);
+    plan.nodes.push(crate::NodeDefinition {
+        id: "cool".to_string(),
+        name: "Cool camera".to_string(),
+        node_type: NodeType::CoolCamera(crate::CoolConfig::default()),
+        enabled: true,
+        children: vec![],
+    });
+    plan.nodes
+        .iter_mut()
+        .find(|node| node.id == "setup")
+        .expect("the setup group")
+        .children
+        .insert(0, "cool".to_string());
+    let mut executor = SequenceExecutor::new();
+    executor.load_sequence(plan).expect("sequence loads");
+    let root = executor.root_node.as_ref().expect("the plan has a tree");
+    let kept = crate::node::resume::kept_on_resume(root.as_ref());
+    assert!(kept.contains("frames"));
+    assert!(!kept.contains("cool"));
+}
+
 /// What the app reads to show a restored run's progress before and while it
 /// continues: the frames each step already has over the whole plan, every
 /// pass included. Restored from a two-pass plan stopped two frames into its
