@@ -4,7 +4,8 @@ import 'dart:math' as math;
 import 'package:skotiq_astro/format.dart';
 import 'package:uuid/uuid.dart';
 import '../backend/skotiq_backend.dart';
-import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_event_codec.dart'
+    show eventMayBeFromCamera, imagingEventOf;
 import '../backend/bridge_events.dart'
     show
         ImagingEvent_ExposureCancelled,
@@ -25,7 +26,7 @@ import '../models/backend/backend_types.dart';
 import '../utils/logging_service.dart';
 part 'flat_wizard_service/flat_wizard_models.dart';
 part 'flat_wizard_service/exposure_events.dart';
-part 'flat_wizard_service/exposure_event_keys.dart';
+part 'flat_wizard_service/capability_range.dart';
 
 class FlatWizardService {
   final SkotiqBackend backend;

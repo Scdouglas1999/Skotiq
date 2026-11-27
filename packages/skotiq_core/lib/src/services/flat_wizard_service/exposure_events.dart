@@ -22,14 +22,8 @@ extension _FlatWizardExposureEvents on FlatWizardService {
       _ => _ExposureEventKind.notTerminal,
     };
     if (kind == _ExposureEventKind.notTerminal) return kind;
-    // Device correlation: if the event names a device, it must be ours.
-    for (final key in _deviceIdKeys) {
-      final raw = event.data[key];
-      if (raw != null &&
-          raw.toString().isNotEmpty &&
-          raw.toString() != deviceId) {
-        return _ExposureEventKind.notTerminal;
-      }
+    if (!eventMayBeFromCamera(event, deviceId)) {
+      return _ExposureEventKind.notTerminal;
     }
     return kind;
   }

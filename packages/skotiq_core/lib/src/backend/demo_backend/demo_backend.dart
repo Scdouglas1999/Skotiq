@@ -139,7 +139,7 @@ abstract class _DemoRigCore {
       ),
     );
     // Imaging events carry no device id of their own; the capture service
-    // matches a camera's events by this key.
+    // matches a camera's events by this key ([eventMayBeFromCamera]).
     _eventController.add(
       deviceId == null || wire.data.containsKey('device_id')
           ? wire
