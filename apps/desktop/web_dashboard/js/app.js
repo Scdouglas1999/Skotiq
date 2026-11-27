@@ -864,8 +864,7 @@
         msg = 'Pairing code expired. Click Pair again to request a new one.';
       } else if (msg.includes(WIRE_ERROR_CODES.pairingCodeAlreadyUsed)) {
         msg = 'That code has already been claimed. Click Pair to start over.';
-      } else if (e.kind === 'rate_limited' || msg.includes('429') ||
-                 msg.includes('temporarily locked')) {
+      } else if (e.kind === 'rate_limited') {
         msg = 'Too many failed attempts. Wait a moment before trying again.';
       }
       setPairModalStatus(msg, 'error');
