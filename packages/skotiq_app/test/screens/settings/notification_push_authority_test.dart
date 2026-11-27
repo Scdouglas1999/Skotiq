@@ -221,4 +221,53 @@ void main() {
       reason: 'nothing is saved in the phone database',
     );
   });
+
+  // A linked client's store write makes the host reload its push config. The
+  // switches stay on screen while it reloads, so a toggle the host's own user
+  // just made is still written.
+  testWidgets('a reload under the page keeps the switches and their writes',
+      (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const SingleChildScrollView(child: NotificationSettings()),
+      settle: false,
+      extraOverrides: [
+        appSettingsProvider.overrideWith(_LoadedAppSettings.new),
+        secretsStoreProvider.overrideWithValue(
+          SecretsStore(InMemorySecureKeyValueStore()),
+        ),
+      ],
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final guiding = find.ancestor(
+      of: find.text('Guiding lost'),
+      matching: find.byType(SettingRow),
+    );
+    final toggle = find.descendant(
+      of: guiding,
+      matching: find.byType(SettingsSwitch),
+    );
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pump();
+
+    handle.container.read(settingsStoreRevisionProvider.notifier).state++;
+    await tester.pump();
+    expect(find.text('Guiding lost'), findsOneWidget);
+
+    await tester.pump(SettingsSwitch.writeDelay);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    final stored = await handle.database.settingsDao.getSetting(
+      'push_notification_config',
+    );
+    expect(stored, isNotNull);
+    expect(
+      (jsonDecode(stored!) as Map<String, dynamic>)['notifyGuidingLost'],
+      isFalse,
+    );
+  });
 }
