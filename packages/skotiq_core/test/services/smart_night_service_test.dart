@@ -667,7 +667,7 @@ void main() {
 
         // Northern site → north celestial pole.
         expect(polarNodeFor(41.0).isNorth, isTrue);
-        // Southern site → south celestial pole (the bug being fixed).
+        // Southern site → south celestial pole.
         expect(polarNodeFor(-33.9).isNorth, isFalse);
       },
     );

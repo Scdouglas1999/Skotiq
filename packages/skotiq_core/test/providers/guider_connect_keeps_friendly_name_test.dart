@@ -1,9 +1,6 @@
-// Pressing Connect on the guider used to REPLACE the friendly device name with
-// the raw device id. Observed live on 2026-08-09 on an Android emulator paired
-// to a headless appliance: the Devices tab read "Built-in Multi-Star Guider"
-// while offline, and the instant it connected both that card and the
-// guide-health card below it read `native:builtin_guider:multi_star`, and kept
-// reading it, because nothing later restores the name.
+// Pressing Connect on the guider keeps its friendly name ("Built-in
+// Multi-Star Guider") on the Devices and guide-health cards; nothing restores
+// the name later if the connect replaces it with the raw device id.
 //
 // The device service is the one writer of a slot during a connect, so this
 // pins what it publishes while the connect is in flight.

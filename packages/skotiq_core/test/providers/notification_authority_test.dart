@@ -1,19 +1,14 @@
-// Notification authority hardening.
-//
-// The phone-push feed and the notification router used to manufacture their
-// own defaults while their persisted authority (push config / routing matrix /
-// per-transport config) was loading or errored:
-//   * the broadcaster started ENABLED (PushNotificationConfig default), so a
-//     DB stall or corrupt blob could still push to paired phones;
-//   * the router seeded NotificationRoutingMatrix.defaults(), which routes
-//     several categories to systemPush, so a corrupt/unavailable matrix could
-//     still page phones against routing the user never authorised;
-//   * a transport-config reload error left the previously-live external
-//     transport active with stale credentials.
-//
-// These tests pin the fail-closed replacements: disabled-until-authoritative
-// push, an in-app-only fallback matrix (safety-critical events still surface
-// in-app, but NO external transport fires), and transport reset-on-error.
+// While their persisted authority (push config / routing matrix /
+// per-transport config) is loading or errored, the phone-push feed and the
+// notification router fail closed:
+//   * the broadcaster stays disabled until the push config resolves, so a DB
+//     stall or corrupt blob never pushes to paired phones;
+//   * the router uses an in-app-only fallback matrix, not
+//     NotificationRoutingMatrix.defaults() (which routes several categories
+//     to systemPush): safety-critical events still surface in-app, but NO
+//     external transport fires;
+//   * a transport-config reload error deactivates the external transport
+//     that was live, instead of leaving it on stale credentials.
 
 import 'dart:async';
 

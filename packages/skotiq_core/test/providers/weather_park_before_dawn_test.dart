@@ -191,10 +191,9 @@ void main() {
     expect(result.safeRigReasons, isNotEmpty);
   });
 
-  // The rig on 2026-10-26: this rule paused a running plan at 05:25 and the
-  // run sat paused and tracking until 06:51, so the plan's shutdown steps and
-  // the night-end calibration never ran. The sequencer's own dawn rule ends a
-  // run; this one neither pauses it nor tells it dawn is unsafe weather.
+  // The sequencer's own dawn rule ends a run, so its shutdown steps and the
+  // night-end calibration run; this rule neither pauses a running plan nor
+  // tells it dawn is unsafe weather.
   for (final execution in [
     SequenceExecutionState.running,
     SequenceExecutionState.paused,

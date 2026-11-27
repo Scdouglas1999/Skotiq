@@ -1,16 +1,13 @@
 // What `start()` and `resumeFromCheckpoint()` must agree on, and what happens
 // when a mid-run configuration push fails.
 //
-// The two launch paths used to build the same ordered set of resources — run
-// row, live stats, native run id, per-run timers, the event subscription, and
-// the launch-authoritative config push — as two hand-maintained copies. A fix
-// applied to one had to be remembered for the other, which is how the resume
-// path came to push the raw safety fail mode and abort itself within ~100 ms.
-// These tests pin the agreement itself, so the copies cannot come back.
+// Both launch paths build the same resources: run row, live stats, native run
+// id, per-run timers, the event subscription, and the launch-authoritative
+// config push (including the resolved safety fail mode).
 //
-// The mid-run group pins a separate contract: every backend push made from a
-// `_ref.listen` callback is now awaited, so a rejected push reaches the
-// operator as a run warning instead of the zone as an unhandled async error.
+// The mid-run group: every backend push made from a `_ref.listen` callback is
+// awaited, so a rejected push reaches the operator as a run warning instead of
+// the zone as an unhandled async error.
 
 import 'dart:async';
 import 'dart:convert';

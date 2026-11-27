@@ -183,9 +183,9 @@ void main() {
     expect(smart.end, _clockOn(site, 0, 21).add(const Duration(hours: 8)));
   });
 
-  // The clock window is read off the machine's local day. A UTC instant for
-  // the same moment used to build it from the UTC date's fields, a day off on
-  // a computer whose local date differs from the UTC one.
+  // The clock window is read off the machine's local day, also for a UTC
+  // instant of the same moment, so it is not a day off on a computer whose
+  // local date differs from the UTC one.
   test('a UTC clock gives the same fallback window as the local one', () async {
     final site = sites['polar night']!;
     final local = (await suggestionWindow(site))!;

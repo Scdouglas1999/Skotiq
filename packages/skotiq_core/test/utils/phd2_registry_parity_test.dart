@@ -1,15 +1,11 @@
-// Parity tests for the PHD2 registry split (Wave C2).
-//
-// The PHD2 guider id is checked by two entry points that used to carry their
-// own copy of the four-spelling token list:
+// The PHD2 guider id is checked by two entry points:
 //
 //   * `isPhd2DeviceId`        (utils/device_id.dart)      — trims + lower-cases
 //   * `isPhd2GuiderDeviceId`  (services/phd2_status_poll) — exact match, null-safe
 //
-// They now share `isPhd2WireToken` but keep their own normalization, because
-// the two are NOT interchangeable. These tests pin the exact outputs both
-// copies produced before the merge, including the cases where they disagree —
-// so a later "cleanup" that collapses them fails here instead of in the field.
+// They share `isPhd2WireToken` but keep their own normalization, because the
+// two are NOT interchangeable. These tests pin the outputs of both, including
+// the cases where they disagree, so collapsing them into one fails here.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/backend/phd2_status_poll.dart';
 import 'package:skotiq_core/src/utils/device_id.dart';

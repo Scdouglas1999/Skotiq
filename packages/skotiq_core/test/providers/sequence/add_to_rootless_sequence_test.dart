@@ -3,12 +3,9 @@
 // schema (the importer only checks the key is a String *if present*), and the
 // id-remapping copy paths resolve it through a lookup that can miss.
 //
-// `addTargetHeader` and `addNode` used to bail out on exactly those documents
-// with a bare `if (rootNodeId == null) return;`, returning normally having
-// written nothing. That is what made Framing's "Add to Sequence -> Add target"
-// unable to add a target — the later read-back only told the user it had
-// failed. These pin the insert actually landing, and landing on a tree that
-// still satisfies `Sequence.invariants()`.
+// `addTargetHeader` and `addNode` still insert into such a document (Framing's
+// "Add to Sequence -> Add target" goes through them). These pin the insert
+// landing, on a tree that still satisfies `Sequence.invariants()`.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

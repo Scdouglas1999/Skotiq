@@ -16,8 +16,7 @@ AutofocusOverlayState _running(int point) =>
     AutofocusOverlayState(isRunning: true, currentPoint: point, totalPoints: 9);
 
 void main() {
-  // Owner, live night 2026-10-17: AF frames never appeared in the Imaging
-  // preview while autofocus ran.
+  // The Imaging preview shows the autofocus frames while autofocus runs.
   test(
     'every new autofocus point fetches the frame it was measured on',
     () async {

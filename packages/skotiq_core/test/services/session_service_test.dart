@@ -412,9 +412,8 @@ void main() {
       },
     );
 
-    // Rig, 2026-11-03: every launch of the host opened "Incomplete Sessions
-    // Found" for two test runs that captured nothing and a QA plan from two
-    // nights before.
+    // "Incomplete Sessions Found" offers only a night worth resuming: not a
+    // test run that captured nothing, not a plan from an earlier night.
     test('a night that captured nothing or ended on an earlier night is not '
         'offered', () async {
       await _insertInterruptedSession(

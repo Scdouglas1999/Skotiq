@@ -28,7 +28,7 @@ void main() {
   final longitude = start.timeZoneOffset.inMinutes / 4.0;
 
   // RA 22h / Dec +20 at 40 N culminates in the early afternoon in mid-January
-  // and sets in the evening: the exact shape that used to slip a day.
+  // and sets in the evening, the shape whose window can slip a day.
   Sequence buildSequence(DateTime start) {
     final target = TargetHeaderNode(
       id: 'target1',
