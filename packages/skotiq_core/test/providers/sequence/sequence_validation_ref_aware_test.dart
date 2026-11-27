@@ -10,8 +10,7 @@ import 'package:skotiq_core/src/providers/equipment/focuser_state_provider.dart'
 import 'package:skotiq_core/src/providers/equipment/guider_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/rotator_state_provider.dart';
-import 'package:skotiq_core/src/providers/backend_provider.dart'
-    show remoteClientLaunchProvider;
+import 'package:skotiq_core/src/providers/launch_role.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/meridian_flip_provider.dart'
@@ -107,7 +106,9 @@ ProviderContainer _container({
 }) {
   final container = ProviderContainer(
     overrides: [
-      remoteClientLaunchProvider.overrideWithValue(remoteClient),
+      launchRoleProvider.overrideWithValue(
+        remoteClient ? LaunchRole.linkedClient : LaunchRole.hostGui,
+      ),
       cameraStateProvider.overrideWith(
         (ref) => _StubCameraNotifier(
           ref,

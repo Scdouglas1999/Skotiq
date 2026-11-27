@@ -103,4 +103,27 @@ void main() {
     expect(phd2.connects, 0);
     expect(find.text('Built-in guider disconnected'), findsOneWidget);
   });
+
+  testWidgets(
+      'the side panel describes the profile\'s built-in guider while it is '
+      'disconnected, as the header does', (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const GuidingScreen(),
+      size: const Size(1280, 800),
+      settle: false,
+    );
+    await handle.container.read(equipmentProfilesDaoProvider).createProfile(
+          EquipmentProfilesCompanion.insert(
+            name: 'Built-in rig',
+            guiderId: const Value(builtinGuiderDeviceId),
+            isActive: const Value(true),
+          ),
+        );
+    await _drain(tester);
+
+    expect(find.text('Built-in guider disconnected'), findsOneWidget);
+    expect(find.text('Brain settings'), findsNothing);
+    expect(find.text('Guider settings'), findsOneWidget);
+  });
 }

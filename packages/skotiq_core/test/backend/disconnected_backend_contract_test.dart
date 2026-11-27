@@ -37,7 +37,6 @@ void main() {
     expect(backend.sequencerStart(), notConnected);
     expect(backend.sequencerGetStatus(), notConnected);
     expect(backend.getProfiles(), notConnected);
-    expect(backend.getSettings(), notConnected);
     expect(backend.getImageThumbnail(1), notConnected);
     expect(backend.depthLockStatus(), notConnected);
   });

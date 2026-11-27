@@ -14,6 +14,7 @@ import '../database/database.dart'
 import '../backend/skotiq_backend.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
+import '../providers/linked_host.dart' show linkedHostRigSettingsProvider;
 import '../providers/hardware_presets_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
@@ -523,10 +524,10 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     final indi = draft.selectedDrivers.contains(DriverType.indi);
     final alpaca = draft.selectedDrivers.contains(DriverType.alpaca);
 
-    if (_ref.read(isRemoteModeProvider)) {
-      final settings = await backend.getSettings();
+    if (_ref.read(linkedHostRigSettingsProvider) case final host?) {
+      final settings = await host.getSettings();
       requireAuthority('loading the app settings');
-      await backend.updateSettings(
+      await host.updateSettings(
         settings.copyWith(
           imageOutputPath: hasCaptureDir
               ? captureDir

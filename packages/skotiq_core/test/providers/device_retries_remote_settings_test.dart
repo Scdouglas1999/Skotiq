@@ -55,9 +55,9 @@ void main() {
     final state = container.read(appSettingsProvider).requireValue;
     expect(state.cameraRetries, 5);
     expect(state.filterWheelRetries, 0);
-    final exported = container
+    final exported = await container
         .read(appSettingsProvider.notifier)
-        .exportRemoteSettings();
+        .exportHostSettings();
     expect(exported.cameraRetries, 5);
     expect(exported.filterWheelRetries, 0);
   });

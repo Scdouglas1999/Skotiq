@@ -83,23 +83,9 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     }
   }
 
-  /// The connected guider, or the active profile's guider while none is
-  /// connected.
-  String? _selectedGuiderId() {
-    final live = ref.watch(guiderStateProvider).deviceId;
-    if (live != null) return live;
-    final profileGuider =
-        ref.watch(activeProfileProvider).valueOrNull?.guiderId?.trim();
-    return (profileGuider == null || profileGuider.isEmpty)
-        ? null
-        : profileGuider;
-  }
+  String? _selectedGuiderId() => ref.watch(selectedGuiderIdProvider);
 
-  /// The kind of [_selectedGuiderId].
-  GuiderKind _selectedGuiderKind() => guiderKindOf(
-        _selectedGuiderId(),
-        ref.watch(backendProvider.select((b) => b.hostPlace)),
-      );
+  GuiderKind _selectedGuiderKind() => ref.watch(guiderKindProvider);
 
   /// The one muted fact beside the page title: which guider, connected or not.
   String _connectionLabel(bool isConnected) {

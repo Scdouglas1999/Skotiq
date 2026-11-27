@@ -24,7 +24,7 @@ bool get canWorkLocally => DeviceTraits.current.nativeLibrary;
 /// life of the process, so a client launch (`--remote-host`) restarts as this
 /// computer's host ([useThisComputerInstead]) instead of swapping backends.
 Future<void> switchToLocalBackend(BuildContext context, WidgetRef ref) async {
-  if (ref.read(remoteClientLaunchProvider)) {
+  if (ref.read(isRemoteClientProvider)) {
     await useThisComputerInstead(context, ref);
     return;
   }

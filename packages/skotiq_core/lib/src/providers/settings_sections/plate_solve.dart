@@ -14,8 +14,10 @@
 //   * WHICH solver runs, or the solver program paths. Those are
 //     `PlateSolverPreference` in the native store (`platesolver.json`), the
 //     only thing the solve dispatcher reads. The `plate_solver`, `astap_path`
-//     and `astrometry_path` app-settings are copies of it for backups and
-//     the remote wire model: [plateSolverPreferenceRows].
+//     and `astrometry_path` app-settings are copies of it. The settings
+//     document, backups and the host's settings store read the preference
+//     itself ([plateSolverPreferenceRows]); the stored rows are what a
+//     restored backup brings back.
 part of '../settings_provider.dart';
 
 /// The app-setting rows that copy [preference].
@@ -56,16 +58,6 @@ extension PlateSolveSettingsSection on AppSettingsNotifier {
   Future<void> _syncPlateSolverProjection(PlateSolverChoice choice) async {
     final label = choice.settingLabel;
     await _set(AppSettingDefs.plateSolver, label);
-  }
-
-  Future<void> setAstapPath(String value) async {
-    await _writeSolverPaths(astapPath: value);
-    await _set(AppSettingDefs.astapPath, value);
-  }
-
-  Future<void> setAstrometryPath(String value) async {
-    await _writeSolverPaths(astrometryPath: value);
-    await _set(AppSettingDefs.astrometryPath, value);
   }
 
   /// Write solver program paths to the plate-solver preference, the store

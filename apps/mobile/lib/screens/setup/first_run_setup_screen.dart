@@ -64,7 +64,10 @@ final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
   if (prefs.firstRunCompleted) return FirstRunSetupNeeds.none;
 
   final hostCatalogs = ref.watch(linkedHostCatalogsProvider);
-  if (hostCatalogs == null) return FirstRunSetupNeeds.none;
+  final hostSettings = ref.watch(linkedHostRigSettingsProvider);
+  if (hostCatalogs == null || hostSettings == null) {
+    return FirstRunSetupNeeds.none;
+  }
   final backend = ref.watch(backendProvider);
 
   Future<bool> missing(String what, Future<bool> Function() check) async {
@@ -84,7 +87,8 @@ final shouldRunFirstRunSetupProvider = FutureProvider<FirstRunSetupNeeds>((
   final (missingPath, missingProfiles, missingCatalogs) = await (
     missing(
       'the capture folder',
-      () async => (await backend.getSettings()).imageOutputPath.trim().isEmpty,
+      () async =>
+          (await hostSettings.getSettings()).imageOutputPath.trim().isEmpty,
     ),
     missing(
       'equipment profiles',
@@ -370,9 +374,9 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
 
   Future<void> _commitImageOutputPath() async {
     if (_busy) return;
-    final backend = ref.read(backendProvider);
     final hostFiles = ref.read(linkedHostFilesProvider);
-    if (hostFiles == null) return;
+    final hostSettings = ref.read(linkedHostRigSettingsProvider);
+    if (hostFiles == null || hostSettings == null) return;
     final path = _customPathController.text.trim();
     if (path.isEmpty) {
       showApiError(
@@ -400,8 +404,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         );
       }
       final validatedPath = validation.pathOr(path);
-      final current = await backend.getSettings();
-      await backend.updateSettings(
+      final current = await hostSettings.getSettings();
+      await hostSettings.updateSettings(
         current.copyWith(imageOutputPath: validatedPath),
       );
       if (!mounted) return;

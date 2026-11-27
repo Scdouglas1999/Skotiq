@@ -15,15 +15,15 @@ void main() {
   test('a process that declares nothing owns its own hardware', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-
-    expect(container.read(remoteClientLaunchProvider), isFalse);
     expect(container.read(isRemoteModeProvider), isFalse);
     expect(container.read(isRemoteClientProvider), isFalse);
   });
 
   test('a client that has not connected yet is still a client', () {
     final container = ProviderContainer(
-      overrides: [remoteClientLaunchProvider.overrideWithValue(true)],
+      overrides: [
+        launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -42,8 +42,6 @@ void main() {
         overrides: [isRemoteModeProvider.overrideWithValue(true)],
       );
       addTearDown(container.dispose);
-
-      expect(container.read(remoteClientLaunchProvider), isFalse);
       expect(container.read(isRemoteClientProvider), isTrue);
     },
   );

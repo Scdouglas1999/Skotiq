@@ -22,10 +22,6 @@ enum HostPlace {
   /// The rig is this machine.
   bool get rigIsHere => this == rigHere;
 
-  /// Device calls are answered: by this machine's rig, the linked host or
-  /// the demo rig.
-  bool get answersDevices => this != none;
-
   /// Not linked to an imaging host and offering the link: no host, or the
   /// demo rig standing in for one.
   bool get offersLink => this == none || this == demo;

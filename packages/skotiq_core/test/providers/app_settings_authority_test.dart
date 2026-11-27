@@ -114,13 +114,13 @@ void main() {
             ),
           ),
         );
-        expect(
-          notifier.exportRemoteSettings,
+        await expectLater(
+          notifier.exportHostSettings(),
           throwsA(
             isA<StateError>().having(
               (error) => error.message,
               'message',
-              contains('refusing exporting a remote settings snapshot'),
+              contains('refusing exporting the host settings'),
             ),
           ),
         );

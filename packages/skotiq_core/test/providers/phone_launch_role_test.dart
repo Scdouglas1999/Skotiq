@@ -71,7 +71,6 @@ void main() {
     group('a phone with ${place.name} for a host', () {
       test('is a client and owns no host features', () {
         final container = _phone(place);
-        expect(container.read(remoteClientLaunchProvider), isTrue);
         expect(container.read(isRemoteClientProvider), isTrue);
       });
 
@@ -124,7 +123,6 @@ void main() {
 
   test('a host window with the same backends still owns its features', () {
     final container = _phone(HostPlace.none, role: LaunchRole.hostGui);
-    expect(container.read(remoteClientLaunchProvider), isFalse);
     expect(container.read(isRemoteClientProvider), isFalse);
   });
 }

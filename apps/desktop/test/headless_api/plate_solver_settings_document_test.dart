@@ -61,7 +61,6 @@ void main() {
     solver = _PreferenceBackend();
     final profileBackend = _MockProfileSettingsBackend();
     when(() => profileBackend.getLocation()).thenAnswer((_) async => null);
-    when(() => profileBackend.updateSettings(any())).thenAnswer((_) async {});
     container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),

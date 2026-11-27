@@ -422,7 +422,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
         },
       );
       try {
-        final remoteSettings = await backend.getSettings();
+        final remoteSettings = await ref
+            .read(linkedHostRigSettingsProvider)!
+            .getSettings();
         if (generation != _backendGeneration ||
             ref.backendScopeOver(backend).isStale) {
           throw StateError('Settings host changed while fetching.');
@@ -863,9 +865,14 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
         // The solver paths here are copies too, but a changed one is a real
         // request: it goes to the preference the solver reads, or the write
-        // is acknowledged and the solver keeps the old program.
-        if (next.astapPath != before.astapPath ||
-            next.astrometryPath != before.astrometryPath) {
+        // is acknowledged and the solver keeps the old program. Changed is
+        // judged against the preference, which also changes through its own
+        // route and so can be ahead of the stored copy.
+        final solver = await _solverPreference();
+        final astapNow = solver?.astapPath ?? before.astapPath;
+        final astrometryNow = solver?.astrometryPath ?? before.astrometryPath;
+        if (next.astapPath != astapNow ||
+            next.astrometryPath != astrometryNow) {
           await _writeSolverPaths(
             astapPath: next.astapPath,
             astrometryPath: next.astrometryPath,
@@ -885,11 +892,6 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       },
     );
   }
-
-  /// The current settings projected to the remote wire model — companion to
-  /// [applyRemoteSettings] for the headless `GET /api/settings` handler.
-  models.AppSettings exportRemoteSettings() =>
-      _toWire(_requireLoadedSettings('exporting a remote settings snapshot'));
 
   /// The settings document this host serves its linked clients: the
   /// settings, with the plate-solver choice and program paths read from the

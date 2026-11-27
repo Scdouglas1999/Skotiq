@@ -296,7 +296,7 @@ mixin _GuidingDesktopSections
     bool isConnected,
     Phd2State phd2State,
   ) {
-    final kind = ref.watch(connectedGuiderKindProvider);
+    final kind = ref.watch(guiderKindProvider);
     final isPhd2Guider = kind == GuiderKind.phd2;
 
     final brainButton = SkotiqButton(
@@ -378,7 +378,7 @@ mixin _GuidingDesktopSections
     bool isConnected,
     Phd2State phd2State,
   ) {
-    final kind = ref.watch(connectedGuiderKindProvider);
+    final kind = ref.watch(guiderKindProvider);
     final isPhd2Guider = kind == GuiderKind.phd2;
     switch (kind) {
       case GuiderKind.demo:
@@ -531,8 +531,7 @@ mixin _GuidingDesktopSections
   /// The guider in use is not PHD2, so PHD2's calibration and Brain controls do
   /// not exist for it. One empty state, one button (05 §12).
   Widget _buildNonPhd2GuiderInfo(SkotiqColors colors) {
-    final isBuiltin =
-        ref.watch(connectedGuiderKindProvider) == GuiderKind.builtin;
+    final isBuiltin = ref.watch(guiderKindProvider) == GuiderKind.builtin;
     return SingleChildScrollView(
       child: EmptyState.compact(
         icon: isBuiltin ? SkotiqIcons.guider : SkotiqIcons.settings,

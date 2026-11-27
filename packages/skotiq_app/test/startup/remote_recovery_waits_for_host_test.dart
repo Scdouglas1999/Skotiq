@@ -98,7 +98,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(db),
-          remoteClientLaunchProvider.overrideWithValue(true),
+          launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
           backendProvider.overrideWith((ref) {
             notifier = _Swappable(ref, offline);
             return notifier;

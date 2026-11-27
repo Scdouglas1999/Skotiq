@@ -2,6 +2,43 @@ part of '../network_backend.dart';
 
 /// Settings a linked imaging host serves through their own endpoints.
 mixin HostRigSettings on NetworkBackendTransport {
+  /// The imaging host's settings document.
+  Future<models.AppSettings> getSettings() async {
+    final json = await _get(ProfileApi.getSettings);
+    final settingsJson = json['settings'];
+    if (settingsJson is! Map<String, dynamic>) {
+      throw StateError(
+        'GET /api/settings returned no settings object (HTTP 200)',
+      );
+    }
+    return models.AppSettings.fromJson(settingsJson);
+  }
+
+  /// Replace the imaging host's settings document.
+  Future<void> updateSettings(models.AppSettings settings) =>
+      updateSettingsWithCommandId(settings, commandId: null);
+
+  /// Variant of [updateSettings] that stamps the
+  /// outgoing POST with an `X-Skotiq-Command-Id` header so the
+  /// `settings.changed` events that come back over the WS carry the
+  /// `correlatingCommandId` and the calling client can ignore its own
+  /// echo. Callers track the same id locally; un-paired clients can
+  /// continue to call [updateSettings] and accept the echo as a no-op
+  /// (the diff against in-memory state will already be empty).
+  Future<void> updateSettingsWithCommandId(
+    models.AppSettings settings, {
+    required String? commandId,
+  }) async {
+    final extraHeaders = commandId == null
+        ? null
+        : <String, String>{'X-Skotiq-Command-Id': commandId};
+    await _post(
+      ProfileApi.updateSettings,
+      body: {'settings': settings.toJson()},
+      headers: extraHeaders,
+    );
+  }
+
   /// Load the imaging host's global meridian-flip defaults.
   ///
   /// These settings drive unattended hardware behavior and therefore belong

@@ -93,7 +93,8 @@ void main() {
             controller = _FixedStateController(ref, scope, seed);
             return controller;
           }),
-          if (remoteClient) remoteClientLaunchProvider.overrideWithValue(true),
+          if (remoteClient)
+            launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
         ],
         child: MaterialApp.router(
           theme: SkotiqTheme.dark,

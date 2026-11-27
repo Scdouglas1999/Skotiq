@@ -184,22 +184,6 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
     return bridgeProfile != null ? _fromBridgeProfile(bridgeProfile) : null;
   }
 
-  /// The settings document lives in this process's settings store
-  /// (`appSettingsProvider`); the native library keeps only the observing
-  /// site ([getLocation]). Only a linked client asks a backend for it.
-  @override
-  Future<models.AppSettings> getSettings() async => throw UnsupportedError(
-    'The app settings are read from the settings store on the imaging '
-    'computer, not from the native library.',
-  );
-
-  @override
-  Future<void> updateSettings(models.AppSettings settings) async =>
-      throw UnsupportedError(
-        'The app settings are saved to the settings store on the imaging '
-        'computer; the native library keeps only the site (setLocation).',
-      );
-
   @override
   Future<models.ObserverLocation?> getLocation() async {
     final bridgeLocation = await _native(

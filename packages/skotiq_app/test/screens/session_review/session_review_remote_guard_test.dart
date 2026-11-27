@@ -64,7 +64,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            remoteClientLaunchProvider.overrideWithValue(true),
+            launchRoleProvider.overrideWithValue(LaunchRole.linkedClient),
             backendProvider.overrideWith(
               (ref) => _FixedBackendNotifier(ref, DisconnectedBackend()),
             ),

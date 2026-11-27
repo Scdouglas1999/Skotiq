@@ -513,26 +513,18 @@ final isRemoteModeProvider = Provider<bool>(
   (ref) => ref.watch(backendProvider).hostPlace.isLinked,
 );
 
-/// True when this process was LAUNCHED as a client of an imaging host on
-/// another machine — the phone app, or a desktop started with `--remote-host`
-/// — rather than as the machine that owns the hardware.
+/// True when the imaging host's data is another machine's: this process was
+/// launched as a client of an imaging host (the phone app, or a desktop
+/// started with `--remote-host`), or it is linked to one now.
 ///
-/// This is the ROLE, which is fixed at launch. [isRemoteModeProvider] answers a
-/// narrower question: whether a remote connection is open right now. The two
-/// disagree for the whole of a client's life before its first successful
-/// handshake, and again whenever the connection drops — and a surface that
-/// decides WHOSE database it is editing has to read the role, because a
-/// never-connected client owns none of the host's rows and a row it writes
-/// locally is a row no dawn job will ever read. The phone's demo rig is a
-/// client resting on simulated equipment: it owns no host features either.
-final remoteClientLaunchProvider = Provider<bool>(
-  (ref) => !ref.watch(launchRoleProvider).ownsRig,
-);
-
-/// True when this process must treat the imaging host's data as another
-/// machine's: it is connected to one now, or it was launched as one's client.
+/// The launch role is fixed at launch, so this differs from
+/// [isRemoteModeProvider] for the whole of a client's life before its first
+/// handshake and again whenever the link drops. A surface that decides WHOSE
+/// database it is editing reads this: a client that is not linked owns none
+/// of the host's rows, and a row it writes locally is one no dawn job reads.
+/// The phone's demo rig is a client too.
 final isRemoteClientProvider = Provider<bool>((ref) {
-  return ref.watch(remoteClientLaunchProvider) ||
+  return !ref.watch(launchRoleProvider).ownsRig ||
       ref.watch(isRemoteModeProvider);
 });
 
