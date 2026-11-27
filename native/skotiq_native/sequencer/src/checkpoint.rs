@@ -1235,7 +1235,7 @@ mod tests {
         manager.save(&checkpoint).unwrap();
 
         let info = manager.get_checkpoint_info().unwrap().unwrap();
-        let _ = fs::remove_dir_all(&dir);
+        fs::remove_dir_all(&dir).unwrap();
         let smart = info
             .filter_frames_done_by_step
             .get("smart")
