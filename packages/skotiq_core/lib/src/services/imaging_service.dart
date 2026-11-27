@@ -20,7 +20,8 @@ import '../providers/backend_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/session_provider.dart';
 import 'local_imaging_records.dart';
-import '../providers/ui_notification_provider.dart';
+import '../models/notification/notification_categories.dart';
+import '../providers/notification_router_provider.dart';
 import '../backend/bridge_event_codec.dart'
     show eventMayBeFromCamera, imagingEventOf;
 import '../backend/bridge_events.dart'

@@ -7,10 +7,12 @@ import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../providers/equipment_provider.dart';
 import 'device_exceptions.dart';
-import 'error_service.dart';
+import '../errors/error_text.dart';
+import '../models/backend/event_types.dart' show EventSeverity;
+import '../models/notification/notification_categories.dart';
+import 'notification/notification_router.dart';
 import '../backend/remote_host.dart';
 import '../backend/network_backend.dart';
-import '../providers/error_service_provider.dart';
 import '../providers/logging_service_provider.dart';
 
 /// Type alias for the switch-bridge `apiSwitchGetMax` shim used by
@@ -58,17 +60,22 @@ typedef SwitchBridgeSetValueFn =
 class SwitchChannelService {
   /// [hostDevices] is the linked host's, or null where the switch is this
   /// process's own.
+  /// [notices] is the router a failed channel read or write is told
+  /// through; null tells nothing.
   SwitchChannelService({
     required Ref ref,
     required SkotiqBackend backend,
     HostDeviceControl? hostDevices,
+    NotificationRouter Function()? notices,
   }) : _ref = ref,
        _backend = backend,
-       _hostDevices = hostDevices;
+       _hostDevices = hostDevices,
+       _notices = notices;
 
   final Ref _ref;
   final SkotiqBackend _backend;
   final HostDeviceControl? _hostDevices;
+  final NotificationRouter Function()? _notices;
   int _refreshGeneration = 0;
 
   bool _stillOwnsDevice(String deviceId) {
@@ -175,8 +182,8 @@ class SwitchChannelService {
   /// warning) when running against a non-Ffi backend, because there is
   /// no remote REST endpoint for per-channel switch reads yet.
   ///
-  /// Errors at the top-level (e.g. `apiSwitchGetMax` throws) are
-  /// surfaced through [ErrorService] and rethrown so an explicit refresh
+  /// Errors at the top-level (e.g. `apiSwitchGetMax` throws) are told to
+  /// the operator and rethrown so an explicit refresh
   /// control can remain retryable instead of reporting a false success.
   Future<void> refreshChannels() async {
     final generation = ++_refreshGeneration;
@@ -320,31 +327,18 @@ class SwitchChannelService {
           source: 'SwitchChannelService',
         ),
       );
-      try {
-        final errSvc = _ref.read(errorServiceProvider);
-        errSvc.logDeviceError(
-          operation: 'switch_refresh',
-          message: 'Failed to refresh switch channels: $e',
-          deviceType: 'Switch',
-          deviceId: deviceId,
-          severity: ErrorSeverity.warning,
-        );
-      } on Object catch (errSvcErr) {
-        logSafely(
-          _ref,
-          (logger) => logger.warning(
-            'errorService emission for switch_refresh failed: $errSvcErr',
-            source: 'SwitchChannelService',
-          ),
-        );
-      }
+      _tellFailure(
+        'switch_refresh',
+        'Failed to refresh switch channels: $e',
+        EventSeverity.warning,
+      );
       rethrow;
     }
   }
 
   /// Remote (NetworkBackend) variant of [refreshChannels]: reads the
   /// single-device switch snapshot over REST and stores it on the provider.
-  /// Mirrors the FFI path's error handling (log + ErrorService toast).
+  /// Mirrors the FFI path's error handling (log + notice).
   Future<void> _refreshChannelsRemote(
     HostDeviceControl host,
     String deviceId,
@@ -414,39 +408,32 @@ class SwitchChannelService {
           source: 'SwitchChannelService',
         ),
       );
-      _emitDeviceError(
+      _tellFailure(
         'switch_refresh',
         'Failed to refresh switch channels: $e',
-        deviceId,
-        ErrorSeverity.warning,
+        EventSeverity.warning,
       );
       rethrow;
     }
   }
 
-  /// Emit a device error through [ErrorService] without letting an
-  /// error-service failure mask the originating device fault.
-  void _emitDeviceError(
-    String operation,
-    String message,
-    String deviceId,
-    ErrorSeverity severity,
-  ) {
+  /// Tell the operator a channel read or write failed, on the switch row,
+  /// without letting a failure to tell mask the originating device fault.
+  void _tellFailure(String operation, String message, EventSeverity severity) {
+    final text = describeError(message, domain: ErrorDomain.device);
+    final error = severity.index >= EventSeverity.error.index;
     try {
-      _ref
-          .read(errorServiceProvider)
-          .logDeviceError(
-            operation: operation,
-            message: message,
-            deviceType: 'Switch',
-            deviceId: deviceId,
-            severity: severity,
-          );
-    } on Object catch (errSvcErr) {
+      _notices?.call().routeRendered(
+        category: NotificationCategory.switchChannelFailed,
+        title: error ? 'Switch Error' : 'Switch Warning',
+        body: error ? text.full : text.message,
+        severity: severity,
+      );
+    } on Object catch (tellError) {
       logSafely(
         _ref,
         (logger) => logger.warning(
-          'errorService emission for $operation failed: $errSvcErr',
+          'Telling the $operation failure failed: $tellError',
           source: 'SwitchChannelService',
         ),
       );
@@ -460,7 +447,7 @@ class SwitchChannelService {
   /// to the user about hardware state when a relay fails to engage.
   ///
   /// Throws [DeviceNotConnectedException] when no switch is connected.
-  /// Bridge errors are routed through [ErrorService] (toast + history)
+  /// Bridge errors are told to the operator on the switch row
   /// and then rethrown so callers can react (e.g. a UI that wants to
   /// revert a switch widget's visual state).
   ///
@@ -519,12 +506,11 @@ class SwitchChannelService {
               source: 'SwitchChannelService',
             ),
           );
-          _emitDeviceError(
+          _tellFailure(
             'switch_set_state',
             'Failed to set switch channel $channelIndex to '
                 '${on ? "on" : "off"}: $e',
-            deviceId,
-            ErrorSeverity.error,
+            EventSeverity.error,
           );
           rethrow;
         }
@@ -548,27 +534,12 @@ class SwitchChannelService {
           source: 'SwitchChannelService',
         ),
       );
-      try {
-        final errSvc = _ref.read(errorServiceProvider);
-        errSvc.logDeviceError(
-          operation: 'switch_set_state',
-          message:
-              'Failed to set switch channel $channelIndex to '
-              '${on ? "on" : "off"}: $e',
-          deviceType: 'Switch',
-          deviceId: deviceId,
-          severity: ErrorSeverity.error,
-        );
-      } on Object catch (errSvcErr) {
-        logSafely(
-          _ref,
-          (logger) => logger.warning(
-            'errorService emission for switch_set_state failed: '
-            '$errSvcErr',
-            source: 'SwitchChannelService',
-          ),
-        );
-      }
+      _tellFailure(
+        'switch_set_state',
+        'Failed to set switch channel $channelIndex to '
+            '${on ? "on" : "off"}: $e',
+        EventSeverity.error,
+      );
       rethrow;
     }
   }
@@ -651,11 +622,10 @@ class SwitchChannelService {
           source: 'SwitchChannelService',
         ),
       );
-      _emitDeviceError(
+      _tellFailure(
         'switch_set_value',
         'Failed to set switch channel $channelIndex to $value: $error',
-        deviceId,
-        ErrorSeverity.error,
+        EventSeverity.error,
       );
       rethrow;
     }

@@ -239,10 +239,14 @@ extension _ImagingServiceCapturePipeline on ImagingService {
               source: 'ImagingService',
             );
             _ref
-                .read(uiNotificationProvider.notifier)
-                .showWarning(
-                  'Exposure event not received in time - checking for image. Camera may be unresponsive.',
+                .read(notificationRouterProvider)
+                .routeRendered(
+                  category: NotificationCategory.exposureTimedOut,
                   title: 'Exposure Timeout',
+                  body:
+                      'Exposure event not received in time - checking for '
+                      'image. Camera may be unresponsive.',
+                  severity: EventSeverity.warning,
                 );
             return true;
           },

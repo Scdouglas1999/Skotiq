@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
-import 'notification/ui_notices.dart';
+import '../models/notification/notification_categories.dart';
+import 'notification/notification_router.dart';
 import '../backend/phd2_status_poll.dart';
 import '../utils/device_traits.dart';
 
@@ -23,15 +24,17 @@ import '../utils/device_traits.dart';
 ///
 /// After spawning, poll the port for [launchTimeout] before giving up.
 class Phd2Launcher {
+  /// [notices] is the router the "starting PHD2" notice goes through; null
+  /// tells nothing.
   Phd2Launcher({
-    required UiNotices Function() notices,
+    NotificationRouter Function()? notices,
     Duration launchTimeout = const Duration(seconds: 10),
     Duration pollInterval = const Duration(milliseconds: 250),
   }) : _notices = notices,
        _launchTimeout = launchTimeout,
        _pollInterval = pollInterval;
 
-  final UiNotices Function() _notices;
+  final NotificationRouter Function()? _notices;
   final Duration _launchTimeout;
   final Duration _pollInterval;
 
@@ -62,7 +65,6 @@ class Phd2Launcher {
       return;
     }
 
-    final notifications = _notices();
     final configuredPath = executablePath.trim();
     if (configuredPath.isNotEmpty) {
       final exe = File(configuredPath);
@@ -74,11 +76,7 @@ class Phd2Launcher {
         );
       }
 
-      notifications.showInfo(
-        'PHD2 not running: launching $configuredPath...',
-        title: 'PHD2',
-        duration: const Duration(seconds: 5),
-      );
+      _tell('PHD2 not running: launching $configuredPath...');
 
       try {
         await Process.start(
@@ -96,11 +94,7 @@ class Phd2Launcher {
         );
       }
     } else {
-      notifications.showInfo(
-        'PHD2 not running: searching for installed PHD2...',
-        title: 'PHD2',
-        duration: const Duration(seconds: 5),
-      );
+      _tell('PHD2 not running: searching for installed PHD2...');
 
       try {
         await bridge_api.apiLaunchPhd2();
@@ -130,6 +124,12 @@ class Phd2Launcher {
       _launchTimeout,
     );
   }
+
+  void _tell(String body) => _notices?.call().routeRendered(
+    category: NotificationCategory.guiderStarting,
+    title: 'PHD2',
+    body: body,
+  );
 
   Future<bool> _isPortOpen(String host, int port) async {
     final connectHost = resolvePhd2ConnectHost(host);

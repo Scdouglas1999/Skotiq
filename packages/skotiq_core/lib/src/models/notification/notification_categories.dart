@@ -115,6 +115,16 @@ enum NotificationCategory {
   /// A run's checkpoint could not be saved after a critical device
   /// disconnected, so a restart could not pick the run up from there.
   checkpointFailed('Checkpoint not saved'),
+
+  /// A switch channel could not be read or set.
+  switchChannelFailed('Switch channel failed'),
+
+  /// PHD2 was not running, and Skotiq is starting it to connect the guider.
+  guiderStarting('PHD2 starting'),
+
+  /// A frame's exposure-complete event did not arrive in time; the camera's
+  /// image is read anyway.
+  exposureTimedOut('Exposure timed out'),
   triggerFired('Trigger fired'),
 
   // Custom (user-script / NotificationNode-defined)
@@ -141,6 +151,7 @@ enum NotificationCategory {
       case NotificationCategory.mountMoved:
       case NotificationCategory.targetCentered:
       case NotificationCategory.deviceAnsweredLate:
+      case NotificationCategory.guiderStarting:
       case NotificationCategory.autofocusCompleted:
       case NotificationCategory.autofocusContinued:
       case NotificationCategory.frameCaptured:
@@ -162,6 +173,8 @@ enum NotificationCategory {
       case NotificationCategory.frameRejected:
       case NotificationCategory.problemNoticed:
       case NotificationCategory.focusOffsetFailed:
+      case NotificationCategory.switchChannelFailed:
+      case NotificationCategory.exposureTimedOut:
       case NotificationCategory.cloudArriving:
       case NotificationCategory.recoveryStarted:
         return EventSeverity.warning;

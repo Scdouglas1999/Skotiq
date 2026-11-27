@@ -305,9 +305,7 @@ class DeviceService {
         ),
       );
     }
-    _phd2Launcher = Phd2Launcher(
-      notices: () => _ref.read(uiNotificationProvider.notifier),
-    );
+    _phd2Launcher = Phd2Launcher(notices: notices);
     _heartbeat = DeviceHeartbeatRouter(ref: _ref);
     _reconnectCoordinator = DeviceReconnectCoordinator(
       ref: _ref,
@@ -323,6 +321,7 @@ class DeviceService {
       ref: _ref,
       backend: _backend,
       hostDevices: hostDevices,
+      notices: notices,
     );
     DeviceServiceLifecycle.register(this);
     _initEventListening();
