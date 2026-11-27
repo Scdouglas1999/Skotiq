@@ -65,9 +65,8 @@ class PageHeader extends StatelessWidget {
     final narrow = ShellLayout.of(buildContext).narrowWindow;
 
     // The hairline is chrome, not content: a 48 px header with a 1 px bottom
-    // border leaves its row 47, one pixel short of the Android touch minimum,
-    // so a `SkotiqIconButton` action in a narrow header measured 48 x 47
-    // and failed the tap-target guideline. Add the hairline back on a touch
+    // border leaves its row 47, one pixel short of the Android touch minimum.
+    // Add the hairline back on a touch
     // platform. Desktop is unchanged.
     final double hairline = SkotiqTouchTarget.isTouch(buildContext)
         ? _hairlineWidth

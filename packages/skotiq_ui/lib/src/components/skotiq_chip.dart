@@ -191,9 +191,7 @@ class SkotiqChip extends StatelessWidget {
       selected: selected,
       label: label,
       // 22px is a POINTER size. A finger needs 48, so the interactive box
-      // grows while the painted chip stays the height the sheet specifies —
-      // the planner's "More" chip measured 112x28 in the Android tap-target
-      // audit.
+      // grows while the painted chip stays the height the sheet specifies.
       child: SkotiqTouchTarget.hitBox(
         context,
         InkWell(

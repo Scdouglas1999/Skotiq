@@ -16,9 +16,8 @@ import 'package:skotiq_core/providers.dart';
 /// The frame is the screen's subject, so the HUD over it is one compact pill
 /// at the top-left: what the frame is, when it landed, and the two numbers an
 /// operator glances at between subs. The histogram is opt-in (Overlays →
-/// Histogram) and the capture bar owns the bottom edge. Everything here reads
-/// the same providers the old corner panels read; an unknown value is left
-/// out rather than drawn as an em dash.
+/// Histogram) and the capture bar owns the bottom edge. An unknown value is
+/// left out rather than drawn as an em dash.
 
 /// Top-left: the frame on screen and its key measurements, in one line.
 ///

@@ -232,7 +232,6 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
     if (targetId == state.activeTargetId) return;
     if (!state.targets.any((target) => target.id == targetId)) return;
 
-    // Update previous active target to pending if it wasn't completed
     final updatedTargets = state.targets.map((t) {
       if (t.id == state.activeTargetId &&
           t.status == QueuedTargetStatus.active) {
@@ -330,7 +329,6 @@ class TargetQueueNotifier extends StateNotifier<TargetQueueState> {
   void startSession() {
     if (state.targets.isEmpty) return;
 
-    // Set first pending target as active
     final firstPending = state.targets.cast<QueuedTarget?>().firstWhere(
       (t) => t?.status == QueuedTargetStatus.pending,
       orElse: () => null,

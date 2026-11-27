@@ -7,8 +7,7 @@ part of '../planner_screen.dart';
 /// Two causes, one surface. When the scorer had NOTHING to score the cause is
 /// almost always a missing object catalog, and the fix is to install it; when
 /// it scored candidates and the filters excluded them all, the fix is to reset
-/// the filters. The old card stacked a heading, a filter-impact breakdown, a
-/// two-item "next steps" list and a button; 06 §Plan removes all of it.
+/// the filters.
 class _PlannerFilteredEmptyState extends ConsumerWidget {
   final SkotiqColors colors;
 

@@ -43,8 +43,7 @@ class OnboardingWelcomeStep extends ConsumerWidget {
           ),
           Text(
             // No stopwatch promise: the run is gated on device discovery
-            // finding your gear, and "about 2 minutes" was a specific number
-            // nothing measured.
+            // finding your gear.
             "Let's get your rig set up. You can leave and pick this back up at "
             'any point.',
             style: SkotiqTypography.bodySm.copyWith(

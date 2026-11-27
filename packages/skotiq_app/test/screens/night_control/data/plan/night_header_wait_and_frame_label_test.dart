@@ -171,7 +171,7 @@ void main() {
 
   // A plan the phone does not hold (the end-of-night darks, a dark plan the
   // desktop started): the run engine names the step's frame type when the
-  // step starts. Its header read "G 55 s" (night test finding 40).
+  // step starts.
   test('a dark from a plan the phone does not hold reads as a dark', () {
     for (final (id, frameType, label) in [
       ('eon-dark-3', FrameType.dark, 'Dark'),

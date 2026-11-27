@@ -1,9 +1,4 @@
 // A fresh install's planner offers the catalog download itself.
-//
-// Walk-2 F8: the whole planner was one empty state, "Install the object
-// catalog", whose only action led to Settings > Catalogs, five cards down to
-// the button. The download, its size, its progress and its failure now live
-// where the user finds out the catalog is missing.
 import 'dart:async';
 
 import 'package:flutter/material.dart';

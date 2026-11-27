@@ -156,10 +156,6 @@ class _OnboardingFilterWheelStepState
     } finally {
       if (mounted) {
         setState(() => _loadingSlots = false);
-        // The editor only reached the draft when the user typed in it, so a
-        // wheel whose slot count could not be read showed a column of named,
-        // apparently-saved slots and then created a profile with no filters at
-        // all — the sequencer's filter list came up empty on the first night.
         // Commit what is on screen whenever the draft still has nothing, so the
         // profile matches the slots the step displayed. Deliberately after the
         // driver merge, and only when the draft is empty, so real driver names

@@ -37,7 +37,7 @@ void main() {
     final observer = container.read(observerLocationProvider);
 
     // Whatever the horizontal frame was last left on — the reset action parks
-    // it at the zenith, which is exactly what used to leak through.
+    // it at the zenith.
     view.setHorizontalCenter(0, 90);
     view.setCenter(_m57Ra, _m57Dec);
     view.setFieldOfView(2);

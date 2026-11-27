@@ -1,4 +1,4 @@
-// Widget tests for the Delivery settings section (Darkroom Phase B, W4).
+// Widget tests for the Delivery settings section.
 //
 // What these lock in:
 //

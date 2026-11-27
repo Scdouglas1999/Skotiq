@@ -764,10 +764,8 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
-  // walk-2 F18: the recipe review must start from the planner's suggested sub
+  // The recipe review must start from the planner's suggested sub
   // length, not a saved default that contradicts the detail column.
-  // qa-surfaces S26: the plan said "Suggested exposure 55 s" for L and Build
-  // pre-filled L 120 s. Both now take the exposure calculator's figure.
   testWidgets('Build sequence pre-fills the exposure calculator\'s sub length',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;

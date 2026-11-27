@@ -384,10 +384,9 @@ class _LicenseCard extends ConsumerWidget {
 /// "update" otherwise returns About and the appliance OTA page, which is about
 /// a REMOTE rig and renders a single sentence off-network.
 ///
-/// It used to ask the releases API directly and could only report, because
-/// the in-app updater had no source configured and so could never answer.
-/// Shipped builds now read the project's GitHub releases through that updater,
-/// so this drives the real thing: a check here can lead to an install instead
+/// Shipped builds read the project's GitHub releases through the in-app
+/// updater, so this drives the real thing: a check here can lead to an install
+/// instead
 /// of to a browser tab. Finding an update hands off to the standard update
 /// dialog, which owns download, verification and apply — including the
 /// hardware gate that refuses to swap the binary mid-exposure.

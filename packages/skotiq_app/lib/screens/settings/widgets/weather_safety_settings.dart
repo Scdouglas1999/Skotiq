@@ -249,12 +249,10 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
 
 /// The two rows that state what weather safety will actually do: which safety
 /// sources are attached, and the fail mode that decides what happens when none
-/// is. Both live on the page that owns the master switch — before this the
-/// operator could arm weather safety on a sensorless rig with the page showing
-/// neither fact, and only meet the consequence when a run refused to start.
+/// is. Both live on the page that owns the master switch.
 ///
 /// Its own widget because [WeatherSafetySettings] as a whole cannot be pumped
-/// in flutter_test (it hangs the isolate, at HEAD as well as here), and copy
+/// in flutter_test (it hangs the isolate), and copy
 /// this load-bearing has to be asserted against rendered widgets.
 class WeatherSafetyPolicyRows extends ConsumerWidget {
   /// Weather safety's master switch. When off, nothing here is in force and the

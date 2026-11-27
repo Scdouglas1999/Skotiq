@@ -140,8 +140,6 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
     final selectedProfileId = ref.watch(selectedEquipmentProfileIdProvider);
     final isRemoteMode = ref.watch(isRemoteModeProvider);
 
-    // Check for first-time user (no profiles).
-    //
     // REMOTE (slave) mode: never show the local first-run onboarding. A slave
     // controls the master's hardware and its profiles hydrate from the host's
     // SQLite over /api/profiles; before they arrive (or if the host genuinely
@@ -260,12 +258,9 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
               1 => const ProfilesManager(tutorialTargets: true),
               // First run owns the Devices tab only. The discovery drawer
               // is mounted BENEATH the empty state so the header's "Scan
-              // for devices" has something to expand: before this it
-              // bumped a provider no mounted widget was listening to, and
-              // the primary action of the first screen did nothing at all.
-              // The drawer is capped and scrolls inside: open with a scan's
-              // results it took the whole column and ran 170 px past a phone's
-              // bottom bar. First run has nothing above it worth keeping in
+              // for devices" has something to expand.
+              // The drawer is capped and scrolls inside. First run has nothing
+              // above it worth keeping in
               // view, so the cap is higher than the main layout's.
               _ => firstRun
                   ? LayoutBuilder(

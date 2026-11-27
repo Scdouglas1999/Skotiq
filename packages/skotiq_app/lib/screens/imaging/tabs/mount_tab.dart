@@ -133,9 +133,8 @@ class _MountTabState extends ConsumerState<MountTab> {
     // Watch mount capabilities to gate UI features.
     //
     // Gated through the equipment capability provider which
-    // returns a fail-closed boolean — a driver that refuses to report
-    // `canPark` no longer ships a button that hits a "Not implemented"
-    // path. While loading we keep buttons visible (`loadingDefault: true`)
+    // returns a fail-closed boolean. While loading we keep buttons visible
+    // (`loadingDefault: true`)
     // so the UI does not flash empty on every tab switch.
     final mountCapsAsync = ref
         .watch(equipmentMountCapabilitiesProvider(mountState.deviceId ?? ''));
@@ -209,10 +208,7 @@ class _MountTabState extends ConsumerState<MountTab> {
 
     return SingleChildScrollView(
       // Both hosts of this section — the SidePanel's content area and the
-      // narrow bottom sheet — already inset it by 16 (05 §15). The 24 this
-      // used to add on top, plus a card of its own at 16, spent 80 of the
-      // panel's 320 px on nothing but air, which is most of the room a second
-      // column of buttons needs.
+      // narrow bottom sheet — already inset it by 16 (05 §15).
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

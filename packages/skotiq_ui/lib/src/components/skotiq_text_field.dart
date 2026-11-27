@@ -160,8 +160,7 @@ class _SkotiqTextFieldState extends State<SkotiqTextField> {
       contentPadding: EdgeInsets.zero,
       // There is no floating label; `always` is what keeps the unit suffix
       // visible on an empty, unfocused field. The decorator hides affixes
-      // until the field holds text or focus, so "Focal length" read as a bare
-      // number box with no mm until the user started typing.
+      // until the field holds text or focus.
       floatingLabelBehavior: FloatingLabelBehavior.always,
       // The decorator lays the unit out on the input's baseline, so it reads
       // as a suffix of the value rather than a caption floating at the row's

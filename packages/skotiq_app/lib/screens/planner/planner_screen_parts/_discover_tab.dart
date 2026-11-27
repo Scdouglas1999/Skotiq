@@ -85,8 +85,8 @@ class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
                 ),
               ),
               const SizedBox(width: SkotiqTokens.spaceSm),
-              // The ONE refresh for all three surfaces. Each used to carry its
-              // own header with its own button; 06 §Plan leaves the page one
+              // The ONE refresh for all three surfaces. 06 §Plan leaves the
+              // page one
               // header, so the action moves out here and dispatches on the
               // segment in view.
               SkotiqIconButton(

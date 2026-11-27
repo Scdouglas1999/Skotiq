@@ -1346,15 +1346,12 @@ class SkotiqApi {
   ///    once the ring-buffer replay is finished — and says why in its own
   ///    comment ("A custom event name is used so default `message` listeners
   ///    don't see it"). `EventSource.onmessage` fires only for frames with NO
-  ///    event name, so a client wired to onmessage receives nothing at all: the
-  ///    logs panel sat on "Waiting for log entries…" behind a "live" badge
-  ///    while 174 named frames arrived in 12 s on the same socket. Listen per
-  ///    name.
+  ///    event name, so a client wired to onmessage receives nothing at all.
+  ///    Listen per name.
   /// 2. The severity parameter is `severity`, and it is an allow-LIST of exact
   ///    level names — not the `minSeverity` floor that /api/logs/recent reads.
-  ///    Sending `minSeverity` here is not an error, it is silently ignored, so
-  ///    the panel's "Min severity" selector filtered nothing and a debug-level
-  ///    firehose arrived no matter what it said. [minSeverity] is expanded to
+  ///    Sending `minSeverity` here is not an error, it is silently ignored.
+  ///    [minSeverity] is expanded to
   ///    the levels at or above it, which is what the control promises.
   ///
   /// Why we send the bearer via ?access_token: EventSource has no

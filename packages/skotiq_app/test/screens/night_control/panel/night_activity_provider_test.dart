@@ -319,8 +319,6 @@ void main() {
     expect(container.read(nightActivityProvider).context, isNull);
   });
 
-  // Night test 2026-11-26: the header pill said "Stopped" while the Overview
-  // card under it said "Sequence finished".
   for (final (ending, key) in <(NightRunEnding?, String)>[
     (NightRunEnding.completed, 'nightActivityCompleted'),
     (NightRunEnding.stopped, 'nightActivityStopped'),

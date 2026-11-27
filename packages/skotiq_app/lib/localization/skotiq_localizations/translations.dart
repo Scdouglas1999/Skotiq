@@ -113,7 +113,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'mobileServerIpAddress': 'Server address',
     // Tailscale connect (setup sheet + connection-screen button).
     'tailscaleConnect': 'Connect over Tailscale',
-    // v4 couch-grade remote: self-hosted relay connect (connection-screen).
+    // Self-hosted relay connect (connection-screen).
     'relayConnect': 'Connect via Relay',
     'tailscaleConnectSubtitle':
         'Reach this rig from anywhere. No port forwarding.',

@@ -389,9 +389,7 @@ class _RecoveryActionButtonsState extends State<_RecoveryActionButtons> {
         // Abort exits the recovery loop and marks the sequence Failed —
         // an unrecoverable user decision. Wrap in [HoldToConfirmButton]
         // so a stray click on a phone, trackpad, or accidental keyboard
-        // activation can't kill an overnight run. The inner button stays
-        // keyed `recovery_abort` for backward-compat with widget tests;
-        // tests targeting the destructive path now drive a long-press.
+        // activation can't kill an overnight run.
         HoldToConfirmButton(
           key: const Key('recovery_abort_hold'),
           enabled: !_abortBusy,

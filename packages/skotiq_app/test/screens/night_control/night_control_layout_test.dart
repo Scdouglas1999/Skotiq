@@ -308,8 +308,6 @@ void main() {
     expect(ManualActionId.loop.panelTab, NightPanelTab.camera);
   });
 
-  // qa-surfaces S42: at 1920x1200 the right column stayed 300 px wide and
-  // truncated the same labels as at 1600x900.
   test('the right panel grows on a wide window', () {
     expect(NightControlLayout.panelWidthFor(1480), 300);
     expect(NightControlLayout.panelWidthFor(1920), 380);

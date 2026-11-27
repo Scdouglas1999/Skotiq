@@ -280,14 +280,6 @@ class MobileEventNotifier {
   ///     covered by the category alerts.
   ///   * JobCancelled — the user themselves almost always triggered the
   ///     cancel, so they already know.
-  ///
-  /// Failure routing is keyed off the job's `operation` field — see
-  /// `apps/desktop/lib/headless_api/handlers/*.dart` for the canonical
-  /// list. We surface plate-solve, center-on-target and polar-alignment
-  /// failures. Any other operation falls through and is logged
-  /// loudly (per the no-silent-fallback rule) but not surfaced —
-  /// so when a new long-running job is added server-side, the logs will
-  /// reveal the gap.
   Future<void> _handleJob(SkotiqEvent event) async {
     if (event.eventType != 'JobFailed') {
       // Drop JobStarted/JobProgress/JobCompleted/JobCancelled entirely.

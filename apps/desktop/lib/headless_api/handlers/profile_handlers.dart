@@ -882,12 +882,7 @@ class ProfileHandlers implements RouteSource {
     // `latitude` / `longitude` / `elevation` / `location` live in this flat
     // document AND in the canonical observer store. The settings notifier's
     // copy of them is NOT refreshed when POST /api/settings/location writes
-    // that store, so the merge above used to carry a STALE site into every
-    // save: a POST touching one unrelated field rewrote the observer rows —
-    // and the native settings blob the site is reloaded from at boot — with
-    // coordinates the operator had already replaced. The replacement survived
-    // in memory until the process ended and was gone at the next launch, and
-    // nothing anywhere reported it.
+    // that store.
     //
     // The rule has two halves:
     //  * a save naming NONE of the site keys writes the CANONICAL site back,

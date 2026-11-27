@@ -148,7 +148,7 @@ void main() {
     expect(container.read(nightPanelTabProvider), NightPanelTab.camera);
   });
 
-  // Mobile rework T10: after a run, what would keep the next one from
+  // After a run, what would keep the next one from
   // starting stays on Overview with its fix; warnings do not.
   testWidgets('a finished night keeps what blocks the next run',
       (tester) async {

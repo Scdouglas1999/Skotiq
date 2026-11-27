@@ -253,9 +253,7 @@ void main() {
     const viewState = SkyViewState(centerRA: 5, centerDec: 20, fieldOfView: 20);
 
     test('a target 2° EAST of center draws LEFT of center, like the stars', () {
-      // Increasing RA runs to the left across the sky view. The overlay used to
-      // add the RA offset to dx, mirroring the box about the view center: a
-      // target 2° east drew 2° west.
+      // Increasing RA runs to the left across the sky view.
       final target = CelestialCoordinate(
         ra: 5 + (2.0 / math.cos(20 * math.pi / 180)) / 15,
         dec: 20,

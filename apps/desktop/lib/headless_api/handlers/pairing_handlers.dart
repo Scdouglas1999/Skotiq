@@ -427,9 +427,7 @@ class PairingHandlers implements RouteSource {
             .difference(DateTime.now())
             .inSeconds,
         // WHERE the code went, so a client can name a next step that exists on
-        // the rig it is talking to. The run-watch pairing wall used to send a
-        // headless operator to the desktop app's Remote Access screen, which on
-        // an appliance is not there, while the code sat in the file below.
+        // the rig it is talking to.
         //
         // The code itself, and the absolute path it lives at, stay off this
         // wire: `/api/pairing/start` is unauthenticated, so the answer names
@@ -774,14 +772,6 @@ class PairingHandlers implements RouteSource {
   /// everything grant, and a fine-grained spec (`camera:control,mount:view`)
   /// is honoured verbatim. The default when the field is absent stays
   /// `control`, so a client that names no scope pairs exactly as before.
-  ///
-  /// `view` used to resolve to the `control` grant alongside `control`, which
-  /// made the documented read-only request unreachable through pairing: a
-  /// browser that asked for read-only was handed imaging control. Nothing in
-  /// this tree asked for it — `apps/mobile` sends `control` or `admin`, and
-  /// `remote_pairing_client` defaults to `control` — so honouring `view` takes
-  /// nothing away from any current caller and stops the one coarse name that
-  /// did not mean what it said.
   ///
   /// A spec this server cannot parse is REFUSED by the caller rather than
   /// resolved to a default: falling back to `control` handed a client that had

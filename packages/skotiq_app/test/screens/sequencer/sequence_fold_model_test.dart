@@ -171,7 +171,7 @@ void main() {
       expect((entries[0] as FoldedEntry).group.label, 'Ha · OIII');
       expect(entries[1], isA<SingleEntry>());
       expect((entries[2] as FoldedEntry).group.label, 'L · R');
-      // Positions are child indexes, not entry indexes — wave-2 drag/drop
+      // Positions are child indexes, not entry indexes — drag/drop
       // re-injects a moved group at this slot.
       expect((entries[2] as FoldedEntry).group.firstIndex, 3);
     });

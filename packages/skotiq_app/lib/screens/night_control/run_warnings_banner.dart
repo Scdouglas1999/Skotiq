@@ -2,9 +2,7 @@
 //
 // The run records what went wrong without stopping it (a centering that
 // missed, the mount stopping at its tracking limit, a flip that could not
-// happen early, guiding that could not restart) in its warning list. The
-// session report showed them after the night; during it they lived only in
-// the run's stats, and a client linked to the host never saw them at all.
+// happen early, guiding that could not restart) in its warning list.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';

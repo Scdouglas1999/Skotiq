@@ -367,12 +367,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
 
   /// The editor, or the two-recipe compare when one is armed.
   ///
-  /// Compare replaces the PRIMARY region and nothing else. It used to replace
-  /// the whole panel layout, which took the Recipe and History panels off the
-  /// screen and out of the accessibility tree — so the one thing an A/B compare
-  /// is for, reading what differs between two interpretations, was reduced to
-  /// two pictures with no way to see which steps differ, beside a picker whose
-  /// own copy promises "what differs on screen is the interpretation". The
+  /// Compare replaces the PRIMARY region and nothing else. The
   /// panels are collapsible on every layout this screen takes, so keeping them
   /// costs the comparator nothing: a phone still segments, and a desktop panel
   /// still drags down to 280 pixels or across to give the two panes the width.

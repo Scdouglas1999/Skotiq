@@ -1,6 +1,6 @@
 // The Fujifilm warranty notice is asked once on every connect the operator
 // starts, Connect all too, and shown once after a connect nobody was asked
-// for (auto-connect at launch), which never skips the camera (P15-2).
+// for (auto-connect at launch), which never skips the camera.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

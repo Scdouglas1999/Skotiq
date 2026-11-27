@@ -487,8 +487,7 @@ class _SequenceRowState extends ConsumerState<_SequenceRow> {
       if (exportedPath != null && context.mounted && host.isCurrent) {
         // On a phone the file landed in the app sandbox, so a snackbar naming
         // it would be a file the user can never open — hand it to the share
-        // sheet instead. Live before this: "Failed to export:
-        // UnimplementedError: getSavePath() has not been implemented."
+        // sheet instead.
         await revealExportedFile(
           context,
           exportedPath,

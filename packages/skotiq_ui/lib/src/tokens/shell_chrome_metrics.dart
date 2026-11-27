@@ -114,8 +114,7 @@ abstract final class ShellChromeMetrics {
   /// Chrome below the main content [Stack].
   ///
   /// Below [shellLayoutBreakpoint] that is the bottom nav ALONE: the narrow
-  /// shell has no instrument bar at all (04 §5), so adding a status-bar height
-  /// there reserved 40px of empty window for a surface that is not mounted.
+  /// shell has no instrument bar at all (04 §5).
   static double contentStackBottomChromeHeight({required bool useBottomNav}) {
     return useBottomNav ? BottomNavMetrics.barHeight : statusBarHeight;
   }
@@ -124,8 +123,7 @@ abstract final class ShellChromeMetrics {
   /// (autofocus progress, polar alignment).
   ///
   /// The content stack already ends above the bottom nav (which takes the
-  /// system inset) or the instrument bar, so neither is added again: adding
-  /// them floated a minimized pill some 130 px above the nav on a phone.
+  /// system inset) or the instrument bar, so neither is added again.
   /// Without a bottom nav the stack can reach the screen's foot, so the
   /// system inset is kept there.
   static double floatingOverlayBottomInset(

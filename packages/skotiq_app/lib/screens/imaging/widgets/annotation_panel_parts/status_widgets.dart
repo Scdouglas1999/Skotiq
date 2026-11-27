@@ -191,10 +191,8 @@ class AnnotationStatusIndicator extends ConsumerWidget {
   /// installed on this machine".
   ///
   /// Annotations are enabled by default and no plate solver ships with the app,
-  /// so a fresh install showed a RED "Plate solve failed" error pinned over the
-  /// imaging viewport after every single capture — even a plain manual snapshot
-  /// (observed on the desktop build with the simulator camera). Nothing had
-  /// failed: an optional external tool simply is not set up, which the
+  /// so on a fresh install nothing has failed: an optional external tool
+  /// simply is not set up, which the
   /// Equipment readiness panel already reports as an advisory. This is the same
   /// distinction the pipeline already draws for `catalogsNotInstalled`, which is
   /// presented as a warning with a "go install it" hint rather than an error.

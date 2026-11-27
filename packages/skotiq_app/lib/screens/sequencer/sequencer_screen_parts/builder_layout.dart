@@ -108,7 +108,7 @@ class _DesktopBuilderLayout extends ConsumerWidget {
     // desktop breakpoint that width belongs to the document. See
     // autoCollapseEmptyProperties below.
     // A step of the open plan, not just an id: loading another plan leaves
-    // the old id behind, and the column stayed open on "Select a node".
+    // the old id behind.
     final hasSelection =
         ref.watch(selectedNodeProvider.select((node) => node != null));
 

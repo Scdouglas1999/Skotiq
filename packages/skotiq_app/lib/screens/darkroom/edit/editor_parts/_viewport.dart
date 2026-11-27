@@ -191,11 +191,7 @@ String _darkroomNoRenderReason(DarkroomViewState state) {
 /// The row of zoom controls above the picture, with the readout that says what
 /// its percentage is about.
 ///
-/// Shared by the single-recipe viewport and the A/B compare, which used to
-/// build its own pane chrome and so shipped without any of this: compare had no
-/// zoom control, no percentage, and no way to land on 1:1 at all — the one
-/// magnification a noise comparison is for — with the mouse wheel as the only
-/// way to change the view and nothing for a keyboard or assistive tech.
+/// Shared by the single-recipe viewport and the A/B compare.
 ///
 /// **A disabled control here states why.** All four went dead together on a
 /// null preview and published nothing but the dimming: in compare that left
@@ -704,11 +700,6 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
               // overflow bar with its last lines simply gone. Half the canvas
               // is the ceiling, and a card shorter than that still lays out at
               // its own height, so the common case is unchanged.
-              //
-              // The pass-through this replaces was worth less than the words:
-              // it let a drag over the card pan a picture the same card is
-              // explaining is stale, and the picture above the card is still
-              // pannable either way.
               child: ConstrainedBox(
                 constraints: BoxConstraints(
                   maxHeight: _zoom.box.height / 2,

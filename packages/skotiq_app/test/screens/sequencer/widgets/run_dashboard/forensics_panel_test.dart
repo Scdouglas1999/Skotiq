@@ -44,8 +44,7 @@ void main() {
       await db.close();
     });
 
-    // Persist nine CloudPassage rejections + one SeeingSpike to match
-    // the brief's walkthrough.
+    // Persist nine CloudPassage rejections + one SeeingSpike.
     for (var i = 0; i < 9; i++) {
       await service.recordRejection(
         sessionId: 'sess-1',

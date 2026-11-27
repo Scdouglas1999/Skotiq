@@ -533,10 +533,8 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   /// Shows a device-state toast, dropping any earlier one still on screen.
   ///
   /// Snackbars queue, and this row's buttons can be pressed far faster than a
-  /// snackbar's dwell time: hammering Connect/Disconnect left the bar replaying
-  /// stale messages for eight seconds after the last click, so the window read
-  /// "Disconnected camera" while the same frame showed the camera connected at
-  /// 20.0 degrees. Only the newest statement about a device can be true.
+  /// snackbar's dwell time. Only the newest statement about a device can be
+  /// true.
   void _announce(String message) {
     ScaffoldMessenger.of(context).clearSnackBars();
     context.showSuccessSnackBar(message);

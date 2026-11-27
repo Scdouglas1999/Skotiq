@@ -1,9 +1,6 @@
 // The guider step must be completable with PHD2 switched off.
 //
-// Selecting PHD2 used to happen only as a side effect of a *successful*
-// socket probe, so anyone running the wizard indoors before launching PHD2
-// could not record their guider at all: Next dropped the typed host/port and
-// the summary step said "— not set —". "Use PHD2" is the explicit selection;
+// "Use PHD2" is the explicit selection;
 // Test stays as verification.
 
 import 'package:drift/native.dart';

@@ -95,8 +95,6 @@ void main() {
     expect(find.text('02h00m00s'), findsOneWidget);
   });
 
-  // qa-surfaces S16: past the flip point the tab read "Flip in 0m" for a
-  // mount at hour angle +4h45m.
   testWidgets('past the flip point the countdown reads past due',
       (tester) async {
     await pumpPanelTab(tester, const NightMountTab(), overrides: [

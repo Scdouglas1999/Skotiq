@@ -12,7 +12,7 @@
 // signature or pick an index, breaking the QR/manual-entry seam.
 // Keeping the multi-server list separate means:
 //
-//   1. The new `SavedServersService` is a pure data store; it does not
+//   1. `SavedServersService` is a pure data store; it does not
 //      drive backend connections directly.
 //   2. The screen calls `EnhancedSkotiqDiscovery.saveLastServer`
 //      after connect succeeds, then `SavedServersService.upsert` to
@@ -81,14 +81,13 @@ class SavedServer {
   /// token"; consumers must treat both identically.
   final String? authToken;
 
-  /// SHA-256 SPKI fingerprint of the server's TLS certificate (W1A) or
+  /// SHA-256 SPKI fingerprint of the server's TLS certificate or
   /// the SHA-256 of `/api/info`'s fingerprint field on a plaintext
   /// host. `null` when neither was available at pairing time. When
   /// non-null, the LAN push receiver and TLS-pinned dialer use this
   /// to refuse a man-in-the-middle attempt — see
   /// `skotiq_remote_protocol`'s `RemotePairingClient` / the LAN
-  /// push HMAC derivation. The brief calls this "pinnedFingerprint";
-  /// we honour the name.
+  /// push HMAC derivation.
   final String? pinnedFingerprint;
 
   /// Wall-clock timestamp of the most recent successful `/api/info`

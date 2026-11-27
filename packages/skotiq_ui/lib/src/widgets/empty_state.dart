@@ -113,14 +113,7 @@ class EmptyState extends StatelessWidget {
                   // that one annotated node absorbs every descendant fragment
                   // that is not bounded. An empty state is several paragraphs
                   // around ONE interactive descendant, so the tap and the role of
-                  // that one control merged into the same node as all the words:
-                  // the Darkroom's "Nothing to open" state reached AT-SPI as a
-                  // single ~300-character button whose name was the screen title,
-                  // the reason, and this label twice over. There was no node
-                  // named for the action, so an exact-name lookup failed, and an
-                  // activation landed on a node whose extents were the whole
-                  // screen. States with two or more actions escaped it only
-                  // because two taps cannot merge into one node.
+                  // that one control merged into the same node as all the words.
                   //
                   // The boundary stops the merge here: the words stay text and
                   // the control keeps its own name and its own box.

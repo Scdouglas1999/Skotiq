@@ -104,8 +104,6 @@ void main() {
       expect(columns.count, '5');
     });
 
-    // Night test 2026-11-26: a dark step read "55s", like an unfiltered
-    // light, while the Tonight header called it "Dark 55 s".
     test('a dark or bias reads as its frame type, not the wheel filter', () {
       for (final (type, label) in [
         (FrameType.dark, 'Dark 55s'),

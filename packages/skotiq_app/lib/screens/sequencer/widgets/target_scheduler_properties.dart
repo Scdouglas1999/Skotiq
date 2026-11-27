@@ -449,8 +449,8 @@ class _PreviewPlaceholder extends StatelessWidget {
 
 /// Default value the master toggle restores when the user re-enables
 /// adaptive swap after a previous "off" (so the field doesn't come back as
-/// 0, which would mean "swap on a perfect sky"). Matches the brief's
-/// recommended starting point — a conditions score of 50 sits at the
+/// 0, which would mean "swap on a perfect sky"). A conditions score of 50 sits
+/// at the
 /// boundary between the `medium` and `bright` tier floors.
 const double _defaultSwapThreshold = 50.0;
 

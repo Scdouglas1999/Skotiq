@@ -1,4 +1,4 @@
-// Widget test for F5-CATALOG-OVERLAY. Verifies:
+// Widget test for the catalog overlay. Verifies:
 //   * The overlay paints a marker for every projected catalog object
 //     supplied via a fake catalog source
 //   * The HUD reports the visible/total counts the painter emits

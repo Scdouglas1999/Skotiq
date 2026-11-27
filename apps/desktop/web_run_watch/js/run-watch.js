@@ -506,9 +506,7 @@ function setConnectionState(state) {
 // Link health
 //
 // A phone left on the nightstand shows whatever the last successful snapshot
-// said. Before this block that picture kept its green "running" badge for as
-// long as the tab stayed open, however long ago the server had died — the only
-// tell was an 8px dot's hover title, which a phone has no way to show. The
+// said. The
 // state below is what lets the page say plainly that it has lost contact, and
 // how stale what it is showing has become.
 // ---------------------------------------------------------------------------
@@ -799,10 +797,6 @@ function codeDeliveryText(data) {
 }
 
 /// Ask the rig to make a pairing code.
-///
-/// The wall used to have no such control at all: it named a code source and
-/// offered nothing that caused a code to exist, which on a headless appliance
-/// left the operator with no reachable next step.
 async function requestPairingCode() {
   const statusEl = $('pair-status');
   const btn = $('btn-request-code');
@@ -1056,8 +1050,7 @@ function renderFrameCounter() {
   const el = $('progress-frames');
   if (!el) return;
   // A counter nobody has read cannot be behind. "-- · updating" is a staleness
-  // claim about a figure that is not on the screen — measured with the snapshot
-  // endpoint answering 500 while the stream still delivered frames. `--` says
+  // claim about a figure that is not on the screen. `--` says
   // the whole of what is known, and the link banner says why.
   const known = frameCounterText !== '--';
   const outrunByNumber = feedNewestFrameNumber != null &&
@@ -1377,11 +1370,8 @@ function renderSnapshot(data) {
     wireString(progress.currentNodeName) || wireString(sequencer.currentNodeName) || '--';
   $('progress-filter').textContent = wireString(progress.currentFilter) || '--';
 
-  // Equipment. An ABSENT list is not an empty one: `data.devices || []` folded
-  // "the snapshot said nothing about equipment" into "nothing is connected" and
-  // printed that as a positive claim, measured with four simulator devices
-  // genuinely connected and every sibling field on the same screen reading
-  // `--`. Guiding, weather and progress all tell a reading from an absence, so
+  // Equipment. An ABSENT list is not an empty one. Guiding, weather and
+  // progress all tell a reading from an absence, so
   // equipment does too — `--` for unknown, the sentence only for a list the
   // server actually sent and that was actually empty.
   const list = $('equipment-list');
@@ -2001,11 +1991,7 @@ function sayNoFrame(sentence) {
 /// refusal that carried none.
 ///
 /// The empty-buffer 404 is a PER-PROCESS fact and the body says so
-/// (`error: no_live_preview`, `scope: process`, plus the library route). This
-/// page used to discard that body entirely and leave index.html's static "No
-/// frame captured yet" standing — an absolute about the whole rig, rendered by
-/// a server whose library held 26 frames. The sibling dashboard read the same
-/// wire correctly; now both do.
+/// (`error: no_live_preview`, `scope: process`, plus the library route).
 async function frameRefusalText(res) {
   let body = null;
   try {
@@ -2105,8 +2091,7 @@ async function refreshFrame() {
 ///
 /// A 200 is not consent. `POST /api/sequencer/stop` answers 200 with
 /// `wasRunning: false` and "No sequence was running; nothing to stop." when
-/// there is nothing to stop, and this surface used to reply "Stop sent" to
-/// that — a green toast for a command the server declined. The body carries
+/// there is nothing to stop. The body carries
 /// the verdict; read it.
 ///
 /// Pause / Resume / Skip carry that same `wasRunning` verdict, and they carry

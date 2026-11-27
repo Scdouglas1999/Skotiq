@@ -956,9 +956,6 @@ void main() {
           });
           expect(response.statusCode, HttpStatus.ok);
 
-          // Before this the flat fields reached the settings rows only, so
-          // /api/settings/location went on answering with the old site — two
-          // stores, one rig, two answers.
           expect(canonicalSite?.latitude, 40.0);
           expect(canonicalSite?.longitude, -105.0);
 

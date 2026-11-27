@@ -60,9 +60,7 @@ class SettingsColorPicker extends StatefulWidget {
   });
 
   /// Diameter of one swatch. Each swatch carries the Trails mark rendered in
-  /// its accent, so the swatch is sized for the mark's 24–32 px band rather
-  /// than the old 22 px flat disc — the tap target (swatch + ring margin)
-  /// grows with it, never shrinking below the previous 30 px.
+  /// its accent, so the swatch is sized for the mark's 24–32 px band.
   static const double swatchSize = 30;
 
   @override

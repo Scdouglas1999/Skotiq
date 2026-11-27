@@ -227,9 +227,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
 
   /// Whether a sensor value Smart Night's exposure model needs is missing.
   ///
-  /// Asked of the resolved specs rather than of the caveat text: a reworded
-  /// caveat used to stop this prompt firing silently, and the exposure model
-  /// then planned the night on a stand-in figure without anyone being asked.
+  /// Asked of the resolved specs rather than of the caveat text.
   /// Sensor dimensions are not on the list — they set the field of view, not
   /// the exposure.
   bool _shouldPromptForCameraSpecs(ResolvedCameraSensorSpecs specs) =>

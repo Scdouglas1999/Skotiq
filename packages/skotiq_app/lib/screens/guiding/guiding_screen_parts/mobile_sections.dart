@@ -233,9 +233,7 @@ mixin _GuidingMobileSections
     Phd2State phd2State,
   ) {
     // The controls and the calibration stack at their own heights and the
-    // tab scrolls. They used to share the pane 3 : 2 in fixed boxes, which
-    // left the controls scrolling inside their box and the calibration's box
-    // mostly empty.
+    // tab scrolls.
     return SingleChildScrollView(
       padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
       child: Column(
@@ -253,9 +251,7 @@ mixin _GuidingMobileSections
   Widget _buildNarrowSettingsTab(SkotiqColors colors) {
     final kind = ref.watch(connectedGuiderKindProvider);
 
-    // The built-in guider's settings are shown here. Before, this tab held
-    // two buttons to Equipment, whose phone layout reaches the form only
-    // through a camera, mount or focuser card's Settings.
+    // The built-in guider's settings are shown here.
     if (kind == GuiderKind.builtin) {
       final colors = SkotiqColors.of(context);
       return SingleChildScrollView(

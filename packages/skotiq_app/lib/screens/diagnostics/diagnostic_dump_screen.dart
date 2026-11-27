@@ -23,8 +23,7 @@ import '../../router/app_routes.dart';
 /// `file_selector.getSaveLocation`, which then opens the picker at the
 /// PROCESS working directory — for an installed build that is the application
 /// bundle itself (`…/build/linux/x64/release/bundle`, `C:\Program Files\…`),
-/// which is typically read-only. The first folder a user in the middle of
-/// filing a bug report saw was one they could not save into.
+/// which is typically read-only.
 ///
 /// Downloads first (where browsers and issue trackers expect attachments to
 /// live), then Documents. Both are user-writable by definition. Null means
@@ -184,8 +183,7 @@ class _DiagnosticDumpScreenState extends ConsumerState<DiagnosticDumpScreen> {
       final suggested = 'skotiq_diagnostic_$stamp.zip';
 
       // Not a raw save dialog: `file_selector` has no `getSavePath` on
-      // Android/iOS, so asking for one there threw UnimplementedError and this
-      // whole screen was dead on a phone. On touch platforms the dump lands in
+      // Android/iOS. On touch platforms the dump lands in
       // the app sandbox and reaches the user through the share sheet below.
       final target = await chooseExportTarget(
         suggestedName: suggested,
@@ -247,11 +245,7 @@ class _ContentsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // State the span the zip actually has. This card said "Recent log files"
-    // over an unbounded export (38k lines spanning a week), then said "every
-    // daily native log kept on this machine" after the export was bounded to
-    // DiagnosticDumpService.logRetentionWindow — wrong in both directions. It
-    // is now read from that constant so the two cannot drift again.
+    // State the span the zip actually has.
     final logHours = DiagnosticDumpService.logRetentionWindow.inHours;
     final items = [
       (

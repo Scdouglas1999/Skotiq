@@ -444,7 +444,6 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     return Stack(
       children: [
         widget.child,
-        // Show error banner
         if (_errorMessage != null)
           Positioned(
             top: 80,
@@ -496,7 +495,6 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
               ),
             ),
           ),
-        // Show update banner
         if (_showingBanner && _errorMessage == null)
           Positioned(
             top: 80,

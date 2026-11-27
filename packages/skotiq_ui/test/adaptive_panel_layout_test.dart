@@ -204,8 +204,7 @@ void main() {
 
     // 800 px sits above BreakpointTokens.breakpointTablet (768), which is what
     // `isAtLeastDesktop` dispatches on — so this is the resizable split, not
-    // the fixed one. Pinned because the doc used to claim the fixed branch ran
-    // up to 1024 and nothing tested the difference.
+    // the fixed one.
     testWidgets('800x1000 is the resizable split, not the fixed one', (
       tester,
     ) async {

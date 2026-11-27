@@ -18,9 +18,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
         mainAxisSize: MainAxisSize.min,
         children: [
           // What the run is doing now leads the card; the run's own status
-          // line, or the solve timer, is the detail under it. The point
-          // list that used to head the card repeated the progress rail
-          // directly above it.
+          // line, or the solve timer, is the detail under it.
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(

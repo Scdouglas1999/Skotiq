@@ -3,7 +3,7 @@
 // Why this exists: shipping TLS-by-default requires a cert/key pair the
 // operator does not have to generate themselves. The pairing code, the
 // bearer token, and every WebSocket frame all travel in cleartext over plain
-// HTTP today (audit F-1/F-2/F-9 in 01-connection-auth.md). When the operator
+// HTTP today. When the operator
 // opts in with `--tls`, this provisioner creates an RSA-2048 keypair and a
 // 10-year self-signed X.509 cert under `$APPDATA/server.{crt,key}`, then
 // returns a Dart `SecurityContext` the headless server can hand to

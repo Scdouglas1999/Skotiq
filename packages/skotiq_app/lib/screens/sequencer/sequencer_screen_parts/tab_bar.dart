@@ -2,12 +2,6 @@ part of '../sequencer_screen.dart';
 
 /// The screen's 56 px [PageHeader]: `list-ordered` · "Sequencer" · underline
 /// tabs · Preflight + the run's transport button (06 §Sequencer).
-///
-/// The old strip carried a title row, a keyboard-shortcut icon button and a
-/// "Sequence Running" chip. Shortcuts moved to the top bar's help popover and
-/// the run state is the instrument bar's job, so neither is rebuilt here: the
-/// header holds exactly the screen name, its tabs, and the action the operator
-/// came for.
 class _SequencerPageHeader extends ConsumerWidget {
   const _SequencerPageHeader({
     required this.controller,
@@ -94,8 +88,8 @@ class _SequencerPageHeader extends ConsumerWidget {
       ),
       actions: <Widget>[
         // A phone header has room for a title and one glyph. The words go, not
-        // the action: the tooltip keeps the name and MobilePlaybackBar — right
-        // under this header — already owns the transport, so repeating
+        // the action: the tooltip keeps the name and MobilePlaybackBar
+        // already owns the transport, so repeating
         // Start/Stop here would be the second copy of the same control.
         if (isPhone) ...[
           SkotiqIconButton(

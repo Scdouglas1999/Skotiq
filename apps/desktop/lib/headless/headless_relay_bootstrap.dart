@@ -8,7 +8,7 @@ import 'headless_env.dart';
 
 const _headlessLogSource = 'HeadlessMain';
 
-/// v4 couch-grade remote: start the outbound relay uplink if a relay URL was
+/// Start the outbound relay uplink if a relay URL was
 /// supplied (`--relay-url=<url>` / `SKOTIQ_RELAY_URL`). Returns null when
 /// no relay is configured. Never throws — relay is strictly additive on top
 /// of the LAN/mDNS path, so a misconfigured or unreachable relay must not stop

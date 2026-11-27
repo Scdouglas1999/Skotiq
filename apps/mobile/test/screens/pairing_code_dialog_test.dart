@@ -227,7 +227,6 @@ void main() {
     expect(find.text('Observatory PC · 192.168.1.32'), findsOneWidget);
   });
 
-  // Mobile rework P2-4: a screen reader names the code field.
   testWidgets('the code field is announced as Pairing code', (tester) async {
     final semantics = tester.ensureSemantics();
     await _pumpDialog(tester);

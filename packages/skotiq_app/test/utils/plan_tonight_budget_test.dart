@@ -1,4 +1,4 @@
-// qa-surfaces S26: "Image until: Astronomical dawn" built a plan that imaged
+// "Image until: Astronomical dawn" built a plan that imaged
 // until 14:56 with dawn at 14:37: the 10 min cool-down and the acquisition
 // were not taken out of the window.
 import 'package:flutter_test/flutter_test.dart';

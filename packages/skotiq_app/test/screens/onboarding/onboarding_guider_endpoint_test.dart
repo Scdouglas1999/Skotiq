@@ -1,9 +1,4 @@
 // The guider step's PHD2 test result must not outlive the endpoint it probed.
-//
-// "PHD2 reachable. Selection saved." used to stay on screen after the host or
-// port field was edited, while the draft guider (and the phd2Host/phd2Port
-// settings the connect path actually reads) still pointed at the address that
-// passed. The user saw a green tick next to an address nothing had contacted.
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';

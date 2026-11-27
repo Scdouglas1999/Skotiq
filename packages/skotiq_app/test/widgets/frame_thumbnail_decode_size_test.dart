@@ -2,9 +2,7 @@
 //
 // `FrameThumbnail` is the ladder behind the Dashboard cockpit strip, the
 // Tonight preview panel, the sequencer's exposure strip and the run
-// dashboard's history rail. All four paint a ~72-100 px tile, and all four
-// used to decode the backend's 512 px JPEG at 512 px — a megabyte of RGBA per
-// tile, held in an image cache with a 100 MB budget.
+// dashboard's history rail. All four paint a ~72-100 px tile.
 
 import 'dart:typed_data';
 

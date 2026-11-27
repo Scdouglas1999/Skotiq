@@ -299,10 +299,7 @@ class _AdaptivePanelLayoutState extends State<AdaptivePanelLayout> {
     // over the primary region on a Stack. Floating it meant `primary` was laid
     // out at the full viewport height while the handle painted across its last
     // ~56dp — so anything the primary anchors to its OWN bottom edge was sliced
-    // in half. On the Imaging screen that cut straight through the bottom-left
-    // histogram and the bottom-right HFR/Mean stats readout (both
-    // `Positioned(bottom: 16)`), rendering half a row of live frame statistics
-    // under an opaque bar. Reserving the space is also what a peeking Material
+    // in half. Reserving the space is also what a peeking Material
     // bottom sheet does, so the primary now ends exactly where the handle
     // begins and no consumer has to guess an inset.
     final handle = _SheetHandleButton(

@@ -1,4 +1,4 @@
-// qa-surfaces S29: after a restart the histogram overlay stayed on, but
+// After a restart the histogram overlay stayed on, but
 // Crosshair, Star detection and "Save loop frames" came back off; the last
 // one silently stopped saving the next night's loop frames.
 import 'package:flutter_riverpod/flutter_riverpod.dart';

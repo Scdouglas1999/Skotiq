@@ -62,8 +62,6 @@ void main() {
     expect(items[3].at, bostonTime(2026, 10, 20, 5, 44));
   });
 
-  // F33: with a pre-meridian hold set, the night listed the flip but not the
-  // moment the run stops tracking and taking frames for it.
   test('a pre-meridian hold is listed before its flip', () {
     final container = planContainer(
       now: bostonTime(2026, 10, 19, 18, 36),

@@ -18,7 +18,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
             ),
           ),
         )
-        // Why placement: error translation must wrap downstream so
+        // Error translation must wrap downstream so
         // BadRequestError thrown anywhere lower becomes a structured 400.
         // It must be _outside_ auth/CORS so 4xx auth responses keep their
         // intended status (errorTranslationMiddleware only intercepts
@@ -219,7 +219,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
 
   /// Load all active, unexpired pairing tokens from Drift into the in-memory
   /// `_pairedSessionTokens` map. Without this, every server restart evicts
-  /// every HTTP-paired client (audit F-3 in 01-connection-auth.md). The
+  /// every HTTP-paired client. The
   /// paired-device row stores the canonical grant spec, so an admin or
   /// fine-grained pairing keeps exactly the same authority after a restart.
   /// Legacy v3 rows are migrated to the historical `control` default.

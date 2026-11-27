@@ -299,9 +299,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
       case PolarAlignPhase.idle:
         return <Widget>[
           Tooltip(
-            // The blocker sentence rides on the control it blocks. It used to
-            // be a warning line in the footer as well — one problem, two
-            // surfaces (02 rule 5).
+            // The blocker sentence rides on the control it blocks.
             message: disabledReason ?? 'Start polar alignment',
             child: SkotiqButton(
               key: TourTarget.polarStartButton.key,

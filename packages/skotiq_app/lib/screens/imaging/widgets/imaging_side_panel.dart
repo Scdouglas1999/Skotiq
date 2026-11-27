@@ -129,8 +129,7 @@ class ImagingSectionBody extends StatelessWidget {
 }
 
 /// Cooling controls and the calibration builder share ONE scroll view so the
-/// cooling rows keep their natural height (see the note this replaces on
-/// `_CameraTabContent`).
+/// cooling rows keep their natural height.
 class _CameraSection extends StatelessWidget {
   const _CameraSection({required this.colors});
 

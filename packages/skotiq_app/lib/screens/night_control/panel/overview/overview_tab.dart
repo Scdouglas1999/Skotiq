@@ -75,8 +75,7 @@ class NightOverviewTab extends ConsumerWidget {
           if (phase == NightRunPhase.finished) ...<Widget>[
             const NightAfterRunSection(),
             // What would keep the next run from starting, with its fix one
-            // tap away: hidden after a run, the cause of a failed one was a
-            // trip to another screen (mobile rework T10).
+            // tap away.
             if (_needsALook(ref.watch(nightBeforeYouStartProvider))
                 case final open?)
               NightChecklistSection(

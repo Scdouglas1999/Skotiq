@@ -29,8 +29,7 @@ final meridianBannerDismissedSeverityProvider =
 /// [MeridianFlipChip] in the viewer toolbar row with the explanation in its
 /// tooltip. Only a flip that needs the operator's eye — under
 /// [MeridianFlipCountdownBanner.kWarningThreshold] or imminent — takes this
-/// full-width banner above the canvas. The calm banner used to spend 85 px of
-/// every armed night pushing the whole view down to say "no action needed".
+/// full-width banner above the canvas.
 ///
 /// The countdown model has no manual-flip or failed-flip state to surface
 /// here: a failed flip is reported by the flip itself (the meridian-flip

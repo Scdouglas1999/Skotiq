@@ -114,10 +114,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
     /// session reports its real totals instead of an em-dash.
     ///
     /// Null while the frames are loading or after they failed: a [Readout]
-    /// renders that as the em dash. The old strings ('Loading…',
-    /// 'Unavailable', 'No data') were placeholders sitting in a value slot,
-    /// which is exactly what the copy rules forbid — the charts below carry
-    /// the loading and error state.
+    /// renders that as the em dash.
     String? frameMetric(String? Function(List<DbCapturedImage>) value) {
       return imagesAsyncValue.when(
         data: value,
@@ -361,9 +358,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
               const SizedBox(height: SkotiqTokens.space2xl),
 
               // ONE banner for ONE problem (05 §11). The charts and the
-              // thumbnail strip are both drawn FROM the frames, so a failed
-              // frame stream used to raise two identical banners for the same
-              // failure; now it raises one and neither surface is drawn.
+              // thumbnail strip are both drawn FROM the frames.
               if (framesError != null)
                 _AnalyticsError(
                   title: 'Frames did not load',
@@ -435,9 +430,7 @@ const double _chartGridSkeletonHeight = 320;
 /// THE loading state for Analytics: a shimmering `well` block of the height
 /// the real content will take.
 ///
-/// One pattern, not the four this screen used to carry (a bordered box with a
-/// blue glyph here, a spinner there, a sentence in a card elsewhere). A
-/// skeleton says "this is arriving" without claiming a number.
+/// A skeleton says "this is arriving" without claiming a number.
 class _AnalyticsLoading extends StatelessWidget {
   const _AnalyticsLoading({required this.height});
 

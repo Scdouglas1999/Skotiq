@@ -5,7 +5,7 @@
 // SavedServersService for persistence and the existing BackendNotifier
 // for live connection switching.
 //
-// UX contract (per brief):
+// UX contract:
 //   * Each row: display name, last-connected relative time, dot
 //     indicator showing last-known reachability.
 //   * Tap a row → open that server (BackendNotifier.connect + persist

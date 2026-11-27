@@ -1,6 +1,6 @@
 // A mount motion-guard fault has its own banner on Tonight, with the
-// operator's actions; listed in the critical-events banner too it read twice
-// (mobile rework P2-14). It must still sound the alarm, and any other fault
+// operator's actions; listed in the critical-events banner too it read twice.
+// It must still sound the alarm, and any other fault
 // still reaches the critical-events banner.
 
 import 'package:drift/native.dart';

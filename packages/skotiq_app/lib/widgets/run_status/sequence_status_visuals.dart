@@ -7,13 +7,6 @@ import '../../localization/skotiq_localizations.dart';
 
 /// Single source of truth for the (color, label, icon, dot-variant) tuple
 /// that every sequence-status surface renders.
-///
-/// Before this existed, the toolbar status badge, the mobile playback-bar
-/// badge, and the recovery LED each carried their own
-/// `switch (executionState)` block — and the icons quietly diverged (e.g.
-/// `loader` vs `rotateCw` for stopping/recovering). Routing all three
-/// through [SequenceStatusVisuals.of] keeps the iconography consistent while
-/// each widget keeps its own layout.
 class SequenceStatusVisuals {
   const SequenceStatusVisuals({
     required this.color,

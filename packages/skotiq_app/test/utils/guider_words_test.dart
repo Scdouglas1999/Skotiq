@@ -1,4 +1,4 @@
-// One guider word set (P10-5b): every surface names a guider state with the
+// One guider word set: every surface names a guider state with the
 // same word, and an idle guider, PHD2 or built-in, is "Not guiding".
 
 import 'package:flutter/widgets.dart';

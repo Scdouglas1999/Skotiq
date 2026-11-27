@@ -393,13 +393,6 @@ class _MosaicProjectScreenState extends ConsumerState<MosaicProjectScreen> {
   }
 }
 
-/// The slim "leave this screen" bar the mosaic project view carries in EVERY
-/// state — loading, loaded, not-found, and storage-failure alike.
-///
-/// The review screen is always reached by a push (the projects list, the
-/// collaborative detail view, or a deep link that builds the list beneath it),
-/// and before this existed a failed/slow load rendered a bare spinner with no
-/// app chrome at all: the operator had no way back and had to restart the app.
 /// The project header: name, target region (RA/Dec), NxM grid, and lifecycle
 /// status pill.
 class MosaicProjectHeader extends StatelessWidget {
@@ -544,9 +537,7 @@ class _MosaicProjectHeaderBar extends StatelessWidget {
 
 /// The way out, in the page header.
 ///
-/// This was a full-width bar ABOVE the header on all four arms of this screen —
-/// a second header row where 04-shell §4 gives one. The affordance stays, and
-/// so does the sentence it was careful about: the control POPS, so it can only
+/// The control POPS, so it can only
 /// promise "Mosaic projects" when the stack is empty and [_leave] really does
 /// go there.
 class _MosaicProjectBackAction extends StatelessWidget {

@@ -539,8 +539,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
                 onPressed: _checkingManual ? null : _checkManualAddress,
               ),
             ];
-            // On a phone the address gets the whole row: beside the port and
-            // Check it was a few characters wide ("Compute…").
+            // On a phone the address gets the whole row.
             if (constraints.maxWidth < 420) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -62,9 +62,7 @@ class FullscreenImageViewer extends StatelessWidget {
                     icon: Icon(
                       SkotiqIcons.close,
                       color: colors.textPrimary,
-                      // The AT-SPI dump of this route was a single `button:`
-                      // with an EMPTY name — the tooltip alone did not reach
-                      // assistive tech, so the only exit was unnamed.
+                      // The tooltip alone does not reach assistive tech.
                       semanticLabel: 'Close fullscreen image',
                     ),
                     tooltip: 'Close',

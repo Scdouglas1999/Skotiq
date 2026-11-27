@@ -81,8 +81,7 @@ class _FirstTimeOnboarding extends StatelessWidget {
                       onPressed: onManualSetup,
                     ),
                     // SECONDARY: the page's one primary is "Scan for devices"
-                    // in the header, and this runs that same scan rather than
-                    // the 13-step onboarding wizard it used to open.
+                    // in the header, and this runs that same scan.
                     SkotiqButton(
                       label: 'Start setup',
                       icon: LucideIcons.search,

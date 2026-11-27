@@ -108,9 +108,7 @@ class _AdaptiveTabBarState extends State<AdaptiveTabBar> {
   final List<GlobalKey> _tabKeys = [];
 
   /// Whether there are tabs hidden past each edge. Drives the fade + chevron
-  /// affordance: without it, a strip that clips (e.g. six labelled planner tabs
-  /// at a 900px window) looked exactly like a strip that fits, so two tabs were
-  /// effectively invisible to a desktop user.
+  /// affordance.
   bool _canScrollLeft = false;
   bool _canScrollRight = false;
 
@@ -194,11 +192,7 @@ class _AdaptiveTabBarState extends State<AdaptiveTabBar> {
   ///
   /// `Scrollable.ensureVisible` walks every ancestor `Scrollable` and scrolls
   /// each one, which is wrong for a strip that is hosted inside other
-  /// scrollables. In the sequencer the inspector's Settings/Activity/Notes bar
-  /// lives inside the screen's `TabBarView` pager: selecting Activity scrolled
-  /// that pager ~29 px toward the next (lazily empty) page and its page physics
-  /// sprang it back, so the whole screen bounced left and revealed blank space
-  /// on the right. Scrolling this bar's OWN position leaves the hosts alone —
+  /// scrollables. Scrolling this bar's OWN position leaves the hosts alone —
   /// `ScrollPosition.ensureVisible` resolves the nearest enclosing viewport,
   /// which is this strip's, and applies the offset to this position only.
   void _ensureSelectedVisible() {
@@ -264,9 +258,7 @@ class _AdaptiveTabBarState extends State<AdaptiveTabBar> {
     return LayoutBuilder(
       builder: (context, constraints) {
         // This bar frequently lives inside a split pane. MediaQuery reports
-        // the whole window, which made a 320px side panel render the wide
-        // labelled variant on a landscape phone and pushed later tabs
-        // offscreen. Respond to the space the bar actually receives.
+        // the whole window. Respond to the space the bar actually receives.
         final availableWidth = constraints.hasBoundedWidth
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
@@ -353,7 +345,7 @@ class _AdaptiveTabBarState extends State<AdaptiveTabBar> {
 /// Android's minimum touch-target edge, in logical pixels.
 ///
 /// Named rather than inlined so the reason survives: this is the number
-/// `mobile_tap_target_test` enforces, and the edge affordance failed it.
+/// `mobile_tap_target_test` enforces.
 const double _kMinTapTarget = 48.0;
 
 /// Chevron button shown over an edge that has more tabs behind it.
@@ -378,12 +370,7 @@ class _EdgeAffordance extends StatelessWidget {
     // The TAP TARGET and the CHIP are deliberately different sizes.
     //
     // The chip stays 24x30 — it is a hint beside the strip, and growing it
-    // visually would waste width the tabs need. But the interactive area was
-    // the same 24x30, which is well under the 48 dp Android minimum and failed
-    // `mobile_tap_target_test` on a 360x640 phone ("analytics @ small 360x640
-    // has 1 tap target(s) under 48.0dp: 24.0x30.0"). Undersized targets are a
-    // real touch failure, not a lint: this one sits at the very edge of the
-    // screen, where thumbs are least accurate.
+    // visually would waste width the tabs need.
     //
     // So the InkWell fills [_kMinTapTarget] of width with the chip centred
     // inside it as pure decoration.

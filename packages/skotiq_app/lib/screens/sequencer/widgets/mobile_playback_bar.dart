@@ -10,10 +10,6 @@ import '../../../utils/snackbar_helper.dart';
 
 /// Pause or resume, stop and skip for a phone's Sequencer, as compact
 /// buttons that sit in the plan row while a run is live.
-///
-/// It used to be a row of its own with the run's frame count, time and state,
-/// all of which the progress card above the plan already shows; on a 360 dp
-/// phone that row and the status strip left little of the plan in view.
 class MobilePlaybackBar extends ConsumerWidget {
   final SkotiqColors colors;
 
@@ -138,9 +134,8 @@ class _MobilePlaybackButton extends StatelessWidget {
           child: Container(
             width: buttonSize,
             height: buttonSize,
-            // Was a hardcoded 44 under a comment calling it "the minimum" — it
-            // is the iOS minimum, and this bar is a phone surface, so Android's
-            // 48 applies. Use the token so it cannot drift again.
+            // 44 is the iOS minimum, and this bar is a phone surface, so
+            // Android's 48 applies.
             constraints: const BoxConstraints(
               minWidth: SkotiqTokens.minTouchTarget,
               minHeight: SkotiqTokens.minTouchTarget,

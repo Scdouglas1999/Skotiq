@@ -461,8 +461,7 @@ class FramingEquipmentSection extends StatelessWidget {
     // tick re-runs its async getCameraStatus round-trip. With the default
     // skipLoadingOnReload: false this threw away the equipment it had
     // already resolved and painted a bare spinner for the duration of
-    // each round-trip - measured at 8 of 10 samples over 30 s, which is
-    // what read as "spinning for twenty minutes". A genuine first load
+    // each round-trip. A genuine first load
     // still shows the loading state.
     return equipmentAsync.when(
       skipLoadingOnReload: true,

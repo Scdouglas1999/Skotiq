@@ -1,9 +1,4 @@
 // What the scan already answered is not asked again.
-//
-// Walk-2 F3: with exactly one mount (focuser, wheel) found, nothing was
-// selected and Next on the mount step stopped at "Pick a mount before
-// continuing."; the camera-defaults step said "Pick your camera" with the
-// camera picked two steps earlier.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/camera_defaults_step.dart';

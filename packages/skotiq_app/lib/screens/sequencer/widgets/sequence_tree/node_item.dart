@@ -378,9 +378,7 @@ class _NodeItemState extends ConsumerState<_NodeItem> {
   ///
   /// Tone, not lines (02 rule 2): a top-level step is a `SkotiqPanel`, a
   /// nested step is a `well` row inside it, and the ONE line either can carry
-  /// is the selected ring. The old row painted a 2 px border in the node's
-  /// category colour plus a tinted fill per run status — five colours of
-  /// chrome competing with the sequence itself.
+  /// is the selected ring.
   BoxDecoration _rowDecoration({
     required bool isNested,
     required bool isSelected,

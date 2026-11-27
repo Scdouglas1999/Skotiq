@@ -1,7 +1,4 @@
 // A first run starts with a capture folder already chosen and checked.
-//
-// Walk-2 F7: the capture-folder step opened on an empty box and Next said
-// "Pick a capture folder." NINA and ASIAIR start from a folder of their own.
 import 'dart:io';
 
 import 'package:drift/native.dart';

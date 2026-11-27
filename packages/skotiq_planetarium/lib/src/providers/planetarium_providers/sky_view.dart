@@ -154,7 +154,6 @@ class SkyViewNotifier extends StateNotifier<SkyViewState> {
       return;
     }
 
-    // Get the celestial coordinate at the mouse position before zoom
     final coordBefore = _screenToCelestial(mousePosition, viewSize);
     if (coordBefore == null) {
       // Fallback to center zoom if conversion fails

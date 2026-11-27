@@ -1,4 +1,4 @@
-// Mosaic M3 — planner-wiring: the "Create mosaic project" action end-to-end
+// The "Create mosaic project" action end-to-end
 // through the Mosaic Wizard dialog.
 //
 // Pins that the primary action (a) calls
@@ -6,7 +6,7 @@
 // (centre RA/Dec + rows × cols + overlap + position angle + per-panel FOV), and
 // (b) routes to the new mosaic project screen at `/mosaic/:id` with the returned
 // id. It also guards that the existing "Load into Sequencer" path is still
-// present (the brief requires keeping that path working).
+// present.
 //
 // The wizard is presented via `showDialog` (as production does) so its
 // `Navigator.pop()` closes the dialog and the underlying GoRouter handles the

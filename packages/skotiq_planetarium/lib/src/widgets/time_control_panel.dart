@@ -209,10 +209,7 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
   ///
   /// `IconButton(tooltip: ...)` does not name anything: Flutter's `Tooltip`
   /// publishes its message as `SemanticsProperties.tooltip`, a field separate
-  /// from the label, so the button node's name stays empty. A live AT-SPI dump
-  /// of the full transport showed exactly that — five bare `button:` entries
-  /// with empty names between `Aug 13, 2026` and `NOW`, and no toggle state on
-  /// the one that stops time, so the pause fix was invisible to assistive tech.
+  /// from the label, so the button node's name stays empty.
   ///
   /// [toggled] additionally gives the control an on/off state to report; used
   /// by play/pause, whose whole job is to hold the sky still. `MergeSemantics`

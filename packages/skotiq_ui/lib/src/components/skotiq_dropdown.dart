@@ -191,8 +191,7 @@ class _SkotiqDropdownState extends State<SkotiqDropdown> {
   /// 32 is a desktop POINTER size (03 §3.3). A finger needs 48, so on a touch
   /// platform the interactive box grows to it while the painted field stays
   /// the height the sheet specifies — the same split `SkotiqIconButton`
-  /// makes, and the reason the mobile tap-target audit measured this control
-  /// at 24px tall.
+  /// makes.
   double _boxHeight(BuildContext context) =>
       math.max(widget.height, SkotiqTouchTarget.minExtent(context));
 

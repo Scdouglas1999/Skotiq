@@ -15,8 +15,8 @@ const _requiredFiles = <String>[
   'data/app.so',
   'data/icudtl.dat',
   // `AssetManifest.bin`, not `.json`: Flutter replaced the JSON asset manifest
-  // with a binary one, so requiring the old name failed against every modern
-  // build. `FontManifest.json` below is still JSON — the two genuinely differ.
+  // with a binary one. `FontManifest.json` below is still JSON — the two
+  // genuinely differ.
   'data/flutter_assets/AssetManifest.bin',
   'data/flutter_assets/FontManifest.json',
   'data/flutter_assets/NativeAssetsManifest.json',
@@ -35,11 +35,6 @@ const _requiredFiles = <String>[
 /// `docs/known-limitations.md` is that official archives do not redistribute
 /// vendor SDK libraries, and native device paths are capability-gated on the
 /// user installing them.
-///
-/// So the audit was requiring a file the release is forbidden to ship, and
-/// could never pass for a public bundle — it only passed on a developer machine
-/// that had run the vendor-SDK copy script. Auditing the shipped archive is the
-/// point, so the requirement is gone.
 const _requiredGlobPrefixes = <String>[];
 
 const _disallowedFileNames = <String>{'.gitkeep', '.DS_Store', 'Thumbs.db'};

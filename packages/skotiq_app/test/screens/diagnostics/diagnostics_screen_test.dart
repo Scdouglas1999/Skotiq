@@ -151,8 +151,6 @@ void main() {
     expect(find.text('Select an imaging session to analyze'), findsOneWidget);
   });
 
-  // UX walk 2, F36: with sessions on record the empty state's only action was
-  // "Go to Imaging", while the session picker sat elsewhere on the tab.
   testWidgets('with sessions on record the empty state opens the latest one',
       (tester) async {
     ImagingSession session(int id, DateTime start) => ImagingSession(

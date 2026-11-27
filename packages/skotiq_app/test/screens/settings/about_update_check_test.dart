@@ -187,8 +187,6 @@ void main() {
     expect(find.textContaining('503'), findsOneWidget);
   });
 
-  // ux walk-2 F1/F40: a launch after an offline check said "No update check
-  // has run yet" although the earlier launch had checked and failed.
   testWidgets('a check from an earlier launch is reported with how it ended', (
     tester,
   ) async {

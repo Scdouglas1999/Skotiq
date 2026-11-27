@@ -1,9 +1,4 @@
 // Entering optics and site numbers the way people write them.
-//
-// Walk-2 F5: Next on an empty optical train said "Focal length is required."
-// only in the band below the card while every field stayed unmarked, and a
-// latitude typed as 40°42'46" N lost its marks to the input filter and became
-// 404246, "Latitude must be between -90 and 90."
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -53,9 +53,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
 
   // Null means "nobody has scrubbed": the timeline then follows the live edge
   // of the loop (see [latestObservedRadarFrameIndex]) and keeps following it
-  // across the 5-minute refresh. A fixed 0 opened the screen on the OLDEST
-  // frame — up to two hours of history behind the NOW marker the scrubber
-  // draws — so the map you glanced at showed cloud that had already moved on.
+  // across the 5-minute refresh.
   int? _selectedFrameIndex;
   bool _isPlaying = false;
   double _playbackSpeed = 1.0;

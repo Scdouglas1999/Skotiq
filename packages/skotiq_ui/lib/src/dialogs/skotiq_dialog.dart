@@ -6,17 +6,9 @@ import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_decorations.dart';
 
 /// Size of the optional glyph beside a dialog title, in logical pixels.
-///
-/// A plain icon, NOT the tinted square the pre-overhaul dialog drew: an icon
-/// square beside a 15px title is a badge for a heading that needed no badge.
 const double _dialogTitleIconSize = 16;
 
 /// Standard dialog scaffold matching the Skotiq design system.
-///
-/// Replaces the hand-rolled `Dialog + Container + custom header + close
-/// button` pattern duplicated across screens (equipment settings, cooling
-/// temperature picker, centering dialog, etc.). Provides consistent corner
-/// radius, border, header styling, and a scrollable body.
 ///
 /// The dialog body scrolls vertically when content exceeds available
 /// height, so callers can pass arbitrarily tall content without overflow.

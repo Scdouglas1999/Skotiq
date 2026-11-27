@@ -154,8 +154,7 @@ void main(List<String> args) async {
   if (relaunchedFrom != null) {
     // This start replaces process $relaunchedFrom, which is still closing. It
     // must be gone before anything here opens a store: the native start opens
-    // stores that allow one process, and failed with "already open" when the
-    // restart raced the old window's teardown.
+    // stores that allow one process.
     final databaseFile = await resolveDefaultDatabaseFile();
     await waitForPreviousInstance(() async {
       if (processStillRunning(relaunchedFrom)) return true;

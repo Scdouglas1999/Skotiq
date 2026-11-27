@@ -1,6 +1,6 @@
-// APNs push-token registration (Phase E iOS side).
+// APNs push-token registration.
 //
-// Bridges the native AppDelegate APNs registration to the Phase D desktop
+// Bridges the native AppDelegate APNs registration to the desktop
 // server. The flow end to end:
 //
 //   1. The iOS host (apps/mobile/ios/Runner/AppDelegate.swift) owns the APNs

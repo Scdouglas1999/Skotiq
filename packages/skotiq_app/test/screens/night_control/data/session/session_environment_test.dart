@@ -636,8 +636,7 @@ void main() {
       final h = await sessionHarness(overrides: _readyRig());
       final rows = h.read(nightEquipmentProvider);
       final guider = rows.firstWhere((r) => r.kind == EquipmentKind.guider);
-      // Night test 2026-11-26: after a finished run the row read "needs a
-      // look, Not guiding". The pre-run checklist asks for a loop instead.
+      // The pre-run checklist asks for a loop instead.
       expect(guider.status, EquipmentStatus.ok);
       expect(guider.details.first.key, 'nightScopeGuideStopped');
       final rotator = rows.firstWhere((r) => r.kind == EquipmentKind.rotator);
@@ -943,8 +942,6 @@ void main() {
       expect(line, isNot(contains('sim_rotator_1')));
     });
 
-    // Night test 2026-11-26: "Guiding stopped" sat above "Guiding stopped
-    // because the run was stopped", the same stop said twice.
     test('a guiding stop with its reason is one line', () async {
       for (final (reason, words) in [
         ('run_stopped', 'because the run was stopped'),

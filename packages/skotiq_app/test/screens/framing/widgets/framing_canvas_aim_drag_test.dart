@@ -1,7 +1,6 @@
 // Tests for the "drag the FOV box, sky stays" gesture on [FramingCanvas].
 //
-// Before this feature every canvas drag called `onPan`, which slid the sky
-// under a reticle glued to the canvas center. The gesture now classifies the
+// The gesture now classifies the
 // drag by WHERE it starts:
 //
 //   * on the rotation-handle ring -> rotate (unchanged),

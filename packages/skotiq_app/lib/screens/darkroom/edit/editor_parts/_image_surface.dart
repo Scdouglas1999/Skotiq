@@ -11,9 +11,7 @@ const Key kDarkroomPreviewSurfaceKey = Key('darkroom-preview-surface');
 /// gallery that is right — there is nothing else to show. For an editor it is
 /// not: every parameter change produces a new buffer, so the picture the
 /// operator is judging the change AGAINST disappeared once per render and a
-/// slider drag strobed. In blink compare it destroyed the mode outright: each
-/// tick showed the other recipe, and between the two frames the eye is supposed
-/// to compare there was a blank one for roughly half of every cycle.
+/// slider drag strobed.
 ///
 /// So this surface holds two buffers. [_shown] keeps painting — at the
 /// operator's own zoom and pan — while the incoming buffer decodes, and the

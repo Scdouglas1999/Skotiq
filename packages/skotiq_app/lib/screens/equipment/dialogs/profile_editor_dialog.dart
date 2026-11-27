@@ -203,8 +203,7 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
   /// The icon choices: none (the default aperture), then every glyph.
   static final List<String> _availableIcons = ['', ...profileGlyphs.keys];
 
-  /// Each accent with the name a screen reader says for its swatch: nine
-  /// swatches all read "Accent color" (mobile rework fresh-install walk).
+  /// Each accent with the name a screen reader says for its swatch.
   static const List<(Color, String)> _accentColors = [
     (EquipmentProfileColors.defaultProfile, 'Steel blue'),
     (EquipmentProfileColors.sky, 'Sky blue'),

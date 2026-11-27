@@ -52,9 +52,6 @@ void main() {
       expect(failure.detail, contains(raw));
     });
 
-    // Mobile rework P2-9: the Devices tab read "Your equipment profile is
-    // missing a value: Failed to connect built-in guider: Operation failed:
-    // requires …".
     test('the reason is said once, without its wrappers', () {
       final failure = ConnectAllFailure.fromProgress(
         const DeviceConnectProgress(

@@ -508,12 +508,8 @@ class _OnboardingCameraDefaultsStepState
                     onChanged: _commitCooling,
                   ),
                   const SizedBox(height: SkotiqTokens.spaceMd),
-                  // Without this the wizard collected a set-point and then
-                  // never used it: the profile was written with
-                  // cool_on_connect = 0, the camera sat at ambient all night,
-                  // and the only way to arm the cooler was a checkbox buried in
-                  // Equipment > Edit Profile > Camera Defaults. Asked here,
-                  // defaulted off — a rig set up at noon must not pin the TEC
+                  // Asked here, defaulted off — a rig set up at noon must not
+                  // pin the TEC
                   // at full power for the afternoon.
                   SkotiqSwitchRow(
                     label: 'Start cooling when the camera connects',

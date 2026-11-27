@@ -147,10 +147,7 @@ class _SeededRandom {
 ///
 /// Grid lines are *real angular gridlines*: their spacing is derived from the
 /// shared [FramingPlateScale] so each cell spans exactly [gridSpacingDegrees]
-/// of sky regardless of zoom, image aspect, or letterboxing. This replaces the
-/// previous hardcoded `60px/deg`-equivalent spacing that did not correspond to
-/// any real angular extent and drifted out of agreement with the survey
-/// imagery.
+/// of sky regardless of zoom, image aspect, or letterboxing.
 class FramingGridPainter extends CustomPainter {
   /// Default angular spacing between grid lines, in degrees of sky.
   ///

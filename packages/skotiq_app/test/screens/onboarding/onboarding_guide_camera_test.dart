@@ -1,8 +1,4 @@
 // The built-in guider needs a camera to guide with.
-//
-// Walk-2 F4: picking "Built-in Multi-Star Guider" asked nothing more; Review
-// listed the guider and no guide camera, and a rig with real hardware was saved
-// with a guider that had nothing to take frames with.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/guider_step.dart';

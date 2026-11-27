@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
-  // Mobile rework P2-21: TalkBack read each Sequencer tab twice
+  // TalkBack read each Sequencer tab twice
   // ("Templates Templates"): the tab's label and its visible text.
   testWidgets('a tab is announced once, with its count', (tester) async {
     final handle = tester.ensureSemantics();
