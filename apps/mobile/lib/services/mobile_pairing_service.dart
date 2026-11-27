@@ -34,7 +34,7 @@ class MobilePairingService {
     return 'Mobile companion';
   }
 
-  /// The pairing type this phone names when it pairs with a code.
+  /// The pairing type this phone names when it pairs.
   static PairingDeviceType platformDeviceType() =>
       PairingDeviceType.parse(defaultTargetPlatform.name) ??
       PairingDeviceType.mobile;
@@ -51,6 +51,29 @@ class MobilePairingService {
     timeout: const Duration(seconds: 15),
     clientFactory: clientFactory,
   );
+
+  /// Pairs with the code the host shows or the QR carries.
+  static Future<RigPairing> pairWithCode(
+    DiscoveredServer host, {
+    required String code,
+    required bool fullAccess,
+    RemotePairingClient Function(DiscoveredServer host)? clientFactory,
+  }) => pairing(clientFactory: clientFactory).pairWithCode(
+    host,
+    code: code,
+    deviceName: deviceName(),
+    fullAccess: fullAccess,
+  );
+
+  /// One-tap pairing on the host's own network, with full access: a headless
+  /// rig has no other screen to choose its capture folder, solver or backups
+  /// on.
+  static Future<RigPairing> pairOneTap(
+    DiscoveredServer host, {
+    RemotePairingClient Function(DiscoveredServer host)? clientFactory,
+  }) => pairing(
+    clientFactory: clientFactory,
+  ).pairOneTap(host, deviceName: deviceName(), fullAccess: true);
 
   static String _generateDeviceId() {
     final rng = Random.secure();

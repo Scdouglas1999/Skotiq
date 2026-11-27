@@ -123,12 +123,10 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     });
 
     try {
-      final paired = await MobilePairingService.pairing().pairWithCode(
+      final paired = await MobilePairingService.pairWithCode(
         server,
         code: pairingInput.code,
-        deviceName: MobilePairingService.deviceName(),
         fullAccess: pairingInput.admin,
-        normalizeCode: false,
       );
       return paired.token;
     } on RigPairingFailure catch (failure) {
@@ -308,12 +306,10 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         data.pairingCode!.isNotEmpty) {
       try {
         // The QR's fingerprint is checked before the code leaves the phone.
-        final paired = await MobilePairingService.pairing().pairWithCode(
+        final paired = await MobilePairingService.pairWithCode(
           data.toDiscoveredServer(),
           code: data.pairingCode!,
-          deviceName: MobilePairingService.deviceName(),
           fullAccess: true,
-          normalizeCode: false,
         );
         authToken = paired.token;
       } on RigPairingFailure catch (failure) {

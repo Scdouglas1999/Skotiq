@@ -92,7 +92,6 @@ class RigPairingService {
     DiscoveredServer host, {
     required String deviceName,
     bool fullAccess = false,
-    PairingDeviceType? deviceType,
   }) async {
     final client = _clientFactory(host);
     final RemotePairingVerifyResult? result;
@@ -100,7 +99,7 @@ class RigPairingService {
       result = await client.lanClaim(
         deviceId: await _deviceId(),
         deviceName: deviceName,
-        deviceType: deviceType ?? this.deviceType,
+        deviceType: deviceType,
         requestedScope: fullAccess ? _adminScope : null,
       );
     } on RemotePairingFingerprintMismatch catch (e) {
@@ -164,13 +163,12 @@ class RigPairingService {
     required String code,
     required String deviceName,
     required bool fullAccess,
-    bool normalizeCode = true,
   }) async {
     final client = _clientFactory(host);
     final RemotePairingVerifyResult result;
     try {
       result = await client.verify(
-        code: normalizeCode ? normalizePairingCode(code) : code,
+        code: normalizePairingCode(code),
         deviceId: await _deviceId(),
         deviceName: deviceName,
         deviceType: deviceType,

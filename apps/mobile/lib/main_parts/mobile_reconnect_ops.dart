@@ -318,14 +318,8 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // to the unchanged code-dialog path below.
         if (enrichedServer.lanPairing) {
           try {
-            // Full access, as the code dialog pairs by default: a headless
-            // rig has no other screen to choose its capture folder, solver
-            // or backups on.
-            final paired = await MobilePairingService.pairing().pairOneTap(
+            final paired = await MobilePairingService.pairOneTap(
               enrichedServer,
-              deviceName: MobilePairingService.deviceName(),
-              fullAccess: true,
-              deviceType: PairingDeviceType.mobile,
             );
             if (!_isCurrentConnectionOperation(operationGeneration)) {
               return false;

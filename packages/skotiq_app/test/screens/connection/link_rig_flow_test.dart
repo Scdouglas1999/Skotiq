@@ -37,7 +37,6 @@ class _FakeLinkService extends RigLinkService {
     DiscoveredServer host, {
     required String deviceName,
     bool fullAccess = false,
-    PairingDeviceType? deviceType,
   }) async {
     calls.add('oneTap:${host.host}:$deviceName');
     if (oneTapFailure != null) throw oneTapFailure!;
@@ -50,7 +49,6 @@ class _FakeLinkService extends RigLinkService {
     required String code,
     required String deviceName,
     required bool fullAccess,
-    bool normalizeCode = true,
   }) async {
     calls.add('code:$code:$fullAccess');
     return RigPairing(token: 'tok', scope: fullAccess ? 'admin' : 'control');

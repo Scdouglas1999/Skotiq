@@ -64,11 +64,50 @@ class _FakePairingServer {
   Future<void> stop() => _server.close(force: true);
 }
 
+class _RecordingClient extends RemotePairingClient {
+  _RecordingClient() : super(host: 'h', port: 1);
+
+  final codes = <String>[];
+  final types = <PairingDeviceType>[];
+
+  static const _ok = RemotePairingVerifyResult(
+    success: true,
+    token: 'tok',
+    tokenScope: 'admin',
+  );
+
+  @override
+  Future<RemotePairingVerifyResult> verify({
+    required String code,
+    required String deviceId,
+    required String deviceName,
+    PairingDeviceType deviceType = PairingDeviceType.mobile,
+    String requestedScope = 'control',
+  }) async {
+    codes.add(code);
+    types.add(deviceType);
+    return _ok;
+  }
+
+  @override
+  Future<RemotePairingVerifyResult?> lanClaim({
+    required String deviceId,
+    required String deviceName,
+    PairingDeviceType deviceType = PairingDeviceType.mobile,
+    String? requestedScope,
+  }) async {
+    types.add(deviceType);
+    return _ok;
+  }
+}
+
+final _rig = DiscoveredServer(host: '192.168.1.50', webPort: 8099, name: 'rig');
+
 Future<RigPairing> _pair(
   _FakePairingServer server, {
   String scheme = 'http',
   String? fingerprint,
-}) => MobilePairingService.pairing().pairWithCode(
+}) => MobilePairingService.pairWithCode(
   DiscoveredServer(
     host: '127.0.0.1',
     webPort: server.port,
@@ -77,9 +116,7 @@ Future<RigPairing> _pair(
     fingerprint: fingerprint,
   ),
   code: 'STAR-LYRA-1234',
-  deviceName: MobilePairingService.deviceName(),
   fullAccess: true,
-  normalizeCode: false,
 );
 
 void main() {
@@ -158,5 +195,41 @@ void main() {
     expect(result.token, 'scoped-token-abc');
     expect(server.servedPaths, isNot(contains('/api/info')));
     expect(server.servedPaths, contains('/api/pairing/verify'));
+  });
+
+  group('the phone pairs by the same rules as the desktop', () {
+    setUp(() async {
+      server = _FakePairingServer();
+      await server.start();
+    });
+
+    test('a code typed with spaces is sent as the host shows it', () async {
+      final client = _RecordingClient();
+
+      await MobilePairingService.pairWithCode(
+        _rig,
+        code: 'star lyra 1234',
+        fullAccess: true,
+        clientFactory: (_) => client,
+      );
+
+      expect(client.codes, ['STAR-LYRA-1234']);
+    });
+
+    test('one tap names the same device type as a code', () async {
+      final client = _RecordingClient();
+
+      await MobilePairingService.pairOneTap(_rig, clientFactory: (_) => client);
+      await MobilePairingService.pairWithCode(
+        _rig,
+        code: 'STAR-LYRA-1234',
+        fullAccess: true,
+        clientFactory: (_) => client,
+      );
+
+      expect(client.types, hasLength(2));
+      expect(client.types.first, client.types.last);
+      expect(client.types.first, MobilePairingService.platformDeviceType());
+    });
   });
 }
