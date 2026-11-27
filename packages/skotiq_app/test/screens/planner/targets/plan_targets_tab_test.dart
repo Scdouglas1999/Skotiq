@@ -390,6 +390,42 @@ void main() {
     await settleProviderTeardown(tester);
   });
 
+  group('a site seven hours off the device zone', () {
+    const site = LocationSettings(latitude: 47, longitude: -71);
+    Duration offsetAt(DateTime at) =>
+        at.timeZoneOffset + const Duration(hours: 7);
+
+    // Half an hour before the night's dawn the night is still on. Read as an
+    // instant, the site clock's rendering lands after that dawn.
+    testWidgets('tonight is the night in progress', (tester) async {
+      final night = AstronomyCalculations.nightAt(
+        now: DateTime(2026, 11, 3, 22),
+        latitudeDeg: 47,
+        longitudeDeg: -71,
+      );
+      final at = night.astronomicalDawn!.subtract(const Duration(minutes: 30));
+      await _pump(
+        tester,
+        site: site,
+        extra: [
+          altitudeFloorProvider.overrideWithValue(
+            const AltitudeFloor(horizon: null, minimumDeg: 0),
+          ),
+          clockProvider.overrideWithValue(_StoppedSiteClock(at, offsetAt(at))),
+        ],
+      );
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-target-row-1')),
+          matching: find.text('Up now'),
+        ),
+        findsOneWidget,
+      );
+      await settleProviderTeardown(tester);
+    });
+  });
+
   testWidgets('at phone width every row keeps its name and nothing overflows',
       (tester) async {
     await _pump(tester, size: const Size(390, 844));
@@ -424,4 +460,25 @@ class _StoppedClock implements Clock {
 
   @override
   DateTime fromUtc(DateTime utc) => utc.toLocal();
+}
+
+/// A site clock stopped at [at], [utcOffset] ahead of UTC.
+class _StoppedSiteClock implements Clock {
+  _StoppedSiteClock(this.at, this.utcOffset)
+      : _site = FixedOffsetClock(utcOffset: utcOffset, label: 'Site');
+
+  final DateTime at;
+  final FixedOffsetClock _site;
+
+  @override
+  final Duration utcOffset;
+
+  @override
+  DateTime now() => _site.wallClockOf(at);
+
+  @override
+  DateTime nowUtc() => at.toUtc();
+
+  @override
+  DateTime fromUtc(DateTime utc) => _site.fromUtc(utc);
 }
