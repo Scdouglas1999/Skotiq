@@ -30,15 +30,8 @@ impl InstructionNode for PolarAlignmentInstruction {
             config,
             &ctx,
             |msg, _progress| {
-                // Lifecycle-message shape: the polar-align engine emits
-                // free-form status strings rather than instruction-progress
-                // events.
                 if let Some(cb) = progress_cb {
-                    cb(ProgressUpdate::lifecycle(
-                        node_id.to_string(),
-                        NodeStatus::Running,
-                        msg,
-                    ));
+                    cb(polar_alignment_status(node_id, msg));
                 }
             },
             |image_data| {
@@ -50,5 +43,26 @@ impl InstructionNode for PolarAlignmentInstruction {
         .await
         .settle("Polar Alignment", &ctx)
         .await
+    }
+}
+
+/// A polar alignment status line, as the step's report.
+fn polar_alignment_status(node_id: &str, words: String) -> ProgressUpdate {
+    ProgressUpdate::status(node_id.to_string(), "Polar Alignment", words).with_bare_status_line()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_polar_alignment_status_is_the_steps_report() {
+        let update = polar_alignment_status("pa", "Rotating mount for point 2...".to_string());
+        assert_eq!(update.instruction.as_deref(), Some("Polar Alignment"));
+        assert_eq!(update.status, NodeStatus::Running);
+        assert_eq!(
+            update.legacy_message().as_deref(),
+            Some("Rotating mount for point 2...")
+        );
     }
 }

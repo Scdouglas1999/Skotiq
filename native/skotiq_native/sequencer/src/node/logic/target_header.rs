@@ -874,8 +874,9 @@ fn emit_end_when_met(
         end_when.label()
     );
     tracing::info!("{}", msg);
-    let upd = ProgressUpdate::lifecycle(node_id.clone(), NodeStatus::Running, msg);
-    context.send_progress(upd);
+    context.send_progress(
+        ProgressUpdate::status(node_id.clone(), "Target", msg).with_bare_status_line(),
+    );
 }
 
 /// Mark every child from index `start` onward as Skipped because
@@ -1774,6 +1775,11 @@ mod tests {
         let sink = lines.clone();
         let mut ctx = ExecutionContext::new_for_test("target".to_string());
         ctx.progress_callback = Some(std::sync::Arc::new(move |u: ProgressUpdate| {
+            assert_eq!(
+                u.instruction.as_deref(),
+                Some("Target"),
+                "the step's report"
+            );
             sink.lock().unwrap().extend(u.legacy_message());
         }));
         emit_end_when_met(
