@@ -578,6 +578,27 @@ void main() {
       expect(session.dbSessionId, 12);
     });
 
+    test("a run line the host cleared is cleared on the client", () async {
+      const note = 'Trigger "Filter Change" fired: continue';
+      final client = await roundTrip(
+        (host) {
+          host.read(runRecordProvider.notifier)
+            ..setLifecycle(SequenceExecutionState.running)
+            ..updateProgress(message: note)
+            ..clearMessage(note)
+            ..setLifecycle(SequenceExecutionState.paused);
+        },
+        'sequenceRun',
+        prepareClient: (client) => client
+            .read(runRecordProvider.notifier)
+            .updateProgress(message: note),
+      );
+
+      final progress = client.read(sequenceProgressProvider);
+      expect(progress.state, SequenceExecutionState.paused);
+      expect(progress.message, isNull);
+    });
+
     test("a client hears a step's hold as the host does, and keeps the "
         "step's last reading", () async {
       const hold = FlipHoldProgressDetail(
