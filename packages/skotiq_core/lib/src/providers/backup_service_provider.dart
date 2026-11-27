@@ -18,9 +18,9 @@ final backupServiceProvider = Provider<BackupService>((ref) {
     logger: logger,
     appVersion: appVersion,
     // The plate-solver settings are copies of this computer's native
-    // preference. A linked client's backup carries the stored rows, since
-    // its preference is the host's.
-    settingsOverlay: () async {
+    // preference. A linked client's preference is its host's, so its backup
+    // carries none.
+    solverSettingRows: () async {
       if (ref.read(isRemoteModeProvider)) return const {};
       return plateSolverPreferenceRows(
         await reportedPlateSolverPreference(

@@ -31,18 +31,19 @@ Future<Map<String, int>> Function(void Function(double)) _archiveWriter({
   required String outputPath,
   required Map<String, Object?> head,
   required List<String> tables,
-  required Map<String, String> settingsOverlay,
+  required Map<String, String>? solverSettingRows,
 }) =>
     (report) async => writeBackupArchive(
       databasePath: databasePath,
       outputPath: outputPath,
       head: head,
       tables: tables,
-      omitSettings: const {
+      omitSettings: {
         BackupService.backupDirectorySettingKey,
         BackupService.restoredSolverRowsSettingKey,
+        if (solverSettingRows != null) ...BackupService.solverSettingKeys,
       },
-      settingsOverlay: settingsOverlay,
+      settingsOverlay: solverSettingRows ?? const {},
       report: report,
     );
 
@@ -67,9 +68,10 @@ class BackupService {
   final LoggingService _logger;
   final Future<Directory> Function()? _backupDirectoryProvider;
 
-  /// Settings rows a backup carries in place of the stored ones: copies of a
-  /// store outside the database, read as the backup is made.
-  final Future<Map<String, String>> Function()? _settingsOverlay;
+  /// The plate-solver rows ([solverSettingKeys]) a backup carries in place
+  /// of the stored ones, read as the backup is made from the preference
+  /// outside the database they copy. Without it the stored rows go in.
+  final Future<Map<String, String>> Function()? _solverSettingRows;
 
   /// 3.x holds every table of the schema in `tables` (see
   /// [backupExcludedTables]); 2.x backups carry a hand-picked set under their
@@ -105,6 +107,13 @@ class BackupService {
   /// the database, which the restore does not replace).
   static const String restoredSolverRowsSettingKey =
       'backup.restored_solver_rows';
+
+  /// The settings rows that copy the native plate-solver preference.
+  static final List<String> solverSettingKeys = [
+    AppSettingDefs.plateSolver.key,
+    AppSettingDefs.astapPath.key,
+    AppSettingDefs.astrometryPath.key,
+  ];
   final String runtimeAppVersion;
 
   /// The columns the sections of a backup older than 3.1 named, by table,
@@ -116,12 +125,12 @@ class BackupService {
     required LoggingService logger,
     String? appVersion,
     Future<Directory> Function()? backupDirectoryProvider,
-    Future<Map<String, String>> Function()? settingsOverlay,
+    Future<Map<String, String>> Function()? solverSettingRows,
   }) : runtimeAppVersion = appVersion?.trim().isNotEmpty == true
            ? appVersion!.trim()
            : BackupService.appVersion,
        _backupDirectoryProvider = backupDirectoryProvider,
-       _settingsOverlay = settingsOverlay,
+       _solverSettingRows = solverSettingRows,
        _logger = logger;
 
   /// Create a full backup of the database: the settings and every table the
@@ -172,7 +181,7 @@ class BackupService {
             'schemaVersion': database.schemaVersion,
           },
           tables: _backedUpTableNames.toList(),
-          settingsOverlay: await _settingsOverlay?.call() ?? const {},
+          solverSettingRows: await _solverSettingRows?.call(),
         ),
         onProgress,
       );

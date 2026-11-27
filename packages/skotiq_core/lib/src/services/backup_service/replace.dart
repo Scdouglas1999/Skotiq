@@ -19,13 +19,6 @@ class PendingReplace {
 extension _BackupReplace on BackupService {
   static const String _readyPrefix = 'skotiq-restore-ready-';
 
-  /// The settings rows that copy the native plate-solver preference.
-  static final List<String> _solverRowKeys = [
-    AppSettingDefs.plateSolver.key,
-    AppSettingDefs.astapPath.key,
-    AppSettingDefs.astrometryPath.key,
-  ];
-
   /// Make [staged] the database the next start opens.
   ///
   /// In order: rows of [staged] that point at a record the backup does not
@@ -65,7 +58,9 @@ extension _BackupReplace on BackupService {
       if (backupCreatedAt is String &&
           DateTime.tryParse(backupCreatedAt) != null)
         BackupService.lastBackupSettingKey: backupCreatedAt,
-      if (_solverRowKeys.where(backupSettingKeys.contains).toList()
+      if (BackupService.solverSettingKeys
+              .where(backupSettingKeys.contains)
+              .toList()
           case final restored when restored.isNotEmpty)
         BackupService.restoredSolverRowsSettingKey: restored.join(','),
     };
