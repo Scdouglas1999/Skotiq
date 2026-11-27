@@ -1107,6 +1107,8 @@ final d = 'at $exposure ms';
         'packages/skotiq_core/lib/src/services/flat_text.dart',
         r'''
 final e = '${QuantityFormat.trimmed(p.goal.exposureSeconds)} s x';
+final f = 'L sub length set to ${seconds.toStringAsFixed(0)}s by Glover.';
+final g = 'nominal duration ${nominal.toStringAsFixed(1)}s but';
 ''',
       );
     },
@@ -1118,6 +1120,8 @@ final e = '${QuantityFormat.trimmed(p.goal.exposureSeconds)} s x';
       'tile.dart:4: formats an exposure by hand',
       'tile.dart:1: formats an exposure by hand',
       'flat_text.dart:1: formats an exposure by hand',
+      'flat_text.dart:2: formats an exposure by hand',
+      'flat_text.dart:3: formats an exposure by hand',
       'Where it goes instead: Show the exposure with QuantityFormat.exposure',
     ],
   );

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import 'package:skotiq_astro/filters.dart';
+import 'package:skotiq_astro/format.dart';
 
 /// Explains which exposure ceiling selected the final sub length.
 enum ExposureLimitingFactor { glover, saturation, mount, userCap, floor }
@@ -387,7 +388,7 @@ class SmartNightExposureCalculator {
     final filter = input.filter.name;
     switch (factor) {
       case ExposureLimitingFactor.glover:
-        return '$filter sub length set to ${seconds.toStringAsFixed(0)}s by sky-limited Glover SNR ${input.targetSnr.toStringAsFixed(0)} math.';
+        return '$filter sub length set to ${QuantityFormat.exposure(seconds, space: false)} by sky-limited Glover SNR ${input.targetSnr.toStringAsFixed(0)} math.';
       case ExposureLimitingFactor.saturation:
         // The saturation ceiling is the LONGEST sub before bright star cores
         // fill their wells; the sky would reward a longer one.
@@ -395,17 +396,17 @@ class SmartNightExposureCalculator {
         final suffix = glover == null
             ? ''
             : ' The sky alone would allow about ${glover.toStringAsFixed(0)}s.';
-        return '$filter subs capped at ${seconds.toStringAsFixed(0)}s: longer subs would saturate bright star cores.$suffix';
+        return '$filter subs capped at ${QuantityFormat.exposure(seconds, space: false)}: longer subs would saturate bright star cores.$suffix';
       case ExposureLimitingFactor.mount:
-        return '$filter sub length set to ${seconds.toStringAsFixed(0)}s by recent mount guiding RMS.';
+        return '$filter sub length set to ${QuantityFormat.exposure(seconds, space: false)} by recent mount guiding RMS.';
       case ExposureLimitingFactor.userCap:
         final glover = ceilings[ExposureLimitingFactor.glover];
         final suffix = glover == null
             ? ''
             : ' Glover would allow about ${glover.toStringAsFixed(0)}s.';
-        return '$filter sub length limited by user cap at ${seconds.toStringAsFixed(0)}s.$suffix';
+        return '$filter sub length limited by user cap at ${QuantityFormat.exposure(seconds, space: false)}.$suffix';
       case ExposureLimitingFactor.floor:
-        return '$filter sub length raised to ${seconds.toStringAsFixed(0)}s floor to avoid excessive overhead.';
+        return '$filter sub length raised to ${QuantityFormat.exposure(seconds, space: false)} floor to avoid excessive overhead.';
     }
   }
 }
