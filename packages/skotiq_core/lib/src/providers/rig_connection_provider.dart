@@ -15,7 +15,7 @@ import 'settings_provider.dart';
 /// What the device running the connect flow provides. The phone overrides it;
 /// nothing else runs the flow.
 final rigConnectionDeviceProvider = Provider<RigConnectionDevice>(
-  (_) => throw UnimplementedError(
+  (_) => throw StateError(
     'rigConnectionDeviceProvider is set by the app that connects to rigs.',
   ),
 );
