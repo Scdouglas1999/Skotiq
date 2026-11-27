@@ -1,8 +1,8 @@
 // HTTP client for a hub's shared calibration library
 // (`/v1/calibration/masters`).
 //
-// Every request goes through one [HubTransport]; `_throwForStatus` classifies
-// the HTTP status. The calibration tuple + license ride as query
+// Every request goes through one [HubTransport], which also reads the hub's
+// HTTP status. The calibration tuple + license ride as query
 // params, the `Provenance` JSON as the base64-encoded `x-provenance-json`
 // header (ASCII-safe so non-Latin-1 attribution survives dart:io's header
 // validation), and the master FITS as the `application/octet-stream` body
@@ -69,25 +69,6 @@ class SharedCalibrationClient {
 
   void close() => _hub.close();
 
-  Never _throwForStatus(http.Response response, String operation) {
-    final status = response.statusCode;
-    final kind = switch (status) {
-      401 || 403 => ConstellationErrorKind.auth,
-      404 => ConstellationErrorKind.notFound,
-      405 || 423 => ConstellationErrorKind.conflict,
-      400 || 409 => ConstellationErrorKind.protocol,
-      >= 500 => ConstellationErrorKind.server,
-      _ => ConstellationErrorKind.unknown,
-    };
-    final body = response.body.trim();
-    throw ConstellationException(
-      '$operation failed (HTTP $status)'
-      '${body.isEmpty ? '' : ': $body'}',
-      kind: kind,
-      statusCode: status,
-    );
-  }
-
   /// `GET /v1/calibration/masters` — ranked remote masters matching [context]'s
   /// sensor + capture tuple. The hub returns the coarse sensor-keyed set; the
   /// caller re-scores + applies the full quality gate. [masterType] optionally
@@ -116,7 +97,7 @@ class SharedCalibrationClient {
       _hub.v1('calibration/masters', query),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Query calibration masters');
+      _hub.throwForStatus(response, 'Query calibration masters');
     }
     final body = _hub.decodeJson(response, 'Query calibration masters');
     final list = body['masters'] as List? ?? const [];
@@ -214,7 +195,7 @@ class SharedCalibrationClient {
     );
     final status = response.statusCode;
     if (status != 200 && status != 201) {
-      _throwForStatus(response, 'Publish calibration master');
+      _hub.throwForStatus(response, 'Publish calibration master');
     }
     return SharedCalibrationMaster.fromJson(
       _hub.decodeJson(response, 'Publish calibration master'),
@@ -238,7 +219,7 @@ class SharedCalibrationClient {
       _hub.v1('calibration/masters/$remoteId/file'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Download calibration master $remoteId');
+      _hub.throwForStatus(response, 'Download calibration master $remoteId');
     }
     return SharedCalibrationDownload(
       bytes: response.bodyBytes,
@@ -267,7 +248,7 @@ class SharedCalibrationClient {
       _hub.v1('calibration/masters/$remoteId'),
     );
     if (response.statusCode != 200) {
-      _throwForStatus(response, 'Delete calibration master $remoteId');
+      _hub.throwForStatus(response, 'Delete calibration master $remoteId');
     }
   }
 }

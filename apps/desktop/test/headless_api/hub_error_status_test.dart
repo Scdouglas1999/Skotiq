@@ -3,9 +3,12 @@
 // collaborative mosaics.
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -171,5 +174,43 @@ void main() {
     expect(await listCoImaging(bare), 500);
     expect(await publishMosaic(withStatus), 429);
     expect(await publishMosaic(bare), 502);
+  });
+
+  test('a calibration master the hub refuses as unprocessable is a request '
+      'fault (400), not an unreachable hub', () async {
+    final client = SharedCalibrationClient(
+      hubBaseUrl: Uri.parse('https://hub.example.org'),
+      bearerToken: 'tok',
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'error': {
+              'code': 'pixelSanity',
+              'message': 'master pixels are not plausible',
+            },
+          }),
+          422,
+        ),
+      ),
+    );
+    addTearDown(client.close);
+    final dir = Directory.systemTemp.createTempSync('sk_hub_status_');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final master = File('${dir.path}/dark.fits')..writeAsBytesSync([1, 2, 3]);
+
+    final status = await publishCalibration(
+      () => client.publishMaster(
+        masterType: 'dark',
+        cameraModel: 'ASI2600MM',
+        license: ContributionLicense.ccBy,
+        filePath: master.path,
+        provenance: const Provenance(),
+        sensorWidth: 64,
+        sensorHeight: 48,
+        exposureSeconds: 300,
+        frameCount: 40,
+      ),
+    );
+    expect(status, HttpStatus.badRequest);
   });
 }

@@ -58,24 +58,15 @@ const _kinds = <int, ConstellationErrorKind>{
 };
 
 void main() {
-  test('the Constellation client reads every hub status', () async {
+  test('both hub clients read every hub status alike', () async {
     for (final status in _statuses) {
-      final e = await _constellation(status);
-      expect(e.kind, _kinds[status], reason: 'HTTP $status');
-      expect(e.statusCode, status);
-    }
-  });
-
-  test('the shared calibration client reads every hub status', () async {
-    final calibration = {
-      ..._kinds,
-      409: ConstellationErrorKind.protocol,
-      422: ConstellationErrorKind.unknown,
-    };
-    for (final status in _statuses) {
-      final e = await _calibration(status);
-      expect(e.kind, calibration[status], reason: 'HTTP $status');
-      expect(e.statusCode, status);
+      for (final e in [
+        await _constellation(status),
+        await _calibration(status),
+      ]) {
+        expect(e.kind, _kinds[status], reason: 'HTTP $status');
+        expect(e.statusCode, status);
+      }
     }
   });
 
@@ -90,8 +81,9 @@ void main() {
       'HEALPix tiling) (HTTP 409): refused',
     );
     expect(
-      (await _calibration(400)).message,
-      'Delete calibration master m1 failed (HTTP 400): refused',
+      (await _calibration(422)).message,
+      'Delete calibration master m1 failed: the hub rejected this request '
+      '(HTTP 422): refused',
     );
   });
 }
