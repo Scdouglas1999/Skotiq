@@ -783,10 +783,13 @@ void _checkRange(String field, double value, double? min, double? max) {
 /// No handler may ship `e.toString()` to the wire — that leaks stack traces
 /// and Dart type names. This middleware catches [BadRequestError] (-> 400 with
 /// a structured body) and any other exception (-> 500 with `internal_error` +
-/// `requestId`). Full exception detail goes to the structured log only.
+/// `requestId`). Full exception detail goes to the structured log only: a
+/// [HandlerFailure] below 500 to [logWarning] (to [logError] when none is
+/// given), everything else to [logError].
 Middleware errorTranslationMiddleware({
   required void Function(String message, {Map<String, Object?>? fields})
   logError,
+  void Function(String message, {Map<String, Object?>? fields})? logWarning,
   required String Function(Request request) requestIdFor,
   bool Function(Request request)? shouldBypass,
 }) {
@@ -801,11 +804,12 @@ Middleware errorTranslationMiddleware({
         return jsonBadRequest(e.toJsonBody());
       } on HandlerFailure catch (e, stackTrace) {
         final requestId = requestIdFor(request);
-        // Log the full detail (cause + stack) on the server side; the wire
-        // body only carries the curated code/message/details. Why two logs:
-        // a HandlerFailure is an explicit handler decision and is logged
-        // at warning (not error) unless the underlying cause is unexpected.
-        logError(
+        // The full detail (cause + stack) stays on the server side; the wire
+        // body only carries the curated code/message/details. A 4xx is a
+        // refusal the caller can act on, logged as a warning; a 5xx is an
+        // error.
+        final log = e.statusCode < 500 ? logWarning ?? logError : logError;
+        log(
           '[HANDLER-FAIL][$requestId] ${e.code}: ${e.message}',
           fields: {
             'requestId': requestId,

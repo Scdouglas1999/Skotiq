@@ -26,6 +26,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         .addMiddleware(
           errorTranslationMiddleware(
             logError: _logError,
+            logWarning: _logWarning,
             requestIdFor: _requestIdFrom,
             shouldBypass: (request) => RouteTable.of(request).isWebSocket,
           ),
