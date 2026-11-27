@@ -6,19 +6,6 @@
 //! of its own — after the fault that started it. Picking the most recent one
 //! therefore picks the cleanup, never the cause.
 //!
-//! That is not hypothetical. On 2026-09-15 a run on the owner's rig lost
-//! guiding after an autofocus interlude, trailed three frames, tripped the
-//! consecutive-reject limit and was abandoned by recovery. The only thing he
-//! was shown was:
-//!
-//! ```text
-//! Change Filter failed: Operation cancelled
-//! ```
-//!
-//! — the filter wheel's wait loop noticing, one second later, that the
-//! cancellation token had been set. Everything that mattered was in the log
-//! and none of it reached him.
-//!
 //! The rule, then: **an operation cancelled because the run is already failing
 //! is never the failure reason.** See [`FailureChain::report`].
 

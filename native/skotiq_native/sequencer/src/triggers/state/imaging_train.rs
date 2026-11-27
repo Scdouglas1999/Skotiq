@@ -41,13 +41,7 @@ pub const IMAGING_TRAIN_CLAIM_OVERRUN_GRACE_SECS: f64 = 300.0;
 /// The two devices are one claim because every operation that contends for
 /// them takes both. The capture loop sets a filter and then exposes through it;
 /// a trigger-fired autofocus sets its own filter and then exposes through that;
-/// a meridian flip re-solves and restores the filter. Arbitrating the camera
-/// alone is what produced the 2026-09-14 failure: the autofocus trigger held
-/// the camera and commanded the wheel to "L" (position 0), the capture loop —
-/// blocked on the camera but having already commanded the wheel for its own
-/// frame — left it at "SII" (position 5), and autofocus then polled a healthy,
-/// idle, responsive wheel for 120 s waiting for a position nothing was going to
-/// move it to. The wheel was never broken; the arbitration was.
+/// a meridian flip re-solves and restores the filter.
 ///
 /// Borrowing is allowed and expected — an autofocus needs the wheel mid-burst —
 /// but a holder that moves the wheel MUST put it back before releasing, because

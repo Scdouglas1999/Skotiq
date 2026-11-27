@@ -220,10 +220,7 @@ impl SequenceExecutor {
                 // A setup advisory on the WARNING channel, not the error one.
                 //
                 // The copy is hedged to match. This check can only report what
-                // it FOUND, and on 2026-09-15 it found nothing on a rig where
-                // ASTAP was solving to 0.17" — see `detect_astap_catalog`,
-                // which now resolves the executable before searching. An
-                // advisory that predicts failure in the indicative ("centering
+                // it FOUND. An advisory that predicts failure in the indicative ("centering
                 // in this sequence will fail") and is then contradicted by the
                 // run it warned about teaches the operator to skip the next
                 // one.

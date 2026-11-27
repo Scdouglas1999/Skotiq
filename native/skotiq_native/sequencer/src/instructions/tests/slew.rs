@@ -129,7 +129,7 @@ mod readback_frame {
 /// `execute_slew` end to end with a mount whose read-back frame differs from
 /// the target's. The `readback_frame` tests above pin the comparison; these
 /// pin that the instruction actually makes it in the mount's frame. Validating
-/// against the raw target instead (the 2026-09-14 defect) left every test in
+/// against the raw target instead left every test in
 /// the crate green, because every test double reads back in J2000.
 mod slew_arrival {
     use super::*;
@@ -648,10 +648,9 @@ async fn slew_node_off_target(stop_on_quality_problems: bool) -> (NodeStatus, Ve
     (status, warnings)
 }
 
-/// 2026-11-08: a slew that stopped 2.11' off failed its node, which ended the
-/// target and the night before its first frame. The mount is at the target
-/// within a few arcminutes and centering follows, so by default the operator
-/// is told and the run goes on.
+/// A slew that lands off target leaves the mount at the target within a few
+/// arcminutes and centering follows, so by default the operator is told and
+/// the run goes on.
 #[tokio::test(start_paused = true)]
 async fn a_slew_that_lands_off_target_notifies_and_the_run_goes_on() {
     let (status, warnings) = slew_node_off_target(false).await;

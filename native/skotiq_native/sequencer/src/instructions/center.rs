@@ -926,9 +926,7 @@ async fn wait_for_flip(
         // Overdue is not the same as never firing, though. A trigger that can
         // fire and has not because the run was held (paused, or in a recovery)
         // fires on the first running tick after the hold, and the frame must
-        // not race it: on the rig the run resumed 16 minutes past
-        // a 5-minute threshold, this hatch let a 90 s frame go, and the night
-        // lost its flip. So when the trigger could still fire, it is given its
+        // not race it: when the trigger could still fire, it is given its
         // first running evaluation to do so before the hatch lets the frame go.
         if !announced && fire_in_secs < -OVERDUE_GRACE_SECS {
             let trigger_can_fire = polled_ha.is_some_and(|published_ha| published_ha > 0.0);

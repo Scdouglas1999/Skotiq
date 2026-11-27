@@ -130,18 +130,6 @@ async fn requested_filter_without_wheel_fails_before_capture() {
 }
 
 // Device arbitration between a trigger action and the capture loop.
-//
-// The 2026-09-14 race, in its own words. The Smart Exposure node was cycling
-// Ha/SII/OIII on an 8-position ZWO EFW while the HFR-Degradation trigger fired
-// an autofocus that wanted "L" (position 0). Autofocus reported:
-//
-//   Failed to switch to autofocus filter "L": filter wheel did not reach
-//   position 0 within 120 seconds
-//
-// Measured over the HTTP API at that moment: the wheel was connected, NOT
-// moving, at position 5 (SII), with all 8 names present and answering status
-// polls. Nothing was wrong with the wheel. The capture loop had commanded it,
-// and the camera-only claim did not cover it.
 
 /// While a trigger action holds the imaging train, the capture loop must not
 /// touch the filter wheel — not the camera, and not the wheel either.

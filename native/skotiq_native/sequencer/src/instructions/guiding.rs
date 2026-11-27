@@ -758,13 +758,10 @@ async fn start_guiding(
                     GuidingLock::Stopped(result) => return result,
                 }
 
-                // P3-7: post-start calibration quality validation. A guider can
+                // Post-start calibration quality validation. A guider can
                 // report `is_guiding == true` and still be hopelessly miscalibrated
                 // — wrong axis directions, mirror-flipped pulses, near-singular
-                // matrix. The audit specifically flagged that bad calibrations
-                // were "slipping through" the existing is_guiding poll, so this
-                // gate is fail-closed (errors fail the StartGuiding instruction
-                // rather than letting the night drift away silently).
+                // matrix.
                 if config.validate_calibration {
                     if let Some(cb) = progress_callback {
                         cb(90.0, "Validating calibration quality".to_string());

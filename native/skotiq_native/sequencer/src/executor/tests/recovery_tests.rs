@@ -650,12 +650,8 @@ async fn restore_tracking_after_recovery_noop_when_tracking_not_stopped() {
 }
 
 /// The status API (`sequencer_get_status`) renders `progress.message`, which
-/// is a different surface from the event stream. An ATTENDED escalation whose
-/// tracking restore FAILED used to stamp the snapshot with the pause reason
-/// only — the helper's verdict was discarded — so a remote operator polling
-/// status saw a clean "paused for operator" over a mount that was not
-/// tracking, and Resume exposed on a drifting mount. The verdict must reach
-/// the snapshot as well as the event.
+/// is a different surface from the event stream. A failed tracking restore on
+/// an ATTENDED escalation must reach the snapshot as well as the event.
 #[tokio::test]
 async fn holding_escalation_carries_a_failed_tracking_restore_into_progress_message() {
     let ops_concrete =

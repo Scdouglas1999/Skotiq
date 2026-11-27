@@ -843,12 +843,6 @@ async fn an_overrunning_exposure_keeps_the_imaging_train() {
 }
 
 /// The claim covers the filter wheel as well as the camera, as one resource.
-///
-/// Arbitrating the camera alone is what produced the 2026-09-14 filter-wheel
-/// timeout: the autofocus trigger held the camera and commanded the wheel to
-/// "L" (position 0) while the capture loop had already commanded it to "SII"
-/// (position 5), and autofocus then polled a healthy, idle wheel for 120 s for
-/// a position nothing was going to move it to.
 #[tokio::test]
 async fn the_imaging_train_claim_covers_the_filter_wheel_too() {
     let mut state = crate::triggers::TriggerState::new();
@@ -1691,19 +1685,6 @@ async fn non_camera_actions_take_no_claim() {
     }
 }
 
-/// The live defect (2026-08-17, D1 sim-night harness, release bundle): the
-/// meridian-flip trigger fired 1.5 ms after the run started, on a target 1.5h
-/// EAST of the meridian, and the flip's own banner printed the contradiction —
-///
-///   [MERIDIAN] FLIP TRIGGER ACTIVATED
-///   [MERIDIAN]   Hour Angle: -1.50h (-90.0 minutes past meridian)
-///   [MERIDIAN]   Current Pier Side: Unknown
-///
-/// — because the trigger was evaluating a hour angle recomputed from
-/// `mount_get_coordinates`, and the mount was still sitting at its parked
-/// RA 0h while the sequence changed its first filter. HA = LST - 0h = +2.6h
-/// that morning: 159 minutes "past the meridian" against a 5-minute window.
-///
 /// The published hour angle must be the TARGET's. The function takes no mount
 /// reading at all, which is the structural half of the proof; the numeric
 /// assertions below are the other half, and the parked-mount value is asserted

@@ -2,12 +2,7 @@
 //! has to answer "does this target need a flip right now?".
 //!
 //! The question has exactly two inputs: the TARGET's signed hour angle and the
-//! mount's reported pier side. It was previously answered by four hand-written
-//! copies of the same `match` (the `MinutesPastMeridian` arm, the
-//! `HourAngleThreshold` arm, `TriggerState::meridian_flip_status`, and the
-//! exposure gate's "mirror the trigger's own logic exactly" comment), which is
-//! how the sign convention drifts: any one of them can be edited east-of-
-//! meridian-permissive on its own.
+//! mount's reported pier side.
 
 use crate::PierSide;
 

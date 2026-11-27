@@ -5,7 +5,7 @@ use super::*;
 
 use super::autofocus::AF_GATE_TEST_LOCK;
 
-// P3-7: post-start calibration quality validation
+// Post-start calibration quality validation
 
 fn _cfg() -> StartGuidingConfig {
     StartGuidingConfig::default()

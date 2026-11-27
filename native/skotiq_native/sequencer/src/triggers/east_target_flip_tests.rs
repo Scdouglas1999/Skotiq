@@ -1,10 +1,7 @@
 //! The meridian-flip trigger evaluated at its own seam: `Trigger::check`
 //! against a `TriggerState` whose hour angle is the target's.
 //!
-//! Written from the D1 sim-night failure of 2026-08-17, where a target 1.5h
-//! east of the meridian was flipped four minutes into the run (see
-//! `executor::tests::runtime_tests::the_published_hour_angle_belongs_to_the_target_not_the_mount`
-//! for the input that made it fire). These pin the DECISION: whatever the
+//! These pin the DECISION: whatever the
 //! monitor publishes, an east target is never a flip, and the window opens
 //! exactly where the operator configured it.
 
