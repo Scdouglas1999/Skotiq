@@ -34,6 +34,7 @@ List<_TargetRow> _rows(
   List<PlanTarget> targets,
   AutopilotView autopilot,
   Map<int, _TonightWindow> windows,
+  Clock clock,
   DateTime now, {
   TargetHeaderNode? runTarget,
 }) {
@@ -70,7 +71,7 @@ List<_TargetRow> _rows(
             final waitsForSky = kind == null || kind.curedByRising;
             if (waitsForSky && rises != null && rises.isAfter(now)) {
               return (
-                'Up ${ClockFormat.hm(rises.toLocal())}',
+                'Up ${clock.hm(rises)}',
                 _StatusTone.quiet,
                 3.0,
               );
@@ -93,7 +94,7 @@ List<_TargetRow> _rows(
           if (window.upAt(now)) return ('Up now', _StatusTone.plain, 2.5);
           if (rises != null && rises.isAfter(now)) {
             return (
-              'Up ${ClockFormat.hm(rises.toLocal())}',
+              'Up ${clock.hm(rises)}',
               _StatusTone.quiet,
               3.0,
             );
@@ -131,6 +132,7 @@ String _nextLine(
   AutopilotView view,
   List<_TargetRow> rows,
   Project? group,
+  Clock clock,
   DateTime now,
 ) {
   final status = view.status;
@@ -143,7 +145,7 @@ String _nextLine(
   switch (status.state) {
     case SchedulerState.running:
       if (current != null) return 'Imaging $current';
-      final until = _waitingUntil(rows, now);
+      final until = _waitingUntil(rows, clock, now);
       return until != null
           ? 'Waiting, nothing can be imaged until $until'
           : 'Waiting, nothing can be imaged right now';
@@ -160,7 +162,7 @@ String _nextLine(
       if (rows.every((r) => !r.target.inAutopilot)) {
         return 'Every target here is off its list';
       }
-      final until = _waitingUntil(rows, now);
+      final until = _waitingUntil(rows, clock, now);
       if (until != null) return 'Nothing can be imaged until $until';
       return 'Nothing can be imaged right now';
   }
@@ -169,7 +171,7 @@ String _nextLine(
 /// When the first autopilot target becomes imageable tonight, and why it is
 /// not yet: "dark at 20:39", or "21:10 (M 42 climbs above the altitude
 /// floor)". Null when no target opens later tonight.
-String? _waitingUntil(List<_TargetRow> rows, DateTime now) {
+String? _waitingUntil(List<_TargetRow> rows, Clock clock, DateTime now) {
   final later = [
     for (final r in rows)
       if (r.target.inAutopilot &&
@@ -180,7 +182,7 @@ String? _waitingUntil(List<_TargetRow> rows, DateTime now) {
   if (later.isEmpty) return null;
   final first = later.first;
   final window = first.window!;
-  final at = ClockFormat.hm(window.start!.toLocal());
+  final at = clock.hm(window.start!);
   // A window that opens at dusk is waiting for dark, not for the target: a
   // target already high in the evening sky does not "rise".
   if (window.start!.difference(window.dusk).abs() <

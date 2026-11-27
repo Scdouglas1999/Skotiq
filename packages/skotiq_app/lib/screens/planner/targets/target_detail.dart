@@ -335,6 +335,10 @@ class _TonightSection extends ConsumerWidget {
       );
     }
     final peak = w.altitudes.fold<double>(0, (m, a) => a > m ? a : m);
+    // The band draws renderings on the site clock, so its "now" label reads
+    // the same clock as the line above it.
+    final clock = ref.watch(clockProvider);
+    final onClock = clock.wallClockOf;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -343,8 +347,8 @@ class _TonightSection extends ConsumerWidget {
         Text(
           w.isUp
               ? 'Clears $floor from '
-                  '${ClockFormat.hm(w.start!.toLocal())} to '
-                  '${ClockFormat.hm(w.end!.toLocal())}, peaking at '
+                  '${clock.hm(w.start!)} to '
+                  '${clock.hm(w.end!)}, peaking at '
                   '${peak.round()}°'
               : 'Does not clear $floor in darkness tonight',
           key: const Key('target-detail-tonight-window'),
@@ -352,16 +356,17 @@ class _TonightSection extends ConsumerWidget {
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         NightBand(
-          sunset: w.sunset,
-          astroDark: w.dusk,
-          astroDawn: w.dawn,
-          sunrise: w.sunrise,
-          now: ref.watch(clockProvider).instant,
+          sunset: onClock(w.sunset),
+          astroDark: onClock(w.dusk),
+          astroDawn: onClock(w.dawn),
+          sunrise: onClock(w.sunrise),
+          now: onClock(clock.nowUtc()),
           targetAltitudeCurve: [
             for (final a in w.altitudes) (a / 90).clamp(0.0, 1.0),
           ],
-          imageableWindow:
-              w.isUp ? NightBandWindow(start: w.start!, end: w.end!) : null,
+          imageableWindow: w.isUp
+              ? NightBandWindow(start: onClock(w.start!), end: onClock(w.end!))
+              : null,
         ),
       ],
     );

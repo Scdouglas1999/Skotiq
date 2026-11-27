@@ -424,6 +424,59 @@ void main() {
       );
       await settleProviderTeardown(tester);
     });
+
+    testWidgets('rise times and the tonight line read on the site clock',
+        (tester) async {
+      final at = DateTime(2026, 11, 3, 15);
+      const floor = AltitudeFloor(horizon: null, minimumDeg: 30);
+      final clock = _StoppedSiteClock(at, offsetAt(at));
+      String hm(DateTime t) => clock.hm(t);
+      await _pump(
+        tester,
+        site: site,
+        extra: [
+          altitudeFloorProvider.overrideWithValue(floor),
+          clockProvider.overrideWithValue(clock),
+        ],
+      );
+      final night = AstronomyCalculations.nightAt(
+        now: at,
+        latitudeDeg: 47,
+        longitudeDeg: -71,
+      );
+      final window = floor.windowAbove(
+        raDeg: _ngc.ra * 15,
+        decDeg: _ngc.dec,
+        from: night.astronomicalDusk!,
+        until: night.astronomicalDawn!,
+        latitudeDeg: 47,
+        longitudeDeg: -71,
+      )!;
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-target-row-1')),
+          matching: find.text('Up ${hm(window.start)}'),
+        ),
+        findsOneWidget,
+      );
+      final next = tester.widget<Text>(
+        find.textContaining('Nothing can be imaged until'),
+      );
+      expect(next.data, contains(hm(window.start)));
+
+      await tester.tap(find.text('NGC0891'));
+      await tester.pumpAndSettle();
+      final line = tester.widget<Text>(
+        find.byKey(const Key('target-detail-tonight-window')),
+      );
+      expect(
+        line.data,
+        contains('from ${hm(window.start)} to ${hm(window.end)},'),
+      );
+      expect(find.text('now ${hm(at)}'), findsOneWidget);
+      await settleProviderTeardown(tester);
+    });
   });
 
   testWidgets('at phone width every row keeps its name and nothing overflows',

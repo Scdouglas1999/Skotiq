@@ -555,14 +555,15 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
                 for (final t in all)
                   if (t.inGroup(group.id!)) t,
               ];
-        final now = ref.watch(clockProvider).instant;
+        final clock = ref.watch(clockProvider);
+        final now = clock.instant;
         // A run started outside the autopilot (Image tonight, the
         // Sequencer) images its target too.
         final runTarget = ref.watch(sequenceExecutionStateProvider).isLive
             ? ref.watch(runDashboardActiveTargetProvider)
             : null;
         final rows =
-            _rows(scoped, autopilot, windows, now, runTarget: runTarget);
+            _rows(scoped, autopilot, windows, clock, now, runTarget: runTarget);
         final selected =
             rows.where((r) => r.target.id == _selectedTargetId).firstOrNull;
         // Beside the list the detail always shows a target; the first row
@@ -574,7 +575,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
           groupName: group?.name,
           busy: _autopilotBusy,
           compact: phone,
-          nextLine: _nextLine(autopilot, rows, group, now),
+          nextLine: _nextLine(autopilot, rows, group, clock, now),
           onStart: () => _startWithConfirmation(
             autopilot.readiness?.warnings ?? const [],
           ),
