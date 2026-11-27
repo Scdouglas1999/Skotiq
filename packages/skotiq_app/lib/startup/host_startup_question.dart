@@ -1,10 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart' show BackendConnectionState;
 import 'package:skotiq_core/providers.dart';
 
-import '../screens/connection/connection_stale_banner.dart'
-    show connectionStaleProvider;
 import '../utils/startup_surface_queue.dart';
 
 /// A start-up question about the imaging host's state, asked when the host is
@@ -34,6 +33,10 @@ class HostStartupQuestion {
   final StartupSurfaceQueue _queue;
   final List<StartupSurface> _surfaces;
   final bool Function() _mounted;
+
+  /// The backend whose link dropped, kept across the owner's rebuilds; a
+  /// different backend is a new link, which [listen] asks about on its own.
+  SkotiqBackend? _droppedOn;
 
   bool get _isClient => _ref.read(isRemoteClientProvider);
 
@@ -98,11 +101,25 @@ class HostStartupQuestion {
       askAfterLink();
     });
     if (forgetOnReturn != null) {
-      _ref.listen<bool>(connectionStaleProvider, (previous, next) {
-        if (previous != true || next) return;
+      _ref.listen<AsyncValue<BackendConnectionState?>>(hostLinkStateProvider, (
+        _,
+        next,
+      ) {
         if (!_isClient) return;
-        if (!forgetOnReturn()) return;
-        askAfterLink();
+        final backend = _ref.read(backendProvider);
+        switch (next.valueOrNull) {
+          case BackendConnectionState.reconnecting ||
+                BackendConnectionState.disconnected ||
+                BackendConnectionState.error:
+            _droppedOn = backend;
+          case BackendConnectionState.connected:
+            final returned = identical(_droppedOn, backend);
+            _droppedOn = null;
+            if (!returned || !forgetOnReturn()) return;
+            askAfterLink();
+          case BackendConnectionState.connecting || null:
+            break;
+        }
       });
     }
   }

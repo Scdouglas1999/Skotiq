@@ -11,7 +11,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/connection/connection_stale_banner.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/startup/quick_start_checker.dart';
 import 'package:skotiq_app/utils/startup_surface_queue.dart';
@@ -214,7 +213,11 @@ void main() {
     });
   }
 
-  Future<ProviderContainer> mountOnHost(WidgetTester tester, _Host host) async {
+  Future<ProviderContainer> mountOnHost(
+    WidgetTester tester,
+    _Host host, {
+    LaunchRole role = LaunchRole.mobile,
+  }) async {
     await _setUpView(tester);
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
@@ -222,7 +225,7 @@ void main() {
       ProviderScope(
         overrides: [
           databaseProvider.overrideWithValue(db),
-          launchRoleProvider.overrideWithValue(LaunchRole.mobile),
+          launchRoleProvider.overrideWithValue(role),
           backendProvider.overrideWith((ref) => _Swappable(ref, host)),
         ],
         child: MaterialApp(
@@ -246,26 +249,38 @@ void main() {
     await tester.pump(const Duration(milliseconds: 20));
   });
 
-  testWidgets(
-      'a phone back on the same link after a drop asks about a run the host '
-      'left meanwhile', (tester) async {
-    final host = _hostWithCheckpoint();
-    when(() => host.hasCheckpoint()).thenAnswer((_) async => false);
-    final container = await mountOnHost(tester, host);
-    expect(find.text('Host NGC 891'), findsNothing);
+  for (final role in [LaunchRole.linkedClient, LaunchRole.mobile]) {
+    testWidgets(
+        '${role.name}: back on the same link after a drop asks about a run '
+        'the host left meanwhile', (tester) async {
+      final host = _hostWithCheckpoint();
+      final link = StreamController<BackendConnectionState>.broadcast();
+      addTearDown(link.close);
+      when(() => host.connectionStateStream).thenAnswer((_) => link.stream);
+      when(() => host.hasCheckpoint()).thenAnswer((_) async => false);
+      await mountOnHost(tester, host, role: role);
+      expect(find.text('Host NGC 891'), findsNothing);
 
-    container.read(connectionStaleProvider.notifier).state = true;
-    await tester.pump();
-    when(() => host.hasCheckpoint()).thenAnswer((_) async => true);
-    container.read(connectionStaleProvider.notifier).state = false;
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Host NGC 891'), findsOneWidget);
+      when(() => host.connectionState)
+          .thenReturn(BackendConnectionState.reconnecting);
+      link.add(BackendConnectionState.reconnecting);
+      await tester.pump();
+      // The shell rebuilds while the link is down.
+      tester.element(find.byType(AppShell)).markNeedsBuild();
+      await tester.pump();
+      when(() => host.hasCheckpoint()).thenAnswer((_) async => true);
+      when(() => host.connectionState)
+          .thenReturn(BackendConnectionState.connected);
+      link.add(BackendConnectionState.connected);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Host NGC 891'), findsOneWidget);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 20));
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 20));
+    });
+  }
 
   testWidgets(
       'the session check does not hold later prompts while it waits for '
