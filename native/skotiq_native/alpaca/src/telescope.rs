@@ -91,10 +91,6 @@ pub struct TelescopeFullStatus {
     pub tracking: bool,
     pub tracking_rate: DriveRate,
     // (mounts where `CanPulseGuide == false` return error 0x400 / NotImplemented).
-    // not pulse-guiding" from "device cannot report pulse-guiding state",
-    // matching the ASCOM Windows mount.rs convention. The previous
-    // `.unwrap_or(false)` silently coerced both error and parse failures to
-    // "not guiding", which the audit flagged as a house-rules violation.
     pub is_pulse_guiding: Option<bool>,
     pub at_home: bool,
     pub at_park: bool,
