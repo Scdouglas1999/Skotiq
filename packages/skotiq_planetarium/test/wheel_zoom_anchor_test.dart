@@ -133,8 +133,7 @@ void main() {
     await _spinWheel(tester, at: const Offset(230, 170), notches: 8);
 
     final state = container.read(skyViewStateProvider);
-    // The live evidence was a centre that stayed byte-identical through 23
-    // notches; anything anchored on the cursor must move it.
+    // Anything anchored on the cursor must move it.
     expect(
       (state.centerRA - startRa).abs() + (state.centerDec - startDec).abs(),
       greaterThan(0.01),
