@@ -536,7 +536,7 @@ class HubServer {
           if (decoded is Map && decoded['error'] is Map) {
             code = (decoded['error'] as Map)['code']?.toString();
           }
-        } catch (_) {
+        } on FormatException {
           // Non-JSON error body (none today); fall back to the bare status.
         }
         final token = _bearer(request);
