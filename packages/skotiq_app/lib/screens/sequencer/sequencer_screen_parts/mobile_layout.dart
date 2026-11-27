@@ -186,7 +186,7 @@ class _MobileBuilderLayout extends ConsumerWidget {
 }
 
 /// The inline properties pane shown in the right half of the phone-landscape
-/// split. Falls back to a hint when no node is selected.
+/// split, which is built only while a step is selected.
 class _LandscapePropertiesPane extends ConsumerWidget {
   final SkotiqColors colors;
 
@@ -194,35 +194,20 @@ class _LandscapePropertiesPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedNodeId = ref.watch(selectedNodeIdProvider);
-    final pane = DecoratedBox(
+    return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface,
         border: Border(left: BorderSide(color: colors.border)),
       ),
-      child: selectedNodeId == null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Select a node to edit',
-                  textAlign: TextAlign.center,
-                  style:
-                      SkotiqTypography.bodySm.copyWith(color: colors.textMuted),
-                ),
-              ),
-            )
-          : NodePropertiesPanel(
-              key: TourTarget.sequencerPropertiesPanel.key,
-              colors: colors,
-              // The landscape pane is narrow (~40% of a phone's long edge), so
-              // use the mobile-sheet rendering, which is built to reflow/scroll
-              // at small widths instead of the desktop sidebar's fixed rows.
-              isMobileSheet: true,
-              onClose: () =>
-                  ref.read(selectedNodeIdProvider.notifier).state = null,
-            ),
+      child: NodePropertiesPanel(
+        key: TourTarget.sequencerPropertiesPanel.key,
+        colors: colors,
+        // The landscape pane is narrow (~40% of a phone's long edge), so
+        // use the mobile-sheet rendering, which is built to reflow/scroll
+        // at small widths instead of the desktop sidebar's fixed rows.
+        isMobileSheet: true,
+        onClose: () => ref.read(selectedNodeIdProvider.notifier).state = null,
+      ),
     );
-    return pane;
   }
 }
