@@ -288,6 +288,33 @@ class NotificationRouter {
     return _transports[NotificationTransportKind.inApp]?.isConfigured ?? false;
   }
 
+  /// Whether the notice for [event] is the router's: it shows it in-app, or
+  /// keeps it out of the app because the operator switched its row off. Either
+  /// way no other producer may tell it. [router] is null where no router runs.
+  ///
+  /// A classified sequencer or imaging event is the router's whatever its row
+  /// says. A classified safety event is the router's only while its rules show
+  /// it in the app: a safety notice is never silent. A Notification node that
+  /// names its own transports is the router's while routing is on.
+  static bool tellsInApp(SkotiqEvent event, {NotificationRouter? router}) {
+    if (systemEventOf(event) case final SystemEvent_Notification notification
+        when nodeNotificationTransports(notification) != null) {
+      return router != null && router.matrix.enabled;
+    }
+    final classified = NotificationEventClassifier.classify(event);
+    if (classified == null) return false;
+    return switch (event.category) {
+      EventCategory.sequencer || EventCategory.imaging => true,
+      EventCategory.safety =>
+        router != null &&
+            router.wouldShowInApp(
+              classified.category,
+              severity: classified.severity,
+            ),
+      _ => false,
+    };
+  }
+
   /// A classified event is presented at its category's severity; [severity]
   /// on [route] only decides whether the rule's floor lets it through.
   NotificationMessage _render(

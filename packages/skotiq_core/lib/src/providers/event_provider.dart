@@ -26,9 +26,8 @@ import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
 import '../utils/logging_service.dart';
-import '../services/notification/event_classifier.dart';
 import '../services/notification/notification_router.dart'
-    show nodeNotificationTransports;
+    show NotificationRouter;
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
@@ -236,41 +235,14 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       if (message == null) return;
       if (_isAnnouncedRunWarning(event)) return;
 
-      // A sequencer or imaging event the notification router classifies is
-      // the router's to tell: a failed run (once per run, with its reason),
-      // an operator's Stop arriving as the cancellation notice, a failed
-      // exposure. A second toast
-      // here for the same happening is how one failed run raised three
-      // notices.
-      if ((event.category == core.EventCategory.sequencer ||
-              event.category == core.EventCategory.imaging) &&
-          NotificationEventClassifier.classify(event) != null) {
-        return;
-      }
-
-      // So is a safety event it classifies, when its rules show it in the
-      // app: a mount fault was told as "Mount fault" and twice more as
-      // "Critical: Safety Error" (mobile rework P2-14).
-      if (event.category == core.EventCategory.safety &&
-          ref.exists(notificationRouterProvider)) {
-        final classified = NotificationEventClassifier.classify(event);
-        if (classified != null &&
-            ref
-                .read(notificationRouterProvider)
-                .wouldShowInApp(
-                  classified.category,
-                  severity: classified.severity,
-                )) {
-          return;
-        }
-      }
-
-      // A Notification node that names its own transports is sent by the
-      // notification router on exactly those, while it routes at all.
-      if (systemEventOf(event) case final SystemEvent_Notification notification
-          when nodeNotificationTransports(notification) != null &&
-              ref.exists(notificationRouterProvider) &&
-              ref.read(notificationRouterProvider).matrix.enabled) {
+      // What the notification router tells (a failed run, an operator's
+      // Stop, a failed exposure, a mount fault) is not told twice here.
+      if (NotificationRouter.tellsInApp(
+        event,
+        router: ref.exists(notificationRouterProvider)
+            ? ref.read(notificationRouterProvider)
+            : null,
+      )) {
         return;
       }
 
