@@ -14,9 +14,11 @@ class PushNotificationConfigNotifier
     extends AsyncNotifier<PushNotificationConfig> {
   Future<void> _writeTail = Future<void>.value();
 
+  /// Watches the settings store, so a change a linked client made over the
+  /// API reaches what this host sends to phones at once.
   @override
   Future<PushNotificationConfig> build() async {
-    final dao = ref.read(settingsDaoProvider);
+    final dao = ref.watch(settingsDaoProvider);
     final json = await dao.read(StoreSettings.pushNotifications);
     if (json != null) {
       try {

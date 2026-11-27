@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/src/providers/host_settings/host_settings_providers.dart';
 import 'package:skotiq_core/src/providers/push_notification_provider.dart';
 
 class _FailingSettingsDao extends SettingsDao {
@@ -54,6 +55,37 @@ void main() {
       expect(json['notifyWeatherUnsafe'], isFalse);
     },
   );
+
+  // A linked phone writes the host's row over the API; the host bumps the
+  // store revision, and what reaches phones must follow at once.
+  test('the host reloads the config a linked client wrote', () async {
+    final container = ProviderContainer(
+      overrides: [databaseProvider.overrideWithValue(database)],
+    );
+    addTearDown(container.dispose);
+    final subscription = container.listen(
+      pushNotificationConfigProvider,
+      (_, __) {},
+    );
+    addTearDown(subscription.close);
+    expect(
+      (await container.read(
+        pushNotificationConfigProvider.future,
+      )).notifyGuidingLost,
+      isTrue,
+    );
+
+    await database.settingsDao.setSetting(
+      'push_notification_config',
+      jsonEncode({'enabled': true, 'notifyGuidingLost': false}),
+    );
+    container.read(settingsStoreRevisionProvider.notifier).state++;
+
+    final reloaded = await container.read(
+      pushNotificationConfigProvider.future,
+    );
+    expect(reloaded.notifyGuidingLost, isFalse);
+  });
 
   test(
     'failed persistence leaves the confirmed provider state unchanged',
