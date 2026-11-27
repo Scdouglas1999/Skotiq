@@ -313,8 +313,8 @@ class MobileNotificationService implements MobileNotificationSink {
         _sequenceDetails,
         NotificationPayloadType.sequenceFailed,
       ),
-      // The host pushes a recovery's start and its success; the second
-      // replaces the first.
+      // The host pushes a recovery's start and its success at critical
+      // priority; the second replaces the first, and both stay loud.
       (
         NotificationCategory.recoveryStarted,
         _recoveryId,
@@ -324,7 +324,7 @@ class MobileNotificationService implements MobileNotificationSink {
       (
         NotificationCategory.recoveryRecovered,
         _recoveryId,
-        _infoDetails,
+        _warningDetails,
         NotificationPayloadType.push,
       ),
       (

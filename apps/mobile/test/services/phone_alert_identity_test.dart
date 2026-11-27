@@ -274,10 +274,10 @@ const _expected = <String, List<String>>{
     '119 skotiq_warnings Host: Recovery started -> push',
   ],
   'recoveryRecovered eventFirst': [
-    '119 skotiq_info Host: Recovery succeeded -> push',
+    '119 skotiq_warnings Host: Recovery succeeded -> push',
   ],
   'recoveryRecovered pushFirst': [
-    '119 skotiq_info Host: Recovery succeeded -> push',
+    '119 skotiq_warnings Host: Recovery succeeded -> push',
   ],
   'sequenceFailed eventFirst': [
     '101 skotiq_sequence Sequence failed -> sequence_failed',
