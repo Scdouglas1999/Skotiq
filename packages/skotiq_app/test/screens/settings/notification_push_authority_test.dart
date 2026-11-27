@@ -155,6 +155,11 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Send alerts'), findsNothing);
+    // The line does not send the operator away for what this page edits.
+    expect(
+      find.textContaining('Discord and Pushover are above'),
+      findsOneWidget,
+    );
   });
 
   // A headless host has no screen: a linked phone edits which events the host

@@ -380,16 +380,18 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Application token',
     'Base URL',
     'Default / test webhook URL',
+    'Discord, Pushover and Home Assistant',
     'Imaging host',
     'Integrations',
     'Long-lived access token',
     'Managed on the imaging host',
     'Notifications & events',
-    'Open Skotiq on the rig to enable plugins and enter',
     'Plugins',
     'Send run events to Discord, Pushover or email',
+    'Set on the Notifications page, which saves them on',
+    'Turning the bundled plugins on or off is done in',
     'User / group key',
-    'Which events go where is set on the Notifications',
+    'Which events go where is set on the Notifications page.',
   ],
   'location': [
     'Advanced',
@@ -446,6 +448,7 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Discord',
     'Discovery prefix',
     'Email (SMTP)',
+    'Email, webhook and Telegram, and which events go',
     'End of the night',
     'Equipment disconnected',
     'Errors',
@@ -495,7 +498,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Send a test to your phone.',
     'Send alerts',
     'Send these alerts',
-    'Send these events to phones paired with this',
     'SEND TO',
     'Send to paired phones',
     'Sends a test to paired phones. If it does not',
@@ -515,7 +517,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Test Pushover',
     'Test Telegram',
     'Test webhook',
-    'The computer that runs the rig sends the alerts,',
     'The Discord channel alerts are posted to.',
     'The end of the night, errors and meridian flips,',
     'The key of your Pushover application.',
@@ -989,9 +990,11 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'XISF checksums',
   },
   'integrations': {
-    'Open Skotiq on the rig to enable plugins and enter':
+    'Set on the Notifications page, which saves them on':
+        'Discord, Pushover and Home Assistant',
+    'Turning the bundled plugins on or off is done in':
         'Managed on the imaging host',
-    'Which events go where is set on the Notifications':
+    'Which events go where is set on the Notifications page.':
         'Send run events to Discord, Pushover or email',
   },
   'location': {
@@ -1010,6 +1013,8 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Publish to Home Assistant',
     'Blank = "Skotiq Observatory <profile>"': 'Device name',
     'Blank = Skotiq Observatory and active profile': 'Device name',
+    'Email, webhook and Telegram, and which events go':
+        'Set up on the imaging computer',
     'Lets HA pause/resume and abort the running sequence.':
         'Allow control from Home Assistant',
     'Off, no alert goes anywhere: not to the app, phones,': 'Send alerts',
@@ -1024,12 +1029,9 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Host configuration unavailable',
     'Send a test email through the configured SMTP server': 'Test email',
     'Send a test to your phone.': 'Test Pushover',
-    'Send these events to phones paired with this': 'Push to phones',
     'Sends a test to paired phones. If it does not': 'Send a test',
     'Sound an alarm here when a run hits a critical': 'Ring on this computer',
     'Stored securely in the OS keyring.': 'Password',
-    'The computer that runs the rig sends the alerts,':
-        'Set up on the imaging computer',
     'The Discord channel alerts are posted to.': 'Webhook URL',
     'The end of the night, errors and meridian flips,': 'Send these alerts',
     'The key of your Pushover application.': 'API key',

@@ -90,20 +90,27 @@ class IntegrationsSettings extends ConsumerWidget {
     // Plugin code and credentials live on the process that executes the
     // sequence. A thin client must not register/configure a second local host
     // and imply those changes affect the remote rig.
+    // Discord, Pushover and Home Assistant reach the host through the
+    // Notifications page; turning the bundled plugins on or off has no host
+    // route yet.
     if (ref.watch(isRemoteClientProvider)) {
       return const SettingsPage(
         title: 'Integrations',
         description:
             'Plugin integrations execute on the connected imaging host.',
         children: [
+          _NotificationCrossLinkSection(
+            title: 'Discord, Pushover and Home Assistant',
+            subtitle: 'Set on the Notifications page, which saves them on '
+                'the imaging computer.',
+          ),
           SettingsSection(
             title: 'Imaging host',
             children: [
               SettingRow(
                 title: 'Managed on the imaging host',
-                subtitle: 'Open Skotiq on the rig to enable plugins and enter '
-                    'their credentials. Local changes on this client would '
-                    'not affect remote sequence execution.',
+                subtitle: 'Turning the bundled plugins on or off is done in '
+                    'Skotiq on the imaging computer itself.',
                 trailing: Icon(LucideIcons.lock, size: 16),
                 stackWhenNarrow: true,
               ),
@@ -154,7 +161,10 @@ class _IntegrationsBody extends ConsumerWidget {
           'chat and push, and manage the bundled plugins that add sequence '
           'nodes for Discord, Pushover, and Home Assistant.',
       children: [
-        const _NotificationCrossLinkSection(),
+        const _NotificationCrossLinkSection(
+          title: 'Send run events to Discord, Pushover or email',
+          subtitle: 'Which events go where is set on the Notifications page.',
+        ),
         _PluginsSection(
           plugins: plugins,
           enabledSet: enabledSet,

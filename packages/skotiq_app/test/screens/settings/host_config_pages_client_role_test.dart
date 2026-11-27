@@ -18,6 +18,7 @@ import 'package:skotiq_core/backend.dart' show DemoBackend;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
 
@@ -162,6 +163,12 @@ void main() {
         await tester.pump();
 
         expect(find.text('Managed on the imaging host'), findsOneWidget);
+        // Discord, Pushover and Home Assistant are reachable from a phone,
+        // on the Notifications page.
+        expect(
+          find.widgetWithText(SkotiqButton, 'Open notifications'),
+          findsOneWidget,
+        );
       });
     });
   }

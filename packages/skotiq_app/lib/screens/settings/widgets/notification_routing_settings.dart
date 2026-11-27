@@ -57,16 +57,16 @@ class NotificationRoutingSettings extends ConsumerWidget {
             children: [
               SettingRow(
                 title: 'Set up on the imaging computer',
-                subtitle: 'The computer that runs the rig sends the alerts, '
-                    'so email, webhook, Pushover, Telegram, Discord and MQTT '
-                    'are set up there.',
+                subtitle: 'Email, webhook and Telegram, and which events go '
+                    'to each, are set up in Skotiq on the imaging computer '
+                    'itself. Discord and Pushover are above; the MQTT broker '
+                    'is under Home Assistant below.',
                 trailing: SizedBox.shrink(),
               ),
             ],
           ),
-          // Home Assistant already has strict remote host API parity, so it
-          // remains editable from a controller while the other transports are
-          // intentionally host-only.
+          // The host serves Home Assistant and its MQTT broker over its own
+          // route, so a controller edits them here.
           _HomeAssistantSection(),
         ],
       );
