@@ -28,6 +28,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_event;
 
 import '../models/backend/event_types.dart' as core_events;
+import '../models/notification/notification_categories.dart'
+    show NotificationCategory;
 import '../models/sequencer/recovery_status.dart';
 import '../models/sequence/sequence_models.dart';
 import 'backend_provider.dart';
@@ -525,7 +527,7 @@ final recoveryPushBridgeProvider = Provider<void>((ref) {
     enqueue(
       title: 'Recovering: ${next.cause.displayLabel}',
       body: 'Sequence entered recovery mode. Attempt 1 of ${next.maxAttempts}.',
-      eventType: 'recovery_started_${next.cause.wireKey}',
+      eventType: NotificationCategory.recoveryStarted.storageKey,
     );
   });
 
@@ -547,8 +549,9 @@ final recoveryPushBridgeProvider = Provider<void>((ref) {
       enqueue(
         title: _recoveryExitTitle(entry),
         body: _recoveryExitBody(entry),
-        eventType:
-            'recovery_${entry.recovered ? 'recovered' : 'gave_up'}_${entry.cause.wireKey}',
+        eventType: entry.recovered
+            ? NotificationCategory.recoveryRecovered.storageKey
+            : NotificationCategory.recoveryGaveUp.storageKey,
       );
     }
   });

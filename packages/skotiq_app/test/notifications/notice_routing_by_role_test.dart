@@ -677,7 +677,7 @@ const _expected = <String, List<String>>{
     'push Sequence failed [sequenceFailed]',
   ],
   'hostGui sequenceFailed rowOff': [
-    'push Critical · Sequencer [Sequence failed]',
+    'push Critical · Sequencer [sequenceFailed]',
   ],
   'hostGui sequenceStopped defaults': [
     'toast info Sequence stopped',
@@ -719,7 +719,7 @@ const _expected = <String, List<String>>{
     'push Exposure failed [exposureFailed]',
   ],
   'hostGui exposureFailed rowOff': [
-    'push Critical · Imaging [Exposure failed]',
+    'push Critical · Imaging [exposureFailed]',
   ],
   'hostGui recoveryStarted defaults': [
     'toast warning Recovery started',
@@ -732,7 +732,7 @@ const _expected = <String, List<String>>{
     'push Recovery gave up [recoveryGaveUp]',
   ],
   'hostGui recoveryGaveUp rowOff': [
-    'push Critical · Sequencer [Recovery exhausted]',
+    'push Critical · Sequencer [recoveryGaveUp]',
   ],
   'hostGui guidingLost defaults': [
     'toast error Guiding lost',
@@ -743,7 +743,7 @@ const _expected = <String, List<String>>{
     'push Weather unsafe [weatherUnsafe]',
   ],
   'hostGui weatherUnsafe rowOff': [
-    'push Critical · Safety [Weather unsafe]',
+    'push Critical · Safety [weatherUnsafe]',
   ],
   'hostGui weatherSafeAgain defaults': [
     'toast success Weather safe again',
@@ -753,14 +753,14 @@ const _expected = <String, List<String>>{
     'push Mount fault [mountFault]',
   ],
   'hostGui mountFault rowOff': [
-    'push Critical · Safety [Mount moved on its own]',
+    'push Critical · Safety [mountFault]',
   ],
   'hostGui diskSpaceLow defaults': [
     'toast error Disk space low',
     'push Disk space low [diskSpaceLow]',
   ],
   'hostGui diskSpaceLow rowOff': [
-    'push Critical · System [Disk space low]',
+    'push Critical · System [diskSpaceLow]',
   ],
   'hostGui equipmentDisconnected defaults': [
     'toast error Equipment disconnected',
@@ -810,7 +810,7 @@ const _expected = <String, List<String>>{
     'push Sequence failed [sequenceFailed]',
   ],
   'hostDaemon sequenceFailed rowOff': [
-    'push Critical · Sequencer [Sequence failed]',
+    'push Critical · Sequencer [sequenceFailed]',
   ],
   'hostDaemon sequenceStopped defaults': [
     'toast info Sequence stopped',
@@ -852,7 +852,7 @@ const _expected = <String, List<String>>{
     'push Exposure failed [exposureFailed]',
   ],
   'hostDaemon exposureFailed rowOff': [
-    'push Critical · Imaging [Exposure failed]',
+    'push Critical · Imaging [exposureFailed]',
   ],
   'hostDaemon recoveryStarted defaults': [
     'toast warning Recovery started',
@@ -865,7 +865,7 @@ const _expected = <String, List<String>>{
     'push Recovery gave up [recoveryGaveUp]',
   ],
   'hostDaemon recoveryGaveUp rowOff': [
-    'push Critical · Sequencer [Recovery exhausted]',
+    'push Critical · Sequencer [recoveryGaveUp]',
   ],
   'hostDaemon guidingLost defaults': [
     'toast error Guiding lost',
@@ -876,7 +876,7 @@ const _expected = <String, List<String>>{
     'push Weather unsafe [weatherUnsafe]',
   ],
   'hostDaemon weatherUnsafe rowOff': [
-    'push Critical · Safety [Weather unsafe]',
+    'push Critical · Safety [weatherUnsafe]',
   ],
   'hostDaemon weatherSafeAgain defaults': [
     'toast success Weather safe again',
@@ -886,14 +886,14 @@ const _expected = <String, List<String>>{
     'push Mount fault [mountFault]',
   ],
   'hostDaemon mountFault rowOff': [
-    'push Critical · Safety [Mount moved on its own]',
+    'push Critical · Safety [mountFault]',
   ],
   'hostDaemon diskSpaceLow defaults': [
     'toast error Disk space low',
     'push Disk space low [diskSpaceLow]',
   ],
   'hostDaemon diskSpaceLow rowOff': [
-    'push Critical · System [Disk space low]',
+    'push Critical · System [diskSpaceLow]',
   ],
   'hostDaemon equipmentDisconnected defaults': [
     'toast error Equipment disconnected',

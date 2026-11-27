@@ -268,7 +268,7 @@ void main() {
         frame.body,
         'Guide star lost -> re-acquired after 2 attempts, imaging resumed.',
       );
-      expect(frame.data['eventType'], 'recovery_recovered_guide_star_lost');
+      expect(frame.data['eventType'], 'recoveryRecovered');
     });
 
     test('autofocus-failed recovered -> critical frame', () async {
@@ -283,10 +283,7 @@ void main() {
         frame.body,
         'Critical focus drift -> re-acquired after 1 attempt, imaging resumed.',
       );
-      expect(
-        frame.data['eventType'],
-        'recovery_recovered_focus_drift_critical',
-      );
+      expect(frame.data['eventType'], 'recoveryRecovered');
     });
 
     test('weather-abort gave up -> critical "gave up" frame', () async {
@@ -301,7 +298,7 @@ void main() {
         frame.body,
         'Weather unsafe -> gave up after 3 attempts; sequence stopped, mount safe.',
       );
-      expect(frame.data['eventType'], 'recovery_gave_up_weather_unsafe');
+      expect(frame.data['eventType'], 'recoveryGaveUp');
     });
 
     test('device-disconnect gave up -> critical exhaustion frame', () async {
@@ -316,7 +313,7 @@ void main() {
         frame.body,
         'Device disconnected -> gave up after 5 attempts; sequence stopped, mount safe.',
       );
-      expect(frame.data['eventType'], 'recovery_gave_up_device_disconnected');
+      expect(frame.data['eventType'], 'recoveryGaveUp');
     });
 
     test('operator-aborted recovery -> "aborted" critical frame', () async {
@@ -332,7 +329,7 @@ void main() {
         frame.body,
         'Guide star lost -> recovery aborted by operator after 2 attempts.',
       );
-      expect(frame.data['eventType'], 'recovery_gave_up_guide_star_lost');
+      expect(frame.data['eventType'], 'recoveryGaveUp');
     });
 
     test(

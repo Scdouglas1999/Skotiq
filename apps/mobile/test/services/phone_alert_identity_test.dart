@@ -54,6 +54,8 @@ SkotiqEvent _seq(sk.SequencerEvent event, sk.EventSeverity severity) =>
 /// from the host's push.
 final Map<NotificationCategory, SkotiqEvent? Function()> _happenings = {
   NotificationCategory.sequenceCompleted: () => null,
+  NotificationCategory.recoveryStarted: () => null,
+  NotificationCategory.recoveryRecovered: () => null,
   NotificationCategory.sequenceFailed: () => _seq(
     const sk.SequencerEvent.failed(error: 'Mount did not answer'),
     sk.EventSeverity.error,
@@ -264,6 +266,18 @@ const _expected = <String, List<String>>{
   ],
   'sequenceCompleted pushFirst': [
     '100 skotiq_sequence Host: Sequence completed -> sequence_complete',
+  ],
+  'recoveryStarted eventFirst': [
+    '119 skotiq_warnings Host: Recovery started -> push',
+  ],
+  'recoveryStarted pushFirst': [
+    '119 skotiq_warnings Host: Recovery started -> push',
+  ],
+  'recoveryRecovered eventFirst': [
+    '119 skotiq_info Host: Recovery succeeded -> push',
+  ],
+  'recoveryRecovered pushFirst': [
+    '119 skotiq_info Host: Recovery succeeded -> push',
   ],
   'sequenceFailed eventFirst': [
     '101 skotiq_sequence Sequence failed -> sequence_failed',
