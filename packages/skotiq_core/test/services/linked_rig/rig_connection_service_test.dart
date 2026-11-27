@@ -335,7 +335,7 @@ void main() {
         async.flushMicrotasks();
         expect(service.state.stale, isTrue);
 
-        async.elapse(const Duration(seconds: 30));
+        async.elapse(hostLinkRetryWindow);
         // The resting backend the disconnect lands on clears the server.
         service.backendChanged(offersLink: true);
         async.flushMicrotasks();
@@ -348,6 +348,38 @@ void main() {
         async.flushMicrotasks();
         expect(session.opened, ['192.168.1.20:8080 t', '192.168.1.20:8080 t']);
         expect(service.state.connected?.host, '192.168.1.20');
+      });
+    },
+  );
+
+  test(
+    'a link back inside its retry window keeps the session and its screen',
+    () {
+      fakeAsync((async) {
+        final service = build();
+        service.connect(_host(token: 't'));
+        async.flushMicrotasks();
+        final link = session.openLink!;
+        link.connectionState = BackendConnectionState.reconnecting;
+        link.states.add(BackendConnectionState.reconnecting);
+        async.flushMicrotasks();
+        expect(service.state.stale, isTrue);
+
+        // The phone check's outage: 36 s of airplane mode, after which the
+        // link's next attempt (61 s into its ramp) gets through.
+        async.elapse(const Duration(seconds: 61));
+        expect(service.state.problem, isNull);
+        expect(service.state.connected?.host, '192.168.1.20');
+        expect(service.state.stale, isTrue, reason: 'the banner stays up');
+        expect(session.disconnects, 0);
+
+        link.connectionState = BackendConnectionState.connected;
+        link.states.add(BackendConnectionState.connected);
+        async.flushMicrotasks();
+        expect(service.state.stale, isFalse);
+        async.elapse(hostLinkRetryWindow);
+        expect(session.disconnects, 0);
+        expect(service.state.problem, isNull);
       });
     },
   );

@@ -1,6 +1,6 @@
 // Losing the host must not be terminal.
 //
-// When the network drops, the app tears the session down after the 30 s grace
+// When the network drops, the app tears the session down after the grace
 // period and shows "Connection to server lost. Please reconnect." Getting back
 // from there is the retry path's job: the grace timer's callback is otherwise
 // the end of the line, and the app sits on that screen even once the network

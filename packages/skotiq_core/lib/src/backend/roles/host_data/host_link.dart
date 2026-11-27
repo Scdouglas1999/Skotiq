@@ -7,6 +7,14 @@ import '../../../models/backend/backend_connection_state.dart';
 Duration hostLinkReconnectDelay(int attempt) =>
     _hostLinkReconnectRamp[attempt.clamp(0, _hostLinkReconnectRamp.length - 1)];
 
+/// How long a dropped link is given before the client gives up on it: every
+/// attempt of the ramp, then one full wait at its longest, so the first
+/// steady attempt has had its time to answer.
+final Duration hostLinkRetryWindow = _hostLinkReconnectRamp.fold(
+  _hostLinkReconnectRamp.last,
+  (total, wait) => total + wait,
+);
+
 const _hostLinkReconnectRamp = <Duration>[
   Duration(seconds: 1),
   Duration(seconds: 2),
