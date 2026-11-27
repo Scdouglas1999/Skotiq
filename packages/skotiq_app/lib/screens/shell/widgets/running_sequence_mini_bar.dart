@@ -54,7 +54,6 @@ class RunningSequenceMiniBar extends ConsumerWidget {
     final sessionState = ref.watch(sessionStateProvider);
     final targetName = sessionState.targetName;
 
-    final isRunning = executionState == SequenceExecutionState.running;
     final transport = ref.watch(sequencerRunTransportProvider);
     final canDrive = transport.pauseResume?.enabled == true;
 
@@ -147,14 +146,14 @@ class RunningSequenceMiniBar extends ConsumerWidget {
               ),
               _MiniControlButton(
                 colors: colors,
-                icon: isRunning ? LucideIcons.pause : LucideIcons.play,
-                tooltip: isRunning ? 'Pause' : 'Resume',
+                icon: transport.resumes ? LucideIcons.play : LucideIcons.pause,
+                tooltip: transport.resumes ? 'Resume' : 'Pause',
                 isEnabled: canDrive,
                 onPressed: () async {
                   final service = ref.read(sequenceActionServiceProvider);
-                  final result = isRunning
-                      ? await service.pause()
-                      : await service.resume();
+                  final result = transport.resumes
+                      ? await service.resume()
+                      : await service.pause();
                   if (!context.mounted) return;
                   context.showCommandActionResult(result);
                 },

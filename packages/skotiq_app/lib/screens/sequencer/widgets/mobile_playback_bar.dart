@@ -39,15 +39,15 @@ class MobilePlaybackBar extends ConsumerWidget {
         _MobilePlaybackButton(
           key: TourTarget.sequencerTransport.key,
           colors: colors,
-          icon: canPause ? LucideIcons.pause : LucideIcons.play,
-          label: pauseResume ? (canPause ? 'Pause' : 'Resume') : 'Start',
+          icon: transport.resumes ? LucideIcons.play : LucideIcons.pause,
+          label: transport.resumes ? 'Resume' : 'Pause',
           isActive: canPause,
           isEnabled: pauseResume,
           isCompact: true,
           onPressed: () async {
             final service = ref.read(sequenceActionServiceProvider);
             final result =
-                await (canPause ? service.pause() : service.resume());
+                await (transport.resumes ? service.resume() : service.pause());
             if (!context.mounted) return;
             context.showCommandActionResult(result);
           },

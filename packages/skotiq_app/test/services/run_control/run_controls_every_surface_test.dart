@@ -141,33 +141,33 @@ const _expected = <String, List<String>>{
     'Resume-(ncPlanActionOwnsResume) Skip step-(ncPlanActionInProgress) Stop+'
   ],
   'recovering': [
-    'Stop+',
-    'Start- Stop+ Skip-',
-    'Resume- Stop+ Skip-',
+    'Pause- Stop+',
+    'Pause- Stop+ Skip-',
+    'Pause- Stop+ Skip-',
     'Pause-(ncPlanRecovering) Skip step-(ncPlanRecovering) Stop+'
   ],
   'stopping': [
-    'Stop+',
-    'Start- Stop+ Skip-',
-    'Resume- Stop+ Skip-',
+    'Pause- Stop+',
+    'Pause- Stop+ Skip-',
+    'Pause- Stop+ Skip-',
     'Pause-(ncPlanStopping) Skip step-(ncPlanStopping) Stop+'
   ],
   'finalizing': [
     'Fix 1 error+',
     'Start-',
-    'Resume- Stop- Skip-',
+    'Pause- Stop- Skip-',
     'Pause-(ncPlanStopping) Skip step-(ncPlanStopping) Stop-(ncPlanFinalizing)'
   ],
   'stopFailed': [
-    'Stop+',
-    'Start- Stop+ Skip-',
-    'Resume- Stop+ Skip-',
+    'Pause- Stop+',
+    'Pause- Stop+ Skip-',
+    'Pause- Stop+ Skip-',
     'Pause-(ncPlanStopping) Skip step-(ncPlanStopping) Stop+'
   ],
   'cleanupFailed': [
-    'Stop+',
-    'Start- Stop+ Skip-',
-    'Resume- Stop+ Skip-',
+    'Pause- Stop+',
+    'Pause- Stop+ Skip-',
+    'Pause- Stop+ Skip-',
     'Pause-(ncPlanStopping) Skip step-(ncPlanStopping) Stop+'
   ],
   'completed': [

@@ -13,7 +13,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-
 /// Now, as a true instant (UTC), on Tonight's shared 30 s tick.
 ///
 /// Tests override this with a fixed instant.

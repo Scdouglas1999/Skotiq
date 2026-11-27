@@ -162,16 +162,16 @@ class _SequencerPageHeader extends ConsumerWidget {
     );
   }
 
+  /// A run is on that Stop can end.
+  static bool _runToStop(RunTransport transport) =>
+      transport.stop?.enabled == true;
+
   /// The header's transport: `start` "Start" while idle, `destructive` "Stop"
   /// plus `secondary` "Pause"/"Resume" once the executor owns the tree.
   ///
   /// Skip and Reset are deliberately absent — they belong to a run in flight,
   /// not to the page. They live on in the canvas bar's overflow menu, so no
   /// capability is lost.
-  /// A run is on that Stop can end.
-  static bool _runToStop(RunTransport transport) =>
-      transport.stop?.enabled == true;
-
   static List<Widget> _transportActions({
     required RunTransport transport,
     required int errorCount,
@@ -208,21 +208,22 @@ class _SequencerPageHeader extends ConsumerWidget {
         ),
       ];
     }
-    final pauseResume = transport.pauseResume?.enabled == true;
+    final pauseResume = transport.pauseResume;
     return <Widget>[
-      if (pauseResume && !transport.resumes)
-        SkotiqButton(
-          label: 'Pause',
-          icon: LucideIcons.pause,
-          variant: ButtonVariant.secondary,
-          onPressed: onPause,
-        )
-      else if (pauseResume && transport.resumes)
-        SkotiqButton(
-          label: 'Resume',
-          icon: LucideIcons.play,
-          variant: ButtonVariant.secondary,
-          onPressed: onResume,
+      if (pauseResume != null)
+        Builder(
+          builder: (context) => SkotiqButton(
+            label: transport.resumes ? 'Resume' : 'Pause',
+            icon: transport.resumes ? LucideIcons.play : LucideIcons.pause,
+            variant: ButtonVariant.secondary,
+            onPressed: !pauseResume.enabled
+                ? null
+                : transport.resumes
+                    ? onResume
+                    : onPause,
+            semanticsHint: pauseResume.disabledReason
+                ?.resolve(SkotiqLocalizations.of(context)),
+          ),
         ),
       // Hold to confirm, as the Tonight header does: a stray tap on a Fold or
       // tablet must not end an overnight run.
